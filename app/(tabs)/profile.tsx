@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { ChevronRight, QrCode, Shield, Settings, Bell, Star } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useProfileStore } from '@/src/store/useProfileStore';
+import { ProfileSearchHeader } from '@/src/components/profile/profileSearchHeader';
+import { router } from 'expo-router';
 
 function Row({ title, Icon }: { title: string; Icon: React.ComponentType<{ size?: number; color?: string }> }) {
   return (
@@ -28,13 +30,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Cá nhân</Text>
-        <TouchableOpacity style={styles.iconButton}>
-          <QrCode size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
+        <ProfileSearchHeader onPressSearch={() => router.push('/search')} />
       <View style={styles.card}>
         <Image source={{ uri: profile?.avatar }} style={styles.avatar} />
         <View style={{ flex: 1 }}>
@@ -57,14 +53,6 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#000' },
   container: { flex: 1, backgroundColor: '#000' },
-  header: {
-    height: 56,
-    paddingHorizontal: 16,
-    backgroundColor: '#1a1a1a',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600' },
   iconButton: {
     width: 36,
@@ -104,7 +92,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: '#222',
   },
-  rowLeft: { flexDirection: 'row', alignItems: 'center' },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rowIconWrap: {
     width: 34,
     height: 34,
