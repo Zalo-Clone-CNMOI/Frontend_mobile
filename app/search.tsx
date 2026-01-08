@@ -1,14 +1,15 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter } from 'expo-router';
 import { Search, X } from 'lucide-react-native';
+import React, { useEffect } from 'react';
+import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSearchStore } from '../src/store/searchStore';
 
 export default function SearchScreen() {
   const router = useRouter();
   const query = useSearchStore((state) => state.query);
   const filteredResults = useSearchStore((state) => state.filteredResults);
+  const filteredResultsV2 = useSearchStore((state) => state.filteredResultsV2);
   const setQuery = useSearchStore((state) => state.setQuery);
   const initializeSearchData = useSearchStore((state) => state.initializeSearchData);
 
@@ -47,23 +48,62 @@ export default function SearchScreen() {
 
       <Text style={styles.sectionTitle}>Gợi ý</Text>
 
+      {/* Render v2 results first (users + conversations), fall back to legacy results */}
       <FlashList
-        data={filteredResults}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.id, name: item.name } })}
-          >
-            <Image source={{ uri: item.avatar }} style={styles.avatar} />
-            <View style={styles.rowContent}>
-              <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.subtitle} numberOfLines={1}>
-                {item.subtitle}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
+        data={filteredResultsV2 && filteredResultsV2.length ? filteredResultsV2 : filteredResults}
+        keyExtractor={(item: any) => (item.type === 'user' ? item.id : item.type === 'conversation' ? item.conversationId : item.id)}
+        renderItem={({ item }: any) => {
+          // v2 item
+          if (item.type === 'user') {
+            return (
+              <TouchableOpacity
+                style={styles.row}
+                onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.id, name: item.fullName } })}
+              >
+                <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                <View style={styles.rowContent}>
+                  <Text style={styles.name}>{item.fullName}</Text>
+                  <Text style={styles.subtitle} numberOfLines={1}>
+                    Người dùng
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          }
+
+          if (item.type === 'conversation') {
+            return (
+              <TouchableOpacity
+                style={styles.row}
+                onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.conversationId, name: item.name } })}
+              >
+                <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                <View style={styles.rowContent}>
+                  <Text style={styles.name}>{item.name}</Text>
+                  <Text style={styles.subtitle} numberOfLines={1}>
+                    Cuộc trò chuyện
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          }
+
+          // legacy item
+          return (
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.id, name: item.name } })}
+            >
+              <Image source={{ uri: item.avatar }} style={styles.avatar} />
+              <View style={styles.rowContent}>
+                <Text style={styles.name}>{item.name}</Text>
+                <Text style={styles.subtitle} numberOfLines={1}>
+                  {item.subtitle}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
     </View>
   );

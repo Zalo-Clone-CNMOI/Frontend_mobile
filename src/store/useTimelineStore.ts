@@ -1,14 +1,16 @@
 import { create } from 'zustand';
-import { TimelinePost } from '../data/timelineMockData';
-import { TIMELINE_POSTS_MOCK_DATA } from '../data/timelineMockData';
+import { TIMELINE_V2, TimelinePost, TimelinePostV2 } from '../data/timelineMockData';
 
 interface TimelineState {
   // State
   posts: TimelinePost[];
+  // v2 posts
+  postsV2: TimelinePostV2[];
 
   // Actions
   initializePosts: () => void;
   getPosts: () => TimelinePost[];
+  getPostsV2: () => TimelinePostV2[];
   addPost: (post: TimelinePost) => void;
   deletePost: (postId: string) => void;
   updatePost: (postId: string, updates: Partial<TimelinePost>) => void;
@@ -17,16 +19,24 @@ interface TimelineState {
 export const useTimelineStore = create<TimelineState>((set, get) => ({
   // State
   posts: [],
+  postsV2: [],
 
   // Actions
   initializePosts: () => {
-    set({
-      posts: TIMELINE_POSTS_MOCK_DATA,
-    });
+    // Prefer v2 timeline posts directly
+    if (TIMELINE_V2 && TIMELINE_V2.length) {
+      set({ postsV2: TIMELINE_V2, posts: [] });
+      return;
+    }
+
+    set({ posts: [], postsV2: [] });
   },
 
   getPosts: () => {
     return get().posts;
+  },
+  getPostsV2: () => {
+    return get().postsV2;
   },
 
   addPost: (post: TimelinePost) => {

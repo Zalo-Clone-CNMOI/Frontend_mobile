@@ -1,24 +1,30 @@
 import { create } from 'zustand';
-import { Contact, FRIENDS_MOCK_DATA, GROUPS_MOCK_DATA, OA_MOCK_DATA } from '../data/contactsMockData';
+import { Contact, USERS_V2, UserV2 } from '../data/contactsMockData';
 
 interface ContactsState {
   // State
   friends: Contact[];
   groups: Contact[];
   oas: Contact[];
-  activeTab: 0 | 1 | 2; // 0: friends, 1: groups, 2: oas
+  activeTab: number; // 0: friends, 1: groups, 2: oas
   filterType: 'all' | 'recent';
   searchQuery: string;
 
   // Computed
   currentData: Contact[];
   filteredData: Contact[];
+  // V2 users (production-like)
+  usersV2: UserV2[];
+  filteredUsersV2: UserV2[];
+  usersFilterType: 'all' | 'recent';
 
   // Actions
   initializeContacts: () => void;
-  setActiveTab: (tab: 0 | 1 | 2) => void;
-  setFilterType: (filter: 'all' | 'recent') => void;
+  setActiveTab: (tab: number) => void;
   setSearchQuery: (query: string) => void;
+  // V2 actions
+  setUsersFilterType: (filter: 'all' | 'recent') => void;
+  setUsersSearchQuery: (query: string) => void;
   addFriend: (friend: Contact) => void;
   deleteFriend: (friendId: string) => void;
   addGroup: (group: Contact) => void;
@@ -35,18 +41,40 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   searchQuery: '',
   currentData: [],
   filteredData: [],
+  usersV2: [],
+  filteredUsersV2: [],
+  usersFilterType: 'all',
 
   // Actions
   initializeContacts: () => {
+    // Initialize v2 users directly (production-like shape)
+    if (USERS_V2 && USERS_V2.length) {
+      const users = USERS_V2.slice();
+
+      set({
+        usersV2: users,
+        // Derive simple legacy-shaped lists from usersV2
+        friends: users.map((u) => ({ id: u.id, name: u.fullName, subtitle: '', avatar: u.avatar || '', type: 'friend' })),
+        groups: [],
+        oas: [],
+        // default filtered users (exclude self)
+        filteredUsersV2: users.filter((u) => u.id !== 'user-me'),
+      });
+      get().setActiveTab(0);
+      return;
+    }
+
     set({
-      friends: FRIENDS_MOCK_DATA,
-      groups: GROUPS_MOCK_DATA,
-      oas: OA_MOCK_DATA,
+      friends: [],
+      groups: [],
+      oas: [],
+      usersV2: [],
+      filteredUsersV2: [],
     });
     get().setActiveTab(0); // Trigger re-computation
   },
 
-  setActiveTab: (tab: 0 | 1 | 2) => {
+  setActiveTab: (tab: number) => {
     set((state) => {
       let baseData = tab === 0 ? state.friends : tab === 1 ? state.groups : state.oas;
 
@@ -95,6 +123,32 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
         currentData: baseData,
         filteredData: baseData,
       };
+    });
+  },
+
+  // V2: filter users by presence or search
+  setUsersFilterType: (filter: 'all' | 'recent') => {
+    set((state) => {
+      let users = state.usersV2 || [];
+      if (filter === 'recent') {
+        users = users.filter((u) => u.status === 'online');
+      }
+
+      return {
+        usersFilterType: filter,
+        filteredUsersV2: users.filter((u) => u.id !== 'user-me'),
+      };
+    });
+  },
+
+  setUsersSearchQuery: (query: string) => {
+    set((state) => {
+      const trimmed = query.trim().toLowerCase();
+      const filtered = trimmed
+        ? (state.usersV2 || []).filter((u) => u.fullName.toLowerCase().includes(trimmed) && u.id !== 'user-me')
+        : (state.usersV2 || []).filter((u) => u.id !== 'user-me');
+
+      return { filteredUsersV2: filtered };
     });
   },
 

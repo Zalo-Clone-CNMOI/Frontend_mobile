@@ -1,11 +1,11 @@
 
+import { Colors } from '@/src/constants/Colors';
+import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
+import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
+import { SwitchCamera, X, Zap, ZapOff } from 'lucide-react-native';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
-import { useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
-import { SwitchCamera, X, Zap, ZapOff } from 'lucide-react-native';
-import { Colors } from '@/src/constants/Colors';
 
 export default function ScannerScreen() {
   const router = useRouter();
@@ -121,7 +121,7 @@ export default function ScannerScreen() {
 
         <Pressable style={styles.actionBtn} onPress={() => setFacing((v) => (v === 'back' ? 'front' : 'back'))}>
           <SwitchCamera size={20} color="#fff" />
-          <Text style={styles.actionText}>Đổi camera</Text>
+          <Text style={styles.actionText}>{'Đổi camera'}</Text>
         </Pressable>
       </View>
 
@@ -199,7 +199,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
   },
   actionText: { color: '#fff', fontSize: 12 },
   rescanPill: {

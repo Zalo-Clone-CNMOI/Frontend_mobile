@@ -134,7 +134,6 @@ export default function AddFriendScreen() {
         </View>
       </View>
 
-      {/* --- MODAL CHỌN QUỐC GIA (TỰ VIẾT) --- */}
       <Modal visible={modalVisible} animationType="slide" transparent={false}>
         <SafeAreaView style={styles.modalBg}>
           <View style={styles.modalHeader}>

@@ -1,27 +1,27 @@
+import type { ConversationV2 } from '@/src/types/chat';
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import type { ChatPreview } from '@/src/types/chat';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export function ChatListItem({
   item,
   onPress,
 }: {
-  item: ChatPreview;
+  item: ConversationV2;
   onPress: () => void;
 }) {
   return (
     <TouchableOpacity style={styles.chatItem} onPress={onPress}>
       <View>
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        {item.hasDot && <View style={styles.redDot} />}
+        <Image source={{ uri: item.avatar || '' }} style={styles.avatar} />
+        {item.unreadCount && item.unreadCount > 0 ? <View style={styles.redDot} /> : null}
       </View>
       <View style={styles.chatContent}>
         <View style={styles.chatHeader}>
           <Text style={styles.chatName}>{item.name}</Text>
-          <Text style={styles.chatTime}>{item.time ?? ''}</Text>
+          <Text style={styles.chatTime}>{item.lastMessage ? new Date(item.lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}</Text>
         </View>
         <Text style={styles.lastMsg} numberOfLines={1}>
-          {item.lastMsg}
+          {item.lastMessage?.content || ''}
         </Text>
       </View>
     </TouchableOpacity>

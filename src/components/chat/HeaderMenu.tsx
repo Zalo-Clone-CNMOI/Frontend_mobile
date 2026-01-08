@@ -1,7 +1,7 @@
-import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View, Dimensions } from 'react-native';
-import { UserPlus, Users, Cloud, Calendar, Video, Monitor } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { Cloud, UserPlus, Users } from 'lucide-react-native';
+import React from 'react';
+import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -11,14 +11,14 @@ type HeaderMenuProps = {
 };
 
 export function HeaderMenu({ visible, onClose }: HeaderMenuProps) {
+  const router = useRouter();
+
   const menuItems = [
-    { icon: UserPlus, label: 'Thêm bạn' , onPress: () => router.push('/addFriend')},
-    { icon: Users, label: 'Tạo nhóm' , onPress: () => router.push('/createGroup')},
-    { icon: Cloud, label: 'My Documents' , onPress: () => router.push('/myDocuments')},
+    { icon: UserPlus, label: 'Thêm bạn' , onPress: () => router.push('/addFriend' as any)},
+    { icon: Users, label: 'Tạo nhóm' , onPress: () => router.push('/createGroup' as any)},
+    { icon: Cloud, label: 'My Documents' , onPress: () => router.push('/myDocuments' as any)},
 
   ];
-
-  const router = useRouter();
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

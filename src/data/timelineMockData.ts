@@ -7,21 +7,30 @@ export interface TimelinePost {
   photo: string;
 }
 
-export const TIMELINE_POSTS_MOCK_DATA: TimelinePost[] = [
+// Legacy timeline posts removed — use `TIMELINE_V2` instead.
+
+// Zalo v2 timeline posts (production-like). Uses real user IDs from USERS_V2 for authors.
+export interface TimelinePostV2 {
+  id: string;
+  userId: string;
+  content: string;
+  images?: string[];
+  createdAt: number;
+}
+
+export const TIMELINE_V2: TimelinePostV2[] = [
   {
-    id: '1',
-    name: 'Phạm Hoàng Vũ',
-    time: '2 giờ',
+    id: 'p-1',
+    userId: 'u1',
     content: 'Hôm nay học Kiến trúc phần mềm, hơi căng nhưng vui.',
-    avatar: 'https://i.pravatar.cc/150?u=post-1',
-    photo: 'https://picsum.photos/700/500?random=11',
+    images: ['https://picsum.photos/700/500?random=11'],
+    createdAt: Date.now() - 1000 * 60 * 60 * 2,
   },
   {
-    id: '2',
-    name: 'Huỳnh Nguyệt',
-    time: '6 giờ',
+    id: 'p-2',
+    userId: 'u3',
     content: 'Cuối tuần đi cà phê không?',
-    avatar: 'https://i.pravatar.cc/150?u=post-2',
-    photo: 'https://picsum.photos/700/500?random=12',
+    images: ['https://picsum.photos/700/500?random=12'],
+    createdAt: Date.now() - 1000 * 60 * 60 * 6,
   },
 ];

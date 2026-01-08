@@ -1,12 +1,14 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { USERS_V2 } from '@/src/data/contactsMockData';
+import { useTimelineStore } from '@/src/store/useTimelineStore';
 import { FlashList } from '@shopify/flash-list';
 import { Camera, PenSquare } from 'lucide-react-native';
+import React, { useEffect } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTimelineStore } from '@/src/store/useTimelineStore';
 
 export default function TimelineScreen() {
   const posts = useTimelineStore((state) => state.posts);
+  const postsV2 = useTimelineStore((state) => state.postsV2);
   const initializePosts = useTimelineStore((state) => state.initializePosts);
 
   useEffect(() => {
@@ -28,27 +30,65 @@ export default function TimelineScreen() {
       </View>
 
       <FlashList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.post}>
-            <View style={styles.postHeader}>
-              <Image source={{ uri: item.avatar }} style={styles.avatar} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.time}>{item.time}</Text>
+        data={(postsV2 && postsV2.length) ? postsV2 : posts}
+        keyExtractor={(item: any) => item.id}
+        renderItem={({ item }: any) => {
+          // If item is v2 post
+          if (item.userId) {
+            const user = USERS_V2.find((u) => u.id === item.userId);
+            const name = user ? user.fullName : 'Người dùng';
+            const avatar = user ? user.avatar : '';
+            const photo = item.images && item.images.length ? item.images[0] : '';
+            const time = formatTimeAgo(item.createdAt);
+
+            return (
+              <View style={styles.post}>
+                <View style={styles.postHeader}>
+                  <Image source={{ uri: avatar }} style={styles.avatar} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.name}>{name}</Text>
+                    <Text style={styles.time}>{time}</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.content}>{item.content}</Text>
+
+                {photo ? <Image source={{ uri: photo }} style={styles.photo} /> : null}
               </View>
+            );
+          }
+
+          // legacy post
+          return (
+            <View style={styles.post}>
+              <View style={styles.postHeader}>
+                <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.name}>{item.name}</Text>
+                  <Text style={styles.time}>{item.time}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.content}>{item.content}</Text>
+
+              <Image source={{ uri: item.photo }} style={styles.photo} />
             </View>
-
-            <Text style={styles.content}>{item.content}</Text>
-
-            <Image source={{ uri: item.photo }} style={styles.photo} />
-          </View>
-        )}
+          );
+        }}
       />
     </View>
     </SafeAreaView>
   );
+}
+
+function formatTimeAgo(ts: number) {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / (1000 * 60));
+  if (mins < 60) return `${mins} phút`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ`;
+  const days = Math.floor(hours / 24);
+  return `${days} ngày`;
 }
 
 const styles = StyleSheet.create({
@@ -63,7 +103,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600' },
-  headerActions: { flexDirection: 'row', gap: 10 },
+  headerActions: { flexDirection: 'row' },
   iconButton: {
     width: 36,
     height: 36,

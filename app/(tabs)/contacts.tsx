@@ -1,27 +1,31 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ContactsSearchHeader } from '@/src/components/contacts/ContactsSearchHeader';
+import { useContactsStore } from '@/src/store/useContactsStore';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { Cake, Phone, UserPlus, Users } from 'lucide-react-native';
+import React, { useEffect } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../src/constants/Colors';
-import { ContactsSearchHeader } from '@/src/components/contacts/ContactsSearchHeader';
-import { useContactsStore } from '@/src/store/useContactsStore';
 
 export default function ContactsScreen() {
   const router = useRouter();
   
   // Get state from store
   const activeTab = useContactsStore((state) => state.activeTab);
-  const filterType = useContactsStore((state) => state.filterType);
-  const filteredData = useContactsStore((state) => state.filteredData);
+  // v2 users
+  const usersV2 = useContactsStore((state) => state.usersV2);
+  const filteredUsersV2 = useContactsStore((state) => state.filteredUsersV2);
+  const usersFilterType = useContactsStore((state) => state.usersFilterType);
   const friends = useContactsStore((state) => state.friends);
-  const groups = useContactsStore((state) => state.groups);
+  const  groups = useContactsStore((state) => state.groups);
+  const filteredData = useContactsStore((state) => state.filteredData);
   
   // Get actions from store
   const initializeContacts = useContactsStore((state) => state.initializeContacts);
   const setActiveTab = useContactsStore((state) => state.setActiveTab);
-  const setFilterType = useContactsStore((state) => state.setFilterType);
+  const setUsersFilterType = useContactsStore((state) => state.setUsersFilterType);
+  const setUsersSearchQuery = useContactsStore((state) => state.setUsersSearchQuery);
   
   const tabs = ['Bạn bè', 'Nhóm', 'OA'];
 
@@ -31,21 +35,24 @@ export default function ContactsScreen() {
 
 
   const ContactItem = React.memo(function ContactItem({ item }: any) {
-    const isOnline = item.subtitle === 'Vừa truy cập' || item.subtitle === 'Đang hoạt động' || item.subtitle === 'Online';
+    // item can be UserV2 or legacy Contact
+    const isV2 = !!item.fullName;
+    const isOnline = isV2 ? item.status === 'online' : item.subtitle === 'Đang hoạt động';
+    const title = isV2 ? item.fullName : item.name;
+    const subtitle = isV2 ? (item.status === 'online' ? 'Đang hoạt động' : 'Không hoạt động') : item.subtitle;
 
     return (
       <TouchableOpacity style={styles.row} activeOpacity={0.7}>
         <View style={styles.avatarContainer}>
           <Image source={{ uri: item.avatar }} style={styles.avatar} />
-          {/* Fix logic: Chấm xanh hiện ở tab Bạn bè khi online */}
-          {isOnline && <View style={styles.onlineDot} />}
+          {isOnline ? <View style={styles.onlineDot} /> : null}
         </View>
 
         <View style={styles.rowContent}>
           <View style={styles.textWrapper}>
-            <Text style={styles.name}>{item.name}</Text>
+            <Text style={styles.name}>{item.fullName}</Text>
             <Text style={styles.subtitle} numberOfLines={1}>
-              {item.subtitle}
+              {subtitle}
             </Text>
           </View>
           {activeTab === 0 && (
@@ -70,18 +77,19 @@ export default function ContactsScreen() {
           <View style={styles.dividerSection} />
 
           <View style={styles.filterChipContainer}>
-            <FilterChip
-              label="Tất cả"
-              count={friends.length}
-              isActive={filterType === 'all'}
-              onPress={() => setFilterType('all')}
-            />
-            <FilterChip
-              label="Mới truy cập"
-              count={friends.filter(i => i.subtitle === 'Vừa truy cập' || i.subtitle === 'Đang hoạt động').length}
-              isActive={filterType === 'recent'}
-              onPress={() => setFilterType('recent')}
-            />
+              <FilterChip
+                label="Tất cả"
+                count={usersV2.length}
+                isActive={usersFilterType === 'all'}
+                onPress={() => setUsersFilterType('all')}
+              />
+              <View style={{ width: 10 }} />
+              <FilterChip
+                label="Mới truy cập"
+                count={usersV2.filter((u: any) => u.status === 'online').length}
+                isActive={usersFilterType === 'recent'}
+                onPress={() => setUsersFilterType('recent')}
+              />
           </View>
         </View>
       );
@@ -116,10 +124,10 @@ export default function ContactsScreen() {
       </View>
 
       <FlashList
-        data={filteredData}
-        keyExtractor={(item) => item.id}
+        data={activeTab === 0 ? filteredUsersV2 : filteredData}
+        keyExtractor={(item: any) => item.id}
         ListHeaderComponent={renderListHeader}
-        renderItem={({ item }) => <ContactItem item={item} />}
+        renderItem={({ item }: any) => <ContactItem item={item} />}
       />
     </View>
     </SafeAreaView>
@@ -128,7 +136,7 @@ export default function ContactsScreen() {
 
 const MenuOption = ({ icon, title }: any) => (
   <TouchableOpacity style={styles.staticItem}>
-    <View style={styles.iconContainer}>{icon}</View>
+    <View style={styles.iconContainer}>{React.isValidElement(icon) ? icon : <Text style={styles.staticText}>{String(icon)}</Text>}</View>
     <Text style={styles.staticText}>{title}</Text>
   </TouchableOpacity>
 );
@@ -150,7 +158,7 @@ const styles = StyleSheet.create({
     },
   container: { flex: 1, backgroundColor: '#000' },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600' },
-  headerActions: { flexDirection: 'row', gap: 10 },
+  headerActions: { flexDirection: 'row' },
   iconButton: {
     width: 36,
     height: 36,
@@ -310,7 +318,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#000',
-    gap: 10,
   },
   chip: {
     flexDirection: 'row',

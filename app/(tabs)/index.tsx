@@ -1,12 +1,12 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { ChatListItem } from '@/src/components/chat/ChatListItem';
+import { ChatSearchHeader } from '@/src/components/chat/ChatSearchHeader';
+import { useChatsStore } from '@/src/store/useChatsStore';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { Filter } from 'lucide-react-native';
-import { ChatSearchHeader } from '@/src/components/chat/ChatSearchHeader';
-import { ChatListItem } from '@/src/components/chat/ChatListItem';
+import React, { useEffect } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useChatsStore } from '@/src/store/useChatsStore';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -30,18 +30,18 @@ export default function HomeScreen() {
                     <Text style={styles.activeTabText}>Ưu tiên</Text>
                     <View style={styles.activeLine} />
                 </View>
-                <Text style={styles.inactiveTabText}>Khác</Text>
+                <Text style={styles.inactiveTabText}>{'Khác'}</Text>
                 <Filter size={18} color="#8e8e93" style={{ marginLeft: 'auto' }} />
             </View>
 
             {/* Chat List */}
             <FlashList
                 data={chats}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.conversationId}
                 renderItem={({ item }) => (
                     <ChatListItem
                         item={item}
-                        onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.id, name: item.name } })}
+                        onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.conversationId, name: item.name } })}
                     />
                 )}
             />

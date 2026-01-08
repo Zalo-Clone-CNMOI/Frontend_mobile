@@ -1,22 +1,77 @@
 export type ChatPreview = {
   id: string;
+  // display name for 1-1 or group
   name: string;
+  // legacy last message preview used by existing UI
   lastMsg: string;
   time?: string;
   avatar: string;
   hasDot?: boolean;
   isOfficial?: boolean;
+  // optional flags used in newer UI
+  isGroup?: boolean;
+  unreadCount?: number;
+  pinned?: boolean;
+  muted?: boolean;
+};
+
+// Conversation shape used by Zalo v2 (production-like)
+
+export type ConversationV2 = {
+  conversationId: string;
+  isGroup: boolean;
+  name?: string;
+  avatar?: string;
+  lastMessage?: {
+    content: string;
+    type: MessageType;
+    timestamp: number;
+  };
+  unreadCount?: number;
+  pinned?: boolean;
+  muted?: boolean;
+};
+
+// Rich chat message used across components and mock v2 data
+export type MessageType = 'text' | 'image' | 'file' | 'voice' | 'system';
+
+export type FileInfo = {
+  uri?: string;
+  name?: string;
+  size?: string | number;
+  mimeType?: string;
+};
+
+export type ReplyInfo = {
+  id?: string;
+  senderId?: string;
+  senderName?: string;
+  text?: string;
 };
 
 export type ChatMessage = {
   id: string;
-  text: string;
+  conversationId?: string;
+  senderId?: string;
+  // keeps old `fromMe` boolean used in UI
   fromMe: boolean;
-  time?: string;
+
+  type: MessageType;
+  // textual content (for text messages)
+  text?: string;
+  // file metadata for images/files
+  fileInfo?: FileInfo;
+
+  // timestamp in ms since epoch (components call `new Date(...)` on this)
+  timestamp: number;
+
+  // reply information shown inline in message bubble
+  replyTo?: ReplyInfo;
+
+  // reactions mapping emoji -> userIds
+  reactions?: Record<string, string[]>;
+
+  // per-user deletion and revoke flags
+  deletedFor?: string[];
   isRevoked?: boolean;
-  replyTo?: {
-    id: string;
-    senderName: string;
-    text: string;
-  };
 };

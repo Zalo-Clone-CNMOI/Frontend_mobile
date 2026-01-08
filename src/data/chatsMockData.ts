@@ -1,91 +1,70 @@
-import { ChatPreview } from '../types/chat';
 
-export const CHATS_MOCK_DATA: ChatPreview[] = [
+export type MessageType = 'text' | 'image' | 'system';
+
+export interface ConversationV2 {
+  conversationId: string;
+  isGroup: boolean;
+  name?: string;
+  avatar?: string;
+  lastMessage: {
+    content: string;
+    type: MessageType;
+    timestamp: number;
+  };
+  unreadCount: number;
+  pinned: boolean;
+  muted: boolean;
+}
+
+export const CHATS_V2: ConversationV2[] = [
   {
-    id: '1',
-    name: 'Media Box',
-    lastMsg: 'Zalo Video: Mua 4 tờ vé cào...',
-    time: '',
-    avatar: 'https://cdn-icons-png.flaticon.com/512/5968/5968933.png',
-    isOfficial: true,
-    hasDot: true,
+    conversationId: 'c-1',
+    isGroup: false,
+    name: 'Nguyễn Văn A',
+    avatar: 'https://i.pravatar.cc/150?u=u1',
+    lastMessage: { content: 'Sẵn sàng tối nay', type: 'text', timestamp: Date.now() - 1000 * 60 * 60 },
+    unreadCount: 0,
+    pinned: true,
+    muted: false,
   },
   {
-    id: '2',
-    name: 'Thời Tiết',
-    lastMsg: 'Chúc một ngày tốt lành, thời tiết Tây Ninh...',
-    time: '9 giờ',
-    avatar: 'https://cdn-icons-png.flaticon.com/512/1163/1163763.png',
-    hasDot: true,
+    conversationId: 'c-2',
+    isGroup: false,
+    name: 'Trần Thị B',
+    avatar: 'https://i.pravatar.cc/150?u=u2',
+    lastMessage: { content: 'Ảnh mới: IMG_1234.jpg', type: 'image', timestamp: Date.now() - 1000 * 60 * 30 },
+    unreadCount: 3,
+    pinned: false,
+    muted: false,
   },
   {
-    id: '3',
-    name: 'Phạm Hoàng Vũ',
-    lastMsg: '[Cuộc gọi thoại đi]',
-    time: '9 giờ',
-    avatar: 'https://i.pravatar.cc/150?u=3',
-  },
-  {
-    id: '4',
-    name: 'Tấn Minh',
-    lastMsg: 'Bạn: Chốt đề tài Kiến trúc phần mềm đi bn ơi',
-    time: '9 giờ',
-    avatar: 'https://i.pravatar.cc/150?u=4',
-  },
-  {
-    id: '5',
+    conversationId: 'g-1',
+    isGroup: true,
     name: 'Nhóm Lập Trình',
-    lastMsg: 'Minh: Đã xong phần thiết kế UI',
-    time: '10 giờ',
-    avatar: 'https://i.pravatar.cc/150?u=5',
+    avatar: 'https://i.pravatar.cc/150?u=g1',
+    lastMessage: { content: 'Minh: Đã xong phần thiết kế UI', type: 'text', timestamp: Date.now() - 1000 * 60 * 60 * 5 },
+    unreadCount: 7,
+    pinned: false,
+    muted: true,
   },
   {
-    id: '6',
-    name: 'Nhóm Đồ Án',
-    lastMsg: 'Hùng: Mình sẽ làm phần backend',
-    time: '11 giờ',
-    avatar: 'https://i.pravatar.cc/150?u=6',
+    conversationId: 'c-3',
+    isGroup: false,
+    name: 'Lê C',
+    avatar: 'https://i.pravatar.cc/150?u=u3',
+    lastMessage: { content: 'Ok luôn', type: 'text', timestamp: Date.now() - 1000 * 60 * 60 * 24 },
+    unreadCount: 0,
+    pinned: false,
+    muted: false,
   },
   {
-    id: '7',
-    name: 'Bạn Bè',
-    lastMsg: 'Hà: Cùng đi chơi không?',
-    time: '12 giờ',
-    avatar: 'https://i.pravatar.cc/150?u=7',
-  },
-  {
-    id: '8',
-    name: 'Work Team',
-    lastMsg: 'Linh: Đã gửi báo cáo tuần',
-    time: '13 giờ',
-    avatar: 'https://i.pravatar.cc/150?u=8',
-  },
-  {
-    id: '9',
-    name: 'Study Group',
-    lastMsg: 'Nam: Bài tập về nhà ai làm xong chưa?',
-    time: '14 giờ',
-    avatar: 'https://i.pravatar.cc/150?u=9',
-  },
-  {
-    id: '10',
+    conversationId: 'g-2',
+    isGroup: true,
     name: 'Family Chat',
-    lastMsg: 'Mẹ: Tối nay ăn gì?',
-    time: '15 giờ',
-    avatar: 'https://i.pravatar.cc/150?u=10',
-  },
-  {
-    id: '11',
-    name: 'Hobby Group',
-    lastMsg: 'Huy: Ai muốn chơi game không?',
-    time: '16 giờ',
-    avatar: 'https://i.pravatar.cc/150?u=11',
-  },
-  {
-    id: '12',
-    name: 'Sports Fan',
-    lastMsg: 'Bình: Bầu cử xong chưa?',
-    time: '17 giờ',
-    avatar: 'https://i.pravatar.cc/150?u=12',
+    avatar: 'https://i.pravatar.cc/150?u=g2',
+    lastMessage: { content: 'Mẹ: Tối nay ăn gì?', type: 'text', timestamp: Date.now() - 1000 * 60 * 60 * 2 },
+    unreadCount: 1,
+    pinned: false,
+    muted: false,
   },
 ];

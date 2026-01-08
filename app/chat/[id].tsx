@@ -1,14 +1,14 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ChatComposer } from '@/src/components/chat/ChatComposer';
+import { ImageViewer } from '@/src/components/chat/ImageViewer';
+import { MessageBubble } from '@/src/components/chat/MessageBubble';
+import { useMessagesStore } from '@/src/store/useMessagesStore';
+import type { ChatMessage } from '@/src/types/chat';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import type { ChatMessage } from '@/src/types/chat';
-import { MessageBubble } from '@/src/components/chat/MessageBubble';
-import { ChatComposer } from '@/src/components/chat/ChatComposer';
+import { List, Phone } from 'lucide-react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Phone, List } from 'lucide-react-native';
-import { ImageViewer } from '@/src/components/chat/ImageViewer';
-import { useMessagesStore } from '@/src/store/useMessagesStore';
 
 export default function ChatDetailScreen() {
   const params = useLocalSearchParams<{ id?: string; name?: string }>();
@@ -21,7 +21,7 @@ export default function ChatDetailScreen() {
 
   const [input, setInput] = useState('');
   const [replyingMessage, setReplyingMessage] = useState<ChatMessage | null>(null);
-  const flashListRef = useRef<FlashList<ChatMessage>>(null);
+  const flashListRef = useRef<any>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // Get messages from store
@@ -35,7 +35,7 @@ export default function ChatDetailScreen() {
     initializeMessages();
   }, [initializeMessages]);
 
-  const handleSendFiles = (files: DocumentPicker.DocumentPickerAsset[]) => {
+  const handleSendFiles = (files: any[]) => {
     const newMessages = files.map((file, index) => {
       const isImage = file.mimeType?.startsWith('image/');
 
@@ -43,18 +43,18 @@ export default function ChatDetailScreen() {
         id: `${Date.now()}_${index}`,
         fromMe: true,
         text: '',
-        timestamp: new Date().toISOString(),
-        type: isImage ? 'image' : 'file',
+        timestamp: Date.now() + index,
+        type: isImage ? ('image' as const) : ('file' as const),
         fileInfo: {
           name: file.name,
           size: file.size ? (file.size / (1024 * 1024)).toFixed(2) + ' MB' : '0 MB',
           uri: file.uri,
-          mimeType: file.mimeType
-        }
-      };
+          mimeType: file.mimeType,
+        },
+      } as any;
     });
 
-    newMessages.forEach(msg => sendMessage(chatId, msg));
+    newMessages.forEach((msg) => sendMessage(chatId, msg as any));
     setTimeout(() => {
       flashListRef.current?.scrollToEnd({ animated: true });
     }, 100);
@@ -88,15 +88,16 @@ export default function ChatDetailScreen() {
     sendMessage(chatId, {
       text: trimmed,
       fromMe: true,
-      time: '',
+      type: 'text',
+      timestamp: Date.now(),
       replyTo: replyingMessage
         ? {
           id: replyingMessage.id,
           senderName: replyingMessage.fromMe ? 'Bạn' : title,
-          text: replyingMessage.isRevoked ? 'Tin nhắn đã thu hồi' : replyingMessage.text,
+          text: replyingMessage.isRevoked ? 'Tin nhắn đã thu hồi' : (replyingMessage.text || ''),
         }
         : undefined,
-    });
+    } as any);
     setInput('');
     setReplyingMessage(null);
     setTimeout(() => {
@@ -135,7 +136,6 @@ export default function ChatDetailScreen() {
           data={messages}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          estimatedItemSize={100}
           renderItem={({ item }) => <MessageBubble item={item} onLongPress={openMessageActions} onImagePress={(uri) =>{console.log("Opening image:", uri); setSelectedImage(uri);}} />}
         />
 
@@ -148,7 +148,7 @@ export default function ChatDetailScreen() {
             replyingMessage
               ? {
                 senderName: replyingMessage.fromMe ? 'Bạn' : title,
-                text: replyingMessage.isRevoked ? 'Tin nhắn đã thu hồi' : replyingMessage.text,
+                text: replyingMessage.isRevoked ? 'Tin nhắn đã thu hồi' : (replyingMessage.text || ''),
               }
               : null
           }
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   headerRightContainer: {
     flexDirection: 'row',
-    gap: 12,
+    
   },
   body: { flex: 1 },
   listContent: { paddingHorizontal: 12, paddingVertical: 10 },

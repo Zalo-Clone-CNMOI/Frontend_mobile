@@ -5,9 +5,23 @@ export interface UserProfile {
   subtitle: string;
 }
 
-export const PROFILE_MOCK_DATA: UserProfile = {
+// Legacy PROFILE_MOCK_DATA removed — use `PROFILE_V2`.
+
+// Zalo v2 profile for current user (production-like)
+export interface ProfileV2 {
+  id: string;
+  fullName: string;
+  avatar?: string;
+  status?: 'online' | 'offline';
+  lastSeen?: number;
+  about?: string;
+}
+
+export const PROFILE_V2: ProfileV2 = {
   id: 'user-me',
-  name: 'Người dùng Zalo',
-  avatar: 'https://i.pravatar.cc/200?u=my-profile',
-  subtitle: 'Chạm để xem hồ sơ',
+  fullName: 'Bạn (Me)',
+  avatar: 'https://i.pravatar.cc/200?u=user-me',
+  status: 'online',
+  lastSeen: Date.now(),
+  about: 'Đang thử nghiệm UI chat - mock data local',
 };

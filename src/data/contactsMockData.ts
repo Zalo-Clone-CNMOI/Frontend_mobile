@@ -6,36 +6,29 @@ export interface Contact {
   subtitle: string;
   avatar: string;
   type: ContactType;
+  // optional UI helper fields used in some components
+  color?: string;
+  time?: string;
 }
 
-export const FRIENDS_MOCK_DATA: Contact[] = [
-  { id: '1', name: 'Hoàng Vũ', subtitle: 'Đang hoạt động', avatar: 'https://i.pravatar.cc/150?u=1', type: 'friend' },
-  { id: '2', name: 'Thái', subtitle: 'Vừa truy cập', avatar: 'https://i.pravatar.cc/150?u=2', type: 'friend' },
-  { id: '3', name: 'Phạm Hoàng Vũ', subtitle: 'Đang hoạt động', avatar: 'https://i.pravatar.cc/150?u=3', type: 'friend' },
-  { id: '4', name: 'Tấn Minh', subtitle: 'Không hoạt động', avatar: 'https://i.pravatar.cc/150?u=4', type: 'friend' },
-  { id: '5', name: 'Tấn Minh', subtitle: 'Không hoạt động', avatar: 'https://i.pravatar.cc/150?u=5', type: 'friend' },
-  { id: '6', name: 'Tấn Minh', subtitle: 'Không hoạt động', avatar: 'https://i.pravatar.cc/150?u=6', type: 'friend' },
-  { id: '7', name: 'Tấn Minh', subtitle: 'Không hoạt động', avatar: 'https://i.pravatar.cc/150?u=7', type: 'friend' },
-];
+// Legacy per-type mock arrays removed. Use `USERS_V2` for production-like data.
 
-export const GROUPS_MOCK_DATA: Contact[] = [
-  { id: 'g1', name: 'Nhóm Gia Đình', subtitle: '4 thành viên', avatar: 'https://i.pravatar.cc/150?u=g1', type: 'group' },
-  { id: 'g2', name: 'Dự Án Zalo 2026', subtitle: '10 thành viên', avatar: 'https://i.pravatar.cc/150?u=g2', type: 'group' },
-  { id: 'g3', name: 'Dự Án Zalo 2026', subtitle: '10 thành viên', avatar: 'https://i.pravatar.cc/150?u=g2', type: 'group' },
-  { id: 'g4', name: 'Dự Án Zalo 2026', subtitle: '10 thành viên', avatar: 'https://i.pravatar.cc/150?u=g2', type: 'group' },
-  { id: 'g5', name: 'Dự Án Zalo 2026', subtitle: '10 thành viên', avatar: 'https://i.pravatar.cc/150?u=g2', type: 'group' },
-];
+// Zalo v2 user model for production-like data. This can be switched to Firebase later.
+export type PresenceStatus = 'online' | 'offline';
 
-export const OA_MOCK_DATA: Contact[] = [
-  { id: 'oa1', name: 'Thời Tiết', subtitle: 'Tài khoản chính thức', avatar: 'https://i.pravatar.cc/150?u=oa1', type: 'oa' },
-  { id: 'oa2', name: 'Thời Tiết', subtitle: 'Tài khoản chính thức', avatar: 'https://i.pravatar.cc/150?u=oa1', type: 'oa' },
-  { id: 'oa3', name: 'Thời Tiết', subtitle: 'Tài khoản chính thức', avatar: 'https://i.pravatar.cc/150?u=oa1', type: 'oa' },
-  { id: 'oa4', name: 'Thời Tiết', subtitle: 'Tài khoản chính thức', avatar: 'https://i.pravatar.cc/150?u=oa1', type: 'oa' },
-  { id: 'oa5', name: 'Thời Tiết', subtitle: 'Tài khoản chính thức', avatar: 'https://i.pravatar.cc/150?u=oa1', type: 'oa' },
-];
+export interface UserV2 {
+  id: string;
+  fullName: string;
+  avatar?: string;
+  status: PresenceStatus;
+  lastSeen?: number;
+}
 
-export const ALL_CONTACTS_MOCK_DATA: Contact[] = [
-  ...FRIENDS_MOCK_DATA,
-  ...GROUPS_MOCK_DATA,
-  ...OA_MOCK_DATA,
+export const USERS_V2: UserV2[] = [
+  { id: 'user-me', fullName: 'Bạn (Me)', avatar: 'https://i.pravatar.cc/150?u=user-me', status: 'online', lastSeen: Date.now() },
+  { id: 'u1', fullName: 'Nguyễn Văn A', avatar: 'https://i.pravatar.cc/150?u=u1', status: 'online', lastSeen: Date.now() - 1000 * 60 * 5 },
+  { id: 'u2', fullName: 'Trần Thị B', avatar: 'https://i.pravatar.cc/150?u=u2', status: 'offline', lastSeen: Date.now() - 1000 * 60 * 60 },
+  { id: 'u3', fullName: 'Lê Công', avatar: 'https://i.pravatar.cc/150?u=u3', status: 'online', lastSeen: Date.now() - 1000 * 30 },
+  { id: 'u4', fullName: 'Phạm D', avatar: 'https://i.pravatar.cc/150?u=u4', status: 'offline', lastSeen: Date.now() - 1000 * 60 * 60 * 24 },
+  { id: 'u5', fullName: 'Hoàng E', avatar: 'https://i.pravatar.cc/150?u=u5', status: 'offline', lastSeen: Date.now() - 1000 * 60 * 60 * 48 },
 ];

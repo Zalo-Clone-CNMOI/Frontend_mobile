@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { UserProfile } from '../data/profileMockData';
-import { PROFILE_MOCK_DATA } from '../data/profileMockData';
+import { PROFILE_V2, UserProfile } from '../data/profileMockData';
 
 interface ProfileState {
   // State
@@ -18,9 +17,19 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
 
   // Actions
   initializeProfile: () => {
-    set({
-      profile: PROFILE_MOCK_DATA,
-    });
+    // Prefer v2 profile if available
+    if (PROFILE_V2) {
+      set({
+        profile: {
+          id: PROFILE_V2.id,
+          name: PROFILE_V2.fullName,
+          avatar: PROFILE_V2.avatar || '',
+          subtitle: 'Chạm để xem hồ sơ',
+        },
+      });
+      return;
+    }
+    set({ profile: null });
   },
 
   getProfile: () => {

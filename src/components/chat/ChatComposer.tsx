@@ -1,14 +1,11 @@
+import { File, FileText, Image as ImageIcon, MapPin, Mic, MoreHorizontal, Send, Smile, User, X } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { File, FileText, Image as ImageIcon, MapPin, Mic, MoreHorizontal, Send, Smile, User, X } from 'lucide-react-native';
-// Thay thế emoji-picker-react bằng thư viện cho React Native
-import EmojiPicker, { EmojiType } from 'rn-emoji-keyboard';
 import * as DocumentPicker from 'expo-document-picker';
+import EmojiPicker, { EmojiType } from 'rn-emoji-keyboard';
+import { Colors } from '@/src/constants/Colors';
 
 
-const ZALO_BLUE = '#0091ff';
-
-// Định nghĩa lại Props để nhận mảng assets từ DocumentPicker
 export function ChatComposer({
   value,
   onChangeText,
@@ -33,9 +30,8 @@ export function ChatComposer({
   const canSend = useMemo(() => value.trim().length > 0, [value]);
 
   const handlePickEmoji = (emojiObject: EmojiType) => {
-    onChangeText((prevValue: string) => {
-      return prevValue + emojiObject.emoji;
-    });
+    // Parent provides current `value` so append emoji to it and send back
+    onChangeText(value + emojiObject.emoji);
   };
 
   // --- PHẦN ĐÃ SỬA ---
@@ -79,7 +75,7 @@ export function ChatComposer({
 
       <View style={styles.composer}>
         <Pressable
-          style={[styles.iconBtn, showEmoji && { backgroundColor: ZALO_BLUE }]}
+          style={[styles.iconBtn, showEmoji && { backgroundColor: Colors.zaloBlue }]}
           onPress={() => {
             setShowEmoji(true);
             setShowMore(false);
@@ -145,15 +141,15 @@ export function ChatComposer({
         onClose={() => setShowEmoji(false)}
         theme={{
           backdrop: '#1a1a1ab3',
-          knob: ZALO_BLUE,
+          knob: Colors.zaloBlue,
           container: '#1a1a1a',
           header: '#fff',
           skinTonesContainer: '#222',
           category: {
-            icon: ZALO_BLUE,
+            icon: Colors.zaloBlue,
             iconActive: '#fff',
             container: '#222',
-            containerActive: ZALO_BLUE,
+            containerActive: Colors.zaloBlue,
           },
         }}
       />
@@ -165,7 +161,7 @@ function Option({ title, Icon, onPress }: { title: string; Icon: any; onPress: (
   return (
     <Pressable style={styles.option} onPress={onPress}>
       <View style={styles.optionIcon}>
-        <Icon size={20} color={ZALO_BLUE} />
+        <Icon size={20} color={Colors.zaloBlue} />
       </View>
       <Text style={styles.optionText}>{title}</Text>
     </Pressable>
@@ -184,7 +180,7 @@ const styles = StyleSheet.create({
     borderColor: '#222',
     alignItems: 'center',
   },
-  replyingBar: { width: 3, height: '100%', backgroundColor: ZALO_BLUE },
+  replyingBar: { width: 3, height: '100%', backgroundColor: Colors.zaloBlue },
   replyingContent: { flex: 1, paddingHorizontal: 10, paddingVertical: 8 },
   replyingTitle: { color: '#fff', fontSize: 13, fontWeight: '700' },
   replyingText: { color: '#bdbdbd', fontSize: 12.5, marginTop: 2 },
@@ -194,7 +190,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 10,
+        
   },
   input: {
     flex: 1,
@@ -208,7 +204,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#222',
   },
-  rightIcons: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rightIcons: { flexDirection: 'row', alignItems: 'center' },
   iconBtn: {
     width: 38,
     height: 38,
@@ -221,7 +217,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: ZALO_BLUE,
+    backgroundColor: Colors.zaloBlue,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'flex-end',
@@ -231,7 +227,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     paddingHorizontal: 10,
     paddingBottom: 20,
-    gap: 10,
   },
   option: {
     width: '48%',
@@ -242,7 +237,6 @@ const styles = StyleSheet.create({
     borderColor: '#222',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
   optionIcon: {
     width: 40,
@@ -252,5 +246,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  optionText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  optionText: { color: '#fff', fontSize: 13, fontWeight: '600', marginTop: 8 },
 });

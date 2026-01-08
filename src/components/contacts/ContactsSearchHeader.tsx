@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { Search, UserPlus } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 
 export function ContactsSearchHeader({
   onPressSearch,
 }: {
   onPressSearch: () => void;
 }) {
+  const router = useRouter();
   return (
     <View style={styles.header}>
       <TouchableOpacity onPress={onPressSearch}>
@@ -19,7 +21,7 @@ export function ContactsSearchHeader({
         showSoftInputOnFocus={false}
         onFocus={onPressSearch}
       />
-      <TouchableOpacity style={styles.iconButton}>
+      <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/addFriend')}>
         <UserPlus size={20} color="#fff" />
       </TouchableOpacity>
     </View>

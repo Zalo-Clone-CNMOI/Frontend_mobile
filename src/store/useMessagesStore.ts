@@ -1,6 +1,7 @@
 import { create } from 'zustand';
+import { USERS_V2 } from '../data/contactsMockData';
+import { MESSAGES_V2 } from '../data/messagesMockData';
 import { ChatMessage } from '../types/chat';
-import { MESSAGES_INITIAL_DATA, MESSAGES_BY_CHAT_ID } from '../data/messagesMockData';
 
 interface MessagesState {
   // State: Map of chatId -> messages
@@ -22,9 +23,53 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
 
   // Actions
   initializeMessages: () => {
-    set({
-      messagesByChatId: MESSAGES_BY_CHAT_ID,
-    });
+    // Prefer v2 messages and map them into the ChatMessage shape expected by
+    // the existing UI/store. Group messages by conversationId.
+    if (MESSAGES_V2 && MESSAGES_V2.length) {
+      const byChat: Record<string, ChatMessage[]> = {};
+      const msgIndex: Record<string, any> = {};
+      MESSAGES_V2.forEach((m) => (msgIndex[m.id] = m));
+
+      MESSAGES_V2.forEach((m) => {
+        const senderId = m.senderId;
+        const fromMe = senderId === 'user-me';
+        const chatMsg: ChatMessage = {
+          id: m.id,
+          conversationId: m.conversationId,
+          senderId: m.senderId,
+          fromMe,
+          type: m.type as any,
+          text: m.type === 'text' ? m.content : undefined,
+          fileInfo: m.type === 'image' || m.type === 'file' ? { uri: m.content } : undefined,
+          timestamp: m.createdAt,
+          replyTo: m.replyTo
+            ? (() => {
+                const orig = msgIndex[m.replyTo];
+                if (!orig) return undefined;
+                const sender = USERS_V2.find((u) => u.id === orig.senderId);
+                return {
+                  id: orig.id,
+                  senderId: orig.senderId,
+                  senderName: sender ? sender.fullName : orig.senderId,
+                  text: orig.content || '',
+                };
+              })()
+            : undefined,
+          reactions: m.reactions,
+          deletedFor: m.deletedFor,
+          isRevoked: !!m.revoked,
+        };
+
+        byChat[m.conversationId] = byChat[m.conversationId] || [];
+        byChat[m.conversationId].push(chatMsg);
+      });
+
+      set({ messagesByChatId: byChat });
+      return;
+    }
+
+    // Fallback: no legacy per-chat map available, initialize empty map
+    set({ messagesByChatId: {} });
   },
 
   getMessagesByChatId: (chatId: string) => {
@@ -34,9 +79,14 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
 
   sendMessage: (chatId: string, message: Omit<ChatMessage, 'id'>) => {
     set((state) => {
+      // Preserve provided id if caller supplied one (e.g., batch file send),
+      // otherwise generate a stable-unique id using timestamp + random suffix.
+      const providedId = (message as any).id;
+      const newId = providedId ? String(providedId) : `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
       const newMessage: ChatMessage = {
         ...message,
-        id: String(Date.now()),
+        id: newId,
       };
 
       const chatMessages = state.messagesByChatId[chatId] || [];

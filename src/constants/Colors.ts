@@ -1,5 +1,5 @@
 export const Colors = {
-  zaloBlue: '##0091ff',
+  zaloBlue: '#0091ff',
   background: '#F1F2F4',
   white: '#FFFFFF',
   gray: '#8E8E93',

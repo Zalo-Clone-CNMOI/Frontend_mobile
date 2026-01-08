@@ -40,7 +40,7 @@ export function ImageViewer({ visible, uri, onClose }: ImageViewerProps) {
               <X color="#fff" size={24} />
             </Pressable>
             
-            <View style={{ flexDirection: 'row', gap: 15 }}>
+            <View style={{ flexDirection: 'row' }}>
               <Pressable style={styles.iconBtn} onPress={() => {/* Thêm logic tải ảnh nếu cần */}}>
                 <Download color="#fff" size={22} />
               </Pressable>

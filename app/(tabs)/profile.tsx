@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: '#222',
   },
-  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rowLeft: { flexDirection: 'row', alignItems: 'center' },
   rowIconWrap: {
     width: 34,
     height: 34,

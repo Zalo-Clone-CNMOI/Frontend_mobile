@@ -1,22 +1,30 @@
 import { SearchResult } from '../types/search';
 
-export const SEARCH_MOCK_DATA: SearchResult[] = [
-  {
-    id: '1',
-    name: 'Media Box',
-    subtitle: 'Zalo Video: Mua 4 tờ vé cào...',
-    avatar: 'https://cdn-icons-png.flaticon.com/512/5968/5968933.png',
-  },
-  {
-    id: '2',
-    name: 'Thời Tiết',
-    subtitle: 'Chúc một ngày tốt lành...',
-    avatar: 'https://cdn-icons-png.flaticon.com/512/1163/1163763.png',
-  },
-  {
-    id: '3',
-    name: 'Phạm Hoàng Vũ',
-    subtitle: '[Cuộc gọi thoại đi]',
-    avatar: 'https://i.pravatar.cc/150?u=search-3',
-  },
-];
+// Legacy search results used by current UI
+// Legacy search mock removed — use `SEARCH_V2` for search results.
+
+// Zalo v2 search results (users + conversations)
+export interface SearchResultUser {
+  type: 'user';
+  id: string;
+  fullName: string;
+  avatar?: string;
+}
+
+export interface SearchResultConversation {
+  type: 'conversation';
+  conversationId: string;
+  name?: string;
+  avatar?: string;
+}
+
+export const SEARCH_V2 = {
+  users: [
+    { type: 'user', id: 'u1', fullName: 'Nguyễn Văn A', avatar: 'https://i.pravatar.cc/150?u=u1' },
+    { type: 'user', id: 'u3', fullName: 'Lê Công', avatar: 'https://i.pravatar.cc/150?u=u3' },
+  ],
+  conversations: [
+    { type: 'conversation', conversationId: 'c-1', name: 'Nguyễn Văn A', avatar: 'https://i.pravatar.cc/150?u=u1' },
+    { type: 'conversation', conversationId: 'g-1', name: 'Nhóm Lập Trình', avatar: 'https://i.pravatar.cc/150?u=g1' },
+  ],
+};

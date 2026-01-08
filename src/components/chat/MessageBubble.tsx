@@ -1,7 +1,7 @@
-import React from 'react';
-import { Pressable, Text, StyleSheet, View, Image } from 'react-native';
 import type { ChatMessage } from '@/src/types/chat';
 import { FileText } from 'lucide-react-native';
+import React from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export function MessageBubble({
   item,
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   sentImage: { width: 220, height: 220, borderRadius: 14 },
 
   // Style cho File
-  fileContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  fileContainer: { flexDirection: 'row', alignItems: 'center' },
   fileIconBox: { width: 44, height: 44, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
   fileInfo: { flex: 1 },
   fileName: { color: '#fff', fontSize: 14, fontWeight: '600' },
@@ -111,4 +111,8 @@ const styles = StyleSheet.create({
   replyContent: { paddingHorizontal: 8, paddingVertical: 4, flex: 1 },
   replyName: { color: '#fff', fontSize: 12, fontWeight: '700' },
   replyText: { color: '#ccc', fontSize: 12, marginTop: 1 },
+  // When message has a reply preview, reduce padding/top
+  bubbleWithReply: { paddingTop: 6 },
+  // Container around actual message content (text/image/file)
+  messageContent: { },
 });
