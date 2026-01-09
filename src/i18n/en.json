@@ -14,7 +14,10 @@
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",
-    "retry": "Retry"
+    "retry": "Retry",
+    "suggestions": "Suggestions",
+    "user": "User",
+    "conversation": "Conversation"
   },
   "navigation": {
     "tabs": {

@@ -7,10 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDiscoveryStore } from '@/src/store/useDiscoveryStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'expo-router';
 
 export default function DiscoveryScreen() {
   const theme = useTheme();
   const { t } = useTranslation();
+  const router = useRouter();
 
   const features = useDiscoveryStore((state) => state.features);
   const initializeFeatures = useDiscoveryStore(
@@ -35,7 +37,7 @@ export default function DiscoveryScreen() {
           { backgroundColor: theme.colors.background },
         ]}
       >
-        <DiscoverySearchHeader onPressSearch={() => {}} />
+        <DiscoverySearchHeader onPressSearch={() => {router.push('/search')}} />
 
         <FlashList
           data={features}

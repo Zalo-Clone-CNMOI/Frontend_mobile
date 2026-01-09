@@ -14,7 +14,10 @@
     "loading": "Đang tải...",
     "error": "Lỗi",
     "success": "Thành công",
-    "retry": "Thử lại"
+    "retry": "Thử lại",
+    "suggestions": "Gợi ý",
+    "user": "Người dùng",
+    "conversation": "Cuộc trò chuyện"
   },
   "navigation": {
     "tabs": {

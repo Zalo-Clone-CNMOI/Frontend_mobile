@@ -27,13 +27,12 @@ export function ChatSearchHeader({
         showSoftInputOnFocus={false}
         onFocus={onPressSearch}
       />
-<TouchableOpacity style={styles.iconButton}>
-      <QrCode size={22} color={theme.colors.iconHeader} onPress={() => router.push('/scanner')} />
-
-</TouchableOpacity>
+      <TouchableOpacity style={styles.iconButton}>
+        <QrCode size={22} color={theme.colors.iconHeader} onPress={() => router.push('/scanner')} />
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.iconButton}>
-      <Plus size={26} color={theme.colors.iconHeader} onPress={() => setMenuVisible(true)} />
+        <Plus size={26} color={theme.colors.iconHeader} onPress={() => setMenuVisible(true)} />
       </TouchableOpacity>
       <HeaderMenu visible={menuVisible} onClose={() => setMenuVisible(false)} />
     </View>

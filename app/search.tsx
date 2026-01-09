@@ -38,7 +38,7 @@ export default function SearchScreen() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder={t('search.placeholder')}
+          placeholder={t('common.search')}
           placeholderTextColor="#8e8e93"
           style={[styles.searchInput, { color: theme.colors.text }]}
           autoFocus
@@ -50,7 +50,7 @@ export default function SearchScreen() {
         )}
       </View>
 
-      <Text style={[styles.sectionTitle, { color: '#8e8e93' }]}>{t('search.suggestions')}</Text>
+      <Text style={[styles.sectionTitle, { color: '#8e8e93' }]}>{t('common.suggestions')}</Text>
 
       {/* Render v2 results first (users + conversations), fall back to legacy results */}
       <FlashList
@@ -68,7 +68,7 @@ export default function SearchScreen() {
                 <View style={[styles.rowContent, { borderBottomColor: theme.colors.border }]}>
                   <Text style={[styles.name, { color: theme.colors.text }]}>{item.fullName}</Text>
                   <Text style={[styles.subtitle, { color: '#8e8e93' }]} numberOfLines={1}>
-                    {t('search.user')}
+                    {t('common.user')}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -85,7 +85,7 @@ export default function SearchScreen() {
                 <View style={[styles.rowContent, { borderBottomColor: theme.colors.border }]}>
                   <Text style={[styles.name, { color: theme.colors.text }]}>{item.name}</Text>
                   <Text style={[styles.subtitle, { color: '#8e8e93' }]} numberOfLines={1}>
-                    {t('search.conversation')}
+                    {t('common.conversation')}
                   </Text>
                 </View>
               </TouchableOpacity>
