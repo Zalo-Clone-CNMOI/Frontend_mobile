@@ -5,26 +5,28 @@ import { Camera, PenSquare } from 'lucide-react-native';
 import React, { useEffect } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../../src/theme/themeContext';
 
 export default function TimelineScreen() {
   const posts = useTimelineStore((state) => state.posts);
   const postsV2 = useTimelineStore((state) => state.postsV2);
   const initializePosts = useTimelineStore((state) => state.initializePosts);
+  const theme = useTheme();
 
   useEffect(() => {
     initializePosts();
   }, [initializePosts]);
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Nhật ký</Text>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.colors.card }]}>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Nhật ký</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconButton}>
-            <Camera size={20} color="#fff" />
+          <TouchableOpacity style={[styles.iconButton, { backgroundColor: theme.colors.background }]}>
+            <Camera size={20} color={theme.colors.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <PenSquare size={20} color="#fff" />
+          <TouchableOpacity style={[styles.iconButton, { backgroundColor: theme.colors.background }]}>
+            <PenSquare size={20} color={theme.colors.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -42,16 +44,16 @@ export default function TimelineScreen() {
             const time = formatTimeAgo(item.createdAt);
 
             return (
-              <View style={styles.post}>
+              <View style={[styles.post, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <View style={styles.postHeader}>
                   <Image source={{ uri: avatar }} style={styles.avatar} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.name}>{name}</Text>
-                    <Text style={styles.time}>{time}</Text>
+                    <Text style={[styles.name, { color: theme.colors.text }]}>{name}</Text>
+                    <Text style={[styles.time, { color: '#8e8e93' }]}>{time}</Text>
                   </View>
                 </View>
 
-                <Text style={styles.content}>{item.content}</Text>
+                <Text style={[styles.content, { color: theme.colors.text }]}>{item.content}</Text>
 
                 {photo ? <Image source={{ uri: photo }} style={styles.photo} /> : null}
               </View>
@@ -60,16 +62,16 @@ export default function TimelineScreen() {
 
           // legacy post
           return (
-            <View style={styles.post}>
+            <View style={[styles.post, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
               <View style={styles.postHeader}>
                 <Image source={{ uri: item.avatar }} style={styles.avatar} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.name}>{item.name}</Text>
-                  <Text style={styles.time}>{item.time}</Text>
+                  <Text style={[styles.name, { color: theme.colors.text }]}>{item.name}</Text>
+                  <Text style={[styles.time, { color: '#8e8e93' }]}>{item.time}</Text>
                 </View>
               </View>
 
-              <Text style={styles.content}>{item.content}</Text>
+              <Text style={[styles.content, { color: theme.colors.text }]}>{item.content}</Text>
 
               <Image source={{ uri: item.photo }} style={styles.photo} />
             </View>
@@ -92,17 +94,16 @@ function formatTimeAgo(ts: number) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#000' },
-  container: { flex: 1, backgroundColor: '#000' },
+  safeArea: { flex: 1 },
+  container: { flex: 1 },
   header: {
     height: 56,
     paddingHorizontal: 16,
-    backgroundColor: '#1a1a1a',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600' },
+  headerTitle: { fontSize: 18, fontWeight: '600' },
   headerActions: { flexDirection: 'row' },
   iconButton: {
     width: 36,
@@ -110,7 +111,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#262626',
+    marginLeft: 10,
   },
   post: {
     marginHorizontal: 12,
@@ -118,13 +119,11 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#222',
-    backgroundColor: '#121212',
   },
   postHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  avatar: { width: 44, height: 44, borderRadius: 22, marginRight: 10, backgroundColor: '#222' },
-  name: { color: '#fff', fontSize: 15.5, fontWeight: '600' },
-  time: { color: '#8e8e93', fontSize: 12, marginTop: 1 },
-  content: { color: '#d0d0d0', fontSize: 14.5, marginBottom: 10 },
-  photo: { width: '100%', height: 220, borderRadius: 14, backgroundColor: '#222' },
+  avatar: { width: 44, height: 44, borderRadius: 22, marginRight: 10 },
+  name: { fontSize: 15.5, fontWeight: '600' },
+  time: { fontSize: 12, marginTop: 1 },
+  content: { fontSize: 14.5, marginBottom: 10 },
+  photo: { width: '100%', height: 220, borderRadius: 14 },
 });

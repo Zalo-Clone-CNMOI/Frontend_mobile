@@ -1,10 +1,15 @@
 import { useRouter } from 'expo-router';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
+import { Image, LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../src/theme/themeContext';
+import { useThemeManager } from '../src/theme/themeManager';
 
-// Kích hoạt animation mượt mà cho Android khi mở rộng Box
+// FIX: Do not import CSS files. Use local assets or remote URLs.
+const VIETNAM_FLAG = { uri: 'https://flagcdn.com/w80/vn.png' };
+const USA_FLAG = { uri: 'https://flagcdn.com/w80/us.png' };
+
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -16,51 +21,75 @@ const ZALO_BLUE = '#0091ff';
 
 export default function AppearanceScreen() {
   const router = useRouter();
-  
-  const [isExpended, setIsExpended] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [theme, setTheme] = useState('light');
+  const { themeMode, setThemeMode } = useThemeManager();
+  const theme = useTheme();
+
+  const [isExpanded, setIsExpanded] = useState(false);
   const [language, setLanguage] = useState('vi');
 
-  useEffect(() => {
-    // Give time for stores to load
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
+  const LanguageOption = ({ label, active, onPress, flagSource }: any) => (
+    <TouchableOpacity
+      style={[
+        styles.langBoxItem, 
+        active && styles.langBoxActive,
+        { backgroundColor: theme.colors.card, borderColor: theme.colors.border }
+      ]}
+      onPress={onPress}
+    >
+      <Image source={flagSource} style={styles.flagCircle} />
+      <Text style={[styles.langBoxLabel, { color: theme.colors.text }]}>
+        {label === 'vi' ? 'Tiếng Việt' : 'English'}
+      </Text>
+      <View style={[styles.radioOuter, active && styles.radioActive]}>
+        {active && <View style={styles.radioInner} />}
+      </View>
+    </TouchableOpacity>
+  );
 
+  const ThemeOption = ({ label, active, onPress, image }: any) => (
+    <TouchableOpacity style={styles.themeItem} onPress={onPress}>
+      <View style={[styles.previewBox, active && styles.previewBoxActive]}>
+        <Image source={image} style={styles.imagePreview} resizeMode="cover" />
+      </View>
+      <View style={styles.radioContainer}>
+        <View style={[styles.radioOuter, active && styles.radioActive]}>
+          {active && <View style={styles.radioInner} />}
+        </View>
+        <Text style={[styles.themeLabel, { color: theme.colors.text }]}>{label}</Text>
+      </View>
+    </TouchableOpacity>
+  );
 
-  const toggleLangExpended = () => {
-    // Tạo hiệu ứng chuyển động khi hiện Box
+  const toggleLangExpanded = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIsExpended(!isExpended);
+    setIsExpanded(!isExpanded);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { borderBottomWidth: 0.5, borderBottomColor: theme.colors.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={28} color="#fff" />
+          <ChevronLeft size={28} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{"Giao diện"}</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Giao diện</Text>
       </View>
 
       <ScrollView>
         {/* Section Giao diện */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{"Giao diện"}</Text>
+          <Text style={[styles.sectionTitle, { color: ZALO_BLUE }]}>Giao diện</Text>
           <View style={styles.themeContainer}>
-            <ThemeOption 
-              label={"Light"} 
-              active={theme === 'light'} 
-              onPress={() => setTheme('light')}
+            <ThemeOption
+              label="Sáng"
+              active={themeMode === 'light'}
+              onPress={() => setThemeMode('light')}
               image={lightThemeImage}
             />
-            <ThemeOption 
-              label={"dark"} 
-              active={theme === 'dark'} 
-              onPress={() => setTheme('dark')}
+            <ThemeOption
+              label="Tối"
+              active={themeMode === 'dark'}
+              onPress={() => setThemeMode('dark')}
               image={darkThemeImage}
             />
           </View>
@@ -68,37 +97,42 @@ export default function AppearanceScreen() {
 
         {/* Section Ngôn ngữ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{"Ngôn ngữ"}</Text>
+          <Text style={[styles.sectionTitle, { color: ZALO_BLUE }]}>Ngôn ngữ</Text>
         </View>
-        <View style={styles.optionsGroup}>
-          <TouchableOpacity style={styles.menuRow} onPress={toggleLangExpended}>
-            <Text style={styles.menuTitle}>{"Thay đổi ngôn ngữ"}</Text>
+        
+        <View style={{ borderTopWidth: 0.5, borderTopColor: theme.colors.border }}>
+          <TouchableOpacity 
+            style={[styles.menuRow, { backgroundColor: theme.colors.card }]} 
+            onPress={toggleLangExpanded}
+          >
+            <Text style={[styles.menuTitle, { color: theme.colors.text }]}>Thay đổi ngôn ngữ</Text>
             <View style={styles.menuRight}>
-              {/* Chỉ hiện Tag ngôn ngữ hiện tại khi chưa nhấn mở rộng */}
-              {!isExpended && (
+              {!isExpanded && (
                 <View style={styles.langTag}>
-                  <View style={[styles.flagPlaceholder, { backgroundColor: language === 'vi' ? '#da251d' : '#00247d' }]} />
-                  <Text style={styles.langText}>{language === 'vi' ? "vi" : "en"}</Text>
+                  <Image 
+                    source={language === 'vi' ? VIETNAM_FLAG : USA_FLAG} 
+                    style={[styles.flagPlaceholder]} 
+                  />
+                  <Text style={styles.langText}>{language === 'vi' ? "Tiếng Việt" : "English"}</Text>
                 </View>
               )}
-              {isExpended ? <ChevronDown size={20} color="#555" /> : <ChevronRight size={20} color="#555" />}
+              {isExpanded ? <ChevronDown size={20} color={theme.colors.text} /> : <ChevronRight size={20} color={theme.colors.text} />}
             </View>
           </TouchableOpacity>
 
-          {/* Danh sách Box ngôn ngữ hiện ra khi nhấn */}
-          {isExpended && (
-            <View style={styles.langBoxContainer}>
-              <LanguageOption 
-                label={"vi"}
+          {isExpanded && (
+            <View style={[styles.langBoxContainer, { backgroundColor: theme.colors.background }]}>
+              <LanguageOption
+                label="vi"
                 active={language === 'vi'}
                 onPress={() => setLanguage('vi')}
-                flagColor="#da251d"
+                flagSource={VIETNAM_FLAG}
               />
-              <LanguageOption 
-                label={"en"}
+              <LanguageOption
+                label="en"
                 active={language === 'en'}
                 onPress={() => setLanguage('en')}
-                flagColor="#00247d"
+                flagSource={USA_FLAG}
               />
             </View>
           )}
@@ -108,92 +142,58 @@ export default function AppearanceScreen() {
   );
 }
 
-// Component lựa chọn Ngôn ngữ dạng Box
-const LanguageOption = ({ label, active, onPress, flagColor }: any) => (
-  <TouchableOpacity 
-    style={[styles.langBoxItem, active && styles.langBoxActive]} 
-    onPress={onPress}
-  >
-    <View style={[styles.flagCircle, { backgroundColor: flagColor }]} />
-    <Text style={styles.langBoxLabel}>{label}</Text>
-    <View style={[styles.radioOuter, active && styles.radioActive]}>
-      {active && <View style={styles.radioInner} />}
-    </View>
-  </TouchableOpacity>
-);
-
-const ThemeOption = ({ label, active, onPress , image}: any) => (
-  <TouchableOpacity style={styles.themeItem} onPress={onPress}>
-    <View style={[styles.previewBox, active && styles.previewBoxActive]}>
-      <Image source={image} style={styles.imagePreview} resizeMode="cover" />
-    </View>
-    <View style={styles.radioContainer}>
-      <View style={[styles.radioOuter, active && styles.radioActive]}>
-        {active && <View style={styles.radioInner} />}
-      </View>
-      <Text style={styles.themeLabel}>{label}</Text>
-    </View>
-  </TouchableOpacity>
-);
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 15 },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600' },
+  headerTitle: { fontSize: 18, fontWeight: '600' },
   section: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 10 },
-  sectionTitle: { color: ZALO_BLUE, fontSize: 14, fontWeight: '700' },
+  sectionTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
   themeContainer: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 10 },
   themeItem: { alignItems: 'center', gap: 10 },
-  previewBox: { 
-    width: 100, 
-    height: 120, 
-    borderRadius: 8, 
-    borderWidth: 2, 
+  previewBox: {
+    width: 110,
+    height: 160,
+    borderRadius: 12,
+    borderWidth: 2,
     borderColor: 'transparent',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    backgroundColor: '#eee'
   },
-  imagePreview: { width: '100%', height: '100%' },
   previewBoxActive: { borderColor: ZALO_BLUE },
+  imagePreview: { width: '100%', height: '100%' },
   radioContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  radioOuter: { 
-    width: 18, height: 18, borderRadius: 9, 
-    borderWidth: 2, borderColor: '#555', 
-    alignItems: 'center', justifyContent: 'center' 
+  radioOuter: {
+    width: 20, height: 20, borderRadius: 10,
+    borderWidth: 2, borderColor: '#888',
+    alignItems: 'center', justifyContent: 'center'
   },
   radioActive: { borderColor: ZALO_BLUE },
   radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: ZALO_BLUE },
-  themeLabel: { color: '#fff', fontSize: 14 },
-  optionsGroup: { borderTopWidth: 0.5, borderTopColor: '#222' },
-  menuRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
+  themeLabel: { fontSize: 14, fontWeight: '500' },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: '#000'
   },
-  menuTitle: { color: '#fff', fontSize: 16 },
-  menuRight: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  menuTitle: { fontSize: 16 },
+  menuRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   langTag: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  langText: { color: '#8e8e93', fontSize: 15 },
-  flagPlaceholder: { width: 20, height: 14, borderRadius: 2 },
-  
-  // Style bổ sung cho phần Box ngôn ngữ
-  langBoxContainer: { 
-    flexDirection: 'row', 
-    padding: 16, 
-    gap: 12, 
-    backgroundColor: '#0a0a0a', // Nền tối hơn một chút để phân biệt
+  langText: { color: '#8e8e93', fontSize: 14 },
+  flagPlaceholder: { width: 24, height: 16, borderRadius: 2 },
+  langBoxContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
   },
-  langBoxItem: { 
-    flex: 1, 
-    backgroundColor: '#1a1a1a', 
-    borderRadius: 12, 
-    padding: 15, 
+  langBoxItem: {
+    flex: 1,
+    borderRadius: 12,
+    padding: 15,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#333'
   },
   langBoxActive: { borderColor: ZALO_BLUE },
-  flagCircle: { width: 30, height: 30, borderRadius: 15, marginBottom: 8 },
-  langBoxLabel: { color: '#fff', fontSize: 14, fontWeight: '600', marginBottom: 10 },
+  flagCircle: { width: 40, height: 40, borderRadius: 20, marginBottom: 8 },
+  langBoxLabel: { fontSize: 14, fontWeight: '600', marginBottom: 10 },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,7 +8,7 @@ import {
   Image,
   Modal,
   FlatList,
-} from "react-native";
+} from 'react-native';
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,24 +16,26 @@ import {
   Users,
   ChevronDown,
   Search,
-} from "lucide-react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Colors } from "@/src/constants/Colors";
-import { useCountriesStore } from "@/src/store/useCountriesStore";
+} from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { useTheme } from '@/src/theme/themeContext';
+import { useCountriesStore } from '@/src/store/useCountriesStore';
 
 export default function AddFriendScreen() {
   const router = useRouter();
+  const theme = useTheme();
 
-  // Get state and actions from store
-  const countries = useCountriesStore((state) => state.countries);
-  const filteredCountries = useCountriesStore((state) => state.filteredCountries);
-  const initializeCountries = useCountriesStore((state) => state.initializeCountries);
-  const setSearchQuery = useCountriesStore((state) => state.setSearchQuery);
+  const countries = useCountriesStore((s) => s.countries);
+  const filteredCountries = useCountriesStore((s) => s.filteredCountries);
+  const initializeCountries = useCountriesStore((s) => s.initializeCountries);
+  const setSearchQuery = useCountriesStore((s) => s.setSearchQuery);
+  const searchQuery = useCountriesStore((s) => s.searchQuery);
 
-  // Local state
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState(countries[0] || { name: "Việt Nam", code: "+84" });
+  const [selectedCountry, setSelectedCountry] = useState(
+    countries[0] || { name: 'Việt Nam', code: '+84' }
+  );
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isFocused, setIsFocused] = useState(false);
 
@@ -43,56 +45,104 @@ export default function AddFriendScreen() {
 
   const isValidPhone = phoneNumber.length >= 10;
 
-  const handleCountrySearch = (text: string) => {
-    setSearchQuery(text);
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <ArrowLeft color="#fff" size={24} />
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
+      {/* ================= HEADER ================= */}
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: theme.colors.background },
+        ]}
+      >
+        <TouchableOpacity onPress={() => router.back()}>
+          <ArrowLeft size={24} color={theme.colors.icon} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Thêm bạn</Text>
+        <Text
+          style={[
+            styles.headerTitle,
+            { color: theme.colors.text },
+          ]}
+        >
+          Thêm bạn
+        </Text>
       </View>
 
       <View style={styles.content}>
-        {/* Card QR Code */}
-        <View style={styles.qrCard}>
-          <Text style={styles.userName}>Mai Huỳnh Dương Tuấn K...</Text>
+        {/* ================= QR CARD ================= */}
+        <View
+          style={[
+            styles.qrCard,
+            { backgroundColor: theme.colors.card },
+          ]}
+        >
+          <Text
+            style={[
+              styles.userName,
+              { color: theme.colors.text },
+            ]}
+          >
+            Mai Huỳnh Dương Tuấn K...
+          </Text>
+
           <View style={styles.qrContainer}>
             <Image
               source={{
-                uri: "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Zalo",
+                uri: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Zalo',
               }}
               style={styles.qrImage}
             />
           </View>
-          <Text style={styles.qrSubText}>Quét mã để thêm bạn Zalo với tôi</Text>
+
+          <Text style={styles.qrSubText}>
+            Quét mã để thêm bạn Zalo với tôi
+          </Text>
         </View>
 
-        {/* Input Số điện thoại */}
+        {/* ================= PHONE INPUT ================= */}
         <View style={styles.inputWrapper}>
-          <View style={[
-            styles.phoneInputContainer,
-            // Đổi màu viền xanh khi focus HOẶC khi đã nhập nội dung
-            (isFocused || phoneNumber.length > 0) && { borderColor: '#6489e0', borderWidth: 1.5 }
-          ]}>
+          <View
+            style={[
+              styles.phoneInputContainer,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor:
+                  isFocused || phoneNumber
+                    ? theme.colors.primary
+                    : theme.colors.border,
+              },
+            ]}
+          >
             <TouchableOpacity
               style={styles.countryCode}
               onPress={() => setModalVisible(true)}
             >
-              <Text style={styles.countryText}>{selectedCountry.code}</Text>
-              <ChevronDown color="#8e8e93" size={16} />
+              <Text
+                style={[
+                  styles.countryText,
+                  { color: theme.colors.text },
+                ]}
+              >
+                {selectedCountry.code}
+              </Text>
+              <ChevronDown size={16} color="#8e8e93" />
             </TouchableOpacity>
 
-            <View style={styles.divider} />
+            <View
+              style={[
+                styles.divider,
+                { backgroundColor: theme.colors.border },
+              ]}
+            />
 
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                { color: theme.colors.text },
+              ]}
               placeholder="Nhập số điện thoại"
-              placeholderTextColor="#666"
+              placeholderTextColor="#8e8e93"
               keyboardType="phone-pad"
               value={phoneNumber}
               onChangeText={setPhoneNumber}
@@ -100,58 +150,87 @@ export default function AddFriendScreen() {
               onBlur={() => setIsFocused(false)}
             />
 
-            {/* Nút mũi tên sẽ sáng lên (màu Zalo Blue) khi số điện thoại hợp lệ */}
             <TouchableOpacity
+              disabled={!isValidPhone}
               style={[
                 styles.nextBtn,
-                isValidPhone && { backgroundColor: Colors.zaloBlue }
+                {
+                  backgroundColor: isValidPhone
+                    ? theme.colors.primary
+                    : theme.colors.border,
+                },
               ]}
-              disabled={!isValidPhone}
-              onPress={() => console.log("Tìm kiếm bạn:", phoneNumber)}
             >
               <ArrowRight
-                color={isValidPhone ? "#fff" : "#444"}
                 size={20}
+                color={isValidPhone ? '#fff' : '#666'}
               />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Menu Options */}
+        {/* ================= MENU ================= */}
         <View style={styles.menuSection}>
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/scanner')}>
-            <View style={styles.iconWrapper}>
-              <QrCode color={Colors.zaloBlue} size={22} />
-            </View>
-            <Text style={styles.menuText}>Quét mã QR</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.iconWrapper}>
-              <Users color={Colors.zaloBlue} size={22} />
-            </View>
-            <Text style={styles.menuText}>Bạn bè có thể quen</Text>
-          </TouchableOpacity>
+          <MenuItem
+            icon={<QrCode size={22} color={theme.colors.primary} />}
+            title="Quét mã QR"
+            onPress={() => router.push('/scanner')}
+            borderColor={theme.colors.border}
+            textColor={theme.colors.text}
+          />
+
+          <MenuItem
+            icon={<Users size={22} color={theme.colors.primary} />}
+            title="Bạn bè có thể quen"
+            borderColor={theme.colors.border}
+            textColor={theme.colors.text}
+          />
         </View>
       </View>
 
-      <Modal visible={modalVisible} animationType="slide" transparent={false}>
-        <SafeAreaView style={styles.modalBg}>
-          <View style={styles.modalHeader}>
+      {/* ================= MODAL ================= */}
+      <Modal visible={modalVisible} animationType="slide">
+        <SafeAreaView
+          style={[
+            styles.modalBg,
+            { backgroundColor: theme.colors.background },
+          ]}
+        >
+          <View
+            style={[
+              styles.modalHeader,
+              { borderBottomColor: theme.colors.border },
+            ]}
+          >
             <TouchableOpacity onPress={() => setModalVisible(false)}>
-              <ArrowLeft color="#fff" size={24} />
+              <ArrowLeft size={24} color={theme.colors.icon} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Chọn quốc gia</Text>
+            <Text
+              style={[
+                styles.modalTitle,
+                { color: theme.colors.text },
+              ]}
+            >
+              Chọn quốc gia
+            </Text>
           </View>
 
-          {/* Ô tìm kiếm trong Modal */}
-          <View style={styles.searchBox}>
-            <Search color="#8e8e93" size={20} />
+          <View
+            style={[
+              styles.searchBox,
+              { backgroundColor: theme.colors.card },
+            ]}
+          >
+            <Search size={20} color="#8e8e93" />
             <TextInput
-              style={styles.searchInput}
+              style={[
+                styles.searchInput,
+                { color: theme.colors.text },
+              ]}
               placeholder="Tìm kiếm quốc gia"
               placeholderTextColor="#8e8e93"
-              onChangeText={handleCountrySearch}
-              value={useCountriesStore((state) => state.searchQuery)}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
             />
           </View>
 
@@ -160,15 +239,32 @@ export default function AddFriendScreen() {
             keyExtractor={(item) => item.code}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={styles.countryItem}
+                style={[
+                  styles.countryItem,
+                  { borderBottomColor: theme.colors.border },
+                ]}
                 onPress={() => {
                   setSelectedCountry(item);
                   setModalVisible(false);
-                  useCountriesStore.setState({ searchQuery: "" });
+                  setSearchQuery('');
                 }}
               >
-                <Text style={styles.itemFlagText}>{item.name}</Text>
-                <Text style={styles.itemCodeText}>{item.code}</Text>
+                <Text
+                  style={[
+                    styles.itemFlagText,
+                    { color: theme.colors.text },
+                  ]}
+                >
+                  {item.name}
+                </Text>
+                <Text
+                  style={[
+                    styles.itemCodeText,
+                    { color: theme.colors.primary },
+                  ]}
+                >
+                  {item.code}
+                </Text>
               </TouchableOpacity>
             )}
           />
@@ -178,107 +274,178 @@ export default function AddFriendScreen() {
   );
 }
 
+/* ================= COMPONENT ================= */
+
+function MenuItem({
+  icon,
+  title,
+  onPress,
+  borderColor,
+  textColor,
+}: any) {
+  return (
+    <TouchableOpacity
+      style={[
+        styles.menuItem,
+        { borderBottomColor: borderColor },
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.iconWrapper}>{icon}</View>
+      <Text style={[styles.menuText, { color: textColor }]}>
+        {title}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
+  container: { flex: 1 },
+
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     height: 56,
   },
-  backBtn: { marginRight: 16 },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "600" },
-  content: { flex: 1, paddingHorizontal: 20, alignItems: "center" },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 16,
+  },
+
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+
   qrCard: {
-    backgroundColor: "#3a4a5e",
-    width: "90%",
+    width: '90%',
     borderRadius: 20,
     padding: 24,
     marginTop: 20,
-    alignItems: "center",
+    alignItems: 'center',
   },
+
   userName: {
-    color: "#fff",
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     marginBottom: 20,
   },
-  qrContainer: { backgroundColor: "#fff", padding: 10, borderRadius: 12 },
+
+  qrContainer: {
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 12,
+  },
+
   qrImage: { width: 150, height: 150 },
-  qrSubText: { color: "#cbd5e0", marginTop: 20, fontSize: 14 },
-  inputWrapper: { width: "100%", marginTop: 30 },
+
+  qrSubText: {
+    marginTop: 20,
+    fontSize: 14,
+    color: '#8e8e93',
+    textAlign: 'center',
+  },
+
+  inputWrapper: { width: '100%', marginTop: 30 },
+
   phoneInputContainer: {
-    flexDirection: "row",
-    textAlign: "center",
-    alignItems: "center",
-    backgroundColor: "#1a1a1a",
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#817c7cff",
     height: 56,
     paddingHorizontal: 12,
   },
-  countryCode: { flexDirection: "row", alignItems: "center", paddingRight: 8 },
-  countryText: { color: "#fff", fontSize: 16, marginRight: 4 },
+
+  countryCode: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  countryText: {
+    fontSize: 16,
+    marginRight: 4,
+  },
+
   divider: {
     width: 1,
     height: 24,
-    backgroundColor: "#333",
     marginHorizontal: 10,
   },
-  input: { flex: 1, color: "#fff", fontSize: 16 },
+
+  input: {
+    flex: 1,
+    fontSize: 16,
+  },
+
   nextBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    marginLeft: 5,
-    backgroundColor: "#333",
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  menuSection: { width: "100%", marginTop: 20 },
+
+  menuSection: { width: '100%', marginTop: 20 },
+
   menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#222",
   },
+
   iconWrapper: { width: 40 },
-  menuText: { color: "#fff", fontSize: 16 },
-  // Modal Styles
-  modalBg: { flex: 1, backgroundColor: "#000" },
+
+  menuText: { fontSize: 16 },
+
+  modalBg: { flex: 1 },
+
   modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#333",
   },
+
   modalTitle: {
-    color: "#fff",
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     marginLeft: 20,
   },
+
   searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1a1a1a",
+    flexDirection: 'row',
+    alignItems: 'center',
     margin: 16,
     paddingHorizontal: 12,
     borderRadius: 8,
     height: 44,
   },
-  searchInput: { flex: 1, color: "#fff", marginLeft: 10, fontSize: 16 },
+
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
+  },
+
   countryItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     paddingVertical: 18,
     paddingHorizontal: 20,
-    borderBottomWidth: 0.3,
-    borderBottomColor: "#222",
+    borderBottomWidth: 0.5,
   },
-  itemFlagText: { color: "#fff", fontSize: 16 },
-  itemCodeText: { color: Colors.zaloBlue, fontSize: 16, fontWeight: "500" },
+
+  itemFlagText: { fontSize: 16 },
+
+  itemCodeText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
 });

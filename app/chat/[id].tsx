@@ -2,6 +2,7 @@ import { ChatComposer } from '@/src/components/chat/ChatComposer';
 import { ImageViewer } from '@/src/components/chat/ImageViewer';
 import { MessageBubble } from '@/src/components/chat/MessageBubble';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
+import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useLocalSearchParams } from 'expo-router';
@@ -30,6 +31,9 @@ export default function ChatDetailScreen() {
   const initializeMessages = useMessagesStore((state) => state.initializeMessages);
   const sendMessage = useMessagesStore((state) => state.sendMessage);
   const revokeMessage = useMessagesStore((state) => state.revokeMessage);
+  const theme = useTheme();
+  const messageWidthMap = useRef<Record<string, number>>({});
+
 
   useEffect(() => {
     initializeMessages();
@@ -107,20 +111,22 @@ export default function ChatDetailScreen() {
 
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen
         options={{
           headerShown: true,
           title,
-          headerStyle: { backgroundColor: '#1a1a1a' },
-          headerTintColor: '#fff',
+          headerStyle: {
+            backgroundColor: theme.colors.header,
+          },
+          headerTintColor: theme.colors.textHeader,
           headerRight: () => (
             <View style={styles.headerRightContainer}>
               <TouchableOpacity style={styles.callButton}>
-                <Phone size={20} color="#fff" />
+                <Phone size={20} color= {theme.colors.icon} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.callButton}>
-                <List size={20} color="#fff" />
+                <List size={20} color={theme.colors.icon} />
               </TouchableOpacity>
             </View>
           ),
@@ -136,7 +142,7 @@ export default function ChatDetailScreen() {
           data={messages}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => <MessageBubble item={item} onLongPress={openMessageActions} onImagePress={(uri) =>{console.log("Opening image:", uri); setSelectedImage(uri);}} />}
+          renderItem={({ item }) => <MessageBubble item={item} onLongPress={openMessageActions} onImagePress={(uri) =>{console.log("Opening image:", uri); setSelectedImage(uri);}} widthMap={messageWidthMap}/>}
         />
 
         <ChatComposer
@@ -168,7 +174,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   headerRightContainer: {
     flexDirection: 'row',
-    
   },
   body: { flex: 1 },
   listContent: { paddingHorizontal: 12, paddingVertical: 10 },

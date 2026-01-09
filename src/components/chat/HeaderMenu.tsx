@@ -1,3 +1,4 @@
+import { useTheme } from '@/src/theme/themeContext';
 import { useRouter } from 'expo-router';
 import { Cloud, UserPlus, Users } from 'lucide-react-native';
 import React from 'react';
@@ -12,6 +13,7 @@ type HeaderMenuProps = {
 
 export function HeaderMenu({ visible, onClose }: HeaderMenuProps) {
   const router = useRouter();
+  const theme = useTheme();
 
   const menuItems = [
     { icon: UserPlus, label: 'Thêm bạn' , onPress: () => router.push('/addFriend' as any)},
@@ -24,14 +26,14 @@ export function HeaderMenu({ visible, onClose }: HeaderMenuProps) {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         
-        <View style={styles.menuContainer}>
+        <View style={[styles.menuContainer, { backgroundColor: theme.colors.background }]}>
           {menuItems.map((item, index) => (
             <Pressable key={index} style={styles.menuItem} onPress={() => {
                 item.onPress();
                 onClose();
             }}>
-              <item.icon size={20} color="#ccc" strokeWidth={1.5} />
-              <Text style={styles.menuText}>{item.label}</Text>
+              <item.icon size={20} color={theme.colors.text} strokeWidth={1.5} />
+              <Text style={[styles.menuText, { color: theme.colors.text }]}>{item.label}</Text>
             </Pressable>
           ))}
         </View>

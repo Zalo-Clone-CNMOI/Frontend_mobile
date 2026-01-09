@@ -1,15 +1,17 @@
+import { useTheme } from '@react-navigation/native';
 import { Tabs } from 'expo-router';
 import { MessageSquare, Contact2, LayoutGrid, Clock3, User2 } from 'lucide-react-native';
 
 export default function TabsLayout() {
+  const theme = useTheme()
   return (
     <Tabs screenOptions={{
-      tabBarActiveTintColor: '#0091ff',
+      tabBarActiveTintColor: theme.colors.primary,
       tabBarInactiveTintColor: '#8e8e93',
-      tabBarStyle: { backgroundColor: '#1a1a1a', borderTopWidth: 0.5, borderTopColor: '#333' },
+      tabBarStyle: { backgroundColor: theme.colors.background, borderTopWidth: 0.5, borderTopColor: '#333' },
       headerShown: false,
-      headerStyle: { backgroundColor: '#1a1a1a' },
-      headerTintColor: '#fff',
+      headerStyle: { backgroundColor: theme.colors.background },
+      headerTintColor: theme.colors.text,
     }}>
       <Tabs.Screen name="index" options={{
         title: 'Tin nhắn',

@@ -20,13 +20,16 @@ import {
 import { useRouter } from "expo-router";
 import { useContactsStore } from "@/src/store/useContactsStore";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Colors } from "@/src/constants/Colors";
+import { useTheme } from "@/src/theme/themeContext";
 
 export default function CreateGroupScreen() {
   const router = useRouter();
+  const { colors } = useTheme(); // ✅ DÙNG THEME
+
   const [groupName, setGroupName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [nameFocused, setNameFocused] = useState(false);
 
   const friends = useContactsStore((state) => state.friends);
   const initializeContacts = useContactsStore(
@@ -44,103 +47,128 @@ export default function CreateGroupScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Thanh điều hướng Header */}
-      <View style={styles.navBar}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={[styles.navBar, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={28} color="#fff" />
+          <ChevronLeft size={26} color={colors.text} />
         </TouchableOpacity>
-        <View style={{ marginLeft: 15 }}>
-          <Text style={styles.navTitle}>Nhóm mới</Text>
-          <Text style={styles.navSub}>Đã chọn: {selectedIds.length}</Text>
+        <View style={{ marginLeft: 16 }}>
+          <Text style={[styles.navTitle, { color: colors.text }]}>
+            Nhóm mới
+          </Text>
+          <Text style={[styles.navSub, { color: colors.text }]}>
+            Đã chọn: {selectedIds.length}
+          </Text>
         </View>
       </View>
 
-      <View style={styles.headerCard}>
-        <View style={styles.groupNameInput}>
-          <TouchableOpacity style={styles.cameraBtn}>
-            <Camera size={22} color="#8e8e93" />
+      {/* Header Card */}
+      <View style={[styles.headerCard, { backgroundColor: colors.background }]}>
+        {/* Tên nhóm */}
+        <View
+          style={[
+            styles.groupNameInput,
+            {
+              backgroundColor: colors.card,
+              borderColor: nameFocused || groupName
+                ? colors.primary
+                : colors.border,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={[styles.cameraBtn, { backgroundColor: colors.border }]}
+          >
+            <Camera size={22} color={colors.text} />
           </TouchableOpacity>
+
           <TextInput
             placeholder="Đặt tên nhóm"
-            placeholderTextColor="#8e8e93"
-            style={styles.nameInput}
+            placeholderTextColor={colors.text}
+            style={[styles.nameInput, { color: colors.text }]}
             value={groupName}
             onChangeText={setGroupName}
+            onFocus={() => setNameFocused(true)}
+            onBlur={() => setNameFocused(false)}
           />
         </View>
 
-        <View style={styles.searchBox}>
-          <Search size={18} color="#8e8e93" />
+        {/* Search */}
+        <View style={[styles.searchBox, { backgroundColor: colors.card }]}>
+          <Search size={18} color={colors.text} />
           <TextInput
             placeholder="Tìm tên hoặc số điện thoại"
-            placeholderTextColor="#8e8e93"
-            style={styles.searchInput}
+            placeholderTextColor={colors.text}
+            style={[styles.searchInput, { color: colors.text }]}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
 
-        <View style={styles.tabHeader}>
-          <Text style={styles.tabActive}>Bạn bè</Text>
+        <View style={[styles.tabHeader, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.tabActive, { color: colors.text, borderBottomColor: colors.text }]}>
+            Bạn bè
+          </Text>
         </View>
       </View>
 
+      {/* Danh sách bạn */}
       <FlatList
-        data={friends.filter((f) => f.name.includes(searchQuery))}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.friendRow}
-            onPress={() => handleSelect(item.id)}
-          >
-            <View style={styles.avatarWrapper}>
-              {item.color ? (
-                <View
-                  style={[styles.avatarText, { backgroundColor: item.color }]}
-                >
-                  <Text style={styles.atText}>PN</Text>
-                </View>
-              ) : (
-                <Image source={{ uri: item.avatar }} style={styles.avatar} />
-              )}
-            </View>
-            <View style={styles.friendInfo}>
-              <Text style={styles.fName}>{item.name}</Text>
-              <Text style={styles.fTime}>{item.time}</Text>
-            </View>
-            <View
-              style={[
-                styles.checkCircle,
-                selectedIds.includes(item.id) && styles.checkActive,
-              ]}
-            >
-              {selectedIds.includes(item.id) && (
-               <Check  color="#fff" style={[styles.checkActive,styles.checkCircle]} />
-              )}
-            </View>
-          </TouchableOpacity>
+        data={friends.filter((f) =>
+          f.name.toLowerCase().includes(searchQuery.toLowerCase())
         )}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => {
+          const selected = selectedIds.includes(item.id);
+          return (
+            <TouchableOpacity style={styles.friendRow} onPress={() => handleSelect(item.id)}>
+              <View style={styles.avatarWrapper}>
+                {item.color ? (
+                  <View style={[styles.avatarText, { backgroundColor: item.color }]}>
+                    <Text style={styles.atText}>PN</Text>
+                  </View>
+                ) : (
+                  <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                )}
+              </View>
+
+              <View style={styles.friendInfo}>
+                <Text style={[styles.fName, { color: colors.text }]}>
+                  {item.name}
+                </Text>
+                <Text style={[styles.fTime, { color: colors.text }]}>
+                  {item.time}
+                </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.checkCircle,
+                  {
+                    borderColor: selected ? colors.primary : colors.border,
+                    backgroundColor: selected ? colors.primary : "transparent",
+                  },
+                ]}
+              >
+                {selected && <Check size={16} color="#fff" />}
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
 
-      {/* Footer hiển thị người đã chọn */}
+      {/* Footer */}
       {selectedIds.length > 0 && (
-        <View style={styles.footer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.selectedList}
-          >
+        <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectedList}>
             {selectedIds.map((id) => {
-              const f = friends.find((item) => item.id === id);
+              const f = friends.find((i) => i.id === id);
               return (
                 <View key={id} style={styles.selectedItem}>
-                  <Image
-                    source={{ uri: f?.avatar }}
-                    style={styles.selectedAvatar}
-                  />
+                  <Image source={{ uri: f?.avatar }} style={styles.selectedAvatar} />
                   <TouchableOpacity
-                    style={styles.removeX}
+                    style={[styles.removeX, { backgroundColor: colors.border }]}
                     onPress={() => handleSelect(id)}
                   >
                     <X size={12} color="#fff" />
@@ -149,83 +177,88 @@ export default function CreateGroupScreen() {
               );
             })}
           </ScrollView>
-          <TouchableOpacity
-            style={styles.fabBtn}
-            onPress={() => console.log("Tạo nhóm:", groupName)}
-          >
-            <ArrowRight size={28} color="#fff" />
+
+          <TouchableOpacity style={[styles.fabBtn, { backgroundColor: colors.primary }]}>
+            <ArrowRight size={26} color="#fff" />
           </TouchableOpacity>
         </View>
       )}
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
+  container: { flex: 1 },
+
   navBar: {
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#222",
   },
-  navTitle: { color: "#fff", fontSize: 18, fontWeight: "600" },
-  navSub: { color: "#8e8e93", fontSize: 13 },
-  headerTop: { padding: 16 },
+
+  navTitle: { fontSize: 18, fontWeight: "600" },
+  navSub: { fontSize: 13 },
+
+  headerCard: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
+  },
+
   groupNameInput: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 16,
   },
+
   cameraBtn: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#222",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
   },
+
   nameInput: {
     flex: 1,
-    marginLeft: 15,
-    color: "#fff",
-    fontSize: 17,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#333",
-    paddingBottom: 5,
+    marginLeft: 12,
+    fontSize: 16,
   },
+
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1a1a1a",
     borderRadius: 10,
-    paddingHorizontal: 10,
-    height: 45,
+    paddingHorizontal: 12,
+    height: 44,
   },
-  searchInput: { flex: 1, color: "#fff", marginLeft: 10 },
-  searchTypeIcon: {
-    color: "#8e8e93",
-    borderLeftWidth: 1,
-    borderLeftColor: "#333",
-    paddingLeft: 10,
+
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
   },
+
   tabHeader: {
-    flexDirection: "row",
-    marginTop: 20,
+    marginTop: 16,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#222",
   },
+
   tabActive: {
-    color: "#fff",
     paddingBottom: 10,
     borderBottomWidth: 2,
-    borderBottomColor: "#fff",
-    marginRight: 30,
     fontWeight: "600",
   },
-  tabInactive: { color: "#8e8e93", marginRight: 30 },
-  friendRow: { flexDirection: "row", alignItems: "center", padding: 15 },
+
+  friendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 15,
+  },
+
   avatarWrapper: { width: 50, height: 50 },
   avatar: { width: 50, height: 50, borderRadius: 25 },
   avatarText: {
@@ -235,54 +268,47 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+
   atText: { color: "#fff", fontWeight: "bold" },
+
   friendInfo: { flex: 1, marginLeft: 15 },
-  fName: { color: "#fff", fontSize: 16 },
-  fTime: { color: "#8e8e93", fontSize: 13, marginTop: 4 },
+  fName: { fontSize: 16 },
+  fTime: { fontSize: 13, marginTop: 4 },
+
   checkCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "#555",
-  },
-  checkActive: { backgroundColor: Colors.zaloBlue, borderColor: Colors.zaloBlue },
-  footer: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 15,
-    backgroundColor: "#111",
-    borderTopWidth: 0.5,
-    borderTopColor: "#222",
-  },
-  selectedList: { flex: 1 },
-  selectedItem: { marginRight: 15 },
-  selectedAvatar: { width: 45, height: 45, borderRadius: 22.5 },
-  removeX: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    backgroundColor: "#555",
-    borderRadius: 10,
-    padding: 2,
-  },
-  fabBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.zaloBlue,
     justifyContent: "center",
     alignItems: "center",
   },
-  headerCard: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
-    backgroundColor: '#000',
-},
 
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderTopWidth: 0.5,
+  },
 
+  selectedList: { flex: 1 },
+  selectedItem: { marginRight: 12 },
+  selectedAvatar: { width: 44, height: 44, borderRadius: 22 },
 
+  removeX: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    borderRadius: 10,
+    padding: 2,
+  },
 
-
+  fabBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 10,
+  },
 });

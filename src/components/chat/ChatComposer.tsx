@@ -1,16 +1,33 @@
-import { File, FileText, Image as ImageIcon, MapPin, Mic, MoreHorizontal, Send, Smile, User, X } from 'lucide-react-native';
+import {
+  File,
+  FileText,
+  Image as ImageIcon,
+  MapPin,
+  Mic,
+  MoreHorizontal,
+  Send,
+  Smile,
+  User,
+  X,
+} from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import EmojiPicker, { EmojiType } from 'rn-emoji-keyboard';
-import { Colors } from '@/src/constants/Colors';
-
+import { useTheme } from '@/src/theme/themeContext';
 
 export function ChatComposer({
   value,
   onChangeText,
   onSend,
-  onSendFiles, // Hàm này nhận vào một mảng File
+  onSendFiles,
   replyingTo,
   onCancelReply,
 }: {
@@ -24,64 +41,98 @@ export function ChatComposer({
   } | null;
   onCancelReply?: () => void;
 }) {
+  const theme = useTheme();
   const [showEmoji, setShowEmoji] = useState(false);
   const [showMore, setShowMore] = useState(false);
 
   const canSend = useMemo(() => value.trim().length > 0, [value]);
 
-  const handlePickEmoji = (emojiObject: EmojiType) => {
-    // Parent provides current `value` so append emoji to it and send back
-    onChangeText(value + emojiObject.emoji);
+  const handlePickEmoji = (emoji: EmojiType) => {
+    onChangeText(value + emoji.emoji);
   };
 
-  // --- PHẦN ĐÃ SỬA ---
   const handlePickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
+        multiple: true,
         copyToCacheDirectory: true,
-        multiple: true, // Cho phép chọn nhiều file
       });
 
       if (!result.canceled && result.assets) {
         onSendFiles(result.assets);
-
-        setShowMore(false); // Đóng bảng chọn
+        setShowMore(false);
       }
-    } catch (err) {
+    } catch {
       Alert.alert('Lỗi', 'Không thể chọn tài liệu');
     }
   };
 
   return (
-    <View style={styles.container}>
-      {/* Phần Reply tin nhắn */}
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.colors.card,
+          borderTopColor: theme.colors.border,
+        },
+      ]}
+    >
+      {/* ===== Reply ===== */}
       {!!replyingTo && (
-        <View style={styles.replyingWrap}>
-          <View style={styles.replyingBar} />
+        <View
+          style={[
+            styles.replyingWrap,
+            {
+              backgroundColor: theme.colors.background,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.replyingBar,
+              { backgroundColor: theme.colors.primary },
+            ]}
+          />
           <View style={styles.replyingContent}>
-            <Text style={styles.replyingTitle} numberOfLines={1}>
+            <Text
+              style={[
+                styles.replyingTitle,
+                { color: theme.colors.primary },
+              ]}
+              numberOfLines={1}
+            >
               Trả lời {replyingTo.senderName}
             </Text>
-            <Text style={styles.replyingText} numberOfLines={1}>
+            <Text
+              style={[
+                styles.replyingText,
+                { color: theme.colors.text, opacity: 0.7 },
+              ]}
+              numberOfLines={1}
+            >
               {replyingTo.text}
             </Text>
           </View>
           <Pressable style={styles.replyingClose} onPress={onCancelReply}>
-            <X size={18} color="#8e8e93" />
+            <X size={18} color={theme.colors.text} />
           </Pressable>
         </View>
       )}
 
+      {/* ===== Composer ===== */}
       <View style={styles.composer}>
         <Pressable
-          style={[styles.iconBtn, showEmoji && { backgroundColor: Colors.zaloBlue }]}
+          style={[
+            styles.iconBtn,
+            { backgroundColor: theme.colors.card },
+          ]}
           onPress={() => {
             setShowEmoji(true);
             setShowMore(false);
           }}
         >
-          <Smile size={20} color="#fff" />
+          <Smile size={20} color={theme.colors.icon} />
         </Pressable>
 
         <TextInput
@@ -89,8 +140,15 @@ export function ChatComposer({
           onChangeText={onChangeText}
           placeholder="Tin nhắn"
           placeholderTextColor="#8e8e93"
-          style={styles.input}
           multiline
+          style={[
+            styles.input,
+            {
+              backgroundColor: theme.colors.background,
+              borderColor: theme.colors.border,
+              color: theme.colors.text,
+            },
+          ]}
           onFocus={() => {
             setShowEmoji(false);
             setShowMore(false);
@@ -98,153 +156,202 @@ export function ChatComposer({
         />
 
         <Pressable
-          style={styles.iconBtn}
+          style={[
+            styles.iconBtn,
+            { backgroundColor: theme.colors.card },
+          ]}
           onPress={() => {
             setShowMore((v) => !v);
             setShowEmoji(false);
           }}
         >
-          <MoreHorizontal size={20} color="#fff" />
+          <MoreHorizontal size={20} color={theme.colors.icon} />
         </Pressable>
 
         {canSend ? (
-          <Pressable style={styles.sendBtn} onPress={onSend}>
-            <Send size={18} color="#fff" />
+          <Pressable
+            style={[
+              styles.sendBtn,
+              { backgroundColor: theme.colors.primary },
+            ]}
+            onPress={onSend}
+          >
+            <Send size={18} color={theme.colors.icon} />
           </Pressable>
         ) : (
           <View style={styles.rightIcons}>
-            <Pressable style={styles.iconBtn} onPress={() => Alert.alert('Tính năng', 'Gửi Audio')}>
-              <Mic size={20} color="#fff" />
+            <Pressable
+              style={[
+                styles.iconBtn,
+                { backgroundColor: theme.colors.card },
+              ]}
+            >
+              <Mic size={20} color={theme.colors.icon} />
             </Pressable>
-            {/* Nút gửi ảnh nhanh (có thể gọi hàm chọn file luôn hoặc logic chọn ảnh riêng) */}
-            <Pressable style={styles.iconBtn} onPress={handlePickDocument}>
-              <ImageIcon size={20} color="#fff" />
+            <Pressable
+              style={[
+                styles.iconBtn,
+                { backgroundColor: theme.colors.card },
+              ]}
+              onPress={handlePickDocument}
+            >
+              <ImageIcon size={20} color={theme.colors.icon} />
             </Pressable>
           </View>
         )}
       </View>
 
-      {/* Board chức năng thêm */}
+      {/* ===== More Board ===== */}
       {showMore && (
         <View style={styles.moreBoard}>
-          <Option title="File" Icon={File} onPress={handlePickDocument} />
-          <Option title="Vị trí" Icon={MapPin} onPress={() => Alert.alert('Tính năng', 'Chia sẻ vị trí')} />
-          <Option title="Liên hệ" Icon={User} onPress={() => Alert.alert('Tính năng', 'Chia sẻ liên hệ')} />
-          <Option title="Tài liệu" Icon={FileText} onPress={handlePickDocument} />
+          <Option title="File" Icon={File} onPress={handlePickDocument} theme={theme} />
+          <Option title="Vị trí" Icon={MapPin} onPress={() => {}} theme={theme} />
+          <Option title="Liên hệ" Icon={User} onPress={() => {}} theme={theme} />
+          <Option title="Tài liệu" Icon={FileText} onPress={handlePickDocument} theme={theme} />
         </View>
       )}
 
-      {/* Emoji Picker */}
+      {/* ===== Emoji ===== */}
       <EmojiPicker
-        onEmojiSelected={handlePickEmoji}
         open={showEmoji}
+        onEmojiSelected={handlePickEmoji}
         onClose={() => setShowEmoji(false)}
         theme={{
-          backdrop: '#1a1a1ab3',
-          knob: Colors.zaloBlue,
-          container: '#1a1a1a',
-          header: '#fff',
-          skinTonesContainer: '#222',
-          category: {
-            icon: Colors.zaloBlue,
-            iconActive: '#fff',
-            container: '#222',
-            containerActive: Colors.zaloBlue,
-          },
+          backdrop: '#00000066',
+          knob: theme.colors.primary,
+          container: theme.colors.card,
+          header: theme.colors.text,
         }}
       />
     </View>
   );
 }
 
-function Option({ title, Icon, onPress }: { title: string; Icon: any; onPress: () => void }) {
+/* ===== Option ===== */
+function Option({
+  title,
+  Icon,
+  onPress,
+  theme,
+}: {
+  title: string;
+  Icon: any;
+  onPress: () => void;
+  theme: any;
+}) {
   return (
-    <Pressable style={styles.option} onPress={onPress}>
-      <View style={styles.optionIcon}>
-        <Icon size={20} color={Colors.zaloBlue} />
+    <Pressable
+      style={[
+        styles.option,
+        {
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border,
+        },
+      ]}
+      onPress={onPress}
+    >
+      <View
+        style={[
+          styles.optionIcon,
+          { backgroundColor: `${theme.colors.primary}22` },
+        ]}
+      >
+        <Icon size={20} color={theme.colors.primary} />
       </View>
-      <Text style={styles.optionText}>{title}</Text>
+      <Text style={[styles.optionText, { color: theme.colors.text }]}>
+        {title}
+      </Text>
     </Pressable>
   );
 }
 
+/* ===== Styles ===== */
 const styles = StyleSheet.create({
-  container: { backgroundColor: '#1a1a1a', borderTopWidth: 0.5, borderTopColor: '#222' },
+  container: {
+    borderTopWidth: 0.5,
+  },
+
   replyingWrap: {
-    marginHorizontal: 10,
-    marginTop: 10,
+    margin: 10,
     borderRadius: 14,
     flexDirection: 'row',
-    backgroundColor: '#121212',
-    borderWidth: 1,
-    borderColor: '#222',
     alignItems: 'center',
+    borderWidth: 1,
   },
-  replyingBar: { width: 3, height: '100%', backgroundColor: Colors.zaloBlue },
+  replyingBar: { width: 3, height: '100%' },
   replyingContent: { flex: 1, paddingHorizontal: 10, paddingVertical: 8 },
-  replyingTitle: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  replyingText: { color: '#bdbdbd', fontSize: 12.5, marginTop: 2 },
-  replyingClose: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
+  replyingTitle: { fontSize: 13, fontWeight: '600' },
+  replyingText: { fontSize: 12.5, marginTop: 2 },
+  replyingClose: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   composer: {
-    padding: 10,
-    backgroundColor: '#1a1a1a',
     flexDirection: 'row',
     alignItems: 'flex-end',
-        
+    paddingHorizontal: 8,
+    paddingVertical: 6,
   },
+
   input: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 38,
     maxHeight: 120,
-    borderRadius: 16,
+    borderRadius: 18,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#fff',
-    backgroundColor: '#121212',
+    paddingVertical: 9,
+    fontSize: 15,
+    marginHorizontal: 6,
     borderWidth: 1,
-    borderColor: '#222',
   },
-  rightIcons: { flexDirection: 'row', alignItems: 'center' },
+
   iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  sendBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.zaloBlue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-end',
-  },
+
+  rightIcons: { flexDirection: 'row' },
+
   moreBoard: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 10,
-    paddingBottom: 20,
+    padding: 10,
+    gap: 10,
   },
+
   option: {
     width: '48%',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 16,
-    backgroundColor: '#121212',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#222',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
+
   optionIcon: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: 14,
-    backgroundColor: '#0e2236',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  optionText: { color: '#fff', fontSize: 13, fontWeight: '600', marginTop: 8 },
+
+  optionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 8,
+  },
 });

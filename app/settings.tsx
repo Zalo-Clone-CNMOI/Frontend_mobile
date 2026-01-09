@@ -1,49 +1,54 @@
-import React from "react";
+import { useRouter } from "expo-router";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  Palette,
+  ChevronLeft,
+  ChevronRight,
   Info,
   LifeBuoy,
-  Users,
   LogOut,
-  ChevronRight,
+  Palette,
   Search,
-  ChevronLeft,
+  Users,
 } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import React from "react";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from '../src/theme/themeContext';
 
-const SettingItem = ({ icon: Icon, title, onPress }: any) => (
-  <TouchableOpacity style={styles.item} onPress={onPress}>
-    <View style={styles.itemLeft}>
-      <Icon size={22} color="#0091ff" />
-      <Text style={styles.itemTitle}>{title}</Text>
-    </View>
-    <View style={styles.itemRight}>
-      <ChevronRight size={20} color="#555" />
-    </View>
-  </TouchableOpacity>
-);
+const SettingItem = ({ icon: Icon, title, onPress }: any) => {
+  const theme = useTheme();
+  return (
+    <TouchableOpacity style={[styles.item, { backgroundColor: theme.colors.background }]} onPress={onPress}>
+      <View style={styles.itemLeft}>
+        <Icon size={22} color={theme.colors.primary} />
+        <Text style={[styles.itemTitle, { color: theme.colors.text }]}>{title}</Text>
+      </View>
+      <View style={styles.itemRight}>
+        <ChevronRight size={20} color="#555" />
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const theme = useTheme();
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header chuẩn Zalo */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()}>
-            <ChevronLeft size={28} color="#fff" />
+            <ChevronLeft size={28} color={theme.colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Cài đặt</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Cài đặt</Text>
         </View>
-        <Search size={24} color="#fff" />
+        <Search size={24} color={theme.colors.text} />
       </View>
 
       <ScrollView>
@@ -72,9 +77,9 @@ export default function SettingsScreen() {
         <SettingItem icon={Users} title="Chuyển tài khoản" />
 
         {/* Nút Đăng xuất */}
-        <TouchableOpacity style={styles.logoutBtn}>
-          <LogOut size={20} color="#fff" />
-          <Text style={styles.logoutText}>Đăng xuất</Text>
+        <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.colors.card }]}>
+          <LogOut size={20} color={theme.colors.text} />
+          <Text style={[styles.logoutText, { color: theme.colors.text }]}>Đăng xuất</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -82,17 +87,16 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     padding: 16,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#222",
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 15 },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "600" },
+  headerTitle: { fontSize: 18, fontWeight: "600" },
   item: {
     flexDirection: "row",
     alignItems: "center",
@@ -100,7 +104,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   itemLeft: { flexDirection: "row", alignItems: "center", gap: 15 },
-  itemTitle: { color: "#fff", fontSize: 16 },
+  itemTitle: { fontSize: 16 },
   itemRight: { flexDirection: "row", alignItems: "center", gap: 10 },
   warningDot: {
     width: 20,
@@ -110,17 +114,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  warningText: { color: "#fff", fontSize: 12, fontWeight: "bold" },
-  divider: { height: 8, backgroundColor: "#111" },
+  warningText: { fontSize: 12, fontWeight: "bold" },
+  divider: { height: 8 },
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#262626",
     margin: 20,
     padding: 12,
     borderRadius: 25,
     gap: 10,
   },
-  logoutText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  logoutText: { fontSize: 16, fontWeight: "600" },
 });
