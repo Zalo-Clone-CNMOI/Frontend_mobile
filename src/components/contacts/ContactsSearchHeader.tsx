@@ -3,6 +3,7 @@ import { Search, UserPlus } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../theme/themeContext';
+import { useTranslation } from 'react-i18next';
 
 export function ContactsSearchHeader({
   onPressSearch,
@@ -11,13 +12,14 @@ export function ContactsSearchHeader({
 }) {
   const router = useRouter();
   const theme = useTheme();
+  const { t } = useTranslation();
   return (
     <View style={[styles.header, { backgroundColor: theme.colors.header }]}>
       <TouchableOpacity onPress={onPressSearch}>
         <Search size={20} color={theme.colors.iconHeader} style={styles.searchIcon} />
       </TouchableOpacity>
       <TextInput
-        placeholder="Tìm kiếm"
+        placeholder={t('contacts.search_placeholder')}
         placeholderTextColor="#8e8e93"
         style={[styles.searchInput, { color: theme.colors.text }]}
         showSoftInputOnFocus={false}

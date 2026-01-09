@@ -22,6 +22,8 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import EmojiPicker, { EmojiType } from 'rn-emoji-keyboard';
 import { useTheme } from '@/src/theme/themeContext';
+import { useTranslation } from 'react-i18next';
+
 
 export function ChatComposer({
   value,
@@ -44,6 +46,7 @@ export function ChatComposer({
   const theme = useTheme();
   const [showEmoji, setShowEmoji] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const { t } = useTranslation();
 
   const canSend = useMemo(() => value.trim().length > 0, [value]);
 
@@ -138,7 +141,7 @@ export function ChatComposer({
         <TextInput
           value={value}
           onChangeText={onChangeText}
-          placeholder="Tin nhắn"
+          placeholder={t('chat.placeholder')}
           placeholderTextColor="#8e8e93"
           multiline
           style={[

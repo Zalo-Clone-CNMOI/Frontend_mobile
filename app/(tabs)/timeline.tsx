@@ -6,12 +6,14 @@ import React, { useEffect } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/themeContext';
+import { useTranslation } from 'react-i18next';
 
 export default function TimelineScreen() {
   const posts = useTimelineStore((state) => state.posts);
   const postsV2 = useTimelineStore((state) => state.postsV2);
   const initializePosts = useTimelineStore((state) => state.initializePosts);
   const theme = useTheme();
+  const { t } = useTranslation();
 
   useEffect(() => {
     initializePosts();
@@ -20,7 +22,7 @@ export default function TimelineScreen() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={[styles.header, { backgroundColor: theme.colors.card }]}>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Nhật ký</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{t('timeline.title')}</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity style={[styles.iconButton, { backgroundColor: theme.colors.background }]}>
             <Camera size={20} color={theme.colors.text} />
@@ -38,7 +40,7 @@ export default function TimelineScreen() {
           // If item is v2 post
           if (item.userId) {
             const user = USERS_V2.find((u) => u.id === item.userId);
-            const name = user ? user.fullName : 'Người dùng';
+            const name = user ? user.fullName : t('timeline.default_user');
             const avatar = user ? user.avatar : '';
             const photo = item.images && item.images.length ? item.images[0] : '';
             const time = formatTimeAgo(item.createdAt);

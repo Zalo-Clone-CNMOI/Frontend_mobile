@@ -1,0 +1,133 @@
+{
+  "common": {
+    "ok": "Đồng ý",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "save": "Lưu",
+    "delete": "Xóa",
+    "edit": "Chỉnh sửa",
+    "add": "Thêm",
+    "search": "Tìm kiếm",
+    "back": "Quay lại",
+    "next": "Tiếp theo",
+    "done": "Hoàn thành",
+    "loading": "Đang tải...",
+    "error": "Lỗi",
+    "success": "Thành công",
+    "retry": "Thử lại"
+  },
+  "navigation": {
+    "tabs": {
+      "messages": "Tin nhắn",
+      "contacts": "Danh bạ", 
+      "discover": "Khám phá",
+      "timeline": "Nhật ký",
+      "profile": "Cá nhân"
+    },
+    "headers": {
+      "add_friend": "Thêm bạn",
+      "create_group": "Nhóm mới",
+      "settings": "Cài đặt",
+      "appearance": "Giao diện",
+      "search": "Tìm kiếm"
+    }
+  },
+  "appearance": {
+    "title": "Giao diện",
+    "theme": "Giao diện",
+    "language": "Ngôn ngữ",
+    "theme_light": "Sáng",
+    "theme_dark": "Tối", 
+    "theme_system": "Hệ thống",
+    "change_language": "Thay đổi ngôn ngữ",
+    "vietnamese": "Tiếng Việt",
+    "english": "English"
+  },
+  "auth": {
+    "login": "Đăng nhập",
+    "register": "Đăng ký",
+    "email": "Email",
+    "phone": "Số điện thoại",
+    "password": "Mật khẩu",
+    "confirm_password": "Xác nhận mật khẩu",
+    "forgot_password": "Quên mật khẩu?",
+    "login_error": "Đăng nhập thất bại",
+    "register_error": "Đăng ký thất bại"
+  },
+  "chat": {
+    "placeholder": "Tin nhắn",
+    "send": "Gửi",
+    "reply": "Trả lời",
+    "revoked": "Tin nhắn đã thu hồi",
+    "typing": "Đang soạn tin nhắn...",
+    "online": "Online",
+    "offline": "Offline",
+    "search_placeholder": "Tìm kiếm",
+    "no_messages": "Không có tin nhắn",
+    "default_title": "Trò chuyện"
+  },
+  "contacts": {
+    "search_placeholder": "Tìm kiếm",
+    "add_friend": "Thêm bạn",
+    "friends": "Bạn bè",
+    "all": "Tất cả",
+    "recent": "Gần đây",
+    "no_contacts": "Không có danh bạ",
+    "birthdays": "Sinh nhật",
+    "friendRequests": "Bạn bè được đề xuất",
+    "createGroup": "Tạo nhóm",
+    "joinedGroups": "Nhóm đã tham gia",
+    "oa": "OA",
+    "online": "Đang hoạt động",
+    "offline": "Ngoại tuyến"
+  },
+  "timeline": {
+    "title": "Nhật ký",
+    "scan_qr": "Quét mã QR",
+    "add_friend": "Thêm bạn",
+    "minutes_ago": "{{count}} phút",
+    "hours_ago": "{{count}} giờ", 
+    "days_ago": "{{count}} ngày",
+    "default_user": "Người dùng"
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "account": "Tài khoản",
+    "privacy": "Quyền riêng tư",
+    "notifications": "Thông báo",
+    "language": "Ngôn ngữ",
+    "theme": "Giao diện",
+    "about": "Thông tin",
+    "logout": "Đăng xuất",
+    "appearance_language": "Giao diện và ngôn ngữ"
+  },
+  "messages": {
+    "title": "Tin nhắn",
+    "search_placeholder": "Tìm kiếm",
+    "no_results": "Không có kết quả",
+    "suggestions": "Gợi ý",
+    "revoked": "Tin nhắn đã thu hồi"
+  },
+  "add_friend": {
+    "title": "Thêm bạn",
+    "user_name": "Mai Huỳnh Dương Tuấn K...",
+    "qr_description": "Quét mã để thêm bạn Zalo với tôi",
+    "phone_placeholder": "Nhập số điện thoại",
+    "scan_qr": "Quét mã QR",
+    "suggested_friends": "Bạn bè có thể quen",
+    "select_country": "Chọn quốc gia",
+    "search_country": "Tìm kiếm quốc gia"
+  },
+  "create_group": {
+    "title": "Nhóm mới",
+    "selected_count": "Đã chọn: {{count}}",
+    "name_placeholder": "Đặt tên nhóm"
+  },
+  "profile": {
+    "wallet": "Ví",
+    "notifications": "Thông báo",
+    "privacy": "Quyền riêng tư",
+    "settings": "Cài đặt",
+    "search_placeholder": "Tìm kiếm"
+  }
+}

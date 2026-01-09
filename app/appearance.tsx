@@ -1,8 +1,20 @@
 import { useRouter } from 'expo-router';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Image, LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import {
+  Image,
+  LayoutAnimation,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  UIManager,
+  View
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { changeLanguage, getCurrentLanguage } from '../src/i18n/setup';
 import { useTheme } from '../src/theme/themeContext';
 import { useThemeManager } from '../src/theme/themeManager';
 
@@ -23,22 +35,43 @@ export default function AppearanceScreen() {
   const router = useRouter();
   const { themeMode, setThemeMode } = useThemeManager();
   const theme = useTheme();
+  const { t } = useTranslation();
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [language, setLanguage] = useState('vi');
 
+  // Load saved language on component mount
+  useEffect(() => {
+    const loadLanguage = async () => {
+      const currentLang = getCurrentLanguage();
+      setLanguage(currentLang);
+    };
+    loadLanguage();
+  }, []);
+
+  // Handle language change
+  const handleLanguageChange = async (newLanguage: string) => {
+    try {
+      await changeLanguage(newLanguage);
+      setLanguage(newLanguage);
+      setIsExpanded(false);
+    } catch (error) {
+      console.error('Error changing language:', error);
+    }
+  };
+
   const LanguageOption = ({ label, active, onPress, flagSource }: any) => (
     <TouchableOpacity
       style={[
-        styles.langBoxItem, 
+        styles.langBoxItem,
         active && styles.langBoxActive,
-        { backgroundColor: theme.colors.card, borderColor: theme.colors.border }
+        { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
       ]}
       onPress={onPress}
     >
       <Image source={flagSource} style={styles.flagCircle} />
       <Text style={[styles.langBoxLabel, { color: theme.colors.text }]}>
-        {label === 'vi' ? 'Tiếng Việt' : 'English'}
+        {label === 'vi' ? t('appearance.vietnamese') : t('appearance.english')}
       </Text>
       <View style={[styles.radioOuter, active && styles.radioActive]}>
         {active && <View style={styles.radioInner} />}
@@ -72,22 +105,22 @@ export default function AppearanceScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <ChevronLeft size={28} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Giao diện</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{t('appearance.title')}</Text>
       </View>
 
       <ScrollView>
         {/* Section Giao diện */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: ZALO_BLUE }]}>Giao diện</Text>
+          <Text style={[styles.sectionTitle, { color: ZALO_BLUE }]}>{t('appearance.theme')}</Text>
           <View style={styles.themeContainer}>
             <ThemeOption
-              label="Sáng"
+              label={t('appearance.theme_light')}
               active={themeMode === 'light'}
               onPress={() => setThemeMode('light')}
               image={lightThemeImage}
             />
             <ThemeOption
-              label="Tối"
+              label={t('appearance.theme_dark')}
               active={themeMode === 'dark'}
               onPress={() => setThemeMode('dark')}
               image={darkThemeImage}
@@ -97,23 +130,25 @@ export default function AppearanceScreen() {
 
         {/* Section Ngôn ngữ */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: ZALO_BLUE }]}>Ngôn ngữ</Text>
+          <Text style={[styles.sectionTitle, { color: ZALO_BLUE }]}>{t('appearance.language')}</Text>
         </View>
-        
+
         <View style={{ borderTopWidth: 0.5, borderTopColor: theme.colors.border }}>
-          <TouchableOpacity 
-            style={[styles.menuRow, { backgroundColor: theme.colors.card }]} 
+          <TouchableOpacity
+            style={[styles.menuRow, { backgroundColor: theme.colors.card }]}
             onPress={toggleLangExpanded}
           >
-            <Text style={[styles.menuTitle, { color: theme.colors.text }]}>Thay đổi ngôn ngữ</Text>
+            <Text style={[styles.menuTitle, { color: theme.colors.text }]}>{t('appearance.change_language')}</Text>
             <View style={styles.menuRight}>
               {!isExpanded && (
                 <View style={styles.langTag}>
-                  <Image 
-                    source={language === 'vi' ? VIETNAM_FLAG : USA_FLAG} 
-                    style={[styles.flagPlaceholder]} 
+                  <Image
+                    source={language === 'vi' ? VIETNAM_FLAG : USA_FLAG}
+                    style={[styles.flagPlaceholder]}
                   />
-                  <Text style={styles.langText}>{language === 'vi' ? "Tiếng Việt" : "English"}</Text>
+                  <Text style={styles.langText}>
+                    {language === 'vi' ? t('appearance.vietnamese') : t('appearance.english')}
+                  </Text>
                 </View>
               )}
               {isExpanded ? <ChevronDown size={20} color={theme.colors.text} /> : <ChevronRight size={20} color={theme.colors.text} />}
@@ -125,13 +160,13 @@ export default function AppearanceScreen() {
               <LanguageOption
                 label="vi"
                 active={language === 'vi'}
-                onPress={() => setLanguage('vi')}
+                onPress={() => handleLanguageChange('vi')}
                 flagSource={VIETNAM_FLAG}
               />
               <LanguageOption
                 label="en"
                 active={language === 'en'}
-                onPress={() => setLanguage('en')}
+                onPress={() => handleLanguageChange('en')}
                 flagSource={USA_FLAG}
               />
             </View>

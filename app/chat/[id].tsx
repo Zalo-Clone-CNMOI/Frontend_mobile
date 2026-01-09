@@ -8,16 +8,18 @@ import { FlashList } from '@shopify/flash-list';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { List, Phone } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ChatDetailScreen() {
   const params = useLocalSearchParams<{ id?: string; name?: string }>();
   const chatId = params?.id || '';
+  const { t } = useTranslation();
 
   const title = useMemo(() => {
     if (typeof params?.name === 'string' && params.name.trim().length > 0) return params.name;
-    return 'Trò chuyện';
+    return t('chat.default_title');
   }, [params?.name]);
 
   const [input, setInput] = useState('');
@@ -67,21 +69,21 @@ export default function ChatDetailScreen() {
   const openMessageActions = (msg: ChatMessage) => {
     Alert.alert('Tùy chọn', undefined, [
       {
-        text: 'Trả lời',
+        text: t('chat.reply'),
         onPress: () => {
           if (msg.isRevoked) return;
           setReplyingMessage(msg);
         },
       },
       {
-        text: 'Thu hồi',
+        text: t('chat.revoke'),
         style: 'destructive',
         onPress: () => {
           revokeMessage(chatId, msg.id);
           if (replyingMessage?.id === msg.id) setReplyingMessage(null);
         },
       },
-      { text: 'Hủy', style: 'cancel' },
+      { text: t('chat.cancel'), style: 'cancel' },
     ]);
   };
 
@@ -123,10 +125,10 @@ export default function ChatDetailScreen() {
           headerRight: () => (
             <View style={styles.headerRightContainer}>
               <TouchableOpacity style={styles.callButton}>
-                <Phone size={20} color= {theme.colors.icon} />
+                <Phone size={20} color= {theme.colors.iconHeader} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.callButton}>
-                <List size={20} color={theme.colors.icon} />
+                <List size={20} color={theme.colors.iconHeader} />
               </TouchableOpacity>
             </View>
           ),
@@ -142,7 +144,7 @@ export default function ChatDetailScreen() {
           data={messages}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => <MessageBubble item={item} onLongPress={openMessageActions} onImagePress={(uri) =>{console.log("Opening image:", uri); setSelectedImage(uri);}} widthMap={messageWidthMap}/>}
+          renderItem={({ item }) => <MessageBubble item={item} onLongPress={openMessageActions} onImagePress={(uri) =>{console.log("Opening image:", uri); setSelectedImage(uri);}} />}
         />
 
         <ChatComposer

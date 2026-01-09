@@ -1,30 +1,32 @@
-import React, { useState, useEffect } from "react";
+  import { useContactsStore } from "@/src/store/useContactsStore";
+import { useTheme } from "@/src/theme/themeContext";
+import { useRouter } from "expo-router";
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-} from "react-native";
-import {
+  ArrowRight,
   Camera,
+  Check,
+  ChevronLeft,
   Search,
   X,
-  ArrowRight,
-  ChevronLeft,
-  Check,
 } from "lucide-react-native";
-import { useRouter } from "expo-router";
-import { useContactsStore } from "@/src/store/useContactsStore";
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  FlatList,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useTheme } from "@/src/theme/themeContext";
 
 export default function CreateGroupScreen() {
   const router = useRouter();
   const { colors } = useTheme(); // ✅ DÙNG THEME
+  const { t } = useTranslation();
 
   const [groupName, setGroupName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,10 +57,10 @@ export default function CreateGroupScreen() {
         </TouchableOpacity>
         <View style={{ marginLeft: 16 }}>
           <Text style={[styles.navTitle, { color: colors.text }]}>
-            Nhóm mới
+            {t('create_group.title')}
           </Text>
           <Text style={[styles.navSub, { color: colors.text }]}>
-            Đã chọn: {selectedIds.length}
+            {t('create_group.selected_count', { count: selectedIds.length })}
           </Text>
         </View>
       </View>
@@ -84,7 +86,7 @@ export default function CreateGroupScreen() {
           </TouchableOpacity>
 
           <TextInput
-            placeholder="Đặt tên nhóm"
+            placeholder={t('create_group.name_placeholder')}
             placeholderTextColor={colors.text}
             style={[styles.nameInput, { color: colors.text }]}
             value={groupName}

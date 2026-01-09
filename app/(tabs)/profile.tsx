@@ -6,6 +6,7 @@ import React, { useEffect } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/themeContext';
+import { useTranslation } from 'react-i18next';
 
 function Row({ title, Icon }: { title: string; Icon: React.ComponentType<{ size?: number; color?: string }> }) {
   const theme = useTheme();
@@ -26,6 +27,7 @@ export default function ProfileScreen() {
   const profile = useProfileStore((state) => state.profile);
   const initializeProfile = useProfileStore((state) => state.initializeProfile);
   const theme = useTheme();
+  const { t } = useTranslation();
 
   useEffect(() => {
     initializeProfile();
@@ -43,10 +45,10 @@ export default function ProfileScreen() {
       </View>
 
       <View style={[styles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-        <Row title="Ví ZaloPay" Icon={Star} />
-        <Row title="Thông báo" Icon={Bell} />
-        <Row title="Quyền riêng tư" Icon={Shield} />
-        <Row title="Cài đặt" Icon={Settings} />
+        <Row title={t('profile.wallet')} Icon={Star} />
+        <Row title={t('profile.notifications')} Icon={Bell} />
+        <Row title={t('profile.privacy')} Icon={Shield} />
+        <Row title={t('profile.settings')} Icon={Settings} />
       </View>
     </View>
     </SafeAreaView>

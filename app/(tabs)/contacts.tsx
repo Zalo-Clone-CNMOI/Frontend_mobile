@@ -7,6 +7,7 @@ import React, { useEffect } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/themeContext';
+import { useTranslation } from 'react-i18next';
 
 export default function ContactsScreen() {
   const router = useRouter();
@@ -27,8 +28,9 @@ export default function ContactsScreen() {
   const setActiveTab = useContactsStore((state) => state.setActiveTab);
   const setUsersFilterType = useContactsStore((state) => state.setUsersFilterType);
   const setUsersSearchQuery = useContactsStore((state) => state.setUsersSearchQuery);
+  const { t } = useTranslation();
   
-  const tabs = ['Bạn bè', 'Nhóm', 'OA'];
+  const tabs = [t('contacts.friends'), t('contacts.createGroup'), t('contacts.oa')];
 
   useEffect(() => {
     initializeContacts();
@@ -41,7 +43,7 @@ export default function ContactsScreen() {
     const isV2 = !!item.fullName;
     const isOnline = isV2 ? item.status === 'online' : item.subtitle === 'Đang hoạt động';
     const title = isV2 ? item.fullName : item.name;
-    const subtitle = isV2 ? (item.status === 'online' ? 'Đang hoạt động' : 'Không hoạt động') : item.subtitle;
+    const subtitle = isV2 ? (item.status === 'online' ? t('contacts.online') : t('contacts.offline')) : item.subtitle;
 
     return (
       <TouchableOpacity style={[styles.row, { backgroundColor: theme.colors.background }]} activeOpacity={0.7}>
@@ -73,21 +75,21 @@ export default function ContactsScreen() {
     if (activeTab === 0) {
       return (
         <View style={styles.staticMenu}>
-          <MenuOption icon={<Users size={22} color="#fff" />} title="Lời mời kết bạn" />
-          <MenuOption icon={<Cake size={22} color="#fff" />} title="Sinh nhật" />
+          <MenuOption icon={<Users size={22} color="#fff" />} title={t('contacts.friendRequests')} />
+          <MenuOption icon={<Cake size={22} color="#fff" />} title={t('contacts.birthdays')} />
 
           <View style={styles.dividerSection} />
 
           <View style={styles.filterChipContainer}>
               <FilterChip
-                label="Tất cả"
+                label={t('contacts.all')}
                 count={usersV2.length}
                 isActive={usersFilterType === 'all'}
                 onPress={() => setUsersFilterType('all')}
               />
               <View style={{ width: 10 }} />
               <FilterChip
-                label="Mới truy cập"
+                label={t('contacts.recent')}
                 count={usersV2.filter((u: any) => u.status === 'online').length}
                 isActive={usersFilterType === 'recent'}
                 onPress={() => setUsersFilterType('recent')}
@@ -99,12 +101,12 @@ export default function ContactsScreen() {
     if (activeTab === 1) {
       return (
         <View style={styles.staticMenu}>
-          <MenuOption icon={<UserPlus size={22} color="#fff" />} title="Tạo nhóm mới" />
+          <MenuOption icon={<UserPlus size={22} color="#fff" />} title={t('contacts.createGroup')} />
           <View style={styles.dividerSection} />
           <View
             style={styles.chip}
           >
-            <Text style={styles.ChipTextGroup}>Nhóm đang tham gia ({groups.length})</Text>
+            <Text style={styles.ChipTextGroup}>{t('contacts.joinedGroups')} ({groups.length})</Text>
           </View>
         </View>
       )

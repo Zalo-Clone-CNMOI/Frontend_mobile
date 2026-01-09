@@ -6,9 +6,11 @@ import { DiscoverySearchHeader } from '@/src/components/discovery/discoverySearc
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDiscoveryStore } from '@/src/store/useDiscoveryStore';
 import { useTheme } from '@/src/theme/themeContext';
+import { useTranslation } from 'react-i18next';
 
 export default function DiscoveryScreen() {
   const theme = useTheme();
+  const { t } = useTranslation();
 
   const features = useDiscoveryStore((state) => state.features);
   const initializeFeatures = useDiscoveryStore(

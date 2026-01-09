@@ -2,6 +2,7 @@ import { useTheme } from '@/src/theme/themeContext';
 import { useRouter } from 'expo-router';
 import { Cloud, UserPlus, Users } from 'lucide-react-native';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -14,11 +15,12 @@ type HeaderMenuProps = {
 export function HeaderMenu({ visible, onClose }: HeaderMenuProps) {
   const router = useRouter();
   const theme = useTheme();
+  const { t } = useTranslation();
 
   const menuItems = [
-    { icon: UserPlus, label: 'Thêm bạn' , onPress: () => router.push('/addFriend' as any)},
-    { icon: Users, label: 'Tạo nhóm' , onPress: () => router.push('/createGroup' as any)},
-    { icon: Cloud, label: 'My Documents' , onPress: () => router.push('/myDocuments' as any)},
+    { icon: UserPlus, label: t('chat.header_menu.add_friend') , onPress: () => router.push('/addFriend' as any)},
+    { icon: Users, label: t('chat.header_menu.create_group') , onPress: () => router.push('/createGroup' as any)},
+    { icon: Cloud, label: t('chat.header_menu.my_documents') , onPress: () => router.push('/myDocuments' as any)},
 
   ];
 

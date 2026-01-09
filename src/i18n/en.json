@@ -1,0 +1,147 @@
+{
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "retry": "Retry"
+  },
+  "navigation": {
+    "tabs": {
+      "messages": "Messages",
+      "contacts": "Contacts", 
+      "discover": "Discover",
+      "timeline": "Timeline",
+      "profile": "Profile"
+    },
+    "headers": {
+      "add_friend": "Add Friend",
+      "create_group": "New Group",
+      "settings": "Settings",
+      "appearance": "Appearance",
+      "search": "Search"
+    }
+  },
+  "appearance": {
+    "title": "Appearance",
+    "theme": "Theme",
+    "language": "Language",
+    "theme_light": "Light",
+    "theme_dark": "Dark", 
+    "theme_system": "System",
+    "change_language": "Change Language",
+    "vietnamese": "Tiếng Việt",
+    "english": "English"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "email": "Email",
+    "phone": "Phone Number",
+    "password": "Password",
+    "confirm_password": "Confirm Password",
+    "forgot_password": "Forgot Password?",
+    "login_error": "Login Failed",
+    "register_error": "Registration Failed"
+  },
+  "chat": {
+    "placeholder": "Message",
+    "send": "Send",
+    "reply": "Reply",
+    "revoked": "Message Revoked",
+    "typing": "Typing...",
+    "online": "Online",
+    "offline": "Offline",
+    "search_placeholder": "Search",
+    "no_messages": "No Messages",
+    "default_title": "Chat"
+  },
+  "contacts": {
+    "search_placeholder": "Search",
+    "add_friend": "Add Friend",
+    "friends": "Friends",
+    "all": "All",
+    "recent": "Recent",
+    "no_contacts": "No Contacts",
+    "friendRequests": "Friend Requests",
+    "birthdays": "Birthdays",
+    "createGroup": "Create Group",
+    "joinedGroups": "Joined Groups",
+    "oa": "OA",
+    "online": "Online",
+    "offline": "Offline"
+  },
+  "timeline": {
+    "title": "Timeline",
+    "scan_qr": "Scan QR Code",
+    "add_friend": "Add Friend",
+    "minutes_ago": "{{count}} minutes",
+    "hours_ago": "{{count}} hours", 
+    "days_ago": "{{count}} days",
+    "default_user": "User"
+  },
+  "settings": {
+    "title": "Settings",
+    "account": "Account",
+    "privacy": "Privacy",
+    "notifications": "Notifications",
+    "language": "Language",
+    "theme": "Theme",
+    "about": "About",
+    "logout": "Logout",
+    "appearance_language": "Appearance and Language"
+  },
+  "messages": {
+    "title": "Messages",
+    "search_placeholder": "Search",
+    "no_results": "No Results",
+    "suggestions": "Suggestions",
+    "revoked": "Message Revoked"
+  },
+  "add_friend": {
+    "title": "Add Friend",
+    "user_name": "Mai Huỳnh Dương Tuấn K...",
+    "qr_description": "Scan QR code to add me on Zalo",
+    "phone_placeholder": "Enter phone number",
+    "scan_qr": "Scan QR Code",
+    "suggested_friends": "People You May Know",
+    "select_country": "Select Country",
+    "search_country": "Search Country"
+  },
+  "create_group": {
+    "title": "New Group",
+    "selected_count": "Selected: {{count}}",
+    "name_placeholder": "Set group name"
+  },
+  "discovery": {
+    "zaloVideo": "Zalo Video",
+    "zaloPay": "ZaloPay",
+    "shopping": "Shopping",
+    "news": "News",
+    "game": "Game",
+    "nearby": "Nearby",
+    "recommended": "Recommended",
+    "miniApp": "Zalo Mini App",
+    "live": "Zalo Live",
+    "community": "Zalo Community",
+    "groups": "Zalo Groups",
+    "events": "Zalo Events"
+  },
+  "profile": {
+    "wallet": "Wallet",
+    "notifications": "Notifications",
+    "privacy": "Privacy",
+    "settings": "Settings",
+    "search_placeholder": "Search"
+  }
+}

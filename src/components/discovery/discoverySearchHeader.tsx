@@ -1,13 +1,14 @@
+import { useTheme } from '@/src/theme/themeContext';
+import { useRouter } from 'expo-router';
+import { QrCode, Search } from 'lucide-react-native';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  View,
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  View,
 } from 'react-native';
-import { Search, QrCode } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
-import { useTheme } from '@/src/theme/themeContext';
 
 export function DiscoverySearchHeader({
   onPressSearch,
@@ -16,6 +17,7 @@ export function DiscoverySearchHeader({
 }) {
   const router = useRouter();
   const theme = useTheme();
+  const { t } = useTranslation();
 
   return (
     <View
@@ -35,7 +37,7 @@ export function DiscoverySearchHeader({
 
       {/* Fake search input */}
       <TextInput
-        placeholder="Tìm kiếm"
+        placeholder={t('common.search')}
         placeholderTextColor="#8e8e93"
         style={[
           styles.searchInput,

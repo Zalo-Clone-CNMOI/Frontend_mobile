@@ -5,6 +5,7 @@ import React, { useEffect } from 'react';
 import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSearchStore } from '../src/store/searchStore';
 import { useTheme } from '../src/theme/themeContext';
+import { useTranslation } from 'react-i18next';
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function SearchScreen() {
   const filteredResultsV2 = useSearchStore((state) => state.filteredResultsV2);
   const setQuery = useSearchStore((state) => state.setQuery);
   const initializeSearchData = useSearchStore((state) => state.initializeSearchData);
+  const { t } = useTranslation();
 
   // Initialize search data on mount
   useEffect(() => {
@@ -36,7 +38,7 @@ export default function SearchScreen() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Tìm kiếm"
+          placeholder={t('search.placeholder')}
           placeholderTextColor="#8e8e93"
           style={[styles.searchInput, { color: theme.colors.text }]}
           autoFocus
@@ -48,7 +50,7 @@ export default function SearchScreen() {
         )}
       </View>
 
-      <Text style={[styles.sectionTitle, { color: '#8e8e93' }]}>Gợi ý</Text>
+      <Text style={[styles.sectionTitle, { color: '#8e8e93' }]}>{t('search.suggestions')}</Text>
 
       {/* Render v2 results first (users + conversations), fall back to legacy results */}
       <FlashList
@@ -66,7 +68,7 @@ export default function SearchScreen() {
                 <View style={[styles.rowContent, { borderBottomColor: theme.colors.border }]}>
                   <Text style={[styles.name, { color: theme.colors.text }]}>{item.fullName}</Text>
                   <Text style={[styles.subtitle, { color: '#8e8e93' }]} numberOfLines={1}>
-                    Người dùng
+                    {t('search.user')}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -83,7 +85,7 @@ export default function SearchScreen() {
                 <View style={[styles.rowContent, { borderBottomColor: theme.colors.border }]}>
                   <Text style={[styles.name, { color: theme.colors.text }]}>{item.name}</Text>
                   <Text style={[styles.subtitle, { color: '#8e8e93' }]} numberOfLines={1}>
-                    Cuộc trò chuyện
+                    {t('search.conversation')}
                   </Text>
                 </View>
               </TouchableOpacity>

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../theme/themeContext';
 import { HeaderMenu } from './HeaderMenu';
+import { useTranslation } from 'react-i18next';
 
 export function ChatSearchHeader({
   onPressSearch,
@@ -12,6 +13,7 @@ export function ChatSearchHeader({
 }) {
   const router = useRouter();
   const theme = useTheme();
+  const { t } = useTranslation();
   const [menuVisible, setMenuVisible] = useState(false);
   return (
     <View style={[styles.header, { backgroundColor: theme.colors.header }]}>
@@ -19,7 +21,7 @@ export function ChatSearchHeader({
         <Search size={20} color={theme.colors.iconHeader} style={styles.searchIcon} />
       </TouchableOpacity>
       <TextInput
-        placeholder="Tìm kiếm"
+        placeholder={t('common.search')}
         placeholderTextColor="#8e8e93"
         style={[styles.searchInput, { color: theme.colors.iconHeader }]}
         showSoftInputOnFocus={false}

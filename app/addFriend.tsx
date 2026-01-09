@@ -1,30 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Image,
-  Modal,
-  FlatList,
-} from 'react-native';
+import { useCountriesStore } from '@/src/store/useCountriesStore';
+import { useTheme } from '@/src/theme/themeContext';
+import { useRouter } from 'expo-router';
 import {
   ArrowLeft,
   ArrowRight,
-  QrCode,
-  Users,
   ChevronDown,
+  QrCode,
   Search,
+  Users,
 } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+  FlatList,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useTheme } from '@/src/theme/themeContext';
-import { useCountriesStore } from '@/src/store/useCountriesStore';
 
 export default function AddFriendScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { t } = useTranslation();
 
   const countries = useCountriesStore((s) => s.countries);
   const filteredCountries = useCountriesStore((s) => s.filteredCountries);
@@ -65,7 +67,7 @@ export default function AddFriendScreen() {
             { color: theme.colors.text },
           ]}
         >
-          Thêm bạn
+          {t('add_friend.title')}
         </Text>
       </View>
 
@@ -83,7 +85,7 @@ export default function AddFriendScreen() {
               { color: theme.colors.text },
             ]}
           >
-            Mai Huỳnh Dương Tuấn K...
+            {t('add_friend.user_name')}
           </Text>
 
           <View style={styles.qrContainer}>
@@ -96,7 +98,7 @@ export default function AddFriendScreen() {
           </View>
 
           <Text style={styles.qrSubText}>
-            Quét mã để thêm bạn Zalo với tôi
+            {t('add_friend.qr_description')}
           </Text>
         </View>
 
@@ -141,7 +143,7 @@ export default function AddFriendScreen() {
                 styles.input,
                 { color: theme.colors.text },
               ]}
-              placeholder="Nhập số điện thoại"
+              placeholder={t('add_friend.phone_placeholder')}
               placeholderTextColor="#8e8e93"
               keyboardType="phone-pad"
               value={phoneNumber}
@@ -173,7 +175,7 @@ export default function AddFriendScreen() {
         <View style={styles.menuSection}>
           <MenuItem
             icon={<QrCode size={22} color={theme.colors.primary} />}
-            title="Quét mã QR"
+            title={t('add_friend.scan_qr')}
             onPress={() => router.push('/scanner')}
             borderColor={theme.colors.border}
             textColor={theme.colors.text}
@@ -181,7 +183,7 @@ export default function AddFriendScreen() {
 
           <MenuItem
             icon={<Users size={22} color={theme.colors.primary} />}
-            title="Bạn bè có thể quen"
+            title={t('add_friend.suggested_friends')}
             borderColor={theme.colors.border}
             textColor={theme.colors.text}
           />
@@ -211,7 +213,7 @@ export default function AddFriendScreen() {
                 { color: theme.colors.text },
               ]}
             >
-              Chọn quốc gia
+              {t('add_friend.select_country')}
             </Text>
           </View>
 
@@ -227,7 +229,7 @@ export default function AddFriendScreen() {
                 styles.searchInput,
                 { color: theme.colors.text },
               ]}
-              placeholder="Tìm kiếm quốc gia"
+              placeholder={t('add_friend.search_country')}
               placeholderTextColor="#8e8e93"
               value={searchQuery}
               onChangeText={setSearchQuery}

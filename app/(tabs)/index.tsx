@@ -6,10 +6,9 @@ import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { Filter } from 'lucide-react-native';
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -19,6 +18,7 @@ export default function HomeScreen() {
     const filteredChats = useChatsStore((state) => state.filteredChats);
 
     const theme = useTheme();
+    const { t } = useTranslation();
 
     useEffect(() => {
         initializeChats();
@@ -32,10 +32,9 @@ export default function HomeScreen() {
             {/* Filter Tabs */}
             <View style={[styles.filterContainer, { borderBottomColor: theme.colors.border }]}>
                 <View style={styles.activeTabContainer}>
-                    <Text style={[styles.activeTabText, { color: theme.colors.text }]}>Ưu tiên</Text>
+                    <Text style={[styles.activeTabText, { color: theme.colors.text }]}>{t('messages.title')}</Text>
                     <View style={[styles.activeLine, { backgroundColor: theme.colors.text }]} />
                 </View>
-                <Text style={[styles.inactiveTabText, { color: '#8e8e93' }]}>{'Khác'}</Text>
                 <Filter size={18} color="#8e8e93" style={{ marginLeft: 'auto' }} />
             </View>
 

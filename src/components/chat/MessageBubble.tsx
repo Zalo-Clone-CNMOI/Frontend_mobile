@@ -3,6 +3,7 @@ import { FileText } from 'lucide-react-native';
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/src/theme/themeContext';
+import { useTranslation } from 'react-i18next';
 
 export function MessageBubble({
   item,
@@ -14,6 +15,7 @@ export function MessageBubble({
   onImagePress?: (uri: string) => void;
 }) {
   const theme = useTheme();
+  const { t } = useTranslation();
 
   const formatTime = (dateProp: any) => {
     const d = dateProp ? new Date(dateProp) : new Date();
@@ -113,7 +115,7 @@ export function MessageBubble({
                   { color: theme.colors.text, opacity: 0.6 },
                 ]}
               >
-                Tin nhắn đã thu hồi
+                {t('messages.revoked')}
               </Text>
             ) : isImage ? (
               <Pressable

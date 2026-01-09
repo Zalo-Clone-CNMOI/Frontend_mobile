@@ -19,6 +19,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from '../src/theme/themeContext';
+import { useTranslation } from "react-i18next";
 
 const SettingItem = ({ icon: Icon, title, onPress }: any) => {
   const theme = useTheme();
@@ -38,6 +39,7 @@ const SettingItem = ({ icon: Icon, title, onPress }: any) => {
 export default function SettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { t } = useTranslation();
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header chuẩn Zalo */}
@@ -46,7 +48,7 @@ export default function SettingsScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <ChevronLeft size={28} color={theme.colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Cài đặt</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{t('settings.title')}</Text>
         </View>
         <Search size={24} color={theme.colors.text} />
       </View>
@@ -67,19 +69,19 @@ export default function SettingsScreen() {
         <SettingItem icon={Contact2} title="Danh bạ" />
         <View style={styles.divider} /> */}
 
-        <SettingItem icon={Palette} title="Giao diện và ngôn ngữ" onPress={() => router.push('/appearance')} />
+        <SettingItem icon={Palette} title={t('settings.appearance_language')} onPress={() => router.push('/appearance')} />
         <View style={styles.divider} />
 
-        <SettingItem icon={Info} title="Thông tin về Zalo" />
-        <SettingItem icon={LifeBuoy} title="Liên hệ hỗ trợ" />
+        <SettingItem icon={Info} title={t('settings.about')} />
+        <SettingItem icon={LifeBuoy} title={t('common.contact')} />
         <View style={styles.divider} />
 
-        <SettingItem icon={Users} title="Chuyển tài khoản" />
+        <SettingItem icon={Users} title={t('settings.account')} />
 
         {/* Nút Đăng xuất */}
         <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.colors.card }]}>
           <LogOut size={20} color={theme.colors.text} />
-          <Text style={[styles.logoutText, { color: theme.colors.text }]}>Đăng xuất</Text>
+          <Text style={[styles.logoutText, { color: theme.colors.text }]}>{t('settings.logout')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SwitchCamera, X, Zap, ZapOff } from 'lucide-react-native';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 export default function ScannerScreen() {
@@ -16,6 +17,7 @@ export default function ScannerScreen() {
   const [torch, setTorch] = useState(false);
   const [scanned, setScanned] = useState(false);
   const scannedRef = useRef(false);
+  const { t } = useTranslation();
 
   const windowSize = useMemo(() => {
     const size = Math.min(280, Math.max(220, Math.floor(width * 0.66)));
@@ -60,13 +62,13 @@ export default function ScannerScreen() {
   if (!permission.granted) {
     return (
       <View style={styles.permissionContainer}>
-        <Text style={styles.permissionTitle}>Cần quyền Camera</Text>
-        <Text style={styles.permissionSubtitle}>Vui lòng cho phép để quét mã QR.</Text>
+        <Text style={styles.permissionTitle}>{t('scanner.permissionTitle')}</Text>
+        <Text style={styles.permissionSubtitle}>{t('scanner.permissionSubtitle')}</Text>
         <Pressable style={styles.permissionButton} onPress={requestPermission}>
-          <Text style={styles.permissionButtonText}>Cho phép</Text>
+          <Text style={styles.permissionButtonText}>{t('scanner.permissionButton')}</Text>
         </Pressable>
         <Pressable style={styles.permissionSecondary} onPress={() => router.back()}>
-          <Text style={styles.permissionSecondaryText}>Đóng</Text>
+          <Text style={styles.permissionSecondaryText}>{t('scanner.permissionClose')}</Text>
         </Pressable>
       </View>
     );
@@ -109,19 +111,19 @@ export default function ScannerScreen() {
         <Pressable style={styles.iconBtn} onPress={() => router.back()}>
           <X size={22} color="#fff" />
         </Pressable>
-        <Text style={styles.title}>Quét mã QR</Text>
+        <Text style={styles.title}>{t('scanner.title')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <View style={styles.bottomBar}>
         <Pressable style={styles.actionBtn} onPress={() => setTorch((v) => !v)}>
           {torch ? <Zap size={20} color="#fff" /> : <ZapOff size={20} color="#fff" />}
-          <Text style={styles.actionText}>{torch ? 'Tắt đèn' : 'Bật đèn'}</Text>
+          <Text style={styles.actionText}>{torch ? t('scanner.torchOff') : t('scanner.torchOn')}</Text>
         </Pressable>
 
         <Pressable style={styles.actionBtn} onPress={() => setFacing((v) => (v === 'back' ? 'front' : 'back'))}>
           <SwitchCamera size={20} color="#fff" />
-          <Text style={styles.actionText}>{'Đổi camera'}</Text>
+          <Text style={styles.actionText}>{t('scanner.switchCamera')}</Text>
         </Pressable>
       </View>
 
@@ -133,7 +135,7 @@ export default function ScannerScreen() {
             setScanned(false);
           }}
         >
-          <Text style={styles.rescanText}>Chạm để quét lại</Text>
+          <Text style={styles.rescanText}>{t('scanner.rescan')}</Text>
         </Pressable>
       )}
     </View>
