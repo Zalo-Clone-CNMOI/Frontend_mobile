@@ -22,7 +22,8 @@
       "contacts": "Contacts", 
       "discover": "Discover",
       "timeline": "Timeline",
-      "profile": "Profile"
+      "profile": "Profile",
+      "my_documents": "My Documents"
     },
     "headers": {
       "add_friend": "Add Friend",
@@ -64,7 +65,15 @@
     "offline": "Offline",
     "search_placeholder": "Search",
     "no_messages": "No Messages",
-    "default_title": "Chat"
+    "default_title": "Chat",
+    "file": "File",
+    "location": "Location",
+    "contact": "Contact",
+    "document": "Document",
+    "reply_to": "Reply to",
+    "cancel": "Cancel",
+    "revoke": "Revoke",
+    "actions": "Actions"
   },
   "contacts": {
     "search_placeholder": "Search",
@@ -106,7 +115,9 @@
     "search_placeholder": "Search",
     "no_results": "No Results",
     "suggestions": "Suggestions",
-    "revoked": "Message Revoked"
+    "revoked": "Message Revoked",
+    "cancel": "Cancel",
+    "replying_to": "Replying to"
   },
   "add_friend": {
     "title": "Add Friend",

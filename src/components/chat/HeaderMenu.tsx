@@ -18,9 +18,9 @@ export function HeaderMenu({ visible, onClose }: HeaderMenuProps) {
   const { t } = useTranslation();
 
   const menuItems = [
-    { icon: UserPlus, label: t('chat.header_menu.add_friend') , onPress: () => router.push('/addFriend' as any)},
-    { icon: Users, label: t('chat.header_menu.create_group') , onPress: () => router.push('/createGroup' as any)},
-    { icon: Cloud, label: t('chat.header_menu.my_documents') , onPress: () => router.push('/myDocuments' as any)},
+    { icon: UserPlus, label: t('navigation.headers.add_friend') , onPress: () => router.push('/addFriend' as any)},
+    { icon: Users, label: t('navigation.headers.create_group') , onPress: () => router.push('/createGroup' as any)},
+    { icon: Cloud, label: t('navigation.headers.my_documents') , onPress: () => router.push('/myDocuments' as any)},
 
   ];
 

@@ -29,7 +29,8 @@
       "create_group": "Nhóm mới",
       "settings": "Cài đặt",
       "appearance": "Giao diện",
-      "search": "Tìm kiếm"
+      "search": "Tìm kiếm",    
+      "my_documents": "Tài liệu của tôi"
     }
   },
   "appearance": {
@@ -64,7 +65,15 @@
     "offline": "Offline",
     "search_placeholder": "Tìm kiếm",
     "no_messages": "Không có tin nhắn",
-    "default_title": "Trò chuyện"
+    "default_title": "Trò chuyện",
+    "file": "Tệp tin",
+    "location": "Vị trí",
+    "contact": "Liên hệ",
+    "document": "Tài liệu",
+    "reply_to": "Trả lời",
+    "cancel": "Hủy",
+    "revoke": "Thu hồi",
+    "actions": "Tùy chọn"
   },
   "contacts": {
     "search_placeholder": "Tìm kiếm",

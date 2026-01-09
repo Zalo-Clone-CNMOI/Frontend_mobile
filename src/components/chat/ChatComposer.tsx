@@ -105,7 +105,7 @@ export function ChatComposer({
               ]}
               numberOfLines={1}
             >
-              Trả lời {replyingTo.senderName}
+              {t('messages.replying_to')} {replyingTo.senderName}
             </Text>
             <Text
               style={[
@@ -207,10 +207,10 @@ export function ChatComposer({
       {/* ===== More Board ===== */}
       {showMore && (
         <View style={styles.moreBoard}>
-          <Option title="File" Icon={File} onPress={handlePickDocument} theme={theme} />
-          <Option title="Vị trí" Icon={MapPin} onPress={() => {}} theme={theme} />
-          <Option title="Liên hệ" Icon={User} onPress={() => {}} theme={theme} />
-          <Option title="Tài liệu" Icon={FileText} onPress={handlePickDocument} theme={theme} />
+          <Option title={t('chat.file')} Icon={File} onPress={handlePickDocument} theme={theme} />
+          <Option title={t('chat.location')} Icon={MapPin} onPress={() => {}} theme={theme} />
+          <Option title={t('chat.contact')} Icon={User} onPress={() => {}} theme={theme} />
+          <Option title={t('chat.document')} Icon={FileText} onPress={handlePickDocument} theme={theme} />
         </View>
       )}
 

@@ -67,9 +67,9 @@ export default function ChatDetailScreen() {
   };
 
   const openMessageActions = (msg: ChatMessage) => {
-    Alert.alert('Tùy chọn', undefined, [
+    Alert.alert(t('chat.actions'), undefined, [
       {
-        text: t('chat.reply'),
+        text: t('chat.reply_to'),
         onPress: () => {
           if (msg.isRevoked) return;
           setReplyingMessage(msg);
