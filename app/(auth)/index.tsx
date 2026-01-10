@@ -24,26 +24,26 @@ export default function WelcomeScreen() {
 
   // Dữ liệu slide đa ngôn ngữ
   const SLIDE_DATA = [
-  {
-    id: 0,
-    title: t('welcome.slide1_title'),
-    subtitle: t('welcome.slide1_subtitle'),
-    image: require('../../src/assets/image/react-logo.png'), 
-  },
-  {
-    id: 1,
-    title: t('welcome.slide2_title'),
-    subtitle: t('welcome.slide2_subtitle'),
-    image: require('../../src/assets/image/react-logo.png'), 
-  },
-  {
-    id: 2,
-    title: t('welcome.slide3_title'),
-    subtitle: t('welcome.slide3_subtitle'),
-    image: require('../../src/assets/image/react-logo.png'),
-  },
-];
-  
+    {
+      id: 0,
+      title: t('welcome.slide1_title'),
+      subtitle: t('welcome.slide1_subtitle'),
+      image: { source: require('../../src/assets/image/react-logo.png') },
+    },
+    {
+      id: 1,
+      title: t('welcome.slide2_title'),
+      subtitle: t('welcome.slide2_subtitle'),
+      image: { source: require('../../src/assets/image/react-logo.png') },
+    },
+    {
+      id: 2,
+      title: t('welcome.slide3_title'),
+      subtitle: t('welcome.slide3_subtitle'),
+      image: { source: require('../../src/assets/image/react-logo.png') },
+    }
+  ]
+
   // Hiệu ứng mờ dần khi chuyển slide
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -90,8 +90,8 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Nút chọn ngôn ngữ góc trên */}
-      <TouchableOpacity 
-        style={styles.langPicker} 
+      <TouchableOpacity
+        style={styles.langPicker}
         onPress={() => setShowLangModal(true)}
       >
         <Text style={styles.langText}>
@@ -107,7 +107,7 @@ export default function WelcomeScreen() {
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>{t('welcome.select_language')}</Text>
               {languages.map((item) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   key={item.id}
                   style={styles.langOption}
                   onPress={() => handleLanguageChange(item.id)}
@@ -128,7 +128,7 @@ export default function WelcomeScreen() {
         <Text style={styles.logoText}>Zalo</Text>
 
         <Animated.View style={[styles.illustrationBox, { opacity: fadeAnim }]}>
-          <Image source={currentSlide.image} style={styles.image} resizeMode="contain" />
+          <Image source={currentSlide.image.source } style={styles.image} resizeMode="contain" />
           <Text style={styles.title}>{currentSlide.title}</Text>
           <Text style={styles.subtitle}>{currentSlide.subtitle}</Text>
         </Animated.View>
@@ -136,9 +136,9 @@ export default function WelcomeScreen() {
         {/* Chỉ báo Dots */}
         <View style={styles.dotsContainer}>
           {SLIDE_DATA.map((_, i) => (
-            <View 
-              key={i} 
-              style={[styles.dot, i === activeIndex && styles.activeDot]} 
+            <View
+              key={i}
+              style={[styles.dot, i === activeIndex && styles.activeDot]}
             />
           ))}
         </View>
@@ -153,7 +153,7 @@ export default function WelcomeScreen() {
           <Text style={styles.loginText}>{t('auth.login')}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.registerBtn} onPress={()=>{router.push('/(auth)/register')}}>
+        <TouchableOpacity style={styles.registerBtn} onPress={() => { router.push('/(auth)/register') }}>
           <Text style={styles.registerText}>{t('auth.register')}</Text>
         </TouchableOpacity>
       </View>
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   langPicker: { flexDirection: 'row', alignSelf: 'flex-end', padding: 16, alignItems: 'center', gap: 4 },
   langText: { fontSize: 14, fontWeight: '700' },
-  
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: '80%', backgroundColor: '#fff', borderRadius: 20, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 15, textAlign: 'center' },
@@ -179,11 +179,11 @@ const styles = StyleSheet.create({
   image: { width: 250, height: 200 },
   title: { fontSize: 18, fontWeight: '700', marginTop: 30 },
   subtitle: { fontSize: 14, color: '#666', textAlign: 'center', marginTop: 10, lineHeight: 20 },
-  
+
   dotsContainer: { flexDirection: 'row', gap: 8, marginTop: 40, alignItems: 'center' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#eee' },
   activeDot: { backgroundColor: '#0091ff', width: 18 }, // Dot đang chọn dài hơn
-  
+
   buttonContainer: { padding: 20, gap: 12, marginBottom: 10 },
   loginBtn: { backgroundColor: '#0091ff', padding: 16, borderRadius: 30, alignItems: 'center' },
   loginText: { color: '#fff', fontSize: 16, fontWeight: '700' },
