@@ -15,7 +15,7 @@ export default function TabsLayout() {
       headerStyle: { backgroundColor: theme.colors.background },
       headerTintColor: theme.colors.text,
     }}>
-      <Tabs.Screen name="index" options={{
+      <Tabs.Screen name="home" options={{
         title: t('navigation.tabs.messages'),
         tabBarIcon: ({ color }) => <MessageSquare size={24} color={color} fill={color === '#0091ff' ? color : 'none'} />,
       }} />

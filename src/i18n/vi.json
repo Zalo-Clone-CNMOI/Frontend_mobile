@@ -14,10 +14,7 @@
     "loading": "Đang tải...",
     "error": "Lỗi",
     "success": "Thành công",
-    "retry": "Thử lại",
-    "suggestions": "Gợi ý",
-    "user": "Người dùng",
-    "conversation": "Cuộc trò chuyện"
+    "retry": "Thử lại"
   },
   "navigation": {
     "tabs": {
@@ -32,8 +29,7 @@
       "create_group": "Nhóm mới",
       "settings": "Cài đặt",
       "appearance": "Giao diện",
-      "search": "Tìm kiếm",    
-      "my_documents": "Tài liệu của tôi"
+      "search": "Tìm kiếm"
     }
   },
   "appearance": {
@@ -58,6 +54,15 @@
     "login_error": "Đăng nhập thất bại",
     "register_error": "Đăng ký thất bại"
   },
+  "welcome": {
+    "select_language": "Chọn ngôn ngữ",
+    "slide1_title": "Gọi video ổn định",
+    "slide1_subtitle": "Trò chuyện thật đã với chất lượng video ổn định mọi lúc, mọi nơi",
+    "slide2_title": "Nhắn tin nhanh chóng",
+    "slide2_subtitle": "Gửi tin nhắn cực nhanh, hỗ trợ file đính kèm dung lượng lớn",
+    "slide3_title": "Nhật ký bạn bè",
+    "slide3_subtitle": "Nơi lưu giữ những khoảnh khắc đẹp cùng người thân và bạn bè"
+  },
   "chat": {
     "placeholder": "Tin nhắn",
     "send": "Gửi",
@@ -68,15 +73,7 @@
     "offline": "Offline",
     "search_placeholder": "Tìm kiếm",
     "no_messages": "Không có tin nhắn",
-    "default_title": "Trò chuyện",
-    "file": "Tệp tin",
-    "location": "Vị trí",
-    "contact": "Liên hệ",
-    "document": "Tài liệu",
-    "reply_to": "Trả lời",
-    "cancel": "Hủy",
-    "revoke": "Thu hồi",
-    "actions": "Tùy chọn"
+    "default_title": "Trò chuyện"
   },
   "contacts": {
     "search_placeholder": "Tìm kiếm",
@@ -84,15 +81,7 @@
     "friends": "Bạn bè",
     "all": "Tất cả",
     "recent": "Gần đây",
-    "no_contacts": "Không có danh bạ",
-    "birthdays": "Sinh nhật",
-    "friendRequests": "Bạn bè được đề xuất",
-    "createGroup": "Tạo nhóm",
-    "joinedGroups": "Nhóm đã tham gia",
-    "oa": "OA",
-    "online": "Đang hoạt động",
-    "offline": "Ngoại tuyến",
-    "contact": "Liên hệ"
+    "no_contacts": "Không có danh bạ"
   },
   "timeline": {
     "title": "Nhật ký",
@@ -112,15 +101,13 @@
     "theme": "Giao diện",
     "about": "Thông tin",
     "logout": "Đăng xuất",
-    "appearance_language": "Giao diện và ngôn ngữ",
-    "contact": "Liên hệ"
+    "appearance_language": "Giao diện và ngôn ngữ"
   },
   "messages": {
     "title": "Tin nhắn",
     "search_placeholder": "Tìm kiếm",
     "no_results": "Không có kết quả",
-    "suggestions": "Gợi ý",
-    "revoked": "Tin nhắn đã thu hồi"
+    "suggestions": "Gợi ý"
   },
   "add_friend": {
     "title": "Thêm bạn",
@@ -144,7 +131,7 @@
     "settings": "Cài đặt",
     "search_placeholder": "Tìm kiếm"
   },
-  "scanner":{
+  "scanner": {
     "title": "Quét",
     "touchOn": "Nhấn để quét",
     "touchOff": "Nhấn để hủy",
@@ -153,5 +140,20 @@
     "flash": "Flash",
     "cancel": "Hủy",
     "rescan": "Quét lại"
+  },
+  "loginstep1": {
+    "enter_phone": "Nhập số điện thoại",
+    "phone_placeholder": "Số điện thoại",
+    "no_account": "Bạn chưa có tài khoản?",
+    "select_country": "Chọn quốc gia"
+  },
+  "loginstep2": {
+    "enter_password": "Nhập mật khẩu của tài khoản gắn với số điện thoại"
+  },
+  "register": {
+    "terms_agreement": "Tôi đồng ý với các",
+    "terms_of_service": "điều khoản sử dụng Zalo",
+    "social_terms": "điều khoản Mạng xã hội của Zalo",
+    "has_account": "Bạn đã có tài khoản?"
   }
 }

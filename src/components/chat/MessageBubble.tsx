@@ -1,7 +1,7 @@
 import type { ChatMessage } from '@/src/types/chat';
 import { FileText } from 'lucide-react-native';
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '@/src/theme/themeContext';
 import { useTranslation } from 'react-i18next';
 
@@ -46,7 +46,7 @@ export function MessageBubble({
           { alignItems: isMe ? 'flex-end' : 'flex-start' },
         ]}
       >
-        <Pressable
+        <TouchableOpacity
           onLongPress={() => onLongPress?.(item)}
           style={[
             styles.bubble,
@@ -189,7 +189,7 @@ export function MessageBubble({
               </Text>
             )}
           </View>
-        </Pressable>
+        </TouchableOpacity>
 
         {!item.isRevoked && (
           <Text

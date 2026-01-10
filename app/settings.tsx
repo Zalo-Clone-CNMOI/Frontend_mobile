@@ -79,7 +79,7 @@ export default function SettingsScreen() {
         <SettingItem icon={Users} title={t('settings.account')} />
 
         {/* Nút Đăng xuất */}
-        <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.colors.card }]}>
+        <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.colors.card , borderColor: theme.colors.border }]} onPress={() => router.push('/')}>
           <LogOut size={20} color={theme.colors.text} />
           <Text style={[styles.logoutText, { color: theme.colors.text }]}>{t('settings.logout')}</Text>
         </TouchableOpacity>

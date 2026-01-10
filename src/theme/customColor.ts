@@ -17,6 +17,7 @@ export const ZaloLightTheme = {
     notification: '#FF3B30',
     textHeader: '#FFFFFF',
     bubbleColor: '#262626',
+    textMessage: '#fff',
   },
 };
 
@@ -36,5 +37,6 @@ export const ZaloDarkTheme = {
     iconHeader: '#fff',
     notification: '#FF453A',
     bubbleColor: '#4C8DFF',
+    textMessage: '#fff',
   },
 };

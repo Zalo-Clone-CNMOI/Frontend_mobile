@@ -39,6 +39,7 @@ export default function RootLayout() {
       <AppThemeProvider>
         <NavigationThemeWrapper>
           <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)/index" />
             <Stack.Screen name="(tabs)" />
           </Stack>
         </NavigationThemeWrapper>

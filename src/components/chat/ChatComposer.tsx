@@ -17,6 +17,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -243,7 +244,7 @@ function Option({
   theme: any;
 }) {
   return (
-    <Pressable
+    <TouchableOpacity
       style={[
         styles.option,
         {
@@ -256,15 +257,15 @@ function Option({
       <View
         style={[
           styles.optionIcon,
-          { backgroundColor: `${theme.colors.primary}22` },
+          { backgroundColor: theme.colors.primary },
         ]}
       >
-        <Icon size={20} color={theme.colors.primary} />
+        <Icon size={20} color={theme.colors.icon} />
       </View>
       <Text style={[styles.optionText, { color: theme.colors.text }]}>
         {title}
       </Text>
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 

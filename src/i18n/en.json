@@ -24,9 +24,8 @@
       "messages": "Messages",
       "contacts": "Contacts", 
       "discover": "Discover",
-      "timeline": "Timeline",
-      "profile": "Profile",
-      "my_documents": "My Documents"
+      "timeline": "Time",
+      "profile": "Profile"
     },
     "headers": {
       "add_friend": "Add Friend",
@@ -57,6 +56,15 @@
     "forgot_password": "Forgot Password?",
     "login_error": "Login Failed",
     "register_error": "Registration Failed"
+  },
+  "welcome": {
+    "select_language": "Select Language",
+    "slide1_title": "Stable Video Calls",
+    "slide1_subtitle": "Chat with stable video quality anytime, anywhere",
+    "slide2_title": "Fast Messaging",
+    "slide2_subtitle": "Send messages instantly with support for large file attachments",
+    "slide3_title": "Friends Timeline",
+    "slide3_subtitle": "Keep beautiful moments with family and friends"
   },
   "chat": {
     "placeholder": "Message",
@@ -169,5 +177,24 @@
     "cancel": "Cancel",
     "rescan": "Rescan"
 
+  },
+  "loginstep1": {
+    "enter_phone": "Enter Phone Number",
+    "phone_placeholder": "Enter phone number",
+    "select_country": "Select Country",
+    "search_country": "Search Country"
+  },
+  "loginstep2": {
+    "enter_password": "Enter password for account linked with phone number",
+    "enter_code": "Enter Code",
+    "code_placeholder": "Enter code",
+    "send_code": "Send Code",
+    "resend_code": "Resend Code"
+  },
+  "register": {
+    "terms_agreement": "I agree to the",
+    "terms_of_service": "Zalo Terms of Service",
+    "social_terms": "Zalo Social Network Terms",
+    "has_account": "Already have an account?"
   }
 }
