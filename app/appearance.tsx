@@ -3,18 +3,18 @@ import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Image,
-  LayoutAnimation,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  UIManager,
-  View
+    Image,
+    LayoutAnimation,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    UIManager,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { changeLanguage, getCurrentLanguage } from '../src/i18n/setup';
+import { changeLanguage, getCurrentLanguage } from '../src/i18n';
 import { useTheme } from '../src/theme/themeContext';
 import { useThemeManager } from '../src/theme/themeManager';
 

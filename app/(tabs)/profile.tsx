@@ -1,6 +1,6 @@
 import { ProfileSearchHeader } from '@/src/components/profile/profileSearchHeader';
 import { useProfileStore } from '@/src/store/useProfileStore';
-import { router } from 'expo-router';
+import { router, useRouter } from 'expo-router';
 import { Bell, ChevronRight, Settings, Shield, Star } from 'lucide-react-native';
 import React, { useEffect } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -8,10 +8,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/themeContext';
 import { useTranslation } from 'react-i18next';
 
-function Row({ title, Icon }: { title: string; Icon: React.ComponentType<{ size?: number; color?: string }> }) {
+function Row({ title, Icon, onPress}: { title: string; Icon: React.ComponentType<{ size?: number; color?: string }> ;onPress?: () => void }) {
   const theme = useTheme();
   return (
-    <TouchableOpacity style={[styles.row, { borderBottomColor: theme.colors.border }]}>
+    <TouchableOpacity style={[styles.row, { borderBottomColor: theme.colors.border }]} onPress={onPress}>
       <View style={styles.rowLeft}>
         <View style={[styles.rowIconWrap, { backgroundColor: theme.colors.primary + '20' }]}>
           <Icon size={18} color={theme.colors.primary} />
@@ -28,6 +28,10 @@ export default function ProfileScreen() {
   const initializeProfile = useProfileStore((state) => state.initializeProfile);
   const theme = useTheme();
   const { t } = useTranslation();
+  const router = useRouter();
+  const onPressSettings = () => {
+    router.push('/settings');
+  };
 
   useEffect(() => {
     initializeProfile();
@@ -48,7 +52,7 @@ export default function ProfileScreen() {
         <Row title={t('profile.wallet')} Icon={Star} />
         <Row title={t('profile.notifications')} Icon={Bell} />
         <Row title={t('profile.privacy')} Icon={Shield} />
-        <Row title={t('profile.settings')} Icon={Settings} />
+        <Row title={t('profile.settings')} Icon={Settings} onPress={onPressSettings}/>
       </View>
     </View>
     </SafeAreaView>

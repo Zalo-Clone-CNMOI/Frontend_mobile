@@ -106,7 +106,7 @@ export default function ContactsScreen() {
           <View
             style={styles.chip}
           >
-            <Text style={styles.ChipTextGroup}>{t('contacts.joinedGroups')} ({groups.length})</Text>
+            <Text style={[ { color: theme.colors.text }]}>{t('contacts.joinedGroups')} ({groups.length})</Text>
           </View>
         </View>
       )

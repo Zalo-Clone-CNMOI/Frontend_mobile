@@ -111,7 +111,8 @@
     "theme": "Theme",
     "about": "About",
     "logout": "Logout",
-    "appearance_language": "Appearance and Language"
+    "appearance_language": "Appearance and Language",
+    "contact": "Contact"
   },
   "messages": {
     "title": "Messages",
@@ -157,5 +158,16 @@
     "privacy": "Privacy",
     "settings": "Settings",
     "search_placeholder": "Search"
+  },
+  "scanner": {
+    "title": "Scan",
+
+    "touchOff": "Touch to cancel",
+    "qr_description": "Scan QR code to add me on Zalo",
+    "switchCamera": "Switch camera",
+    "flash": "Flash",
+    "cancel": "Cancel",
+    "rescan": "Rescan"
+
   }
 }

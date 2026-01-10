@@ -73,7 +73,7 @@ export default function SettingsScreen() {
         <View style={styles.divider} />
 
         <SettingItem icon={Info} title={t('settings.about')} />
-        <SettingItem icon={LifeBuoy} title={t('common.contact')} />
+        <SettingItem icon={LifeBuoy} title={t('settings.contact')} />
         <View style={styles.divider} />
 
         <SettingItem icon={Users} title={t('settings.account')} />

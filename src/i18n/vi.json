@@ -91,7 +91,8 @@
     "joinedGroups": "Nhóm đã tham gia",
     "oa": "OA",
     "online": "Đang hoạt động",
-    "offline": "Ngoại tuyến"
+    "offline": "Ngoại tuyến",
+    "contact": "Liên hệ"
   },
   "timeline": {
     "title": "Nhật ký",
@@ -111,7 +112,8 @@
     "theme": "Giao diện",
     "about": "Thông tin",
     "logout": "Đăng xuất",
-    "appearance_language": "Giao diện và ngôn ngữ"
+    "appearance_language": "Giao diện và ngôn ngữ",
+    "contact": "Liên hệ"
   },
   "messages": {
     "title": "Tin nhắn",
@@ -141,5 +143,15 @@
     "privacy": "Quyền riêng tư",
     "settings": "Cài đặt",
     "search_placeholder": "Tìm kiếm"
+  },
+  "scanner":{
+    "title": "Quét",
+    "touchOn": "Nhấn để quét",
+    "touchOff": "Nhấn để hủy",
+    "qr_description": "Quét mã QR để thêm bạn Zalo với tôi",
+    "switchCamera": "Chuyển camera",
+    "flash": "Flash",
+    "cancel": "Hủy",
+    "rescan": "Quét lại"
   }
 }
