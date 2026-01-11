@@ -1,4 +1,4 @@
-import { DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme } from '@react-navigation/native';
 
 export const ZaloLightTheme = {
   ...DefaultTheme,
@@ -18,6 +18,7 @@ export const ZaloLightTheme = {
     textHeader: '#FFFFFF',
     bubbleColor: '#262626',
     textMessage: '#fff',
+    dividerSection: '#bfc0c4ff',
   },
 };
 
@@ -36,7 +37,9 @@ export const ZaloDarkTheme = {
     border: '#2C2C2E',
     iconHeader: '#fff',
     notification: '#FF453A',
+    textHeader: '#FFFFFF',
     bubbleColor: '#4C8DFF',
     textMessage: '#fff',
+    dividerSection: '#bfc0c4ff',
   },
 };

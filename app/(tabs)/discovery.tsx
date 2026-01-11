@@ -47,7 +47,7 @@ export default function DiscoveryScreen() {
           renderItem={({ item }) => (
             <CardFeatures FEATURES={item} />
           )}
-          estimatedItemSize={110}
+          estimatedItemSize={100}
         />
       </View>
     </SafeAreaView>
