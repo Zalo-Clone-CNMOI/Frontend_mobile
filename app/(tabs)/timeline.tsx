@@ -7,6 +7,8 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/themeContext';
 import { useTranslation } from 'react-i18next';
+import { TimelineSearchHeader } from '../../src/components/timeline/timelineSearchHeader';
+import { useRouter } from 'expo-router';
 
 export default function TimelineScreen() {
   const posts = useTimelineStore((state) => state.posts);
@@ -14,6 +16,7 @@ export default function TimelineScreen() {
   const initializePosts = useTimelineStore((state) => state.initializePosts);
   const theme = useTheme();
   const { t } = useTranslation();
+  const router = useRouter();
 
   useEffect(() => {
     initializePosts();
@@ -21,18 +24,7 @@ export default function TimelineScreen() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.colors.card }]}>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{t('timeline.title')}</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={[styles.iconButton, { backgroundColor: theme.colors.background }]}>
-            <Camera size={20} color={theme.colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.iconButton, { backgroundColor: theme.colors.background }]}>
-            <PenSquare size={20} color={theme.colors.text} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
+      <TimelineSearchHeader onPressSearch={() => router.push('/search')}/>
       <FlashList
         data={(postsV2 && postsV2.length) ? postsV2 : posts}
         keyExtractor={(item: any) => item.id}

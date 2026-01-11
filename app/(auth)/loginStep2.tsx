@@ -3,27 +3,72 @@ import { ChevronLeft, Eye, EyeOff, XCircle } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../src/contexts/AuthContext';
+
+// Interface cho user info
+interface UserInfo {
+  phone: string;
+  password?: string;
+  name?: string;
+  token?: string;
+  loginTime?: number;
+}
 
 export default function LoginStep2() {
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false); // Trạng thái hiện/ẩn mật khẩu
+  const [isLoading, setIsLoading] = useState(false);
   const { phone } = useLocalSearchParams();
   const { t } = useTranslation();
+  const { login } = useAuth(); // Use login function from AuthContext
 
   const handlePasswordChange = (text: string) => {
     // Regex: Loại bỏ khoảng trắng (mật khẩu không nên có khoảng trắng)
     const cleaned = text.replace(/\s/g, '');
     setPassword(cleaned);
+  };
+
+  // Xử lý đăng nhập và lưu phiên
+  const handleLogin = async () => {
+    if (password.length === 0) return;
+    
+    setIsLoading(true);
+    try {
+      // Giả sử API call để xác thực
+      // const response = await loginAPI(phone as string, password);
+      
+      // Tạm thởi giả định thành công để demo
+      const userInfo: UserInfo = {
+        phone: phone as string,
+        password: password,
+        name: 'User ' + phone,
+        token: 'mock_token_' + Date.now(),
+        loginTime: Date.now()
+      };
+
+      // Sử dụng AuthContext để login
+      await login(userInfo);
+      
+      console.log('Login successful, user data saved');
+      
+      // Chuyển đến trang chính
+      router.push('/(tabs)/home');
+    } catch (error) {
+      console.error('Login failed:', error);
+      // TODO: Hiển thị thông báo lỗi
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -74,10 +119,12 @@ export default function LoginStep2() {
 
             <TouchableOpacity 
               style={[styles.primaryBtn, password.length === 0 && styles.btnDisabled]}
-              disabled={password.length === 0}
-              onPress={()=>{router.push('/(tabs)/home')}}
+              disabled={password.length === 0 || isLoading}
+              onPress={handleLogin}
             >
-              <Text style={styles.btnText}>{t('auth.login')}</Text>
+              <Text style={styles.btnText}>
+                {isLoading ? t('common.loading') : t('auth.login')}
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

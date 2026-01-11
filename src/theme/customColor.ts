@@ -6,7 +6,7 @@ export const ZaloLightTheme = {
   colors: {
     ...DefaultTheme.colors,
 
-    primary: '#0068FF',        // Zalo blue
+    primary: '#0068FF',       
     background: '#FFFFFF',
     card: '#F7F8FA',
     header: '#0068FF',

@@ -1,9 +1,9 @@
+import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
 import { FileText } from 'lucide-react-native';
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useTheme } from '@/src/theme/themeContext';
 import { useTranslation } from 'react-i18next';
+import { Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export function MessageBubble({
   item,

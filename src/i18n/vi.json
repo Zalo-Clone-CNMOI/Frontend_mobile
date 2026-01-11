@@ -1,6 +1,6 @@
 {
   "common": {
-    "ok": "Đồng ý",
+    "ok": "OK",
     "cancel": "Hủy",
     "confirm": "Xác nhận",
     "save": "Lưu",
@@ -10,23 +10,26 @@
     "search": "Tìm kiếm",
     "back": "Quay lại",
     "next": "Tiếp theo",
-    "done": "Hoàn thành",
+    "done": "Hoàn tất",
     "loading": "Đang tải...",
     "error": "Lỗi",
     "success": "Thành công",
-    "retry": "Thử lại"
+    "retry": "Thử lại",
+    "suggestions": "Gợi ý",
+    "user": "Người dùng",
+    "conversation": "Cuộc trò chuyện"
   },
   "navigation": {
     "tabs": {
       "messages": "Tin nhắn",
-      "contacts": "Danh bạ", 
+      "contacts": "Danh bạ",
       "discover": "Khám phá",
       "timeline": "Nhật ký",
       "profile": "Cá nhân"
     },
     "headers": {
       "add_friend": "Thêm bạn",
-      "create_group": "Nhóm mới",
+      "create_group": "Tạo nhóm",
       "settings": "Cài đặt",
       "appearance": "Giao diện",
       "search": "Tìm kiếm"
@@ -34,14 +37,14 @@
   },
   "appearance": {
     "title": "Giao diện",
-    "theme": "Giao diện",
+    "theme": "Chủ đề",
     "language": "Ngôn ngữ",
     "theme_light": "Sáng",
-    "theme_dark": "Tối", 
-    "theme_system": "Hệ thống",
-    "change_language": "Thay đổi ngôn ngữ",
+    "theme_dark": "Tối",
+    "theme_system": "Theo hệ thống",
+    "change_language": "Đổi ngôn ngữ",
     "vietnamese": "Tiếng Việt",
-    "english": "English"
+    "english": "Tiếng Anh"
   },
   "auth": {
     "login": "Đăng nhập",
@@ -57,23 +60,31 @@
   "welcome": {
     "select_language": "Chọn ngôn ngữ",
     "slide1_title": "Gọi video ổn định",
-    "slide1_subtitle": "Trò chuyện thật đã với chất lượng video ổn định mọi lúc, mọi nơi",
+    "slide1_subtitle": "Trò chuyện video mượt mà mọi lúc, mọi nơi",
     "slide2_title": "Nhắn tin nhanh chóng",
-    "slide2_subtitle": "Gửi tin nhắn cực nhanh, hỗ trợ file đính kèm dung lượng lớn",
-    "slide3_title": "Nhật ký bạn bè",
-    "slide3_subtitle": "Nơi lưu giữ những khoảnh khắc đẹp cùng người thân và bạn bè"
+    "slide2_subtitle": "Gửi tin nhắn tức thì, hỗ trợ tệp dung lượng lớn",
+    "slide3_title": "Dòng thời gian bạn bè",
+    "slide3_subtitle": "Lưu giữ khoảnh khắc đẹp cùng gia đình và bạn bè"
   },
   "chat": {
-    "placeholder": "Tin nhắn",
+    "placeholder": "Nhập tin nhắn",
     "send": "Gửi",
     "reply": "Trả lời",
     "revoked": "Tin nhắn đã thu hồi",
-    "typing": "Đang soạn tin nhắn...",
-    "online": "Online",
-    "offline": "Offline",
+    "typing": "Đang nhập...",
+    "online": "Trực tuyến",
+    "offline": "Ngoại tuyến",
     "search_placeholder": "Tìm kiếm",
-    "no_messages": "Không có tin nhắn",
-    "default_title": "Trò chuyện"
+    "no_messages": "Chưa có tin nhắn",
+    "default_title": "Trò chuyện",
+    "file": "Tệp",
+    "location": "Vị trí",
+    "contact": "Liên hệ",
+    "document": "Tài liệu",
+    "reply_to": "Trả lời",
+    "cancel": "Hủy",
+    "revoke": "Thu hồi",
+    "actions": "Thao tác"
   },
   "contacts": {
     "search_placeholder": "Tìm kiếm",
@@ -81,14 +92,21 @@
     "friends": "Bạn bè",
     "all": "Tất cả",
     "recent": "Gần đây",
-    "no_contacts": "Không có danh bạ"
+    "no_contacts": "Không có liên hệ",
+    "friendRequests": "Lời mời kết bạn",
+    "birthdays": "Sinh nhật",
+    "createGroup": "Tạo nhóm",
+    "joinedGroups": "Nhóm đã tham gia",
+    "oa": "OA",
+    "online": "Trực tuyến",
+    "offline": "Ngoại tuyến"
   },
   "timeline": {
     "title": "Nhật ký",
     "scan_qr": "Quét mã QR",
     "add_friend": "Thêm bạn",
     "minutes_ago": "{{count}} phút",
-    "hours_ago": "{{count}} giờ", 
+    "hours_ago": "{{count}} giờ",
     "days_ago": "{{count}} ngày",
     "default_user": "Người dùng"
   },
@@ -98,31 +116,49 @@
     "privacy": "Quyền riêng tư",
     "notifications": "Thông báo",
     "language": "Ngôn ngữ",
-    "theme": "Giao diện",
-    "about": "Thông tin",
+    "theme": "Chủ đề",
+    "about": "Giới thiệu",
     "logout": "Đăng xuất",
-    "appearance_language": "Giao diện và ngôn ngữ"
+    "appearance_language": "Giao diện & Ngôn ngữ",
+    "contact": "Liên hệ"
   },
   "messages": {
     "title": "Tin nhắn",
     "search_placeholder": "Tìm kiếm",
     "no_results": "Không có kết quả",
-    "suggestions": "Gợi ý"
+    "suggestions": "Gợi ý",
+    "revoked": "Tin nhắn đã thu hồi",
+    "cancel": "Hủy",
+    "replying_to": "Đang trả lời"
   },
   "add_friend": {
     "title": "Thêm bạn",
     "user_name": "Mai Huỳnh Dương Tuấn K...",
-    "qr_description": "Quét mã để thêm bạn Zalo với tôi",
+    "qr_description": "Quét mã QR để thêm tôi trên Zalo",
     "phone_placeholder": "Nhập số điện thoại",
     "scan_qr": "Quét mã QR",
-    "suggested_friends": "Bạn bè có thể quen",
+    "suggested_friends": "Gợi ý kết bạn",
     "select_country": "Chọn quốc gia",
-    "search_country": "Tìm kiếm quốc gia"
+    "search_country": "Tìm quốc gia"
   },
   "create_group": {
-    "title": "Nhóm mới",
+    "title": "Tạo nhóm mới",
     "selected_count": "Đã chọn: {{count}}",
     "name_placeholder": "Đặt tên nhóm"
+  },
+  "discovery": {
+    "zaloVideo": "Zalo Video",
+    "zaloPay": "ZaloPay",
+    "shopping": "Mua sắm",
+    "news": "Tin tức",
+    "game": "Trò chơi",
+    "nearby": "Gần đây",
+    "recommended": "Đề xuất",
+    "miniApp": "Zalo Mini App",
+    "live": "Zalo Live",
+    "community": "Cộng đồng Zalo",
+    "groups": "Nhóm Zalo",
+    "events": "Sự kiện Zalo"
   },
   "profile": {
     "wallet": "Ví",
@@ -133,27 +169,30 @@
   },
   "scanner": {
     "title": "Quét",
-    "touchOn": "Nhấn để quét",
-    "touchOff": "Nhấn để hủy",
-    "qr_description": "Quét mã QR để thêm bạn Zalo với tôi",
-    "switchCamera": "Chuyển camera",
-    "flash": "Flash",
+    "touchOff": "Chạm để hủy",
+    "qr_description": "Quét mã QR để thêm tôi trên Zalo",
+    "switchCamera": "Đổi camera",
+    "flash": "Đèn flash",
     "cancel": "Hủy",
     "rescan": "Quét lại"
   },
   "loginstep1": {
     "enter_phone": "Nhập số điện thoại",
-    "phone_placeholder": "Số điện thoại",
-    "no_account": "Bạn chưa có tài khoản?",
-    "select_country": "Chọn quốc gia"
+    "phone_placeholder": "Nhập số điện thoại",
+    "select_country": "Chọn quốc gia",
+    "search_country": "Tìm quốc gia"
   },
   "loginstep2": {
-    "enter_password": "Nhập mật khẩu của tài khoản gắn với số điện thoại"
+    "enter_password": "Nhập mật khẩu cho tài khoản liên kết với số điện thoại",
+    "enter_code": "Nhập mã",
+    "code_placeholder": "Nhập mã",
+    "send_code": "Gửi mã",
+    "resend_code": "Gửi lại mã"
   },
   "register": {
-    "terms_agreement": "Tôi đồng ý với các",
-    "terms_of_service": "điều khoản sử dụng Zalo",
-    "social_terms": "điều khoản Mạng xã hội của Zalo",
-    "has_account": "Bạn đã có tài khoản?"
+    "terms_agreement": "Tôi đồng ý với",
+    "terms_of_service": "Điều khoản sử dụng Zalo",
+    "social_terms": "Điều khoản mạng xã hội Zalo",
+    "has_account": "Đã có tài khoản?"
   }
 }
