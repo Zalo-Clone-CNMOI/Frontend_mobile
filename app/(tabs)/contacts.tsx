@@ -78,7 +78,7 @@ export default function ContactsScreen() {
           <MenuOption icon={<Users size={22} color="#fff" />} title={t('contacts.friendRequests')} />
           <MenuOption icon={<Cake size={22} color="#fff" />} title={t('contacts.birthdays')} />
 
-          <View style={styles.dividerSection} />
+          <View style={[styles.dividerSection, { backgroundColor: theme.colors.dividerSection }]} />
 
           <View style={styles.filterChipContainer}>
               <FilterChip
@@ -102,7 +102,7 @@ export default function ContactsScreen() {
       return (
         <View style={styles.staticMenu}>
           <MenuOption icon={<UserPlus size={22} color="#fff" />} title={t('contacts.createGroup')} />
-          <View style={styles.dividerSection} />
+          <View style={[styles.dividerSection, { backgroundColor: theme.colors.dividerSection }]} />
           <View
             style={styles.chip}
           >
@@ -117,7 +117,6 @@ export default function ContactsScreen() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ContactsSearchHeader onPressSearch={() => router.push('/search')} />
-
       <View style={[styles.tabWrapper, { borderBottomColor: theme.colors.border }]}>
         {tabs.map((tab, index) => (
           <TouchableOpacity key={tab} onPress={() => setActiveTab(index)} style={styles.tabItem}>
@@ -126,7 +125,6 @@ export default function ContactsScreen() {
           </TouchableOpacity>
         ))}
       </View>
-
       <FlashList
         data={activeTab === 0 ? filteredUsersV2 : filteredData}
         keyExtractor={(item: any) => item.id}

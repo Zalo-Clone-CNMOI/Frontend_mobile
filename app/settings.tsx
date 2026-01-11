@@ -50,7 +50,6 @@ export default function SettingsScreen() {
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{t('settings.title')}</Text>
         </View>
-        <Search size={24} color={theme.colors.text} />
       </View>
 
       <ScrollView>

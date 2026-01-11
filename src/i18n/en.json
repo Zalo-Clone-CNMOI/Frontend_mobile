@@ -32,7 +32,8 @@
       "create_group": "New Group",
       "settings": "Settings",
       "appearance": "Appearance",
-      "search": "Search"
+      "search": "Search",
+      "my_Documents": "My Documents"
     }
   },
   "appearance": {
@@ -120,7 +121,7 @@
     "about": "About",
     "logout": "Logout",
     "appearance_language": "Appearance and Language",
-    "contact": "Contact"
+    "contact": "Contact",
   },
   "messages": {
     "title": "Messages",
