@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const THEME_MODE_KEY = '@zalo_clone_theme_mode';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark';
 
 export class ThemeService {
   /**
@@ -22,10 +22,13 @@ export class ThemeService {
   static async getThemeMode(): Promise<ThemeMode> {
     try {
       const savedMode = await AsyncStorage.getItem(THEME_MODE_KEY);
-      return savedMode ? (savedMode as ThemeMode) : 'system';
+      if (savedMode === 'light' || savedMode === 'dark') {
+        return savedMode;
+      }
+      return 'dark';
     } catch (error) {
       console.error('Error getting theme mode:', error);
-      return 'system';
+      return 'dark';
     }
   }
 
