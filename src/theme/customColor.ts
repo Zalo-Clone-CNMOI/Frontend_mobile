@@ -40,6 +40,6 @@ export const ZaloDarkTheme = {
     textHeader: '#FFFFFF',
     bubbleColor: '#4C8DFF',
     textMessage: '#fff',
-    dividerSection: '#bfc0c4ff',
+    dividerSection: '#1C1C1E',
   },
 };

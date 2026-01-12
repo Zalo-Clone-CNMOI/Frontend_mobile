@@ -1,6 +1,7 @@
 import { useTheme } from '@react-navigation/native';
 import { Tabs } from 'expo-router';
 import { Clock3, Contact2, LayoutGrid, MessageSquare, User2 } from 'lucide-react-native';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 export default function TabsLayout() {

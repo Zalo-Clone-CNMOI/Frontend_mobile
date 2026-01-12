@@ -1,8 +1,7 @@
-import React, { createContext, ReactNode, useContext, useState } from 'react';
+import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
+import { ThemeMode, ThemeService } from '../services/themeService';
 import { ZaloDarkTheme, ZaloLightTheme } from './customColor';
-
-type ThemeMode = 'light' | 'dark' | 'system';
 
 type AppTheme = typeof ZaloLightTheme;
 
@@ -23,8 +22,25 @@ interface ThemeManagerProviderProps {
 export const ThemeManagerProvider = ({ children }: ThemeManagerProviderProps) => {
   const systemScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>('light');
+  const [isLoading, setIsLoading] = useState(true);
 
   const isSystemDark = systemScheme === 'dark';
+  
+  // Load saved theme on mount
+  useEffect(() => {
+    const loadTheme = async () => {
+      try {
+        const savedMode = await ThemeService.getThemeMode();
+        setThemeModeState(savedMode);
+      } catch (error) {
+        console.error('Error loading theme:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadTheme();
+  }, []);
   
   const getEffectiveTheme = (): AppTheme => {
     if (themeMode === 'system') {
@@ -35,8 +51,12 @@ export const ThemeManagerProvider = ({ children }: ThemeManagerProviderProps) =>
 
   const theme = getEffectiveTheme();
 
-  const setThemeMode = (mode: ThemeMode) => {
+  const setThemeMode = async (mode: ThemeMode) => {
     setThemeModeState(mode);
+    // Save to storage if not 'system'
+    if (mode !== 'system') {
+      await ThemeService.saveThemeMode(mode);
+    }
   };
 
   const toggleTheme = () => {
