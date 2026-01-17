@@ -1,6 +1,8 @@
 import { ChatComposer } from '@/src/components/chat/ChatComposer';
+import { ChatOptions } from '@/src/components/chat/ChatOptions';
 import { ImageViewer } from '@/src/components/chat/ImageViewer';
 import { MessageBubble } from '@/src/components/chat/MessageBubble';
+import { useChatsStore } from '@/src/store/useChatsStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
@@ -26,6 +28,7 @@ export default function ChatDetailScreen() {
   const [replyingMessage, setReplyingMessage] = useState<ChatMessage | null>(null);
   const flashListRef = useRef<any>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showChatOptions, setShowChatOptions] = useState(false);
 
   // Get messages from store
   const messagesByChatId = useMessagesStore((state) => state.messagesByChatId);
@@ -35,6 +38,12 @@ export default function ChatDetailScreen() {
   const revokeMessage = useMessagesStore((state) => state.revokeMessage);
   const theme = useTheme();
   const messageWidthMap = useRef<Record<string, number>>({});
+
+  // Get chat info from store
+  const chats = useChatsStore((state) => state.chats);
+  const currentChat = useMemo(() => {
+    return chats.find((chat) => chat.conversationId === chatId);
+  }, [chats, chatId]);
 
 
   useEffect(() => {
@@ -48,6 +57,7 @@ export default function ChatDetailScreen() {
       return {
         id: `${Date.now()}_${index}`,
         fromMe: true,
+        senderId: 'user-me',
         text: '',
         timestamp: Date.now() + index,
         type: isImage ? ('image' as const) : ('file' as const),
@@ -94,6 +104,7 @@ export default function ChatDetailScreen() {
     sendMessage(chatId, {
       text: trimmed,
       fromMe: true,
+      senderId: 'user-me',
       type: 'text',
       timestamp: Date.now(),
       replyTo: replyingMessage
@@ -127,7 +138,10 @@ export default function ChatDetailScreen() {
               <TouchableOpacity style={styles.callButton}>
                 <Phone size={20} color= {theme.colors.iconHeader} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.callButton}>
+              <TouchableOpacity 
+                style={styles.callButton}
+                onPress={() => setShowChatOptions(true)}
+              >
                 <List size={20} color={theme.colors.iconHeader} />
               </TouchableOpacity>
             </View>
@@ -166,6 +180,13 @@ export default function ChatDetailScreen() {
           visible={!!selectedImage}
           uri={selectedImage}
           onClose={() => setSelectedImage(null)}
+        />
+        <ChatOptions
+          visible={showChatOptions}
+          onClose={() => setShowChatOptions(false)}
+          chatId={chatId}
+          chatName={title}
+          chatAvatar={currentChat?.avatar}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

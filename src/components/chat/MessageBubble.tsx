@@ -1,7 +1,8 @@
+import { USERS_V2 } from '@/src/data/contactsMockData';
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
 import { FileText } from 'lucide-react-native';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -16,6 +17,22 @@ export function MessageBubble({
 }) {
   const theme = useTheme();
   const { t } = useTranslation();
+
+  // Lấy avatar dựa trên senderId
+  const avatar = useMemo(() => {
+    if (item.fromMe) {
+      // Nếu là tin nhắn của mình, lấy avatar của user-me
+      const me = USERS_V2.find((u) => u.id === 'user-me');
+      return me?.avatar || 'https://i.pravatar.cc/150?u=user-me';
+    } else {
+      // Nếu là tin nhắn từ đối phương, lấy avatar từ senderId
+      if (item.senderId) {
+        const sender = USERS_V2.find((u) => u.id === item.senderId);
+        return sender?.avatar || 'https://i.pravatar.cc/150?u=unknown';
+      }
+      return 'https://i.pravatar.cc/150?u=unknown';
+    }
+  }, [item.fromMe, item.senderId]);
 
   const formatTime = (dateProp: any) => {
     const d = dateProp ? new Date(dateProp) : new Date();
@@ -40,6 +57,14 @@ export function MessageBubble({
         isMe ? styles.rowRight : styles.rowLeft,
       ]}
     >
+      {/* Avatar bên trái cho tin nhắn từ đối phương */}
+      {!isMe && (
+        <Image
+          source={{ uri: avatar }}
+          style={styles.avatar}
+        />
+      )}
+
       <View
         style={[
           styles.bubbleWrapper,
@@ -202,6 +227,14 @@ export function MessageBubble({
           </Text>
         )}
       </View>
+
+      {/* Avatar bên phải cho tin nhắn của mình */}
+      {isMe && (
+        <Image
+          source={{ uri: avatar }}
+          style={styles.avatar}
+        />
+      )}
     </View>
   );
 }
@@ -213,12 +246,21 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     paddingHorizontal: 12,
     flexDirection: 'row',
+    alignItems: 'flex-end',
   },
   rowLeft: { justifyContent: 'flex-start' },
   rowRight: { justifyContent: 'flex-end' },
 
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginHorizontal: 8,
+    marginBottom: 2,
+  },
+
   bubbleWrapper: {
-    maxWidth: '82%',
+    maxWidth: '75%',
   },
 
   bubble: {
