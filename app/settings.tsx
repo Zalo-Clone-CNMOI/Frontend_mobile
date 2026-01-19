@@ -75,7 +75,7 @@ export default function SettingsScreen() {
         <SettingItem icon={LifeBuoy} title={t('settings.contact')} />
         <View style={styles.divider} />
 
-        <SettingItem icon={Users} title={t('settings.account')} />
+        <SettingItem icon={Users} title={t('settings.account')} onPress={() => router.push('/account')} />
 
         {/* Nút Đăng xuất */}
         <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.colors.card , borderColor: theme.colors.border }]} onPress={() => router.push('/')}>

@@ -138,7 +138,7 @@
   },
   "settings": {
     "title": "Settings",
-    "account": "Account",
+    "account": "Account and Security",
     "privacy": "Privacy",
     "notifications": "Notifications",
     "language": "Language",
@@ -146,7 +146,7 @@
     "about": "About",
     "logout": "Logout",
     "appearance_language": "Appearance and Language",
-    "contact": "Contact",
+    "contact": "Contact"
   },
   "messages": {
     "title": "Messages",
@@ -222,5 +222,41 @@
     "terms_of_service": "Zalo Terms of Service",
     "social_terms": "Zalo Social Network Terms",
     "has_account": "Already have an account?"
+  },
+  "account_security": {
+    "title": "Account and Security",
+    "account": "Account",
+    "personal_info": "Personal information",
+    "phone_number": "Phone number",
+    "email": "Email",
+    "not_linked": "Not linked",
+    "my_qr_code": "My QR code",
+    "security": "Security",
+    "password": "Password"
+  },
+  "personal_info": {
+    "title": "Personal Information",
+    "zalo_name": "Zalo Name",
+    "date_of_birth": "Date of Birth",
+    "gender": "Gender",
+    "male": "Male",
+    "female": "Female",
+    "edit": "Edit"
+  },
+  "change_password": {
+    "title": "Change Password",
+    "current_password": "Current Password",
+    "new_password": "New Password",
+    "confirm_password": "Confirm Password",
+    "enter_current_password": "Enter current password",
+    "enter_new_password": "Enter new password",
+    "enter_confirm_password": "Re-enter new password",
+    "change_password": "Change Password",
+    "error": "Error",
+    "success": "Success",
+    "fill_all_fields": "Please fill in all fields",
+    "password_mismatch": "Passwords do not match",
+    "password_too_short": "Password must be at least 6 characters",
+    "password_changed": "Password changed successfully"
   }
 }
