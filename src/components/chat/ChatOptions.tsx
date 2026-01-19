@@ -1,6 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
-import { ChevronRight, Eye, EyeOff, Pin, Phone, Settings, Clock, AlertTriangle, UserX, PieChart, Trash2, Users, UserPlus, User, Search, PaintRoller, Bell, BellOff } from 'lucide-react-native';
-import React, { useState } from 'react';
+import { ChevronRight, Eye, EyeOff, Pin, Phone, Settings, Clock, AlertTriangle, UserX, PieChart, Trash2, Users, UserPlus, User, Search, PaintRoller, Bell, BellOff, Languages, Check } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Modal,
@@ -12,8 +12,10 @@ import {
   Image,
   Switch,
   FlatList,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { changeLanguage, getCurrentLanguage } from '@/src/i18n';
 
 interface ChatOptionsProps {
   visible: boolean;
@@ -40,6 +42,27 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
   const [reportCalls, setReportCalls] = useState(true);
   const [bestFriend, setBestFriend] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState('vi');
+
+  // Load current language when component mounts
+  useEffect(() => {
+    if (visible) {
+      const lang = getCurrentLanguage();
+      setCurrentLanguage(lang);
+    }
+  }, [visible]);
+
+  // Handle language change
+  const handleLanguageChange = async (language: string) => {
+    try {
+      await changeLanguage(language);
+      setCurrentLanguage(language);
+      setShowLanguageModal(false);
+    } catch (error) {
+      console.error('Error changing language:', error);
+    }
+  };
 
   const renderMediaItem = ({ item }: any) => (
     <View style={styles.mediaItem}>
@@ -111,7 +134,7 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
           <TouchableOpacity onPress={onClose} style={styles.backButton}>
             <Text style={[styles.backIcon, { color: theme.colors.text }]}>←</Text>
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Tuỳ chọn</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{t('chat_options.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -130,21 +153,21 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
                 <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
                   <Search size={24} color={theme.colors.primary} />
                 </View>
-                <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>Tìm tin nhắn</Text>
+                <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.search_messages')}</Text>
               </TouchableOpacity>
               
               <TouchableOpacity style={styles.quickActionItem} onPress={() => {}}>
                 <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
                   <User size={24} color={theme.colors.primary} />
                 </View>
-                <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>Trang cá nhân</Text>
+                <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.profile')}</Text>
               </TouchableOpacity>
               
               <TouchableOpacity style={styles.quickActionItem} onPress={() => {}}>
                 <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
                   <PaintRoller size={24} color={theme.colors.primary} />
                 </View>
-                <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>Đổi hình nền</Text>
+                <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.change_wallpaper')}</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
@@ -158,7 +181,7 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
                     <BellOff size={24} color={theme.colors.primary} />
                   )}
                 </View>
-                <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>Tắt thông báo</Text>
+                <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.disable_notifications')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -167,26 +190,32 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
           <View style={[styles.additionalOptions, { backgroundColor: theme.colors.background }]}>
             <OptionItem
               icon={Settings}
-              title="Đổi tên gợi nhớ"
+              title={t('chat_options.change_nickname')}
               onPress={() => {}}
             />
             <OptionItem
               icon={Pin}
-              title="Đánh dấu bạn thân"
+              title={t('chat_options.mark_best_friend')}
               showToggle
               toggleValue={bestFriend}
               onToggleChange={setBestFriend}
             />
             <OptionItem
               icon={Clock}
-              title="Nhật ký chung"
+              title={t('chat_options.shared_timeline')}
               onPress={() => {}}
+            />
+            <OptionItem
+              icon={Languages}
+              title={t('chat_options.language')}
+              subtitle={currentLanguage === 'vi' ? t('appearance.vietnamese') : t('appearance.english')}
+              onPress={() => setShowLanguageModal(true)}
             />
           </View>
 
           {/* Media Section */}
           <View style={[styles.mediaSectionHeader, { borderTopColor: theme.colors.border }]}>
-            <Text style={[styles.mediaSectionTitle, { color: theme.colors.text }]}>Ảnh, file, link</Text>
+            <Text style={[styles.mediaSectionTitle, { color: theme.colors.text }]}>{t('chat_options.media_files_links')}</Text>
             <ChevronRight size={18} color="#8e8e93" />
           </View>
           <View style={styles.mediaSection}>
@@ -204,73 +233,133 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
           <View style={[styles.optionsSection, { backgroundColor: theme.colors.background }]}>
             <OptionItem
               icon={Users}
-              title={`Tạo nhóm với ${chatName}`}
+              title={t('chat_options.create_group_with', { name: chatName })}
               onPress={() => {}}
             />
             <OptionItem
               icon={UserPlus}
-              title={`Thêm ${chatName} vào nhóm`}
+              title={t('chat_options.add_to_group', { name: chatName })}
               onPress={() => {}}
             />
             <OptionItem
               icon={Users}
-              title="Xem nhóm chung (2)"
+              title={t('chat_options.view_shared_groups', { count: 2 })}
               onPress={() => {}}
             />
             <OptionItem
               icon={Pin}
-              title="Ghim trò chuyện"
+              title={t('chat_options.pin_conversation')}
               showToggle
               toggleValue={pinned}
               onToggleChange={setPinned}
             />
             <OptionItem
               icon={EyeOff}
-              title="Ẩn trò chuyện"
+              title={t('chat_options.hide_conversation')}
               showToggle
               toggleValue={hidden}
               onToggleChange={setHidden}
             />
             <OptionItem
               icon={Phone}
-              title="Báo cuộc gọi đến"
+              title={t('chat_options.report_calls')}
               showToggle
               toggleValue={reportCalls}
               onToggleChange={setReportCalls}
             />
             <OptionItem
               icon={Settings}
-              title="Cài đặt cá nhân"
+              title={t('chat_options.personal_settings')}
               onPress={() => {}}
             />
             <OptionItem
               icon={Clock}
-              title="Tin nhắn tự xóa"
-              subtitle="Không tự xóa"
+              title={t('chat_options.auto_delete_messages')}
+              subtitle={t('chat_options.no_auto_delete')}
               onPress={() => {}}
             />
             <OptionItem
               icon={AlertTriangle}
-              title="Báo xấu"
+              title={t('chat_options.report')}
               onPress={() => {}}
             />
             <OptionItem
               icon={UserX}
-              title="Quản lý chặn"
+              title={t('chat_options.manage_block')}
               onPress={() => {}}
             />
             <OptionItem
               icon={PieChart}
-              title="Dung lượng trò chuyện"
+              title={t('chat_options.conversation_storage')}
               onPress={() => {}}
             />
             <OptionItem
               icon={Trash2}
-              title="Xóa lịch sử trò chuyện"
+              title={t('chat_options.delete_history')}
               onPress={() => {}}
             />
           </View>
         </ScrollView>
+
+        {/* Language Selection Modal */}
+        <Modal
+          visible={showLanguageModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowLanguageModal(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowLanguageModal(false)}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <View style={[styles.modalContent, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                  <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                    {t('appearance.change_language')}
+                  </Text>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.languageOption,
+                      currentLanguage === 'vi' && [styles.languageOptionActive, { backgroundColor: theme.colors.primary + '20', borderColor: theme.colors.primary }],
+                      { borderColor: theme.colors.border }
+                    ]}
+                    onPress={() => handleLanguageChange('vi')}
+                  >
+                    <Image
+                      source={{ uri: 'https://flagcdn.com/w80/vn.png' }}
+                      style={styles.flagImage}
+                    />
+                    <Text style={[styles.languageText, { color: theme.colors.text }]}>
+                      {t('appearance.vietnamese')}
+                    </Text>
+                    {currentLanguage === 'vi' && (
+                      <Check size={20} color={theme.colors.primary} />
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.languageOption,
+                      currentLanguage === 'en' && [styles.languageOptionActive, { backgroundColor: theme.colors.primary + '20', borderColor: theme.colors.primary }],
+                      { borderColor: theme.colors.border }
+                    ]}
+                    onPress={() => handleLanguageChange('en')}
+                  >
+                    <Image
+                      source={{ uri: 'https://flagcdn.com/w80/us.png' }}
+                      style={styles.flagImage}
+                    />
+                    <Text style={[styles.languageText, { color: theme.colors.text }]}>
+                      {t('appearance.english')}
+                    </Text>
+                    {currentLanguage === 'en' && (
+                      <Check size={20} color={theme.colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
       </SafeAreaView>
     </Modal>
   );
@@ -429,6 +518,46 @@ const styles = StyleSheet.create({
   optionSubtitle: {
     fontSize: 13,
     marginTop: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '85%',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  languageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    marginBottom: 12,
+  },
+  languageOptionActive: {
+    borderWidth: 2,
+  },
+  flagImage: {
+    width: 32,
+    height: 24,
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  languageText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
 
