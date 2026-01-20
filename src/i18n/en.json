@@ -213,15 +213,19 @@
   "loginstep2": {
     "enter_password": "Enter password for account linked with phone number",
     "enter_code": "Enter Code",
-    "code_placeholder": "Enter code",
-    "send_code": "Send Code",
-    "resend_code": "Resend Code"
+    "code_placeholder": "Nhập mã",
+    "send_code": "Gửi mã",
+    "resend_code": "Gửi lại mã"
   },
   "register": {
     "terms_agreement": "I agree to the",
     "terms_of_service": "Zalo Terms of Service",
     "social_terms": "Zalo Social Network Terms",
-    "has_account": "Already have an account?"
+    "has_account": "Already have an account?",
+    "fill_all_fields": "Vui lòng điền đầy đủ thông tin",
+    "password_mismatch": "Mật khẩu không khớp",
+    "password_too_short": "Mật khẩu phải có ít nhất 6 ký tự",
+    "password_changed": "Đổi mật khẩu thành công"
   },
   "account_security": {
     "title": "Account and Security",
@@ -254,9 +258,33 @@
     "change_password": "Change Password",
     "error": "Error",
     "success": "Success",
-    "fill_all_fields": "Please fill in all fields",
-    "password_mismatch": "Passwords do not match",
-    "password_too_short": "Password must be at least 6 characters",
-    "password_changed": "Password changed successfully"
+    "fill_all_fields": "Please fill in all fields"
+  },
+  "screenPostOptions":{
+    "chat_with_author": "Chat with author",
+    "share_post": "Share post",
+    "send_post": "Send post",
+    "report_post": "Report post",
+    "comment_title": "Comment title",
+    "write_comment": "Write comment",
+    "send": "Send",
+    "delete_comment": "Delete comment",
+    "delete_comment_confirm": "Are you sure you want to delete this comment?",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edited": "(edited)",
+    "reply": "Reply",
+    "reply_button": "Reply",
+    "send_post_to_friends": "Send post to friends functionality would be implemented here",
+    "report_post_functionality_would_be_implemented_here": "Report post functionality would be implemented here",
+    "postOptions":"Post options" 
+  },
+  "commentPost": {
+    "delete_comment":"Delete comment",
+    "delete_comment_confirm": "Are you sure you want to delete this comment?",
+    "cancel":"Cancel",
+    "delete":"Delete",
+    "comment_post":"Comment post of ",
+    "write_comment":"Write comment"
   }
 }

@@ -1,6 +1,7 @@
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import { initializeLanguage } from '../src/i18n';
@@ -38,17 +39,19 @@ function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <ThemeManagerProvider>
-        <AppThemeProvider>
-          <NavigationThemeWrapper>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(tabs)" />
-            </Stack>
-          </NavigationThemeWrapper>
-        </AppThemeProvider>
-      </ThemeManagerProvider>
-    </AuthProvider>
+    <BottomSheetModalProvider>
+      <AuthProvider>
+        <ThemeManagerProvider>
+          <AppThemeProvider>
+            <NavigationThemeWrapper>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(tabs)" />
+              </Stack>
+            </NavigationThemeWrapper>
+          </AppThemeProvider>
+        </ThemeManagerProvider>
+      </AuthProvider>
+    </BottomSheetModalProvider>
   );
 }

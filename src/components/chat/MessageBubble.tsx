@@ -4,7 +4,14 @@ import type { ChatMessage } from '@/src/types/chat';
 import { FileText } from 'lucide-react-native';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 export function MessageBubble({
   item,
@@ -18,20 +25,13 @@ export function MessageBubble({
   const theme = useTheme();
   const { t } = useTranslation();
 
-  // Lấy avatar dựa trên senderId
   const avatar = useMemo(() => {
-    if (item.fromMe) {
-      // Nếu là tin nhắn của mình, lấy avatar của user-me
-      const me = USERS_V2.find((u) => u.id === 'user-me');
-      return me?.avatar || 'https://i.pravatar.cc/150?u=user-me';
-    } else {
-      // Nếu là tin nhắn từ đối phương, lấy avatar từ senderId
-      if (item.senderId) {
-        const sender = USERS_V2.find((u) => u.id === item.senderId);
-        return sender?.avatar || 'https://i.pravatar.cc/150?u=unknown';
-      }
-      return 'https://i.pravatar.cc/150?u=unknown';
+    if (item.fromMe) return undefined;
+    if (item.senderId) {
+      const sender = USERS_V2.find((u) => u.id === item.senderId);
+      return sender?.avatar || 'https://i.pravatar.cc/150?u=unknown';
     }
+    return 'https://i.pravatar.cc/150?u=unknown';
   }, [item.fromMe, item.senderId]);
 
   const formatTime = (dateProp: any) => {
@@ -47,7 +47,6 @@ export function MessageBubble({
     item.type === 'image' ||
     item.fileInfo?.mimeType?.startsWith('image/');
   const isFile = (item.type === 'file' || !!item.fileInfo) && !isImage;
-
   const isMe = item.fromMe;
 
   return (
@@ -57,12 +56,9 @@ export function MessageBubble({
         isMe ? styles.rowRight : styles.rowLeft,
       ]}
     >
-      {/* Avatar bên trái cho tin nhắn từ đối phương */}
-      {!isMe && (
-        <Image
-          source={{ uri: avatar }}
-          style={styles.avatar}
-        />
+      {/* Avatar đối phương */}
+      {!isMe && avatar && (
+        <Image source={{ uri: avatar }} style={styles.avatar} />
       )}
 
       <View
@@ -90,7 +86,7 @@ export function MessageBubble({
             isFile && { minWidth: 220 },
           ]}
         >
-          {/* ===== Reply Preview ===== */}
+          {/* Reply preview */}
           {item.replyTo && (
             <View
               style={[
@@ -131,96 +127,97 @@ export function MessageBubble({
             </View>
           )}
 
-          {/* ===== Message Content ===== */}
-          <View>
-            {item.isRevoked ? (
-              <Text
+          {/* Content */}
+          {item.isRevoked ? (
+            <Text
+              style={[
+                styles.revoked,
+                { color: theme.colors.text, opacity: 0.6 },
+              ]}
+            >
+              {t('messages.revoked')}
+            </Text>
+          ) : isImage ? (
+            <Pressable
+              onPress={() =>
+                onImagePress?.(item.fileInfo?.uri || '')
+              }
+            >
+              <Image
+                source={{ uri: item.fileInfo?.uri }}
+                style={styles.sentImage}
+              />
+            </Pressable>
+          ) : isFile ? (
+            <View style={styles.fileContainer}>
+              <View
                 style={[
-                  styles.revoked,
-                  { color: theme.colors.text, opacity: 0.6 },
-                ]}
-              >
-                {t('messages.revoked')}
-              </Text>
-            ) : isImage ? (
-              <Pressable
-                onPress={() =>
-                  onImagePress?.(item.fileInfo?.uri || '')
-                }
-              >
-                <Image
-                  source={{ uri: item.fileInfo?.uri }}
-                  style={styles.sentImage}
-                  resizeMode="cover"
-                />
-              </Pressable>
-            ) : isFile ? (
-              <View style={styles.fileContainer}>
-                <View
-                  style={[
-                    styles.fileIconBox,
-                    {
-                      backgroundColor: isMe
-                        ? 'rgba(255,255,255,0.25)'
-                        : `${theme.colors.primary}22`,
-                    },
-                  ]}
-                >
-                  <FileText
-                    size={22}
-                    color={
-                      isMe
-                        ? theme.colors.icon
-                        : theme.colors.primary
-                    }
-                  />
-                </View>
-                <View style={styles.fileInfo}>
-                  <Text
-                    style={[
-                      styles.fileName,
-                      {
-                        color: isMe
-                          ? theme.colors.icon
-                          : theme.colors.text,
-                      },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {item.fileInfo?.name || 'Tài liệu'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.fileSize,
-                      { color: theme.colors.text, opacity: 0.6 },
-                    ]}
-                  >
-                    {item.fileInfo?.size || 'N/A'}
-                  </Text>
-                </View>
-              </View>
-            ) : (
-              <Text
-                style={[
-                  styles.text,
+                  styles.fileIconBox,
                   {
-                    color: isMe
-                      ? theme.colors.icon
-                      : theme.colors.text,
+                    backgroundColor: isMe
+                      ? 'rgba(255,255,255,0.25)'
+                      : `${theme.colors.primary}22`,
                   },
                 ]}
               >
-                {item.text}
-              </Text>
-            )}
-          </View>
+                <FileText
+                  size={22}
+                  color={
+                    isMe
+                      ? theme.colors.icon
+                      : theme.colors.primary
+                  }
+                />
+              </View>
+              <View style={styles.fileInfo}>
+                <Text
+                  style={[
+                    styles.fileName,
+                    {
+                      color: isMe
+                        ? theme.colors.icon
+                        : theme.colors.text,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.fileInfo?.name || 'Tài liệu'}
+                </Text>
+                <Text
+                  style={[
+                    styles.fileSize,
+                    { color: theme.colors.text, opacity: 0.6 },
+                  ]}
+                >
+                  {item.fileInfo?.size || 'N/A'}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <Text
+              style={[
+                styles.text,
+                {
+                  color: isMe
+                    ? theme.colors.icon
+                    : theme.colors.text,
+                },
+              ]}
+            >
+              {item.text}
+            </Text>
+          )}
         </TouchableOpacity>
 
         {!item.isRevoked && (
           <Text
             style={[
               styles.timestamp,
-              { color: theme.colors.text, opacity: 0.5 },
+              {
+                color: theme.colors.text,
+                opacity: 0.5,
+                alignSelf: isMe ? 'flex-end' : 'flex-start',
+              },
             ]}
           >
             {formatTime(item.timestamp)}
@@ -228,12 +225,9 @@ export function MessageBubble({
         )}
       </View>
 
-      {/* Avatar bên phải cho tin nhắn của mình */}
-      {isMe && (
-        <Image
-          source={{ uri: avatar }}
-          style={styles.avatar}
-        />
+      {/* Avatar của mình (chỉ render nếu có) */}
+      {isMe && avatar && (
+        <Image source={{ uri: avatar }} style={styles.avatar} />
       )}
     </View>
   );
@@ -244,7 +238,7 @@ export function MessageBubble({
 const styles = StyleSheet.create({
   container: {
     marginVertical: 4,
-    paddingHorizontal: 12,
+    paddingHorizontal: 2,
     flexDirection: 'row',
     alignItems: 'flex-end',
   },
@@ -256,11 +250,11 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     marginHorizontal: 8,
-    marginBottom: 2,
   },
 
   bubbleWrapper: {
     maxWidth: '75%',
+    flexDirection: 'column',
   },
 
   bubble: {
@@ -270,7 +264,6 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
   },
 
-  /* ===== Image ===== */
   imageBubble: {
     paddingHorizontal: 0,
     paddingVertical: 0,
@@ -283,7 +276,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
 
-  /* ===== File ===== */
   fileContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -300,7 +292,6 @@ const styles = StyleSheet.create({
   fileName: { fontSize: 14, fontWeight: '600' },
   fileSize: { fontSize: 11, marginTop: 2 },
 
-  /* ===== Text ===== */
   text: {
     fontSize: 15,
     lineHeight: 20,
@@ -317,7 +308,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
 
-  /* ===== Reply ===== */
   replyWrap: {
     flexDirection: 'row',
     borderRadius: 10,

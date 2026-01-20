@@ -256,5 +256,33 @@
     "password_mismatch": "Mật khẩu xác nhận không khớp",
     "password_too_short": "Mật khẩu phải có ít nhất 6 ký tự",
     "password_changed": "Đổi mật khẩu thành công"
+  },
+  "screenPostOptions": {
+    "chat_with_author": "Nhắn tin với",
+    "share_post": "Chia sẻ bài viết",
+    "send_post": "Gửi bài viết",
+    "report_post": "Báo cáo bài viết",
+    "comment_title": "Bình luận về bài viết của",
+    "write_comment": "Viết bình luận...",
+    "send": "Gửi",
+    "delete_comment": "Xóa bình luận",
+    "delete_comment_confirm": "Bạn có chắc muốn xóa bình luận này?",
+    "cancel": "Hủy",
+    "delete": "Xóa",
+    "edited": "(đã chỉnh sửa)",
+    "reply": "Trả lời",
+    "reply_button": "Trả lời",
+    "load_more_comments": "Xem thêm bình luận",
+    "postOptions":"Lựa chọn bài viết",
+     "send_post_to_friends": "Gửi bài viết đến bạn bè",
+    "report_post_functionality_would_be_implemented_here": "Báo cáo bài viết"
+  },
+  "commentPost": {
+    "delete_comment":"Xóa bình luận",
+    "delete_comment_confirm": "Bạn có chắc muốn xóa bình luận này?",
+    "cancel":"Hủy",
+    "delete":"Xóa",
+    "comment_post":"Bình luận bài viết của ",
+    "write_comment":"Viết bình luận..."
   }
 }
