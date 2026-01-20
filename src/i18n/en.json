@@ -286,5 +286,13 @@
     "delete":"Delete",
     "comment_post":"Comment post of ",
     "write_comment":"Write comment"
+  },
+  "create_post": {
+    "title": "Create Post",
+    "you": "You",
+    "now": "Now",
+    "placeholder": "What are you thinking?",
+    "add_photo": "Add Photo",
+    "add_from_gallery": "Add from Gallery"
   }
 }

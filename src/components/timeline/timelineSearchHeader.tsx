@@ -1,9 +1,9 @@
 import { useRouter } from 'expo-router';
-import { Camera, PenSquare, Search, Settings } from 'lucide-react-native';
+import { Camera, PenSquare, Search } from 'lucide-react-native';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../theme/themeContext';
-import { useTranslation } from 'react-i18next';
 
 
 export function TimelineSearchHeader({
@@ -29,7 +29,7 @@ export function TimelineSearchHeader({
       <TouchableOpacity style={styles.iconButton} onPress={()=>{router.push('/camera')}}>
         <Camera size={20} color={theme.colors.iconHeader} />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.iconButton}>
+      <TouchableOpacity style={styles.iconButton} onPress={()=>{router.push('/create-post')}}>
         <PenSquare size={18} color={theme.colors.iconHeader} />
       </TouchableOpacity>
     </View>

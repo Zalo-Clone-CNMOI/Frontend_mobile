@@ -1,3 +1,6 @@
+import { useTheme } from '@/src/theme/themeContext';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import {
   File,
   FileText,
@@ -11,6 +14,7 @@ import {
   X,
 } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Pressable,
@@ -20,10 +24,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
 import EmojiPicker, { EmojiType } from 'rn-emoji-keyboard';
-import { useTheme } from '@/src/theme/themeContext';
-import { useTranslation } from 'react-i18next';
 
 
 export function ChatComposer({
@@ -47,7 +48,9 @@ export function ChatComposer({
   const theme = useTheme();
   const [showEmoji, setShowEmoji] = useState(false);
   const [showMore, setShowMore] = useState(false);
+
   const { t } = useTranslation();
+
 
   const canSend = useMemo(() => value.trim().length > 0, [value]);
 
@@ -68,6 +71,34 @@ export function ChatComposer({
       }
     } catch {
       Alert.alert('Lỗi', 'Không thể chọn tài liệu');
+    }
+  };
+
+  const handlePickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+        selectionLimit: 5, // Allow up to 5 images
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Convert ImagePicker assets to DocumentPicker format for compatibility
+        const imageAssets: DocumentPicker.DocumentPickerAsset[] = result.assets.map((asset: ImagePicker.ImagePickerAsset) => ({
+          uri: asset.uri,
+          name: asset.fileName || `image_${Date.now()}.jpg`,
+          mimeType: asset.mimeType || 'image/jpeg',
+          size: asset.fileSize || 0,
+          lastModified: Date.now(),
+        }));
+        
+        onSendFiles(imageAssets);
+        setShowMore(false);
+      }
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể mở thư viện ảnh. Vui lòng thử lại.');
+      console.error('Gallery error:', error);
     }
   };
 
@@ -197,7 +228,7 @@ export function ChatComposer({
                 styles.iconBtn,
                 { backgroundColor: theme.colors.card },
               ]}
-              onPress={handlePickDocument}
+              onPress={handlePickImage}
             >
               <ImageIcon size={20} color={theme.colors.icon} />
             </Pressable>
@@ -209,6 +240,7 @@ export function ChatComposer({
       {showMore && (
         <View style={styles.moreBoard}>
           <Option title={t('chat.file')} Icon={File} onPress={handlePickDocument} theme={theme} />
+          <Option title="Hình ảnh" Icon={ImageIcon} onPress={handlePickImage} theme={theme} />
           <Option title={t('chat.location')} Icon={MapPin} onPress={() => {}} theme={theme} />
           <Option title={t('chat.contact')} Icon={User} onPress={() => {}} theme={theme} />
           <Option title={t('chat.document')} Icon={FileText} onPress={handlePickDocument} theme={theme} />
