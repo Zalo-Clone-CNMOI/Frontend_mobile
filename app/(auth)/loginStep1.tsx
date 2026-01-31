@@ -16,24 +16,44 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COUNTRIES_MOCK_DATA } from '../../src/data/countriesMockData';
+import { validatePhoneByCountry } from '../../src/validators/phoneValidator';
 
 export default function LoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES_MOCK_DATA[0]);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isPhoneError, setIsPhoneError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const router = useRouter();
   const {t} = useTranslation();
 
   const handleInputChange = (text: string) => {
     const cleaned = text.replace(/[^0-9]/g, '');
     setPhoneNumber(cleaned);
-  };
+
+    if (cleaned.length === 0) {
+      setIsPhoneError(false);
+      setErrorMessage('');
+      return;
+    }
+
+    const isValid = validatePhoneByCountry(cleaned, selectedCountry.code);
+    setIsPhoneError(!isValid);
+    setErrorMessage(isValid ? '' : 'Số điện thoại không hợp lệ. Kiểm tra và thử lại.');
+  }; 
 
   // Hàm xử lý khi người dùng chọn một quốc gia từ danh sách
   const selectCountry = (country: any) => {
     setSelectedCountry(country);
     setIsModalVisible(false);
-  };
+
+    // re-validate existing phone for new country
+    if (phoneNumber.length > 0) {
+      const isValid = validatePhoneByCountry(phoneNumber, country.code);
+      setIsPhoneError(!isValid);
+      setErrorMessage(isValid ? '' : 'Số điện thoại không hợp lệ. Kiểm tra và thử lại.');
+    }
+  }; 
 
   return (
     <SafeAreaView style={styles.container}>
@@ -51,7 +71,7 @@ export default function LoginScreen() {
           <View style={styles.content}>
             <Text style={styles.title}>{t('loginstep1.enter_phone')}</Text>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, isPhoneError && styles.inputError]}>
               {/* Nhấn vào đây để mở Modal chọn dial_code */}
               <TouchableOpacity
                 style={styles.countrySelector}
@@ -81,10 +101,20 @@ export default function LoginScreen() {
               )}
             </View>
 
+            {isPhoneError && (
+              <Text style={styles.errorText}>{errorMessage || 'Số điện thoại không hợp lệ. Kiểm tra và thử lại.'}</Text>
+            )}
+
             <TouchableOpacity
               style={[styles.primaryBtn, phoneNumber.length < 9 && styles.btnDisabled]}
               disabled={phoneNumber.length < 9}
               onPress={() => {
+                if (!validatePhoneByCountry(phoneNumber, selectedCountry.code)) {
+                  setIsPhoneError(true);
+                  setErrorMessage('Số điện thoại không hợp lệ. Kiểm tra và thử lại.');
+                  return;
+                }
+
                 router.push({
                   pathname: '/(auth)/loginStep2',
                   params: {
@@ -160,6 +190,8 @@ const styles = StyleSheet.create({
   divider: { width: 1, height: '50%', backgroundColor: '#e5e5ea', marginRight: 15 }, //
   textInput: { flex: 1, fontSize: 18, color: '#000' },
   clearBtn: { paddingLeft: 10 },
+  inputError: { borderColor: '#ff3b30' },
+  errorText: { color: '#ff3b30', marginBottom: 12, marginTop: -8 },
   primaryBtn: { backgroundColor: '#0091ff', paddingVertical: 14, borderRadius: 30, alignItems: 'center' },
   btnDisabled: { backgroundColor: '#99d1ff' },
   btnText: { color: '#fff', fontSize: 17, fontWeight: '600' },
