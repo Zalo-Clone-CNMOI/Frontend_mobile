@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Check, ChevronLeft, ChevronRight, Globe, Lock, Mail, Phone, QrCode, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -71,128 +72,130 @@ export default function AccountScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.colors.header }]}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={28} color={theme.colors.textHeader} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.textHeader }]}>
-          {t('account_security.title')}
-        </Text>
-        <View style={{ width: 28 }} />
-      </View>
-
-      <ScrollView style={styles.content}>
-        {/* Tài khoản Section */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            {t('account_security.account')}
-          </Text>
-
-          {/* Profile Card */}
-          <TouchableOpacity
-            style={[styles.profileCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
-            onPress={() => router.push('/personalInfo')}
-          >
-            <Image
-              source={{ uri: user?.avatarUrl || 'https://i.pravatar.cc/200?u=user-me' }}
-              style={styles.profileAvatar}
-            />
-            <View style={styles.profileInfo}>
-              <Text style={[styles.profileSubtitle, { color: '#8e8e93' }]}>
-                {t('account_security.personal_info')}
-              </Text>
-              <Text style={[styles.profileName, { color: theme.colors.text }]}>
-                { user?.name || ""}
-              </Text>
-            </View>
-            <ChevronRight size={20} color="#8e8e93" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
+      <StatusBar style="light" />
+      {/* Header chuẩn Zalo */}
+      <View style={[styles.header, { borderBottomColor: theme.colors.border }, { backgroundColor: theme.colors.statusBar }]}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <ChevronLeft size={28} color={theme.colors.iconHeader} />
           </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.colors.textHeader }]}>
+            {t('account_security.title')}
+          </Text>                </View>
+      </View>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <ScrollView style={styles.content}>
+          {/* Tài khoản Section */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+              {t('account_security.account')}
+            </Text>
 
-          {/* Account Details */}
-          <View style={[styles.accountList, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-            <AccountItem
-              icon={Phone}
-              title={t('account_security.phone_number')}
-              subtitle={user?.phone
-                ? `(+84) ${user.phone.replace(/^\+?84/, '').replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3')}`
-                : ''}
-            />
-            <AccountItem
-              icon={Mail}
-              title={t('account_security.email')}
-              subtitle={user?.email || ''}
-            />
-            <AccountItem
-              icon={QrCode}
-              title={t('account_security.my_qr_code')}
-              onPress={() => router.push('/scanner')}
-            />
-            <AccountItem
-              icon={Globe}
-              title={t('appearance.language')}
-              subtitle={currentLang === 'vi' ? t('appearance.vietnamese') : t('appearance.english')}
-              onPress={() => setModalVisible(true)}
-            />
+            {/* Profile Card */}
+            <TouchableOpacity
+              style={[styles.profileCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+              onPress={() => router.push('/personalInfo')}
+            >
+              <Image
+                source={{ uri: user?.avatarUrl || 'https://i.pravatar.cc/200?u=user-me' }}
+                style={styles.profileAvatar}
+              />
+              <View style={styles.profileInfo}>
+                <Text style={[styles.profileSubtitle, { color: '#8e8e93' }]}>
+                  {t('account_security.personal_info')}
+                </Text>
+                <Text style={[styles.profileName, { color: theme.colors.text }]}>
+                  {user?.name || ""}
+                </Text>
+              </View>
+              <ChevronRight size={20} color="#8e8e93" />
+            </TouchableOpacity>
+
+            {/* Account Details */}
+            <View style={[styles.accountList, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+              <AccountItem
+                icon={Phone}
+                title={t('account_security.phone_number')}
+                subtitle={user?.phone
+                  ? `(+84) ${user.phone.replace(/^\+?84/, '').replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3')}`
+                  : ''}
+              />
+              <AccountItem
+                icon={Mail}
+                title={t('account_security.email')}
+                subtitle={user?.email || ''}
+              />
+              <AccountItem
+                icon={QrCode}
+                title={t('account_security.my_qr_code')}
+                onPress={() => router.push('/scanner')}
+              />
+              <AccountItem
+                icon={Globe}
+                title={t('appearance.language')}
+                subtitle={currentLang === 'vi' ? t('appearance.vietnamese') : t('appearance.english')}
+                onPress={() => setModalVisible(true)}
+              />
+            </View>
           </View>
-        </View>
 
-        {/* Bảo mật Section */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            {t('account_security.security')}
-          </Text>
+          {/* Bảo mật Section */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+              {t('account_security.security')}
+            </Text>
 
-          {/* Security Options */}
-          <View style={[styles.accountList, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-            <AccountItem
-              icon={Lock}
-              title={t('account_security.password')}
-              onPress={() => router.push('/changePassword')}
-            />
+            {/* Security Options */}
+            <View style={[styles.accountList, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+              <AccountItem
+                icon={Lock}
+                title={t('account_security.password')}
+                onPress={() => router.push('/changePassword')}
+              />
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
 
-      {/* Language Selection Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
-                <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
-                  <Text style={[styles.modalTitle, { color: theme.colors.text }]}>{t('appearance.language')}</Text>
-                  <TouchableOpacity onPress={() => setModalVisible(false)}>
-                    <X size={24} color={theme.colors.text} />
+        {/* Language Selection Modal */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
+                  <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+                    <Text style={[styles.modalTitle, { color: theme.colors.text }]}>{t('appearance.language')}</Text>
+                    <TouchableOpacity onPress={() => setModalVisible(false)}>
+                      <X size={24} color={theme.colors.text} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.langOption, { borderBottomColor: theme.colors.border }]}
+                    onPress={() => handleLanguageChange('vi')}
+                  >
+                    <Text style={[styles.langText, { color: theme.colors.text }]}>{t('appearance.vietnamese')}</Text>
+                    {currentLang === 'vi' && <Check size={20} color={theme.colors.primary} />}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.langOption}
+                    onPress={() => handleLanguageChange('en')}
+                  >
+                    <Text style={[styles.langText, { color: theme.colors.text }]}>{t('appearance.english')}</Text>
+                    {currentLang === 'en' && <Check size={20} color={theme.colors.primary} />}
                   </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity
-                  style={[styles.langOption, { borderBottomColor: theme.colors.border }]}
-                  onPress={() => handleLanguageChange('vi')}
-                >
-                  <Text style={[styles.langText, { color: theme.colors.text }]}>{t('appearance.vietnamese')}</Text>
-                  {currentLang === 'vi' && <Check size={20} color={theme.colors.primary} />}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.langOption}
-                  onPress={() => handleLanguageChange('en')}
-                >
-                  <Text style={[styles.langText, { color: theme.colors.text }]}>{t('appearance.english')}</Text>
-                  {currentLang === 'en' && <Check size={20} color={theme.colors.primary} />}
-                </TouchableOpacity>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+      </View>
     </SafeAreaView>
   );
 }
@@ -202,12 +205,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    height: 56,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
   },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 15 },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',

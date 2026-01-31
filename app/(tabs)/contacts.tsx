@@ -3,6 +3,7 @@ import { useAuth } from '@/src/contexts/AuthContext';
 import { apiCallWithRefresh } from '@/src/services/authService';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Cake, Phone, UserPlus, Users } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -85,7 +86,7 @@ export default function ContactsScreen() {
     const subtitle = isV2 ? (item.status === 'online' ? t('contacts.online') : t('contacts.offline')) : item.subtitle;
 
     return (
-      <TouchableOpacity style={[styles.row, { backgroundColor: theme.colors.background }]} activeOpacity={0.7}>
+      <TouchableOpacity style={[styles.row, { backgroundColor: theme.colors.statusBar }]} activeOpacity={0.7} edges={['top']}>
         <View style={styles.avatarContainer}>
           <Image source={{ uri: item.avatar }} style={styles.avatar} />
           {isOnline ? <View style={[styles.onlineDot, { borderColor: theme.colors.background }]} /> : null}
@@ -153,7 +154,8 @@ export default function ContactsScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
+    <StatusBar style="light" />
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ContactsSearchHeader onPressSearch={() => router.push('/search')} />
       <View style={[styles.tabWrapper, { borderBottomColor: theme.colors.border }]}>

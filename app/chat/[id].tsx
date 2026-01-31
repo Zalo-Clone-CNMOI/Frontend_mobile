@@ -132,7 +132,7 @@ export default function ChatDetailScreen() {
           headerShown: true,
           title,
           headerStyle: {
-            backgroundColor: theme.colors.header,
+            backgroundColor: theme.colors.statusBar,
           },
           headerTintColor: theme.colors.textHeader,
           headerRight: () => (

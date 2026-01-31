@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import {
   ChevronLeft,
   ChevronRight,
@@ -6,10 +7,10 @@ import {
   LifeBuoy,
   LogOut,
   Palette,
-  Search,
-  Users,
+  Users
 } from "lucide-react-native";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   ScrollView,
   StyleSheet,
@@ -19,7 +20,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from '../src/theme/themeContext';
-import { useTranslation } from "react-i18next";
 
 const SettingItem = ({ icon: Icon, title, onPress }: any) => {
   const theme = useTheme();
@@ -41,17 +41,18 @@ export default function SettingsScreen() {
   const theme = useTheme();
   const { t } = useTranslation();
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
+      <StatusBar style="light" />
       {/* Header chuẩn Zalo */}
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: theme.colors.border },{backgroundColor: theme.colors.statusBar}]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()}>
-            <ChevronLeft size={28} color={theme.colors.text} />
+            <ChevronLeft size={28} color={theme.colors.iconHeader} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{t('settings.title')}</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.iconHeader }]}>{t('settings.title')}</Text>
         </View>
       </View>
-
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <ScrollView>
         {/* <SettingItem icon={ShieldCheck} title="Tài khoản và bảo mật" />
         <SettingItem icon={Lock} title="Quyền riêng tư" />
@@ -83,6 +84,7 @@ export default function SettingsScreen() {
           <Text style={[styles.logoutText, { color: theme.colors.text }]}>{t('settings.logout')}</Text>
         </TouchableOpacity>
       </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -90,11 +92,9 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    borderBottomWidth: 0.5,
+    height: 56,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 15 },
   headerTitle: { fontSize: 18, fontWeight: "600" },

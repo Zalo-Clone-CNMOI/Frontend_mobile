@@ -11,7 +11,7 @@ export const ZaloLightTheme = {
     card: '#F7F8FA',
     header: '#0068FF',
     icon: '#000',
-    iconHeader: '#fff',
+    iconHeader: '#ffffffe4',
     text: '#1C1C1E',
     border: '#E5E6EB',
     notification: '#FF3B30',
@@ -19,7 +19,7 @@ export const ZaloLightTheme = {
     bubbleColor: '#262626',
     textMessage: '#fff',
     dividerSection: '#bfc0c4ff',
-    statusBar:'#0068FF'
+    statusBar: '#0068FF'
   },
 };
 
@@ -29,7 +29,7 @@ export const ZaloDarkTheme = {
   colors: {
     ...DarkTheme.colors,
 
-    primary: '#4C8DFF',
+    primary: '#0068FF',
     background: '#0E0E10',
     card: '#1C1C1E',
     header: '#1C1C1E', 
@@ -39,7 +39,7 @@ export const ZaloDarkTheme = {
     iconHeader: '#fff',
     notification: '#FF453A',
     textHeader: '#FFFFFF',
-    bubbleColor: '#4C8DFF',
+    bubbleColor: '#0068FF',
     textMessage: '#fff',
     dividerSection: '#1C1C1E',
     statusBar:'#1C1C1E'

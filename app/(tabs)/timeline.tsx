@@ -5,6 +5,7 @@ import { useTimelineStore } from '@/src/store/useTimelineStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,8 +28,9 @@ export default function TimelineScreen() {
   const data = postsV2?.length ? postsV2 : posts;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
-      <View style={styles.container}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
+      <StatusBar style="light" />
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <TimelineSearchHeader onPressSearch={() => router.push('/search')} />
 
         <FlashList

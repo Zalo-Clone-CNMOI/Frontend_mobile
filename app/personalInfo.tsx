@@ -1,7 +1,9 @@
+import { useAuth } from '@/src/contexts/AuthContext';
 import { useProfileStore } from '@/src/store/useProfileStore';
 import { useTheme } from '@/src/theme/themeContext';
-import { Calendar, ChevronLeft, Edit, User } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { StatusBar } from "expo-status-bar";
+import { Calendar, ChevronLeft, Edit, User } from 'lucide-react-native';
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -13,11 +15,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '@/src/contexts/AuthContext';
 
 export default function PersonalInfoScreen() {
   const router = useRouter();
-  const {user} = useAuth();
+  const { user } = useAuth();
   const theme = useTheme();
   const { t } = useTranslation();
   const profile = useProfileStore((state) => state.profile);
@@ -27,13 +28,13 @@ export default function PersonalInfoScreen() {
     initializeProfile();
   }, [initializeProfile]);
 
-  const InfoRow = ({ 
-    icon: Icon, 
-    label, 
-    value 
-  }: { 
-    icon: any; 
-    label: string; 
+  const InfoRow = ({
+    icon: Icon,
+    label,
+    value
+  }: {
+    icon: any;
+    label: string;
     value: string;
   }) => (
     <View style={[styles.infoRow, { borderBottomColor: theme.colors.border }]}>
@@ -46,76 +47,82 @@ export default function PersonalInfoScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.colors.header }]}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={28} color={theme.colors.textHeader} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.textHeader }]}>
-          {t('personal_info.title')}
-        </Text>
-        <View style={{ width: 28 }} />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
+      <StatusBar style="light" />
+      {/* Header chuẩn Zalo */}
+      <View style={[styles.header, { borderBottomColor: theme.colors.border }, {backgroundColor: theme.colors.statusBar}]}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <ChevronLeft size={28} color={theme.colors.iconHeader} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.colors.iconHeader }]}>
+            {t('personal_info.title')}
+          </Text>                
+        </View>
       </View>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          {/* Profile Picture */}
+          <View style={styles.profilePictureContainer}>
+            <Image
+              source={{ uri: user?.avatarUrl }}
+              style={styles.profilePicture}
+            />
+          </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {/* Profile Picture */}
-        <View style={styles.profilePictureContainer}>
-          <Image
-            source={{ uri: user?.avatarUrl }}
-            style={styles.profilePicture}
-          />
-        </View>
+          {/* Personal Information Details */}
+          <View style={[styles.detailsSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <InfoRow
+              icon={User}
+              label={t('personal_info.zalo_name')}
+              value={user?.name || ''}
+            />
+            <InfoRow
+              icon={Calendar}
+              label={t('personal_info.date_of_birth')}
+              value={user?.dateOfBirth || ''}
+            />
+            <InfoRow
+              icon={User}
+              label={t('personal_info.gender')}
+              value={user?.gender || ''}
+            />
+          </View>
 
-        {/* Personal Information Details */}
-        <View style={[styles.detailsSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-          <InfoRow
-            icon={User}
-            label={t('personal_info.zalo_name')}
-            value={user?.name || ''}
-          />
-          <InfoRow
-            icon={Calendar}
-            label={t('personal_info.date_of_birth')}
-            value={user?.dateOfBirth || ''}
-          />
-          <InfoRow
-            icon={User}
-            label={t('personal_info.gender')}
-            value={user?.gender || ''}
-          />
-        </View>
-
-        {/* Edit Button */}
-        <TouchableOpacity
-          style={[styles.editButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
-          onPress={() => {}}
-        >
-          <Edit size={18} color={theme.colors.text} />
-          <Text style={[styles.editButtonText, { color: theme.colors.text }]}>
-            {t('personal_info.edit')}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
+          {/* Edit Button */}
+          <TouchableOpacity
+            style={[styles.editButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+            onPress={() => { }}
+          >
+            <Edit size={18} color={theme.colors.text} />
+            <Text style={[styles.editButtonText, { color: theme.colors.text }]}>
+              {t('personal_info.edit')}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    height: 56,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 15 },
+  headerTitle: { fontSize: 18, fontWeight: "600" },
+  item: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
   },
+  itemLeft: { flexDirection: "row", alignItems: "center", gap: 15 },
+  itemTitle: { fontSize: 16 },
+  itemRight: { flexDirection: "row", alignItems: "center", gap: 10 },
   content: {
     flex: 1,
   },

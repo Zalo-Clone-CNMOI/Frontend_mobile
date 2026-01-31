@@ -1,13 +1,14 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
 import CardFeatures from '@/src/components/discovery/cardFeatures';
 import { DiscoverySearchHeader } from '@/src/components/discovery/discoverySearchHeader';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDiscoveryStore } from '@/src/store/useDiscoveryStore';
 import { useTheme } from '@/src/theme/themeContext';
-import { useTranslation } from 'react-i18next';
+import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function DiscoveryScreen() {
   const theme = useTheme();
@@ -27,10 +28,11 @@ export default function DiscoveryScreen() {
     <SafeAreaView
       style={[
         styles.safeArea,
-        { backgroundColor: theme.colors.background },
+        { backgroundColor: theme.colors.statusBar },
       ]}
       edges={['top']}
     >
+      <StatusBar style="light" />
       <View
         style={[
           styles.container,

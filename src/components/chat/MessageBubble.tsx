@@ -114,7 +114,7 @@ export function MessageBubble({
                 <Text
                   style={[
                     styles.replyName,
-                    { color: theme.colors.primary },
+                    { color: theme.colors.textMessage },
                   ]}
                   numberOfLines={1}
                 >
@@ -123,7 +123,7 @@ export function MessageBubble({
                 <Text
                   style={[
                     styles.replyText,
-                    { color: theme.colors.text, opacity: 0.7 },
+                    { color: theme.colors.textMessage, opacity: 0.7 },
                   ]}
                   numberOfLines={1}
                 >

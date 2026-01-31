@@ -3,20 +3,21 @@ import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    Image,
-    LayoutAnimation,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    UIManager,
-    View
+  Image,
+  LayoutAnimation,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  UIManager,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { changeLanguage, getCurrentLanguage } from '../src/i18n';
 import { useTheme } from '../src/theme/themeContext';
 import { useThemeManager } from '../src/theme/themeManager';
+import { StatusBar } from 'expo-status-bar';
 
 // FIX: Do not import CSS files. Use local assets or remote URLs.
 const VIETNAM_FLAG = { uri: 'https://flagcdn.com/w80/vn.png' };
@@ -99,88 +100,102 @@ export default function AppearanceScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
+      <StatusBar style="light" />
       {/* Header */}
-      <View style={[styles.header, { borderBottomWidth: 0.5, borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={28} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{t('appearance.title')}</Text>
-      </View>
-
-      <ScrollView>
-        {/* Section Giao diện */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: ZALO_BLUE }]}>{t('appearance.theme')}</Text>
-          <View style={styles.themeContainer}>
-            <ThemeOption
-              label={t('appearance.theme_light')}
-              active={themeMode === 'light'}
-              onPress={() => setThemeMode('light')}
-              image={lightThemeImage}
-            />
-            <ThemeOption
-              label={t('appearance.theme_dark')}
-              active={themeMode === 'dark'}
-              onPress={() => setThemeMode('dark')}
-              image={darkThemeImage}
-            />
-          </View>
-        </View>
-
-        {/* Section Ngôn ngữ */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: ZALO_BLUE }]}>{t('appearance.language')}</Text>
-        </View>
-
-        <View style={{ borderTopWidth: 0.5, borderTopColor: theme.colors.border }}>
-          <TouchableOpacity
-            style={[styles.menuRow, { backgroundColor: theme.colors.card }]}
-            onPress={toggleLangExpanded}
-          >
-            <Text style={[styles.menuTitle, { color: theme.colors.text }]}>{t('appearance.change_language')}</Text>
-            <View style={styles.menuRight}>
-              {!isExpanded && (
-                <View style={styles.langTag}>
-                  <Image
-                    source={language === 'vi' ? VIETNAM_FLAG : USA_FLAG}
-                    style={[styles.flagPlaceholder]}
-                  />
-                  <Text style={styles.langText}>
-                    {language === 'vi' ? t('appearance.vietnamese') : t('appearance.english')}
-                  </Text>
-                </View>
-              )}
-              {isExpanded ? <ChevronDown size={20} color={theme.colors.text} /> : <ChevronRight size={20} color={theme.colors.text} />}
-            </View>
+      <View style={[styles.header, { borderBottomWidth: 0.5, borderBottomColor: theme.colors.border }, { backgroundColor: theme.colors.statusBar }]}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <ChevronLeft size={28} color={theme.colors.iconHeader} />
           </TouchableOpacity>
-
-          {isExpanded && (
-            <View style={[styles.langBoxContainer, { backgroundColor: theme.colors.background }]}>
-              <LanguageOption
-                label="vi"
-                active={language === 'vi'}
-                onPress={() => handleLanguageChange('vi')}
-                flagSource={VIETNAM_FLAG}
+          <Text style={[styles.headerTitle, { color: theme.colors.iconHeader }]}>{t('appearance.title')}</Text>
+        </View>
+      </View>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <ScrollView>
+          {/* Section Giao diện */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: ZALO_BLUE }]}>{t('appearance.theme')}</Text>
+            <View style={styles.themeContainer}>
+              <ThemeOption
+                label={t('appearance.theme_light')}
+                active={themeMode === 'light'}
+                onPress={() => setThemeMode('light')}
+                image={lightThemeImage}
               />
-              <LanguageOption
-                label="en"
-                active={language === 'en'}
-                onPress={() => handleLanguageChange('en')}
-                flagSource={USA_FLAG}
+              <ThemeOption
+                label={t('appearance.theme_dark')}
+                active={themeMode === 'dark'}
+                onPress={() => setThemeMode('dark')}
+                image={darkThemeImage}
               />
             </View>
-          )}
-        </View>
-      </ScrollView>
+          </View>
+
+          {/* Section Ngôn ngữ */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: ZALO_BLUE }]}>{t('appearance.language')}</Text>
+          </View>
+
+          <View style={{ borderTopWidth: 0.5, borderTopColor: theme.colors.border }}>
+            <TouchableOpacity
+              style={[styles.menuRow, { backgroundColor: theme.colors.card }]}
+              onPress={toggleLangExpanded}
+            >
+              <Text style={[styles.menuTitle, { color: theme.colors.text }]}>{t('appearance.change_language')}</Text>
+              <View style={styles.menuRight}>
+                {!isExpanded && (
+                  <View style={styles.langTag}>
+                    <Image
+                      source={language === 'vi' ? VIETNAM_FLAG : USA_FLAG}
+                      style={[styles.flagPlaceholder]}
+                    />
+                    <Text style={styles.langText}>
+                      {language === 'vi' ? t('appearance.vietnamese') : t('appearance.english')}
+                    </Text>
+                  </View>
+                )}
+                {isExpanded ? <ChevronDown size={20} color={theme.colors.text} /> : <ChevronRight size={20} color={theme.colors.text} />}
+              </View>
+            </TouchableOpacity>
+
+            {isExpanded && (
+              <View style={[styles.langBoxContainer, { backgroundColor: theme.colors.background }]}>
+                <LanguageOption
+                  label="vi"
+                  active={language === 'vi'}
+                  onPress={() => handleLanguageChange('vi')}
+                  flagSource={VIETNAM_FLAG}
+                />
+                <LanguageOption
+                  label="en"
+                  active={language === 'en'}
+                  onPress={() => handleLanguageChange('en')}
+                  flagSource={USA_FLAG}
+                />
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 15 },
-  headerTitle: { fontSize: 18, fontWeight: '600' },
+  container: {
+    flex: 1,
+  },
+  header: {
+    height: 56,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 15 },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
   section: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 10 },
   sectionTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
   themeContainer: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 10 },

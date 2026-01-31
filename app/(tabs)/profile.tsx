@@ -1,13 +1,14 @@
 import { ProfileSearchHeader } from '@/src/components/profile/profileSearchHeader';
+import { useAuth } from '@/src/contexts/AuthContext';
 import { useProfileStore } from '@/src/store/useProfileStore';
-import { router, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Bell, ChevronRight, Settings, Shield, Star } from 'lucide-react-native';
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/themeContext';
-import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/src/contexts/AuthContext';
 
 function Row({ title, Icon, onPress}: { title: string; Icon: React.ComponentType<{ size?: number; color?: string }> ;onPress?: () => void }) {
   const theme = useTheme();
@@ -38,7 +39,8 @@ export default function ProfileScreen() {
     initializeProfile();
   }, [initializeProfile]);
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
+    <StatusBar style="light" />
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <ProfileSearchHeader onPressSearch={() => router.push('/search')} />
       <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
