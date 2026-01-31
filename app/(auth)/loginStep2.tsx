@@ -3,6 +3,7 @@ import { ChevronLeft, Eye, EyeOff, XCircle } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -20,7 +21,19 @@ interface UserInfo {
   phone: string;
   password?: string;
   name?: string;
-  token?: string;
+  email?: string;
+  avatarUrl?: string;
+  bio?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  id?: string;
+  status?: string;
+  createdAt?: string;
+  tokens?: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+  };
   loginTime?: number;
 }
 
@@ -44,28 +57,40 @@ export default function LoginStep2() {
     
     setIsLoading(true);
     try {
-      // Giả sử API call để xác thực
-      // const response = await loginAPI(phone as string, password);
-      
-      // Tạm thởi giả định thành công để demo
+      const response = await fetch('http://175.41.136.189:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone as string, password }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+
       const userInfo: UserInfo = {
         phone: phone as string,
         password: password,
-        name: 'User ' + phone,
-        token: 'mock_token_' + Date.now(),
+        name: data?.data?.user?.fullName || 'User ' + phone,
+        email: data?.data?.user?.email || '',
+        avatarUrl: data?.data?.user?.avatarUrl || '',
+        bio: data?.data?.user?.bio || '',
+        dateOfBirth: data?.data?.user?.dateOfBirth || '',
+        gender: data?.data?.user?.gender || '',
+        id: data?.data?.user?.id || '',
+        status: data?.data?.user?.status || '',
+        createdAt: data?.data?.user?.createdAt || '',
+        tokens: data?.data?.tokens || undefined,
         loginTime: Date.now()
       };
 
-      // Sử dụng AuthContext để login
       await login(userInfo);
-      
       console.log('Login successful, user data saved');
-      
-      // Chuyển đến trang chính
+      console.log("userInfo >>>>>", userInfo);
       router.push('/(tabs)/home');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login failed:', error);
-      // TODO: Hiển thị thông báo lỗi
+      Alert.alert('Lỗi', error.message || 'Không thể đăng nhập');
     } finally {
       setIsLoading(false);
     }

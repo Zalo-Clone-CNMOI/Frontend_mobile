@@ -33,7 +33,7 @@ export type ConversationV2 = {
 };
 
 // Rich chat message used across components and mock v2 data
-export type MessageType = 'text' | 'image' | 'file' | 'voice' | 'system';
+export type MessageType = 'text' | 'image' | 'video' | 'file' | 'voice' | 'system';
 
 export type FileInfo = {
   uri?: string;

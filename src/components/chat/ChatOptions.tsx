@@ -37,6 +37,7 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
   const theme = useTheme();
   const { t } = useTranslation();
   
+  
   const [pinned, setPinned] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [reportCalls, setReportCalls] = useState(true);

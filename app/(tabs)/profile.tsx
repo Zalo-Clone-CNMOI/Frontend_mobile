@@ -7,6 +7,7 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/themeContext';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/src/contexts/AuthContext';
 
 function Row({ title, Icon, onPress}: { title: string; Icon: React.ComponentType<{ size?: number; color?: string }> ;onPress?: () => void }) {
   const theme = useTheme();
@@ -24,7 +25,7 @@ function Row({ title, Icon, onPress}: { title: string; Icon: React.ComponentType
 }
 
 export default function ProfileScreen() {
-  const profile = useProfileStore((state) => state.profile);
+  const {user} = useAuth();
   const initializeProfile = useProfileStore((state) => state.initializeProfile);
   const theme = useTheme();
   const { t } = useTranslation();
@@ -41,10 +42,10 @@ export default function ProfileScreen() {
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <ProfileSearchHeader onPressSearch={() => router.push('/search')} />
       <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-        <Image source={{ uri: profile?.avatar }} style={styles.avatar} />
+        <Image source={{ uri: user?.avatarUrl }} style={styles.avatar} />
         <View style={{ flex: 1 }}>
-          <Text style={[styles.name, { color: theme.colors.text }]}>{profile?.name}</Text>
-          <Text style={[styles.subtitle, { color: '#8e8e93' }]}>{profile?.subtitle}</Text>
+          <Text style={[styles.name, { color: theme.colors.text }]}>{user?.name}</Text>
+          <Text style={[styles.subtitle, { color: '#8e8e93' }]}>{user?.bio}</Text>
         </View>
       </View>
 

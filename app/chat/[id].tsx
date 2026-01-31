@@ -2,10 +2,12 @@ import { ChatComposer } from '@/src/components/chat/ChatComposer';
 import { ChatOptions } from '@/src/components/chat/ChatOptions';
 import { ImageViewer } from '@/src/components/chat/ImageViewer';
 import { MessageBubble } from '@/src/components/chat/MessageBubble';
+import { VideoViewer } from '@/src/components/chat/VideoViewer';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
+
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { List, Phone } from 'lucide-react-native';
@@ -28,6 +30,7 @@ export default function ChatDetailScreen() {
   const [replyingMessage, setReplyingMessage] = useState<ChatMessage | null>(null);
   const flashListRef = useRef<any>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [showChatOptions, setShowChatOptions] = useState(false);
 
   // Get messages from store
@@ -45,7 +48,6 @@ export default function ChatDetailScreen() {
     return chats.find((chat) => chat.conversationId === chatId);
   }, [chats, chatId]);
 
-
   useEffect(() => {
     initializeMessages();
   }, [initializeMessages]);
@@ -53,6 +55,7 @@ export default function ChatDetailScreen() {
   const handleSendFiles = (files: any[]) => {
     const newMessages = files.map((file, index) => {
       const isImage = file.mimeType?.startsWith('image/');
+      const isVideo = file.mimeType?.startsWith('video/');
 
       return {
         id: `${Date.now()}_${index}`,
@@ -60,7 +63,7 @@ export default function ChatDetailScreen() {
         senderId: 'user-me',
         text: '',
         timestamp: Date.now() + index,
-        type: isImage ? ('image' as const) : ('file' as const),
+        type: isImage ? ('image' as const) : isVideo ? ('video' as const) : ('file' as const),
         fileInfo: {
           name: file.name,
           size: file.size ? (file.size / (1024 * 1024)).toFixed(2) + ' MB' : '0 MB',
@@ -122,7 +125,6 @@ export default function ChatDetailScreen() {
     }, 100);
   };
 
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen
@@ -136,9 +138,9 @@ export default function ChatDetailScreen() {
           headerRight: () => (
             <View style={styles.headerRightContainer}>
               <TouchableOpacity style={styles.callButton}>
-                <Phone size={20} color= {theme.colors.iconHeader} />
+                <Phone size={20} color={theme.colors.iconHeader} />
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.callButton}
                 onPress={() => setShowChatOptions(true)}
               >
@@ -158,7 +160,20 @@ export default function ChatDetailScreen() {
           data={messages}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => <MessageBubble item={item} onLongPress={openMessageActions} onImagePress={(uri) =>{console.log("Opening image:", uri); setSelectedImage(uri);}} />}
+          renderItem={({ item }) => (
+            <MessageBubble
+              item={item}
+              onLongPress={openMessageActions}
+              onImagePress={(uri) => {
+                console.log('Opening image:', uri);
+                setSelectedImage(uri);
+              }}
+              onVideoPress={(uri: string) => {
+                console.log('Opening video:', uri);
+                setSelectedVideo(uri);
+              }}
+            />
+          )}
         />
 
         <ChatComposer
@@ -180,6 +195,11 @@ export default function ChatDetailScreen() {
           visible={!!selectedImage}
           uri={selectedImage}
           onClose={() => setSelectedImage(null)}
+        />
+        <VideoViewer
+          visible={!!selectedVideo}
+          uri={selectedVideo}
+          onClose={() => setSelectedVideo(null)}
         />
         <ChatOptions
           visible={showChatOptions}

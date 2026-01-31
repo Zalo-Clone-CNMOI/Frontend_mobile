@@ -1,40 +1,79 @@
 import { ContactsSearchHeader } from '@/src/components/contacts/ContactsSearchHeader';
-import { useContactsStore } from '@/src/store/useContactsStore';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { apiCallWithRefresh } from '@/src/services/authService';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { Cake, Phone, UserPlus, Users } from 'lucide-react-native';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/themeContext';
-import { useTranslation } from 'react-i18next';
 
 export default function ContactsScreen() {
   const router = useRouter();
   const theme = useTheme();
-  
-  // Get state from store
-  const activeTab = useContactsStore((state) => state.activeTab);
-  // v2 users
-  const usersV2 = useContactsStore((state) => state.usersV2);
-  const filteredUsersV2 = useContactsStore((state) => state.filteredUsersV2);
-  const usersFilterType = useContactsStore((state) => state.usersFilterType);
-  const friends = useContactsStore((state) => state.friends);
-  const  groups = useContactsStore((state) => state.groups);
-  const filteredData = useContactsStore((state) => state.filteredData);
-  
-  // Get actions from store
-  const initializeContacts = useContactsStore((state) => state.initializeContacts);
-  const setActiveTab = useContactsStore((state) => state.setActiveTab);
-  const setUsersFilterType = useContactsStore((state) => state.setUsersFilterType);
-  const setUsersSearchQuery = useContactsStore((state) => state.setUsersSearchQuery);
+  const { user } = useAuth();
+  const [friends, setFriends] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  const [usersFilterType, setUsersFilterType] = useState<'all' | 'recent'>('all');
   const { t } = useTranslation();
-  
+
+  // Fetch friends from API
+  const fetchFriends = async () => {
+    if (!user?.tokens?.accessToken) return;
+    
+    setLoading(true);
+    try {
+      const response = await apiCallWithRefresh('http://175.41.136.189:5000/api/friends', {
+        method: 'GET',
+        headers: {
+          'userId': user.id || '',
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('Friends data:', data);
+        // Map API response to expected format
+        const friendsArray = data.data || data.friends || data || [];
+        const mappedFriends = Array.isArray(friendsArray) ? friendsArray.map((friend: any) => ({
+          id: friend.id || friend._id,
+          fullName: friend.fullName || friend.name || `${friend.firstName || ''} ${friend.lastName || ''}`.trim(),
+          avatar: friend.avatarUrl || friend.avatar || 'https://i.pravatar.cc/200?u=' + (friend.id || Math.random()),
+          status: friend.status || 'offline',
+          phone: friend.phone || '',
+          email: friend.email || '',
+          bio: friend.bio || '',
+          isOnline: friend.isOnline || friend.status === 'online',
+        })) : [];
+        
+        setFriends(mappedFriends);
+      } else {
+        console.error('Failed to fetch friends:', data.message || 'Unknown error');
+      }
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const tabs = [t('contacts.friends'), t('contacts.createGroup'), t('contacts.oa')];
 
   useEffect(() => {
-    initializeContacts();
-  }, [initializeContacts]);
+    fetchFriends();
+  }, []);
+
+  // Filter friends based on type
+  const getFilteredFriends = () => {
+    if (usersFilterType === 'recent') {
+      return friends.filter((friend: any) => friend.isOnline || friend.status === 'online');
+    }
+    return friends;
+  };
 
 
   const ContactItem = React.memo(function ContactItem({ item }: any) {
@@ -83,14 +122,14 @@ export default function ContactsScreen() {
           <View style={styles.filterChipContainer}>
               <FilterChip
                 label={t('contacts.all')}
-                count={usersV2.length}
+                count={friends.length}
                 isActive={usersFilterType === 'all'}
                 onPress={() => setUsersFilterType('all')}
               />
               <View style={{ width: 10 }} />
               <FilterChip
                 label={t('contacts.recent')}
-                count={usersV2.filter((u: any) => u.status === 'online').length}
+                count={friends.filter((u: any) => u.isOnline || u.status === 'online').length}
                 isActive={usersFilterType === 'recent'}
                 onPress={() => setUsersFilterType('recent')}
               />
@@ -106,7 +145,7 @@ export default function ContactsScreen() {
           <View
             style={styles.chip}
           >
-            <Text style={[ { color: theme.colors.text }]}>{t('contacts.joinedGroups')} ({groups.length})</Text>
+            <Text style={[ { color: theme.colors.text }]}>{t('contacts.joinedGroups')} (0)</Text>
           </View>
         </View>
       )
@@ -126,7 +165,7 @@ export default function ContactsScreen() {
         ))}
       </View>
       <FlashList
-        data={activeTab === 0 ? filteredUsersV2 : filteredData}
+        data={activeTab === 0 ? getFilteredFriends() : []}
         keyExtractor={(item: any) => item.id}
         ListHeaderComponent={renderListHeader}
         renderItem={({ item }: any) => <ContactItem item={item} />}

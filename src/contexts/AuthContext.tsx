@@ -1,5 +1,5 @@
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { clearAuthData, getAuthData, UserInfo } from '../services/authService';
+import { clearAuthData, getAuthData, saveAuthData, UserInfo } from '../services/authService';
 
 interface AuthContextType {
   user: UserInfo | null;
@@ -51,6 +51,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const login = async (userInfo: UserInfo) => {
     try {
+      await saveAuthData(userInfo);
       setUser(userInfo);
       console.log('User logged in:', userInfo.phone);
     } catch (error) {

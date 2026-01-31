@@ -1,7 +1,7 @@
 import { USERS_V2 } from '@/src/data/contactsMockData';
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
-import { FileText } from 'lucide-react-native';
+import { FileText, Play } from 'lucide-react-native';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -17,10 +17,12 @@ export function MessageBubble({
   item,
   onLongPress,
   onImagePress,
+  onVideoPress,
 }: {
   item: ChatMessage;
   onLongPress?: (item: ChatMessage) => void;
   onImagePress?: (uri: string) => void;
+  onVideoPress?: (uri: string) => void;
 }) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -46,7 +48,10 @@ export function MessageBubble({
   const isImage =
     item.type === 'image' ||
     item.fileInfo?.mimeType?.startsWith('image/');
-  const isFile = (item.type === 'file' || !!item.fileInfo) && !isImage;
+  const isVideo =
+    item.type === 'video' ||
+    item.fileInfo?.mimeType?.startsWith('video/');
+  const isFile = (item.type === 'file' || !!item.fileInfo) && !isImage && !isVideo;
   const isMe = item.fromMe;
 
   return (
@@ -84,6 +89,7 @@ export function MessageBubble({
             isImage && styles.imageBubble,
             item.replyTo && styles.bubbleWithReply,
             isFile && { minWidth: 220 },
+            isVideo && styles.videoBubble,
           ]}
         >
           {/* Reply preview */}
@@ -147,6 +153,30 @@ export function MessageBubble({
                 source={{ uri: item.fileInfo?.uri }}
                 style={styles.sentImage}
               />
+            </Pressable>
+          ) : isVideo ? (
+            <Pressable
+              onPress={() =>
+                onVideoPress?.(item.fileInfo?.uri || '')
+              }
+              style={styles.videoThumb}
+            >
+              <View
+                style={[
+                  styles.videoPlay,
+                  {
+                    backgroundColor: isMe
+                      ? 'rgba(255,255,255,0.25)'
+                      : 'rgba(0,0,0,0.25)',
+                  },
+                ]}
+              >
+                <Play
+                  size={22}
+                  color={isMe ? theme.colors.icon : theme.colors.text}
+                  fill={isMe ? theme.colors.icon : theme.colors.text}
+                />
+              </View>
             </Pressable>
           ) : isFile ? (
             <View style={styles.fileContainer}>
@@ -274,6 +304,28 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 14,
+  },
+
+  videoBubble: {
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    borderWidth: 0,
+    overflow: 'hidden',
+  },
+  videoThumb: {
+    width: 220,
+    height: 220,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoPlay: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   fileContainer: {

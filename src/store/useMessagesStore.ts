@@ -40,7 +40,10 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
           fromMe,
           type: m.type as any,
           text: m.type === 'text' ? m.content : undefined,
-          fileInfo: m.type === 'image' || m.type === 'file' ? { uri: m.content } : undefined,
+          fileInfo:
+            m.type === 'image' || (m.type as any) === 'video' || m.type === 'file'
+              ? { uri: m.content }
+              : undefined,
           timestamp: m.createdAt,
           replyTo: m.replyTo
             ? (() => {

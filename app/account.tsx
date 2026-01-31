@@ -96,7 +96,7 @@ export default function AccountScreen() {
             onPress={() => router.push('/personalInfo')}
           >
             <Image
-              source={{ uri: profile?.avatar || 'https://i.pravatar.cc/200?u=user-me' }}
+              source={{ uri: user?.avatarUrl || 'https://i.pravatar.cc/200?u=user-me' }}
               style={styles.profileAvatar}
             />
             <View style={styles.profileInfo}>
@@ -104,7 +104,7 @@ export default function AccountScreen() {
                 {t('account_security.personal_info')}
               </Text>
               <Text style={[styles.profileName, { color: theme.colors.text }]}>
-                {profile?.name || user?.name || 'User'}
+                { user?.name || ""}
               </Text>
             </View>
             <ChevronRight size={20} color="#8e8e93" />
@@ -117,12 +117,12 @@ export default function AccountScreen() {
               title={t('account_security.phone_number')}
               subtitle={user?.phone
                 ? `(+84) ${user.phone.replace(/^\+?84/, '').replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3')}`
-                : '(+84) 979 070 805'}
+                : ''}
             />
             <AccountItem
               icon={Mail}
               title={t('account_security.email')}
-              subtitle={t('account_security.not_linked')}
+              subtitle={user?.email || ''}
             />
             <AccountItem
               icon={QrCode}

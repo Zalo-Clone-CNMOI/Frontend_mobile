@@ -13,9 +13,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/src/contexts/AuthContext';
 
 export default function PersonalInfoScreen() {
   const router = useRouter();
+  const {user} = useAuth();
   const theme = useTheme();
   const { t } = useTranslation();
   const profile = useProfileStore((state) => state.profile);
@@ -60,7 +62,7 @@ export default function PersonalInfoScreen() {
         {/* Profile Picture */}
         <View style={styles.profilePictureContainer}>
           <Image
-            source={{ uri: profile?.avatar || 'https://i.pravatar.cc/200?u=user-me' }}
+            source={{ uri: user?.avatarUrl }}
             style={styles.profilePicture}
           />
         </View>
@@ -70,17 +72,17 @@ export default function PersonalInfoScreen() {
           <InfoRow
             icon={User}
             label={t('personal_info.zalo_name')}
-            value={profile?.name || 'Nguyễn Nguyên'}
+            value={user?.name || ''}
           />
           <InfoRow
             icon={Calendar}
             label={t('personal_info.date_of_birth')}
-            value="05/10/2004"
+            value={user?.dateOfBirth || ''}
           />
           <InfoRow
             icon={User}
             label={t('personal_info.gender')}
-            value={t('personal_info.male')}
+            value={user?.gender || ''}
           />
         </View>
 

@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "zalo2026",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
@@ -38,10 +38,14 @@
             "backgroundColor": "#000000"
           }
         }
-      ],[
+      ],
+      [
         "expo-camera",
-        { "cameraPermission": "Cho phép ứng dụng sử dụng Camera để quét mã QR." }
-      ]
+        {
+          "cameraPermission": "Cho phép ứng dụng sử dụng Camera để quét mã QR."
+        }
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

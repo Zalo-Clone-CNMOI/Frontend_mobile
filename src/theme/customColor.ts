@@ -19,6 +19,7 @@ export const ZaloLightTheme = {
     bubbleColor: '#262626',
     textMessage: '#fff',
     dividerSection: '#bfc0c4ff',
+    statusBar:'#0068FF'
   },
 };
 
@@ -41,5 +42,6 @@ export const ZaloDarkTheme = {
     bubbleColor: '#4C8DFF',
     textMessage: '#fff',
     dividerSection: '#1C1C1E',
+    statusBar:'#1C1C1E'
   },
 };

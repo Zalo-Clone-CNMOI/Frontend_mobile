@@ -1,36 +1,211 @@
+import { useAuth } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/theme/themeContext';
+import { Calendar, LogOut, Mail, Phone, User } from 'lucide-react-native';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ProfileScreen() {
   const theme = useTheme();
+  const { user, logout } = useAuth();
+  console.log(user);
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Đăng xuất',
+      'Bạn có chắc chắn muốn đăng xuất?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Đăng xuất',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+            } catch (error) {
+              console.error('Logout error:', error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'Chưa cập nhật';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('vi-VN');
+    } catch {
+      return 'Chưa cập nhật';
+    }
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>
-        Trang cá nhân
-      </Text>
-      <Text style={[styles.subtitle, { color: theme.colors.icon }]}>
-        Quản lý thông tin cá nhân
-      </Text>
-    </View>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={styles.header}>
+        <View style={styles.avatarContainer}>
+          {user?.avatarUrl ? (
+            <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatarPlaceholder, { backgroundColor: theme.colors.primary }]}>
+              <User size={40} color="#fff" />
+            </View>
+          )}
+        </View>
+        <Text style={[styles.name, { color: theme.colors.text }]}>
+          {user?.name || 'User ' + user?.phone}
+        </Text>
+        <Text style={[styles.phone, { color: theme.colors.icon }]}>
+          {user?.phone}
+        </Text>
+      </View>
+
+      <View style={[styles.infoCard, { backgroundColor: theme.colors.card }]}>
+        <View style={styles.infoItem}>
+          <Phone size={20} color={theme.colors.icon} />
+          <View style={styles.infoContent}>
+            <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>Số điện thoại</Text>
+            <Text style={[styles.infoValue, { color: theme.colors.text }]}>{user?.phone}</Text>
+          </View>
+        </View>
+
+        <View style={styles.infoItem}>
+          <Mail size={20} color={theme.colors.icon} />
+          <View style={styles.infoContent}>
+            <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>Email</Text>
+            <Text style={[styles.infoValue, { color: theme.colors.text }]}>
+              {user?.email || 'Chưa cập nhật'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.infoItem}>
+          <Calendar size={20} color={theme.colors.icon} />
+          <View style={styles.infoContent}>
+            <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>Ngày sinh</Text>
+            <Text style={[styles.infoValue, { color: theme.colors.text }]}>
+              {formatDate(user?.dateOfBirth || '')}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.infoItem}>
+          <User size={20} color={theme.colors.icon} />
+          <View style={styles.infoContent}>
+            <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>Giới tính</Text>
+            <Text style={[styles.infoValue, { color: theme.colors.text }]}>
+              {user?.gender === 'male' ? 'Nam' : user?.gender === 'female' ? 'Nữ' : 'Chưa cập nhật'}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {user?.bio && (
+        <View style={[styles.bioCard, { backgroundColor: theme.colors.card }]}>
+          <Text style={[styles.bioTitle, { color: theme.colors.text }]}>Tiểu sử</Text>
+          <Text style={[styles.bioText, { color: theme.colors.icon }]}>
+            {user.bio}
+          </Text>
+        </View>
+      )}
+
+      <TouchableOpacity
+        style={[styles.logoutButton, { backgroundColor: '#ff3b30' }]}
+        onPress={handleLogout}
+      >
+        <LogOut size={20} color="#fff" />
+        <Text style={styles.logoutText}>Đăng xuất</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  header: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    paddingHorizontal: 20,
+  },
+  avatarContainer: {
+    marginBottom: 16,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  title: {
+  name: {
     fontSize: 24,
     fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  phone: {
+    fontSize: 16,
+  },
+  infoCard: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 12,
+    padding: 20,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  'infoItem:last-child': {
+    marginBottom: 0,
+  },
+  infoContent: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  bioCard: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 12,
+    padding: 20,
+  },
+  bioTitle: {
+    fontSize: 16,
+    fontWeight: '600',
     marginBottom: 8,
   },
-  subtitle: {
+  bioText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    marginBottom: 30,
+    paddingVertical: 16,
+    borderRadius: 12,
+  },
+  logoutText: {
+    color: '#fff',
     fontSize: 16,
-    color: '#666',
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });

@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   File,
   FileText,
+  Film,
   Image as ImageIcon,
   MapPin,
   Mic,
@@ -71,6 +72,34 @@ export function ChatComposer({
       }
     } catch {
       Alert.alert('Lỗi', 'Không thể chọn tài liệu');
+    }
+  };
+
+  const handlePickVideo = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        quality: 1,
+        selectionLimit: 1,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const videoAssets: DocumentPicker.DocumentPickerAsset[] = result.assets.map(
+          (asset: ImagePicker.ImagePickerAsset) => ({
+            uri: asset.uri,
+            name: asset.fileName || `video_${Date.now()}.mp4`,
+            mimeType: asset.mimeType || 'video/mp4',
+            size: asset.fileSize || 0,
+            lastModified: Date.now(),
+          })
+        );
+
+        onSendFiles(videoAssets);
+        setShowMore(false);
+      }
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể mở thư viện video. Vui lòng thử lại.');
+      console.error('Video picker error:', error);
     }
   };
 
@@ -241,6 +270,7 @@ export function ChatComposer({
         <View style={styles.moreBoard}>
           <Option title={t('chat.file')} Icon={File} onPress={handlePickDocument} theme={theme} />
           <Option title="Hình ảnh" Icon={ImageIcon} onPress={handlePickImage} theme={theme} />
+          <Option title="Video" Icon={Film} onPress={handlePickVideo} theme={theme} />
           <Option title={t('chat.location')} Icon={MapPin} onPress={() => {}} theme={theme} />
           <Option title={t('chat.contact')} Icon={User} onPress={() => {}} theme={theme} />
           <Option title={t('chat.document')} Icon={FileText} onPress={handlePickDocument} theme={theme} />
