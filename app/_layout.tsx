@@ -1,4 +1,5 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { Background } from '@react-navigation/elements';
 import { ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -10,7 +11,6 @@ import { initializeLanguage } from '../src/i18n';
 import '../src/i18n/config'; // Import config to initialize i18n
 import { ThemeProvider as AppThemeProvider } from '../src/theme/themeContext';
 import { ThemeManagerProvider, useThemeManager } from '../src/theme/themeManager';
-import { Background } from '@react-navigation/elements';
 
 function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
   const { theme } = useThemeManager();
@@ -30,29 +30,24 @@ function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Show loading spinner while initializing language or checking auth
   if (!ready || authLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.primary }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <StatusBar
-          style={theme.dark ? 'light' : 'dark'}
-          translucent={false}
-          backgroundColor={theme.colors.statusBar}
-        />
       </View>
     );
   }
 
   return (
     <NavigationThemeProvider value={theme}>
-      <View style={{ flex: 1, backgroundColor: theme.colors.statusBar }}>
-        <StatusBar
-          style={theme.dark ? "light" : "dark"}
-          translucent={false}
-        />
+      <StatusBar
+        translucent={false}
+        backgroundColor={theme.colors.statusBar}
+        style={theme.dark ? 'light' : 'dark'}
+      />
+      <Background style={{ backgroundColor: theme.colors.statusBar }}>
         {children}
-      </View>
+      </Background>
     </NavigationThemeProvider>
   );
 }

@@ -1,51 +1,27 @@
 
-
 import { Colors } from '@/src/constants/Colors';
-
 import { useAuth } from '@/src/contexts/AuthContext';
-
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
-
 import * as Haptics from 'expo-haptics';
-
 import { useRouter } from 'expo-router';
-
 import { SwitchCamera, X, Zap, ZapOff } from 'lucide-react-native';
-
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-
 import { useTranslation } from 'react-i18next';
-
 import { Alert, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
-
-
 export default function ScannerScreen() {
-
   const router = useRouter();
-
   const [permission, requestPermission] = useCameraPermissions();
-
   const { width, height } = useWindowDimensions();
-
   const { user } = useAuth();
 
-
-
   const [facing, setFacing] = useState<'back' | 'front'>('back');
-
   const [torch, setTorch] = useState(false);
-
   const [scanned, setScanned] = useState(false);
-
   const scannedRef = useRef(false);
-
   const { t } = useTranslation();
-
   const [sessionId, setSessionId] = useState<string | null>(null);
-
   const [qrStatus, setQrStatus] = useState<'pending' | 'waiting' | 'confirmed' | 'rejected' | 'expired' | null>(null);
-
   const [loading, setLoading] = useState(false);
 
 
@@ -67,145 +43,90 @@ export default function ScannerScreen() {
 
 
   const onBarcodeScanned = useCallback(
-
     async (result: BarcodeScanningResult) => {
-
       if (scannedRef.current) return;
-
       if (!result?.data) return;
 
-
-
       scannedRef.current = true;
-
       setScanned(true);
 
-
-
       try {
-
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
       } catch {
-
         // ignore
-
       }
 
-
-
       const raw = String(result.data).trim();
-
       // Expect sessionId from QR
-
       setSessionId(raw);
-
       setQrStatus('waiting'); // Set to waiting immediately to show modal
-
       // Start polling status
-
       pollQrStatus(raw);
-
     },
-
     []
-
   );
 
 
 
   const pollQrStatus = async (sid: string) => {
-
     try {
-
       const res = await fetch(`http://175.41.136.189:5000/api/auth/qr/status/${sid}`);
-
       const data = await res.json();
-
       if (data.status === 'waiting') {
-
         setQrStatus('waiting');
-
         // Poll again after 2s
-
         setTimeout(() => pollQrStatus(sid), 2000);
-
       } else if (data.status === 'confirmed') {
-
         setQrStatus('confirmed');
-
       } else if (data.status === 'rejected') {
-
         setQrStatus('rejected');
-
       } else if (data.status === 'expired') {
-
         setQrStatus('expired');
-
       }
-
     } catch (e) {
-
       console.error('QR status error', e);
-
       setQrStatus('expired');
-
     }
-
   };
 
 
 
   const handleConfirm = async () => {
-
     if (!sessionId || !user?.id || !user?.tokens?.accessToken) return;
 
     setLoading(true);
-
     try {
-
       const res = await fetch('http://175.41.136.189:5000/api/auth/qr/confirm', {
-
         method: 'POST',
-
         headers: {
-
           'Content-Type': 'application/json',
-
           'Authorization': `Bearer ${user.tokens.accessToken}`,
-
           'userId': user.id
-
         },
-
         body: JSON.stringify({ sessionId }),
-
       });
-
       const data = await res.json();
-
       if (res.ok) {
-
         setQrStatus('confirmed');
-
-        Alert.alert('Thành công', 'Đã xác nhận QR thành công!');
-
+        Alert.alert('Thành công', 'Đã xác nhận QR thành công!',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                router.back();
+              }
+            }
+          ]
+        );
+        console.log("session confirmed", data);
       } else {
-
         Alert.alert('Lỗi', data.message || 'Không thể xác nhận QR');
-
       }
-
     } catch (e) {
-
       Alert.alert('Lỗi', 'Không thể kết nối máy chủ');
-
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
 
@@ -587,7 +508,6 @@ const styles = StyleSheet.create({
   },
 
   title: { color: '#fff', fontSize: 16, fontWeight: '600' },
-
   iconBtn: {
 
     width: 40,
@@ -714,11 +634,13 @@ const styles = StyleSheet.create({
 
     position: 'absolute',
 
-    top: 70,
+    top: '50%',
 
     left: 20,
 
     right: 20,
+
+    marginTop: -80,
 
     backgroundColor: 'rgba(0,0,0,0.9)',
 

@@ -229,7 +229,7 @@ export function MessageBubble({
                 styles.text,
                 {
                   color: isMe
-                    ? theme.colors.icon
+                    ? theme.colors.textMessage
                     : theme.colors.text,
                 },
               ]}
