@@ -86,7 +86,7 @@ export default function ContactsScreen() {
     const subtitle = isV2 ? (item.status === 'online' ? t('contacts.online') : t('contacts.offline')) : item.subtitle;
 
     return (
-      <TouchableOpacity style={[styles.row, { backgroundColor: theme.colors.statusBar }]} activeOpacity={0.7} edges={['top']}>
+      <TouchableOpacity style={[styles.row, { backgroundColor: theme.colors.card }]} activeOpacity={0.7} edges={['top']}>
         <View style={styles.avatarContainer}>
           <Image source={{ uri: item.avatar }} style={styles.avatar} />
           {isOnline ? <View style={[styles.onlineDot, { borderColor: theme.colors.background }]} /> : null}

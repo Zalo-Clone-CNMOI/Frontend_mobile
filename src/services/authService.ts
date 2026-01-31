@@ -133,10 +133,16 @@ export const getCurrentRefreshToken = async (): Promise<string | null> => {
 // Refresh access token
 export const refreshAccessToken = async (): Promise<string | null> => {
   try {
+    console.log('🔄 Starting token refresh...');
+    
     const refreshToken = await getCurrentRefreshToken();
     if (!refreshToken) {
+      console.error('❌ No refresh token available');
       throw new Error('No refresh token available');
     }
+
+    console.log('📡 Sending refresh request to server...');
+    console.log('Refresh token (first 20 chars):', refreshToken.substring(0, 20) + '...');
 
     const response = await fetch('http://175.41.136.189:5000/api/auth/refresh', {
       method: 'POST',
@@ -146,32 +152,53 @@ export const refreshAccessToken = async (): Promise<string | null> => {
       body: JSON.stringify({ refreshToken }),
     });
 
+    console.log('📡 Response status:', response.status);
+    console.log('📡 Response ok:', response.ok);
+
     const data = await response.json();
+    console.log('📡 Response data:', JSON.stringify(data, null, 2));
 
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to refresh token');
+      console.error('❌ Server returned error:', response.status, data.message || 'Unknown error');
+      throw new Error(data.message || `Failed to refresh token (${response.status})`);
     }
 
     // Save new tokens
     const currentAuthData = await getAuthData();
     if (currentAuthData) {
+      const newAccessToken = data.tokens?.accessToken || data.accessToken || '';
+      const newRefreshToken = data.tokens?.refreshToken || data.refreshToken || refreshToken;
+      const expiresIn = data.tokens?.expiresIn || data.expiresIn || 0;
+
+      console.log('💾 Saving new tokens...');
+      console.log('New access token length:', newAccessToken.length);
+      console.log('New refresh token length:', newRefreshToken.length);
+
       const updatedAuthData = {
         ...currentAuthData,
         tokens: {
-          accessToken: data.tokens?.accessToken || data.accessToken || '',
-          refreshToken: data.tokens?.refreshToken || data.refreshToken || refreshToken,
-          expiresIn: data.tokens?.expiresIn || data.expiresIn || 0,
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+          expiresIn: expiresIn,
         }
       };
+      
       await saveAuthData(updatedAuthData);
-      console.log('Token refreshed successfully');
-      return updatedAuthData.tokens?.accessToken || null;
+      console.log('✅ Token refreshed and saved successfully');
+      return newAccessToken;
     }
 
+    console.error('❌ No current auth data found');
     return null;
   } catch (error) {
-    console.error('Error refreshing token:', error);
+    console.error('❌ Error refreshing token:', error);
+    console.error('❌ Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    });
+    
     // If refresh fails, clear auth data and force login
+    console.log('🗑️ Clearing auth data due to refresh failure...');
     await clearAuthData();
     return null;
   }
@@ -191,17 +218,22 @@ export const getCurrentUser = async (): Promise<UserInfo | null> => {
 // API wrapper with auto-refresh token
 export const apiCallWithRefresh = async (url: string, options: RequestInit = {}): Promise<Response> => {
   try {
+    console.log('🌐 Making API call to:', url);
+    
     // Get current access token
     let accessToken = await getCurrentToken();
     
     // If no access token, try to refresh
     if (!accessToken) {
+      console.log('🔄 No access token found, attempting refresh...');
       accessToken = await refreshAccessToken();
       if (!accessToken) {
-        throw new Error('No valid token available');
+        throw new Error('No valid token available after refresh');
       }
     }
 
+    console.log('📡 Making initial API call...');
+    
     // Make initial API call
     const response = await fetch(url, {
       ...options,
@@ -212,15 +244,19 @@ export const apiCallWithRefresh = async (url: string, options: RequestInit = {})
       },
     });
 
+    console.log('📡 Initial response status:', response.status);
+
     // If token expired (401), try refresh once
     if (response.status === 401) {
-      console.log('Token expired, refreshing...');
+      console.log('🔄 Token expired (401), attempting refresh...');
       const newAccessToken = await refreshAccessToken();
       
       if (!newAccessToken) {
-        throw new Error('Failed to refresh token');
+        throw new Error('Failed to refresh token after 401');
       }
 
+      console.log('📡 Retrying API call with new token...');
+      
       // Retry with new token
       return fetch(url, {
         ...options,
@@ -234,7 +270,12 @@ export const apiCallWithRefresh = async (url: string, options: RequestInit = {})
 
     return response;
   } catch (error) {
-    console.error('API call error:', error);
+    console.error('❌ API call error:', error);
+    console.error('❌ API call details:', {
+      url,
+      method: options.method || 'GET',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     throw error;
   }
 };

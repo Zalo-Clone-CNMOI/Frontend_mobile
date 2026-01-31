@@ -1,6 +1,7 @@
 import { useCountriesStore } from '@/src/store/useCountriesStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import {
   ArrowLeft,
   ArrowRight,
@@ -49,28 +50,32 @@ export default function AddFriendScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      style={[styles.container, { backgroundColor: theme.colors.statusBar }]} edges={['top']}
     >
-      {/* ================= HEADER ================= */}
+      <StatusBar style="light" />
+      {/* Header chuẩn Zalo */}
       <View
         style={[
           styles.header,
-          { backgroundColor: theme.colors.background },
+          { borderBottomColor: theme.colors.border, backgroundColor: theme.colors.statusBar },
         ]}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color={theme.colors.icon} />
-        </TouchableOpacity>
-        <Text
-          style={[
-            styles.headerTitle,
-            { color: theme.colors.text },
-          ]}
-        >
-          {t('add_friend.title')}
-        </Text>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <ArrowLeft size={28} color={theme.colors.iconHeader} />
+          </TouchableOpacity>
+          <Text
+            style={[
+              styles.headerTitle,
+              { color: theme.colors.iconHeader },
+            ]}
+          >
+            {t('add_friend.title')}
+          </Text>
+        </View>
       </View>
 
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <View style={styles.content}>
         {/* ================= QR CARD ================= */}
         <View
@@ -272,6 +277,7 @@ export default function AddFriendScreen() {
           />
         </SafeAreaView>
       </Modal>
+      </View>
     </SafeAreaView>
   );
 }
@@ -307,15 +313,15 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
     height: 56,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderBottomWidth: 0.5,
   },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 15 },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginLeft: 16,
   },
 
   content: {

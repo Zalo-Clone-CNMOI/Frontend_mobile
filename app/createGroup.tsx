@@ -1,6 +1,7 @@
   import { useContactsStore } from "@/src/store/useContactsStore";
 import { useTheme } from "@/src/theme/themeContext";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import {
   ArrowRight,
   Camera,
@@ -49,21 +50,26 @@ export default function CreateGroupScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={[styles.navBar, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={26} color={colors.text} />
-        </TouchableOpacity>
-        <View style={{ marginLeft: 16 }}>
-          <Text style={[styles.navTitle, { color: colors.text }]}>
-            {t('create_group.title')}
-          </Text>
-          <Text style={[styles.navSub, { color: colors.text }]}>
-            {t('create_group.selected_count', { count: selectedIds.length })}
-          </Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.statusBar }]} edges={['top']}>
+      <StatusBar style="light" />
+      {/* Header chuẩn Zalo */}
+      <View style={[styles.navBar, { borderBottomColor: colors.border, backgroundColor: colors.statusBar }]}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <ChevronLeft size={28} color={colors.iconHeader} />
+          </TouchableOpacity>
+          <View style={{ marginLeft: 16 }}>
+            <Text style={[styles.navTitle, { color: colors.iconHeader }]}>
+              {t('create_group.title')}
+            </Text>
+            <Text style={[styles.navSub, { color: colors.iconHeader }]}>
+              {t('create_group.selected_count', { count: selectedIds.length })}
+            </Text>
+          </View>
         </View>
       </View>
+
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
 
       {/* Header Card */}
       <View style={[styles.headerCard, { backgroundColor: colors.background }]}>
@@ -185,6 +191,7 @@ export default function CreateGroupScreen() {
           </TouchableOpacity>
         </View>
       )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -192,15 +199,15 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
   navBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
+    height: 56,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
     borderBottomWidth: 0.5,
   },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 15 },
 
   navTitle: { fontSize: 18, fontWeight: "600" },
   navSub: { fontSize: 13 },
-
   headerCard: {
     paddingHorizontal: 16,
     paddingTop: 12,

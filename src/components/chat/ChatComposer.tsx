@@ -322,7 +322,7 @@ function Option({
           { backgroundColor: theme.colors.primary },
         ]}
       >
-        <Icon size={20} color={theme.colors.icon} />
+        <Icon size={20} color={theme.colors.iconHeader} />
       </View>
       <Text style={[styles.optionText, { color: theme.colors.text }]}>
         {title}
