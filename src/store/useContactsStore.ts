@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { Contact, USERS_V2, UserV2 } from '../data/contactsMockData';
+import { fetchContacts } from '../services/chatService';
+import { Contact, UserV2 } from '../data/contactsMockData';
 
 interface ContactsState {
   // State
@@ -9,6 +10,8 @@ interface ContactsState {
   activeTab: number; // 0: friends, 1: groups, 2: oas
   filterType: 'all' | 'recent';
   searchQuery: string;
+  isLoading: boolean;
+  error: string | null;
 
   // Computed
   currentData: Contact[];
@@ -19,7 +22,7 @@ interface ContactsState {
   usersFilterType: 'all' | 'recent';
 
   // Actions
-  initializeContacts: () => void;
+  initializeContacts: () => Promise<void>;
   setActiveTab: (tab: number) => void;
   setSearchQuery: (query: string) => void;
   // V2 actions
@@ -44,34 +47,37 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   usersV2: [],
   filteredUsersV2: [],
   usersFilterType: 'all',
+  isLoading: false,
+  error: null,
 
   // Actions
-  initializeContacts: () => {
-    // Initialize v2 users directly (production-like shape)
-    if (USERS_V2 && USERS_V2.length) {
-      const users = USERS_V2.slice();
+  initializeContacts: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const { users } = await fetchContacts();
+
+      const friends: Contact[] = users
+        .filter((u) => u.id !== 'user-me')
+        .map((u) => ({
+          id: u.id,
+          name: u.fullName,
+          subtitle: u.status === 'online' ? 'Đang hoạt động' : 'Vừa truy cập',
+          avatar: u.avatar || '',
+          type: 'friend' as const,
+        }));
 
       set({
         usersV2: users,
-        // Derive simple legacy-shaped lists from usersV2
-        friends: users.map((u) => ({ id: u.id, name: u.fullName, subtitle: '', avatar: u.avatar || '', type: 'friend' })),
+        friends,
         groups: [],
         oas: [],
-        // default filtered users (exclude self)
         filteredUsersV2: users.filter((u) => u.id !== 'user-me'),
+        isLoading: false,
       });
       get().setActiveTab(0);
-      return;
+    } catch (err) {
+      set({ error: String(err), isLoading: false });
     }
-
-    set({
-      friends: [],
-      groups: [],
-      oas: [],
-      usersV2: [],
-      filteredUsersV2: [],
-    });
-    get().setActiveTab(0); // Trigger re-computation
   },
 
   setActiveTab: (tab: number) => {
@@ -103,7 +109,6 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
 
   setFilterType: (filter: 'all' | 'recent') => {
     set((state) => {
-      const currentState = get();
       let baseData =
         state.activeTab === 0
           ? state.friends

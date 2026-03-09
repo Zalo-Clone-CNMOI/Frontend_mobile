@@ -145,7 +145,8 @@ export default function LoginStep2() {
             <TouchableOpacity 
               style={[styles.primaryBtn, password.length === 0 && styles.btnDisabled]}
               disabled={password.length === 0 || isLoading}
-              onPress={handleLogin}
+              // onPress={handleLogin}
+              onPress={()=>router.push('/(tabs)/home')}
             >
               <Text style={styles.btnText}>
                 {isLoading ? t('common.loading') : t('auth.login')}

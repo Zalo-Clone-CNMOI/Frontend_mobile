@@ -8,6 +8,7 @@ import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
 
+import { useHeaderHeight } from '@react-navigation/elements';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { List, Phone } from 'lucide-react-native';
@@ -20,6 +21,12 @@ export default function ChatDetailScreen() {
   const params = useLocalSearchParams<{ id?: string; name?: string }>();
   const chatId = params?.id || '';
   const { t } = useTranslation();
+  const headerHeight = useHeaderHeight();
+
+  // 'pan' mode on Android: screen pans up when keyboard opens.
+  // Both platforms use 'padding' + headerHeight offset so composer
+  // always sits exactly above the keyboard.
+  const keyboardOffset = headerHeight;
 
   const title = useMemo(() => {
     if (typeof params?.name === 'string' && params.name.trim().length > 0) return params.name;
@@ -126,7 +133,7 @@ export default function ChatDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen
         options={{
           headerShown: true,
@@ -154,7 +161,7 @@ export default function ChatDetailScreen() {
       <KeyboardAvoidingView
         style={styles.body}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={keyboardOffset}
       >
         <FlashList
           data={messages}

@@ -99,8 +99,8 @@ export function MessageBubble({
                 styles.replyWrap,
                 {
                   backgroundColor: isMe
-                    ? 'rgba(255,255,255,0.15)'
-                    : 'rgba(0,0,0,0.08)',
+                    ? 'rgba(223, 218, 218, 0.15)'
+                    : 'rgba(153, 149, 149, 0.08)',
                 },
               ]}
             >
@@ -114,7 +114,7 @@ export function MessageBubble({
                 <Text
                   style={[
                     styles.replyName,
-                    { color: theme.colors.textMessage },
+                    { color: isMe ? theme.colors.textMessage : theme.colors.text },
                   ]}
                   numberOfLines={1}
                 >
@@ -123,7 +123,7 @@ export function MessageBubble({
                 <Text
                   style={[
                     styles.replyText,
-                    { color: theme.colors.textMessage, opacity: 0.7 },
+                    { color: isMe ? theme.colors.textMessage : theme.colors.text, opacity: 0.7 },
                   ]}
                   numberOfLines={1}
                 >
@@ -365,6 +365,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 6,
     overflow: 'hidden',
+    alignSelf: 'stretch',
   },
   replyBar: {
     width: 3,
@@ -385,5 +386,6 @@ const styles = StyleSheet.create({
 
   bubbleWithReply: {
     paddingTop: 6,
+    minWidth: 220,
   },
 });

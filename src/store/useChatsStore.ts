@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { CHATS_V2 } from '../data/chatsMockData';
+import { fetchConversations } from '../services/chatService';
 import { ConversationV2 } from '../types/chat';
 
 interface ChatsState {
@@ -8,9 +8,11 @@ interface ChatsState {
   filteredChats: ConversationV2[];
   searchQuery: string;
   filterTab: 'priority' | 'other';
+  isLoading: boolean;
+  error: string | null;
 
   // Actions
-  initializeChats: () => void;
+  initializeChats: () => Promise<void>;
   setSearchQuery: (query: string) => void;
   setFilterTab: (tab: 'priority' | 'other') => void;
   addChat: (chat: ConversationV2) => void;
@@ -24,17 +26,18 @@ export const useChatsStore = create<ChatsState>((set) => ({
   filteredChats: [],
   searchQuery: '',
   filterTab: 'priority',
+  isLoading: false,
+  error: null,
 
   // Actions
-  initializeChats: () => {
-    // Initialize directly from v2 conversations (preferred) and expose
-    // ConversationV2 objects to components.
-    if (CHATS_V2 && CHATS_V2.length) {
-      set({ chats: CHATS_V2, filteredChats: CHATS_V2 });
-      return;
+  initializeChats: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const conversations = await fetchConversations();
+      set({ chats: conversations, filteredChats: conversations, isLoading: false });
+    } catch (err) {
+      set({ error: String(err), isLoading: false });
     }
-    // No v2 chats available — initialize empty lists
-    set({ chats: [], filteredChats: [] });
   },
 
   setSearchQuery: (query: string) => {
@@ -78,7 +81,9 @@ export const useChatsStore = create<ChatsState>((set) => ({
   updateChat: (chatId: string, updates: Partial<ConversationV2>) => {
     set((state) => ({
       chats: state.chats.map((c) => (c.conversationId === chatId ? { ...c, ...updates } : c)),
-      filteredChats: state.filteredChats.map((c) => (c.conversationId === chatId ? { ...c, ...updates } : c)),
+      filteredChats: state.filteredChats.map((c) =>
+        c.conversationId === chatId ? { ...c, ...updates } : c
+      ),
     }));
   },
 }));
