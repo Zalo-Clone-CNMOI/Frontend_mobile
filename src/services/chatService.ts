@@ -1,454 +1,444 @@
-/**
- * chatService.ts
- *
- * Mock API service cho Chat: Conversations, Messages, Contacts.
- * Data mẫu phản ánh đúng shape các types ChatZaho đang dùng.
- *
- * Để chuyển sang backend thật: thay `mockFetch(...)` bằng `apiFetch('/endpoint')`.
- */
+import { Socket } from "socket.io-client";
+import { ContactUser } from './../types/ContactUser';
+import * as conversationsApi from "./conversationsApi";
+import * as friendsApi from "./friendsApi";
+import * as messagesApi from "./messagesApi";
+import { connectSocket, getSocket } from "./socket";
 
-import { mockFetch } from './apiService';
 import type { ChatMessage, ConversationV2 } from '../types/chat';
-import type { UserV2 } from '../data/contactsMockData';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sample Data – Conversations
-// ─────────────────────────────────────────────────────────────────────────────
+type Message = any;
 
-const SAMPLE_CONVERSATIONS: ConversationV2[] = [
-  {
-    conversationId: 'conv_001',
-    isGroup: false,
-    name: 'Minh Tú',
-    avatar: 'https://i.pravatar.cc/150?u=u6',
-    lastMessage: {
-      content: 'OK mình xem rồi 👍',
-      type: 'text',
-      timestamp: Date.now() - 1000 * 60 * 5,
-    },
-    unreadCount: 0,
-    pinned: true,
-    muted: false,
-  },
-  {
-    conversationId: 'conv_002',
-    isGroup: false,
-    name: 'Quang Huy',
-    avatar: 'https://i.pravatar.cc/150?u=u7',
-    lastMessage: {
-      content: '[Hình ảnh]',
-      type: 'image',
-      timestamp: Date.now() - 1000 * 60 * 30,
-    },
-    unreadCount: 2,
-    pinned: false,
-    muted: false,
-  },
-  {
-    conversationId: 'conv_003',
-    isGroup: true,
-    name: 'Nhóm Dự Án Front-end',
-    avatar: 'https://i.pravatar.cc/150?u=group1',
-    lastMessage: {
-      content: 'Tôi vừa đẩy code lên repo 🚀',
-      type: 'text',
-      timestamp: Date.now() - 1000 * 60 * 60 * 2,
-    },
-    unreadCount: 5,
-    pinned: false,
-    muted: false,
-  },
-  {
-    conversationId: 'conv_004',
-    isGroup: true,
-    name: 'Gia Đình 🏠',
-    avatar: 'https://i.pravatar.cc/150?u=group2',
-    lastMessage: {
-      content: 'Ai nấu cơm tối nay?',
-      type: 'text',
-      timestamp: Date.now() - 1000 * 60 * 60 * 5,
-    },
-    unreadCount: 0,
-    pinned: true,
-    muted: true,
-  },
-  {
-    conversationId: 'conv_005',
-    isGroup: false,
-    name: 'Lan Anh',
-    avatar: 'https://i.pravatar.cc/150?u=u8',
-    lastMessage: {
-      content: 'Nhớ gửi mình file tài liệu nhé',
-      type: 'text',
-      timestamp: Date.now() - 1000 * 60 * 60 * 24,
-    },
-    unreadCount: 1,
-    pinned: false,
-    muted: false,
-  },
-  {
-    conversationId: 'conv_006',
-    isGroup: false,
-    name: 'Hải Đăng',
-    avatar: 'https://i.pravatar.cc/150?u=u9',
-    lastMessage: {
-      content: 'Ngày mai họp lúc 9h sáng nha bạn',
-      type: 'text',
-      timestamp: Date.now() - 1000 * 60 * 60 * 48,
-    },
-    unreadCount: 0,
-    pinned: false,
-    muted: false,
-  },
-];
+// Mapper function to convert API message format to UI format
+function mapApiMessageToUIMessage(apiMessage: any): ChatMessage {
+  return {
+    id: apiMessage.id,
+    conversationId: apiMessage.conversationId,
+    fromMe: apiMessage.senderId === 'user-me' || (apiMessage.sender && apiMessage.sender.me === true),
+    senderId: apiMessage.senderId || (apiMessage.sender ? 'user-me' : undefined),
+    type: apiMessage.type || 'text',
+    text: apiMessage.text || apiMessage.content || '',
+    timestamp: apiMessage.timestamp || apiMessage.createdAt || Date.now(),
+    fileInfo: apiMessage.fileInfo || (apiMessage.attachments && apiMessage.attachments.length > 0 && apiMessage.attachments[0] ? {
+      uri: apiMessage.attachments[0]?.url || '',
+      name: apiMessage.attachments[0]?.name || 'File',
+      size: apiMessage.attachments[0]?.size || '0 MB',
+      mimeType: apiMessage.attachments[0]?.mimeType || ''
+    } : undefined),
+    replyTo: apiMessage.replyTo,
+    reactions: apiMessage.reactions,
+    deletedFor: apiMessage.deletedFor,
+    isRevoked: apiMessage.revoked || apiMessage.isRevoked
+  };
+}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sample Data – Messages per Conversation
-// ─────────────────────────────────────────────────────────────────────────────
+const openConversations = new Set<string>();
+const pendingAcks = new Map<
+  string,
+  { resolve: (msg: any) => void; reject: (err: any) => void }
+>();
 
-const SAMPLE_MESSAGES: Record<string, ChatMessage[]> = {
-  conv_001: [
-    {
-      id: 'msg_001',
-      conversationId: 'conv_001',
-      senderId: 'u6',
-      fromMe: false,
-      type: 'text',
-      text: 'Chào bạn, hôm nay họp lúc mấy giờ? 😊',
-      timestamp: Date.now() - 1000 * 60 * 30,
-    },
-    {
-      id: 'msg_002',
-      conversationId: 'conv_001',
-      senderId: 'user-me',
-      fromMe: true,
-      type: 'text',
-      text: '10h nhé, ở phòng họp tầng 3',
-      timestamp: Date.now() - 1000 * 60 * 28,
-      replyTo: {
-        id: 'msg_001',
-        senderName: 'Minh Tú',
-        text: 'Chào bạn, hôm nay họp lúc mấy giờ? 😊',
-      },
-    },
-    {
-      id: 'msg_003',
-      conversationId: 'conv_001',
-      senderId: 'u6',
-      fromMe: false,
-      type: 'text',
-      text: 'Ok, mình sẽ chuẩn bị slides trước nha',
-      timestamp: Date.now() - 1000 * 60 * 25,
-    },
-    {
-      id: 'msg_004',
-      conversationId: 'conv_001',
-      senderId: 'user-me',
-      fromMe: true,
-      type: 'image',
-      text: 'Gửi bạn hình tài liệu UI design',
-      fileInfo: {
-        uri: 'https://picsum.photos/400/300?random=1',
-        name: 'design_mockup.jpg',
-        size: '240 KB',
-        mimeType: 'image/jpeg',
-      },
-      timestamp: Date.now() - 1000 * 60 * 20,
-    },
-    {
-      id: 'msg_005',
-      conversationId: 'conv_001',
-      senderId: 'u6',
-      fromMe: false,
-      type: 'file',
-      text: 'Đây là file spec cho meeting',
-      fileInfo: {
-        name: 'project-spec.pdf',
-        size: '1.2 MB',
-        mimeType: 'application/pdf',
-      },
-      timestamp: Date.now() - 1000 * 60 * 15,
-    },
-    {
-      id: 'msg_006',
-      conversationId: 'conv_001',
-      senderId: 'user-me',
-      fromMe: true,
-      type: 'text',
-      text: 'OK mình xem rồi 👍',
-      timestamp: Date.now() - 1000 * 60 * 5,
-    },
-  ],
+let socketInstance: Socket | null = null;
+let listenersRegistered = false;
 
-  conv_002: [
-    {
-      id: 'msg_101',
-      conversationId: 'conv_002',
-      senderId: 'u7',
-      fromMe: false,
-      type: 'text',
-      text: 'Hey, nay đi ăn trưa không? 🍜',
-      timestamp: Date.now() - 1000 * 60 * 60,
-    },
-    {
-      id: 'msg_102',
-      conversationId: 'conv_002',
-      senderId: 'user-me',
-      fromMe: true,
-      type: 'text',
-      text: 'Ừ, đi thôi. 12h nhé',
-      timestamp: Date.now() - 1000 * 60 * 58,
-    },
-    {
-      id: 'msg_103',
-      conversationId: 'conv_002',
-      senderId: 'u7',
-      fromMe: false,
-      type: 'image',
-      fileInfo: {
-        uri: 'https://picsum.photos/400/300?random=2',
-        name: 'photo_test.png',
-        size: '345 KB',
-        mimeType: 'image/png',
-      },
-      timestamp: Date.now() - 1000 * 60 * 30,
-    },
-    {
-      id: 'msg_104',
-      conversationId: 'conv_002',
-      senderId: 'u7',
-      fromMe: false,
-      type: 'text',
-      text: 'Quán này ngon lắm, thử đi 😋',
-      timestamp: Date.now() - 1000 * 60 * 29,
-    },
-  ],
+function generateUUID(): string {
+  try {
+    // Prefer native if available
+    if (typeof globalThis?.crypto?.randomUUID === "function")
+      return (globalThis.crypto as any).randomUUID();
+  } catch (e) {
+    // fallthrough
+  }
+  // fallback v4
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
-  conv_003: [
-    {
-      id: 'msg_201',
-      conversationId: 'conv_003',
-      senderId: 'u8',
-      fromMe: false,
-      type: 'text',
-      text: 'Mọi người ơi, ai xong phần UI chưa?',
-      timestamp: Date.now() - 1000 * 60 * 60 * 5,
-    },
-    {
-      id: 'msg_202',
-      conversationId: 'conv_003',
-      senderId: 'u9',
-      fromMe: false,
-      type: 'text',
-      text: 'Mình xong rồi, đang test thôi',
-      timestamp: Date.now() - 1000 * 60 * 60 * 4,
-    },
-    {
-      id: 'msg_203',
-      conversationId: 'conv_003',
-      senderId: 'user-me',
-      fromMe: true,
-      type: 'text',
-      text: 'Mình đang làm phần chat screen, xong chiều nay',
-      timestamp: Date.now() - 1000 * 60 * 60 * 3,
-    },
-    {
-      id: 'msg_204',
-      conversationId: 'conv_003',
-      senderId: 'u9',
-      fromMe: false,
-      type: 'text',
-      text: 'Tôi vừa đẩy code lên repo 🚀',
-      timestamp: Date.now() - 1000 * 60 * 60 * 2,
-    },
-    {
-      id: 'msg_205',
-      conversationId: 'conv_003',
-      senderId: 'u8',
-      fromMe: false,
-      type: 'text',
-      text: 'Good job team! 💪',
-      timestamp: Date.now() - 1000 * 60 * 60 * 2 + 30000,
-      isRevoked: false,
-    },
-    {
-      id: 'msg_206',
-      conversationId: 'conv_003',
-      senderId: 'u6',
-      fromMe: false,
-      type: 'text',
-      text: 'Xin lỗi, mình thu hồi tin nhắn này',
-      timestamp: Date.now() - 1000 * 60 * 60,
-      isRevoked: true,
-    },
-  ],
+async function ensureSocket() {
+  if (!socketInstance) {
+    socketInstance = await connectSocket();
+  }
+  if (!listenersRegistered) registerSocketListeners();
+  return socketInstance;
+}
 
-  conv_004: [
-    {
-      id: 'msg_301',
-      conversationId: 'conv_004',
-      senderId: 'u6',
-      fromMe: false,
-      type: 'text',
-      text: 'Ai nấu cơm tối nay? 🍚',
-      timestamp: Date.now() - 1000 * 60 * 60 * 5,
-    },
-    {
-      id: 'msg_302',
-      conversationId: 'conv_004',
-      senderId: 'user-me',
-      fromMe: true,
-      type: 'text',
-      text: 'Để mình nấu, tối nay làm canh chua cá lóc nhé',
-      timestamp: Date.now() - 1000 * 60 * 60 * 4.5,
-    },
-    {
-      id: 'msg_303',
-      conversationId: 'conv_004',
-      senderId: 'u9',
-      fromMe: false,
-      type: 'text',
-      text: 'Mình thích ăn canh chua lắm 😋',
-      timestamp: Date.now() - 1000 * 60 * 60 * 4,
-    },
-  ],
+export async function loadInitialMessages(conversationId: string) {
+  // First page (limit 50)
+  const resp = await messagesApi.getMessages(conversationId, 50);
+  const payload = resp?.data || {};
+  
+  // Convert messages to UI format - handle different response structures
+  let messages: any[] = [];
+  if (Array.isArray(payload.messages)) {
+    messages = payload.messages;
+  } else if (Array.isArray(payload.data)) {
+    messages = payload.data;
+  } else if (Array.isArray(payload)) {
+    messages = payload;
+  }
+  
+  const uiMessages = messages.map(mapApiMessageToUIMessage);
 
-  conv_005: [
-    {
-      id: 'msg_401',
-      conversationId: 'conv_005',
-      senderId: 'u8',
-      fromMe: false,
-      type: 'text',
-      text: 'Nhớ gửi mình file tài liệu nhé',
-      timestamp: Date.now() - 1000 * 60 * 60 * 24,
-    },
-    {
-      id: 'msg_402',
-      conversationId: 'conv_005',
-      senderId: 'user-me',
-      fromMe: true,
-      type: 'text',
-      text: 'Ok để mình tìm lại rồi gửi sau nha',
-      timestamp: Date.now() - 1000 * 60 * 60 * 23,
-    },
-  ],
+  // Mark room open and join after loaded
+  openConversations.add(conversationId);
+  const s = await ensureSocket();
+  try {
+    s.emit("chat:join", { conversation_id: conversationId });
+  } catch (e) {
+    console.warn("chat:join emit failed", e);
+  }
 
-  conv_006: [
-    {
-      id: 'msg_501',
-      conversationId: 'conv_006',
-      senderId: 'u9',
-      fromMe: false,
-      type: 'text',
-      text: 'Bạn ơi, ngày mai họp lúc 9h sáng nha bạn',
-      timestamp: Date.now() - 1000 * 60 * 60 * 48,
-    },
-    {
-      id: 'msg_502',
-      conversationId: 'conv_006',
-      senderId: 'user-me',
-      fromMe: true,
-      type: 'text',
-      text: 'Ok, mình nhớ rồi, cảm ơn bạn nhé!',
-      timestamp: Date.now() - 1000 * 60 * 60 * 47,
-    },
-  ],
+  return { messages: uiMessages, nextCursor: payload.nextCursor }; // caller expects { messages: [], nextCursor }
+}
+
+export async function fetchMoreMessages(
+  conversationId: string,
+  cursor?: string,
+  limit = 50,
+) {
+  const resp = await messagesApi.getMessages(conversationId, limit, cursor);
+  const payload = resp?.data || {};
+  
+  // Convert messages to UI format - handle different response structures
+  let messages: any[] = [];
+  if (Array.isArray(payload.messages)) {
+    messages = payload.messages;
+  } else if (Array.isArray(payload.data)) {
+    messages = payload.data;
+  } else if (Array.isArray(payload)) {
+    messages = payload;
+  }
+  
+  const uiMessages = messages.map(mapApiMessageToUIMessage);
+  return { messages: uiMessages, nextCursor: payload.nextCursor };
+}
+
+export async function sendMessage(
+  conversationId: string,
+  content: any,
+  files?: Array<any>,
+) {
+  const socket = await ensureSocket();
+
+  // Handle attachments: upload first to get keys
+  let attachments: any[] = [];
+  if (files && files.length > 0) {
+    for (const file of files) {
+      const fd = new FormData();
+      // 'file' expects { uri, name, type } on React Native
+      fd.append("file", file as any);
+      const uploadResp = await messagesApi.uploadMedia(fd);
+      const key = uploadResp?.data?.key || uploadResp?.data?.fileKey || null;
+      if (key) attachments.push({ key, meta: uploadResp?.data });
+    }
+  }
+
+  const localId = generateUUID();
+  const optimisticMessage: Message = {
+    id: localId,
+    conversationId,
+    content: content || (files && files.length > 0 ? files[0].name : ''),
+    attachments,
+    createdAt: Date.now(),
+    sender: { me: true },
+    status: "sending",
+  };
+
+  // Convert to UI format for optimistic update
+  const uiOptimisticMessage = mapApiMessageToUIMessage(optimisticMessage);
+
+  // Emit chat:send with idempotency key message_id
+  const payload = {
+    conversation_id: conversationId,
+    message_id: localId,
+    content: content || (files && files.length > 0 ? files[0].name : ''),
+    attachments: attachments.map((a) => a.key),
+    meta: {},
+  };
+
+  const sendPromise = new Promise<any>((resolve, reject) => {
+    pendingAcks.set(localId, { resolve, reject });
+    try {
+      socket.emit("chat:send", payload, (ack: any) => {
+        // some servers provide immediate callback; still rely on chat:ack event
+        // resolve here if ack provided
+        if (ack && ack.status === "ok") {
+          const p = pendingAcks.get(localId);
+          p?.resolve(ack);
+          pendingAcks.delete(localId);
+        }
+      });
+    } catch (e) {
+      pendingAcks.delete(localId);
+      reject(e);
+    }
+  });
+
+  return { optimisticMessage: uiOptimisticMessage, sendPromise };
+}
+
+export function registerHandlers(handlers: {
+  onMessage?: (msg: ChatMessage) => void;
+  onMessageUpdated?: (msg: ChatMessage) => void;
+  onMessageDeleted?: (info: any) => void;
+  onReactionAdded?: (info: any) => void;
+  onReactionRemoved?: (info: any) => void;
+}) {
+  // Attach to module-level callbacks
+  _handlers = handlers;
+  if (!listenersRegistered && socketInstance) {
+    registerSocketListeners();
+  }
+}
+
+let _handlers: any = {};
+
+function registerSocketListeners() {
+  const s = getSocket() || socketInstance;
+  if (!s) return;
+
+  s.on("connect", () => {
+    console.log("chatService socket connect");
+    // Re-emit chat:join for all open conversations
+    for (const conv of Array.from(openConversations)) {
+      try {
+        s.emit("chat:join", { conversation_id: conv });
+      } catch (e) {
+        console.warn("Re-emit chat:join failed", e);
+      }
+    }
+  });
+
+  s.on("chat:ack", (payload: any) => {
+    // payload expected to contain message_id (client local id) and serverId/createdAt
+    const clientId = payload?.message_id;
+    if (clientId) {
+      const p = pendingAcks.get(clientId);
+      if (p) {
+        p.resolve(payload);
+        pendingAcks.delete(clientId);
+      }
+    }
+  });
+
+  s.on("chat:message", async (payload: any) => {
+    // Append to message list. Server event doesn't include attachments per spec
+    const conversationId = payload?.conversation_id || payload?.conversationId;
+    const messageId = payload?.id || payload?.message_id;
+    const createdAt = payload?.createdAt || payload?.ts || payload?.timestamp;
+
+    // Fetch full details (attachments) as required
+    try {
+      const detailsResp = await messagesApi.getMessageDetails(
+        conversationId,
+        createdAt,
+        messageId,
+      );
+      const fullMessage = detailsResp?.data || payload;
+      const uiMessage = mapApiMessageToUIMessage(fullMessage);
+      _handlers.onMessage?.(uiMessage);
+    } catch (e) {
+      console.warn(
+        "Failed to fetch message details, falling back to event payload",
+        e,
+      );
+      const uiMessage = mapApiMessageToUIMessage(payload);
+      _handlers.onMessage?.(uiMessage);
+    }
+  });
+
+  s.on("chat:message:updated", (payload: any) => {
+    const uiMessage = mapApiMessageToUIMessage(payload);
+    _handlers.onMessageUpdated?.(uiMessage);
+  });
+
+  s.on("chat:message:deleted", (payload: any) => {
+    _handlers.onMessageDeleted?.(payload);
+  });
+
+  s.on("chat:reaction:added", (payload: any) => {
+    _handlers.onReactionAdded?.(payload);
+  });
+
+  s.on("chat:reaction:removed", (payload: any) => {
+    _handlers.onReactionRemoved?.(payload);
+  });
+
+  listenersRegistered = true;
+}
+
+export async function leaveConversation(conversationId: string) {
+  return conversationsApi.leaveConversation(conversationId);
+}
+
+
+export default {
+  loadInitialMessages,
+  fetchMoreMessages,
+  sendMessage,
+  registerHandlers,
+  leaveConversation,
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Sample Data – Users / Contacts
-// ─────────────────────────────────────────────────────────────────────────────
-
-const SAMPLE_USERS: UserV2[] = [
-  {
-    id: 'user-me',
-    fullName: 'Bạn (Me)',
-    avatar: 'https://i.pravatar.cc/150?u=user-me',
-    status: 'online',
-    lastSeen: Date.now(),
-  },
-  {
-    id: 'u6',
-    fullName: 'Minh Tú',
-    avatar: 'https://i.pravatar.cc/150?u=u6',
-    status: 'online',
-    lastSeen: Date.now() - 1000 * 60 * 3,
-  },
-  {
-    id: 'u7',
-    fullName: 'Quang Huy',
-    avatar: 'https://i.pravatar.cc/150?u=u7',
-    status: 'offline',
-    lastSeen: Date.now() - 1000 * 60 * 15,
-  },
-  {
-    id: 'u8',
-    fullName: 'Lan Anh',
-    avatar: 'https://i.pravatar.cc/150?u=u8',
-    status: 'online',
-    lastSeen: Date.now() - 1000 * 60 * 8,
-  },
-  {
-    id: 'u9',
-    fullName: 'Hải Đăng',
-    avatar: 'https://i.pravatar.cc/150?u=u9',
-    status: 'offline',
-    lastSeen: Date.now() - 1000 * 60 * 60 * 2,
-  },
-  {
-    id: 'u10',
-    fullName: 'Phương Linh',
-    avatar: 'https://i.pravatar.cc/150?u=u10',
-    status: 'online',
-    lastSeen: Date.now() - 1000 * 60 * 2,
-  },
-  {
-    id: 'u11',
-    fullName: 'Tuấn Kiệt',
-    avatar: 'https://i.pravatar.cc/150?u=u11',
-    status: 'offline',
-    lastSeen: Date.now() - 1000 * 60 * 60 * 5,
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// API Functions
-// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * GET /api/conversations
  * Trả về danh sách cuộc hội thoại của current user.
  */
 export async function fetchConversations(): Promise<ConversationV2[]> {
-  // TODO: replace with → apiFetch<ConversationV2[]>('/conversations')
-  return mockFetch(SAMPLE_CONVERSATIONS);
+  try {
+    const resp = await conversationsApi.getConversations({
+      page: 1,
+      limit: 50,
+    });
+
+    const payload = resp?.data;
+
+    if (!payload) return [];
+
+    if (Array.isArray(payload.data)) {
+      return payload.data;
+    }
+
+    if (Array.isArray(payload.conversations)) {
+      return payload.conversations;
+    }
+
+    console.warn("Unexpected conversations response format:", payload);
+    return [];
+  } catch (e) {
+    console.warn("fetchConversations failed", e);
+    return [];
+  }
 }
 
 /**
  * GET /api/conversations/:conversationId/messages
  * Trả về danh sách tin nhắn trong một cuộc hội thoại.
  */
-export async function fetchMessages(conversationId: string): Promise<ChatMessage[]> {
-  // TODO: replace with → apiFetch<ChatMessage[]>(`/conversations/${conversationId}/messages`)
-  const messages = SAMPLE_MESSAGES[conversationId] ?? [];
-  return mockFetch(messages);
+export async function fetchMessages(
+  conversationId: string,
+): Promise<ChatMessage[]> {
+  try {
+    const resp = await messagesApi.getMessages(conversationId, 50);
+    const payload = resp?.data;
+
+    if (!payload) return [];
+
+    if (Array.isArray(payload.data)) {
+      return payload.data;
+    }
+
+    if (Array.isArray(payload.messages)) {
+      return payload.messages;
+    }
+
+    console.warn("Unexpected messages response format:", payload);
+    return [];
+  } catch (e) {
+    console.warn("fetchMessages failed", e);
+    return [];
+  }
 }
 
 /**
  * GET /api/conversations/:conversationId/messages (tất cả conversations)
  * Trả về toàn bộ messages group theo conversationId.
  */
-export async function fetchAllMessages(): Promise<Record<string, ChatMessage[]>> {
-  // TODO: replace with multiple API calls or a batch endpoint
-  return mockFetch(SAMPLE_MESSAGES);
+export async function fetchAllMessages(): Promise<
+  Record<string, ChatMessage[]>
+> {
+  try {
+    const convResp = await conversationsApi.getConversations({
+      page: 1,
+      limit: 100,
+    });
+
+    const convs =
+      convResp?.data?.data ||
+      convResp?.data?.conversations ||
+      [];
+
+    const result: Record<string, ChatMessage[]> = {};
+
+    await Promise.all(
+      convs.map(async (c: any) => {
+        try {
+          const msgResp = await messagesApi.getMessages(
+            c.conversationId,
+            50
+          );
+
+          const payload = msgResp?.data;
+
+          if (Array.isArray(payload?.data)) {
+            result[c.conversationId] = payload.data;
+          } else if (Array.isArray(payload?.messages)) {
+            result[c.conversationId] = payload.messages;
+          } else {
+            console.warn("Invalid messages format:", payload);
+            result[c.conversationId] = [];
+          }
+        } catch (e) {
+          result[c.conversationId] = [];
+        }
+      })
+    );
+
+    return result;
+  } catch (e) {
+    console.warn("fetchAllMessages failed", e);
+    return {};
+  }
 }
 
 /**
  * GET /api/contacts
  * Trả về danh sách bạn bè / users.
  */
-export async function fetchContacts(): Promise<{ users: UserV2[] }> {
-  // TODO: replace with → apiFetch<{ users: UserV2[] }>('/contacts')
-  return mockFetch({ users: SAMPLE_USERS });
+export async function fetchContacts(): Promise<{ users: ContactUser[] }> {
+  try {
+    const resp = await friendsApi.getFriends({ page: 1, limit: 100 });
+    const payload = resp?.data;
+
+    let list: any[] = [];
+
+    if (Array.isArray(payload?.data)) {
+      list = payload.data;
+    } else if (Array.isArray(payload?.friends)) {
+      list = payload.friends;
+    } else {
+      console.warn("Invalid friends response:", payload);
+      return { users: [] };
+    }
+
+    const users: ContactUser[] = list.map((u: any) => {
+      const id = u.id || u._id;
+
+      return {
+        id,
+        fullName:
+          u.fullName ||
+          u.name ||
+          `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+          "Unknown",
+
+        avatar:
+          u.avatarUrl ||
+          u.avatar ||
+          `https://i.pravatar.cc/150?u=${id || "default"}`,
+
+        status: u.status ?? "offline",
+
+        lastSeen: u.lastSeen ?? null,
+      };
+    });
+
+    return { users };
+  } catch (e) {
+    console.warn("fetchContacts failed", e);
+    return { users: [] };
+  }
 }

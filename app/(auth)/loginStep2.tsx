@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/contexts/AuthContext';
+import * as authApi from '../../src/services/authApi';
 
 // Interface cho user info
 interface UserInfo {
@@ -57,36 +58,33 @@ export default function LoginStep2() {
     
     setIsLoading(true);
     try {
-      const response = await fetch('http://175.41.136.189:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phone as string, password }),
-      });
-      const data = await response.json();
+      const resp = await authApi.login({ phone: phone as string, password });
+      const data = resp?.data || {};
 
-      if (!response.ok) {
+      if (resp.status < 200 || resp.status >= 300) {
         throw new Error(data.message || 'Login failed');
       }
 
+      const userObj = data?.data || {};
       const userInfo: UserInfo = {
         phone: phone as string,
         password: password,
-        name: data?.data?.user?.fullName || 'User ' + phone,
-        email: data?.data?.user?.email || '',
-        avatarUrl: data?.data?.user?.avatarUrl || '',
-        bio: data?.data?.user?.bio || '',
-        dateOfBirth: data?.data?.user?.dateOfBirth || '',
-        gender: data?.data?.user?.gender || '',
-        id: data?.data?.user?.id || '',
-        status: data?.data?.user?.status || '',
-        createdAt: data?.data?.user?.createdAt || '',
-        tokens: data?.data?.tokens || undefined,
+        name: userObj?.user?.fullName || 'User ' + phone,
+        email: userObj?.user?.email || '',
+        avatarUrl: userObj?.user?.avatarUrl || '',
+        bio: userObj?.user?.bio || '',
+        dateOfBirth: userObj?.user?.dateOfBirth || '',
+        gender: userObj?.user?.gender || '',
+        id: userObj?.user?.id || '',
+        status: userObj?.user?.status || '',
+        createdAt: userObj?.user?.createdAt || '',
+        tokens: userObj?.tokens || undefined,
         loginTime: Date.now()
       };
 
       await login(userInfo);
       console.log('Login successful, user data saved');
-      console.log("userInfo >>>>>", userInfo);
+      console.log('userInfo >>>>>', userInfo);
       router.push('/(tabs)/home');
     } catch (error: any) {
       console.error('Login failed:', error);
@@ -145,8 +143,8 @@ export default function LoginStep2() {
             <TouchableOpacity 
               style={[styles.primaryBtn, password.length === 0 && styles.btnDisabled]}
               disabled={password.length === 0 || isLoading}
-              // onPress={handleLogin}
-              onPress={()=>router.push('/(tabs)/home')}
+              onPress={handleLogin}
+              // onPress={()=>router.push('/(tabs)/home')}
             >
               <Text style={styles.btnText}>
                 {isLoading ? t('common.loading') : t('auth.login')}

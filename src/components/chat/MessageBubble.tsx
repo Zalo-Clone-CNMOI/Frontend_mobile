@@ -5,12 +5,12 @@ import { FileText, Play } from 'lucide-react-native';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Image,
+    Pressable,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 export function MessageBubble({
@@ -31,7 +31,10 @@ export function MessageBubble({
     if (item.fromMe) return undefined;
     if (item.senderId) {
       const sender = USERS_V2.find((u) => u.id === item.senderId);
-      return sender?.avatar || 'https://i.pravatar.cc/150?u=unknown';
+      const avatarUrl = sender?.avatar;
+      return avatarUrl && avatarUrl.trim() !== '' 
+        ? avatarUrl 
+        : 'https://i.pravatar.cc/150?u=unknown';
     }
     return 'https://i.pravatar.cc/150?u=unknown';
   }, [item.fromMe, item.senderId]);
@@ -46,13 +49,31 @@ export function MessageBubble({
   };
 
   const isImage =
-    item.type === 'image' ||
-    item.fileInfo?.mimeType?.startsWith('image/');
+    ((item as any).type === 'image' || (item as any).fileInfo?.mimeType?.startsWith('image/')) ||
+    ((item as any).text && typeof (item as any).text === 'string' && (item as any).text.includes('image/')) ||
+    ((item as any).content && typeof (item as any).content === 'string' && (item as any).content.includes('image/'));
   const isVideo =
-    item.type === 'video' ||
-    item.fileInfo?.mimeType?.startsWith('video/');
-  const isFile = (item.type === 'file' || !!item.fileInfo) && !isImage && !isVideo;
-  const isMe = item.fromMe;
+    ((item as any).type === 'video' || (item as any).fileInfo?.mimeType?.startsWith('video/')) ||
+    ((item as any).text && typeof (item as any).text === 'string' && (item as any).text.includes('video/')) ||
+    ((item as any).content && typeof (item as any).content === 'string' && (item as any).content.includes('video/'));
+  const isFile = ((item as any).type === 'file' || ((item as any).fileInfo && !isImage && !isVideo));
+  
+  // Handle different message content structures
+  const messageText = (item as any).text || (item as any).content || '';
+  const messageType = (item as any).type || 
+    ((item as any).content && typeof (item as any).content === 'string' 
+      ? ((item as any).content.includes('image/') ? 'image' : 
+          ((item as any).content.includes('video/') ? 'video' : 'text'))
+      : 'text');
+  const isMe = (item as any).fromMe || ((item as any).sender && (item as any).sender.me === true);
+  
+  // Get file info from different structures
+  const fileInfo = (item as any).fileInfo || ((item as any).attachments && (item as any).attachments.length > 0 ? {
+    uri: (item as any).attachments[0]?.url || '',
+    name: (item as any).attachments[0]?.name || 'File',
+    size: (item as any).attachments[0]?.size || '0 MB',
+    mimeType: (item as any).attachments[0]?.mimeType || ''
+  } : null);
 
   return (
     <View
@@ -62,14 +83,17 @@ export function MessageBubble({
       ]}
     >
       {/* Avatar đối phương */}
-      {!isMe && avatar && (
+      {!isMe && avatar && avatar.trim() !== '' && (
         <Image source={{ uri: avatar }} style={styles.avatar} />
       )}
 
       <View
         style={[
           styles.bubbleWrapper,
-          { alignItems: isMe ? 'flex-end' : 'flex-start' },
+          { 
+            alignItems: isMe ? 'flex-end' : 'flex-start',
+            justifyContent: isMe ? 'flex-end' : 'flex-start'
+          },
         ]}
       >
         <TouchableOpacity
@@ -149,10 +173,16 @@ export function MessageBubble({
                 onImagePress?.(item.fileInfo?.uri || '')
               }
             >
-              <Image
-                source={{ uri: item.fileInfo?.uri }}
-                style={styles.sentImage}
-              />
+              {item.fileInfo?.uri && item.fileInfo.uri.trim() !== '' ? (
+                <Image
+                  source={{ uri: item.fileInfo.uri }}
+                  style={styles.sentImage}
+                />
+              ) : (
+                <View style={[styles.sentImage, { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' }]}>
+                  <Text style={{ color: '#999', fontSize: 12 }}>Image not available</Text>
+                </View>
+              )}
             </Pressable>
           ) : isVideo ? (
             <Pressable
@@ -161,22 +191,28 @@ export function MessageBubble({
               }
               style={styles.videoThumb}
             >
-              <View
-                style={[
-                  styles.videoPlay,
-                  {
-                    backgroundColor: isMe
-                      ? 'rgba(255,255,255,0.25)'
-                      : 'rgba(0,0,0,0.25)',
-                  },
-                ]}
-              >
-                <Play
-                  size={22}
-                  color={isMe ? theme.colors.icon : theme.colors.text}
-                  fill={isMe ? theme.colors.icon : theme.colors.text}
-                />
-              </View>
+              {item.fileInfo?.uri && item.fileInfo.uri.trim() !== '' ? (
+                <View
+                  style={[
+                    styles.videoPlay,
+                    {
+                      backgroundColor: isMe
+                        ? 'rgba(255,255,255,0.25)'
+                        : 'rgba(0,0,0,0.25)',
+                    },
+                  ]}
+                >
+                  <Play
+                    size={22}
+                    color={isMe ? theme.colors.icon : theme.colors.text}
+                    fill={isMe ? theme.colors.icon : theme.colors.text}
+                  />
+                </View>
+              ) : (
+                <View style={[styles.videoThumb, { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' }]}>
+                  <Text style={{ color: '#999', fontSize: 12 }}>Video not available</Text>
+                </View>
+              )}
             </Pressable>
           ) : isFile ? (
             <View style={styles.fileContainer}>
@@ -234,7 +270,7 @@ export function MessageBubble({
                 },
               ]}
             >
-              {item.text}
+              {messageText}
             </Text>
           )}
         </TouchableOpacity>
@@ -256,7 +292,7 @@ export function MessageBubble({
       </View>
 
       {/* Avatar của mình (chỉ render nếu có) */}
-      {isMe && avatar && (
+      {isMe && avatar && avatar.trim() !== '' && (
         <Image source={{ uri: avatar }} style={styles.avatar} />
       )}
     </View>
@@ -270,10 +306,16 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     paddingHorizontal: 2,
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
   },
-  rowLeft: { justifyContent: 'flex-start' },
-  rowRight: { justifyContent: 'flex-end' },
+  rowLeft: { 
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start'
+  },
+  rowRight: { 
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end'
+  },
 
   avatar: {
     width: 36,

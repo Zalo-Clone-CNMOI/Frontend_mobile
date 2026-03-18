@@ -1,13 +1,14 @@
 import { ContactsSearchHeader } from '@/src/components/contacts/ContactsSearchHeader';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { apiCallWithRefresh } from '@/src/services/authService';
+import conversationsApi from '@/src/services/conversationsApi';
+import * as friendsApi from '@/src/services/friendsApi';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Cake, Phone, UserPlus, Users } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import { Cake, UserPlus, Users } from 'lucide-react-native';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme/themeContext';
 
@@ -17,56 +18,212 @@ export default function ContactsScreen() {
   const { user } = useAuth();
   const [friends, setFriends] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const LIMIT = 50;
   const [activeTab, setActiveTab] = useState(0);
   const [usersFilterType, setUsersFilterType] = useState<'all' | 'recent'>('all');
+  const [creatingConversation, setCreatingConversation] = useState(false);
   const { t } = useTranslation();
 
-  // Fetch friends from API
-  const fetchFriends = async () => {
-    if (!user?.tokens?.accessToken) return;
+  // Handle creating direct conversation
+  const handleStartConversation = async (friendId: string, friendName: string) => {
+    if (creatingConversation) return;
     
-    setLoading(true);
+    setCreatingConversation(true);
     try {
-      const response = await apiCallWithRefresh('http://175.41.136.189:5000/api/friends', {
-        method: 'GET',
-        headers: {
-          'userId': user.id || '',
-        },
-      });
+      console.log('🔄 Starting conversation creation with friendId:', friendId, 'friendName:', friendName);
+      const response = await conversationsApi.createDirect(friendId);
+      console.log('📊 Full API response:', JSON.stringify(response, null, 2));
       
-      const data = await response.json();
+      const conversation = response?.data;
+      console.log('📊 Conversation data:', JSON.stringify(conversation, null, 2));
       
-      if (response.ok) {
-        console.log('Friends data:', data);
-        // Map API response to expected format
-        const friendsArray = data.data || data.friends || data || [];
-        const mappedFriends = Array.isArray(friendsArray) ? friendsArray.map((friend: any) => ({
-          id: friend.id || friend._id,
-          fullName: friend.fullName || friend.name || `${friend.firstName || ''} ${friend.lastName || ''}`.trim(),
-          avatar: friend.avatarUrl || friend.avatar || 'https://i.pravatar.cc/200?u=' + (friend.id || Math.random()),
-          status: friend.status || 'offline',
-          phone: friend.phone || '',
-          email: friend.email || '',
-          bio: friend.bio || '',
-          isOnline: friend.isOnline || friend.status === 'online',
-        })) : [];
+      // Handle different response formats
+      let conversationId = null;
+      
+      // Check nested data structure
+      if (conversation?.data?.id) {
+        conversationId = conversation.data.id;
+        console.log('✅ Found conversation ID in conversation.data.id:', conversationId);
+      } else if (conversation?.data?._id) {
+        conversationId = conversation.data._id;
+        console.log('✅ Found conversation ID in conversation.data._id:', conversationId);
+      } else if (conversation?.data?.conversationId) {
+        conversationId = conversation.data.conversationId;
+        console.log('✅ Found conversation ID in conversation.data.conversationId:', conversationId);
+      }
+      // Check direct structure
+      else if (conversation?.id) {
+        conversationId = conversation.id;
+        console.log('✅ Found conversation ID in conversation.id:', conversationId);
+      } else if (conversation?._id) {
+        conversationId = conversation._id;
+        console.log('✅ Found conversation ID in conversation._id:', conversationId);
+      } else if (conversation?.conversationId) {
+        conversationId = conversation.conversationId;
+        console.log('✅ Found conversation ID in conversation.conversationId:', conversationId);
+      }
+      
+      if (conversationId) {
+        console.log('🚀 Navigating to chat screen with ID:', conversationId);
+        // Try different navigation methods
+        try {
+          // Method 1: router.push with object
+          console.log('🔄 Trying router.push with object syntax...');
+          router.push({ 
+            pathname: '/chat/[id]', 
+            params: { 
+              id: conversationId, 
+              name: friendName 
+            } 
+          });
+        } catch (pushError) {
+          console.warn('❌ router.push failed, trying router.navigate:', pushError);
+          try {
+            // Method 2: router.navigate
+            console.log('🔄 Trying router.navigate...');
+            router.navigate({
+              pathname: '/chat/[id]',
+              params: {
+                id: conversationId,
+                name: friendName
+              }
+            });
+          } catch (navError) {
+            console.warn('❌ router.navigate failed, trying string syntax:', navError);
+            try {
+              // Method 3: router.push with string
+              console.log('🔄 Trying router.push with string syntax...');
+              router.push(`/chat/${conversationId}?name=${encodeURIComponent(friendName)}`);
+            } catch (stringError) {
+              console.warn('❌ All navigation methods failed:', stringError);
+              // Method 4: Fallback - just log the URL
+              console.log('🔗 Manual navigation URL:', `/chat/${conversationId}?name=${encodeURIComponent(friendName)}`);
+            }
+          }
+        }
+      } else {
+        console.error('❌ No conversation ID found in response');
+        console.error('Available top-level fields:', Object.keys(conversation || {}));
+        if (conversation?.data) {
+          console.error('Available data fields:', Object.keys(conversation.data));
+        }
+        console.error('Full response structure:', JSON.stringify(response, null, 2));
+      }
+    } catch (error) {
+      console.error('❌ Failed to create conversation:', error);
+      // Show error message to user
+    } finally {
+      setCreatingConversation(false);
+    }
+  };
+
+  // Fetch friends from API
+  const fetchFriends = async (opts: { page?: number; replace?: boolean } = {}) => {
+    const p = opts.page || 1;
+    if (!user?.tokens?.accessToken) return;
+
+    if (opts.replace) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const resp = await friendsApi.getFriends({ page: p, limit: LIMIT });
+      const data = resp?.data || {};
+
+      if (resp.status >= 200 && resp.status < 300) {
+        // Clear any previous errors
+        setError(null);
+        // Handle different response formats like search
+        let friendsArray = [];
+        if (Array.isArray(data)) {
+          // Direct array format
+          friendsArray = data;
+        } else if (data && Array.isArray(data.data)) {
+          // Wrapped object format (this is the current case!)
+          friendsArray = data.data;
+        } else if (data && Array.isArray(data.friends)) {
+          // Alternative wrapped format
+          friendsArray = data.friends;
+        } else {
+          // Fallback to any array-like property
+          friendsArray = data || [];
+        }
         
-        setFriends(mappedFriends);
+        const mappedFriends = Array.isArray(friendsArray)
+          ? friendsArray.map((friend: any) => ({
+              id: friend.id || friend._id,
+              fullName: friend.fullName || friend.name || `${friend.firstName || ''} ${friend.lastName || ''}`.trim(),
+              avatar: friend.avatarUrl || friend.avatar || 'https://i.pravatar.cc/200?u=' + (friend.id || Math.random()),
+              status: friend.status || 'offline',
+              phone: friend.phone || '',
+              email: friend.email || '',
+              bio: friend.bio || '',
+              isOnline: friend.isOnline || friend.status === 'online',
+              // Add additional fields from API
+              lastSeenAt: friend.lastSeenAt,
+              friendsSince: friend.friendsSince,
+              mutualFriends: friend.mutualFriends || 0,
+              friendType: friend.friendType || 'normal',
+              friendStatus: friend.friendStatus || 'pending',
+              friendCategory: friend.friendCategory || 'personal',
+              friendRequestStatus: friend.friendRequestStatus || 'none',
+              friendRequestSent: friend.friendRequestSent || false,
+              friendRequestReceived: friend.friendRequestReceived || false,
+              friendRequestMessage: friend.friendRequestMessage || '',
+              friendRequestStatus: friend.friendRequestStatus || 'none',
+              friendRequestSent: friend.friendRequestSent || false,
+              friendRequestReceived: friend.friendRequestReceived || false,
+              friendRequestMessage: friend.friendRequestMessage || '',
+            }))
+          : [];
+
+        console.log('🔄 Mapped friends for UI:', mappedFriends);
+
+        if (opts.replace || p === 1) {
+          setFriends(mappedFriends);
+        } else {
+          setFriends((prev) => [...prev, ...mappedFriends]);
+        }
+
+        // set pagination
+        const meta = data.meta || data.pagination || {};
+        setHasNext(!!meta.hasNext || !!meta.has_next || (meta.page && meta.totalPages ? meta.page < meta.totalPages : false));
+        setPage(p);
       } else {
         console.error('Failed to fetch friends:', data.message || 'Unknown error');
       }
     } catch (error) {
       console.error('Error fetching friends:', error);
+      // Show error state or empty state
+      setFriends([]);
+      setHasNext(false);
+      setError('Network connection failed. Please check your internet connection.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   const tabs = [t('contacts.friends'), t('contacts.createGroup'), t('contacts.oa')];
 
   useEffect(() => {
-    fetchFriends();
+    fetchFriends({ page: 1, replace: true });
   }, []);
+
+  const onRefresh = useCallback(() => fetchFriends({ page: 1, replace: true }), []);
+
+  const handleRetry = useCallback(() => {
+    setError(null);
+    fetchFriends({ page: 1, replace: true });
+  }, []);
+
+  const loadMore = useCallback(() => {
+    if (!hasNext || loading) return;
+    fetchFriends({ page: page + 1 });
+  }, [hasNext, loading, page]);
 
   // Filter friends based on type
   const getFilteredFriends = () => {
@@ -76,17 +233,23 @@ export default function ContactsScreen() {
     return friends;
   };
 
-
   const ContactItem = React.memo(function ContactItem({ item }: any) {
     const theme = useTheme();
-    // item can be UserV2 or legacy Contact
+    // Handle both v2 (from API) and legacy contact formats
     const isV2 = !!item.fullName;
     const isOnline = isV2 ? item.status === 'online' : item.subtitle === 'Đang hoạt động';
     const title = isV2 ? item.fullName : item.name;
-    const subtitle = isV2 ? (item.status === 'online' ? t('contacts.online') : t('contacts.offline')) : item.subtitle;
+    const subtitle = isV2 ? (
+      item.isOnline ? t('contacts.online') : t('contacts.offline')
+    ) : item.subtitle;
 
     return (
-      <TouchableOpacity style={[styles.row, { backgroundColor: theme.colors.card }]} activeOpacity={0.7} edges={['top']}>
+      <TouchableOpacity 
+        style={[styles.row, { backgroundColor: theme.colors.card }]} 
+        activeOpacity={0.7}
+        onPress={() => handleStartConversation(item.id, title)}
+        disabled={creatingConversation}
+      >
         <View style={styles.avatarContainer}>
           <Image source={{ uri: item.avatar }} style={styles.avatar} />
           {isOnline ? <View style={[styles.onlineDot, { borderColor: theme.colors.background }]} /> : null}
@@ -94,15 +257,25 @@ export default function ContactsScreen() {
 
         <View style={[styles.rowContent, { borderBottomColor: theme.colors.border }]}>
           <View style={styles.textWrapper}>
-            <Text style={[styles.name, { color: theme.colors.text }]}>{item.fullName}</Text>
+            <Text style={[styles.name, { color: theme.colors.text }]}>{title}</Text>
             <Text style={[styles.subtitle, { color: '#8E8E93' }]} numberOfLines={1}>
               {subtitle}
             </Text>
+            {item.phone && (
+              <Text style={[styles.phone, { color: '#8E8E93' }]} numberOfLines={1}>
+                📱 {item.phone}
+              </Text>
+            )}
+            {item.friendsSince && (
+              <Text style={[styles.friendsSince, { color: '#8E8E93' }]} numberOfLines={1}>
+                🤝 Friends since {new Date(item.friendsSince).toLocaleDateString()}
+              </Text>
+            )}
           </View>
-          {activeTab === 0 && (
-            <TouchableOpacity style={styles.callButton}>
-              <Phone size={20} color="#8E8E93" />
-            </TouchableOpacity>
+          {creatingConversation && (
+            <View style={styles.loadingIndicator}>
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            </View>
           )}
         </View>
       </TouchableOpacity>
@@ -170,6 +343,43 @@ export default function ContactsScreen() {
         data={activeTab === 0 ? getFilteredFriends() : []}
         keyExtractor={(item: any) => item.id}
         ListHeaderComponent={renderListHeader}
+        onRefresh={onRefresh}
+        refreshing={refreshing}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={() => (
+          <View style={{ padding: 12, alignItems: 'center' }}>
+            {loading && <ActivityIndicator size="small" color={theme.colors.primary} />}
+          </View>
+        )}
+        ListEmptyComponent={() => (
+          <View style={{ padding: 24, alignItems: 'center' }}>
+            {error ? (
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ color: '#ff6b6b', textAlign: 'center', marginBottom: 16 }}>
+                  {error}
+                </Text>
+                <TouchableOpacity
+                  onPress={handleRetry}
+                  style={{
+                    backgroundColor: theme.colors.primary,
+                    paddingHorizontal: 20,
+                    paddingVertical: 10,
+                    borderRadius: 8,
+                  }}
+                >
+                  <Text style={{ color: 'white', fontWeight: 'bold' }}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              loading ? (
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+              ) : (
+                <Text style={{ color: theme.colors.text }}>{t('contacts.empty') || 'No contacts yet'}</Text>
+              )
+            )}
+          </View>
+        )}
         renderItem={({ item }: any) => <ContactItem item={item} />}
       />
     </View>
@@ -266,6 +476,19 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 13,
     marginTop: 2,
+  },
+  phone: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  friendsSince: {
+    fontSize: 11,
+    marginTop: 2,
+    fontStyle: 'italic',
+  },
+  loadingIndicator: {
+    paddingLeft: 8,
+    justifyContent: 'center',
   },
   callButton: {
     padding: 10,

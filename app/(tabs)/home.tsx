@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 
 import { Filter } from 'lucide-react-native';
 
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import { useTranslation } from 'react-i18next';
 
@@ -29,6 +29,7 @@ export default function HomeScreen() {
     const router = useRouter();
 
     const chats = useChatsStore((state) => state.chats);
+    console.log('Chats in HomeScreen:', chats, '\n lenght:', chats.length, '\n'); // Debug log to check chat data
 
     const initializeChats = useChatsStore((state) => state.initializeChats);
 
@@ -41,6 +42,7 @@ export default function HomeScreen() {
     const theme = useTheme();
 
     const { t } = useTranslation();
+    const [refreshing, setRefreshing] = useState(false);
 
 
 
@@ -48,6 +50,17 @@ export default function HomeScreen() {
 
         initializeChats();
 
+    }, [initializeChats]);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            await initializeChats();
+        } catch (e) {
+            console.warn('Refresh failed', e);
+        } finally {
+            setRefreshing(false);
+        }
     }, [initializeChats]);
 
     return (
@@ -66,20 +79,67 @@ export default function HomeScreen() {
                 {/* Chat List */}
                 <FlashList
                     data={chats}
-                    keyExtractor={(item) => item.conversationId}
-
-                    renderItem={({ item }) =>
-
-                        <ChatListItem
-
-                            item={item}
-
-                            onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.conversationId, name: item.name } })}
-
-                        />
-
-                    }
-
+                    keyExtractor={(item: any) => item.conversationId || item.id || item._id || ''}
+                    estimatedItemSize={80}
+                    onRefresh={onRefresh}
+                    refreshing={refreshing}
+                    ListEmptyComponent={() => (
+                        <View style={{ padding: 24, alignItems: 'center' }}>
+                            <Text style={{ color: theme.colors.text }}>{t('messages.empty') || 'No conversations yet'}</Text>
+                        </View>
+                    )}
+                    renderItem={({ item }) => {
+                        console.log('🏠 Chat item in home:', JSON.stringify(item, null, 2));
+                        
+                        // Handle different conversation ID field names
+                        const conversationId = (item as any).conversationId || (item as any).id || (item as any)._id;
+                        console.log('🏠 Extracted conversation ID:', conversationId);
+                        
+                        if (!conversationId) {
+                            console.error('❌ No conversation ID found in chat item:', item);
+                            return null;
+                        }
+                        
+                        return (
+                            <ChatListItem
+                                item={item}
+                                onPress={() => {
+                                    console.log('🏠 Navigating to chat with ID:', conversationId, 'name:', item.name);
+                                    try {
+                                        // Method 1: router.push with object
+                                        router.push({ 
+                                            pathname: '/chat/[id]', 
+                                            params: { 
+                                                id: conversationId, 
+                                                name: item.name || 'Chat' 
+                                            } 
+                                        });
+                                    } catch (pushError) {
+                                        console.warn('❌ router.push failed, trying router.navigate:', pushError);
+                                        try {
+                                            // Method 2: router.navigate
+                                            router.navigate({
+                                                pathname: '/chat/[id]',
+                                                params: {
+                                                    id: conversationId,
+                                                    name: item.name || 'Chat'
+                                                }
+                                            });
+                                        } catch (navError) {
+                                            console.warn('❌ router.navigate failed, trying string syntax:', navError);
+                                            try {
+                                                // Method 3: router.push with string
+                                                router.push(`/chat/${conversationId}?name=${encodeURIComponent(item.name || 'Chat')}`);
+                                            } catch (stringError) {
+                                                console.warn('❌ All navigation methods failed:', stringError);
+                                                console.log('🔗 Manual navigation URL:', `/chat/${conversationId}?name=${encodeURIComponent(item.name || 'Chat')}`);
+                                            }
+                                        }
+                                    }
+                                }}
+                            />
+                        );
+                    }}
                 />
 
             </View>

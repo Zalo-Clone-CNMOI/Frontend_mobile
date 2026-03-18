@@ -1,12 +1,12 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Keys cho AsyncStorage
 const AUTH_KEYS = {
-  ACCESS_TOKEN: '@access_token',
-  REFRESH_TOKEN: '@refresh_token',
-  USER_INFO: '@user_info',
-  PHONE_NUMBER: '@phone_number',
-  IS_LOGGED_IN: '@is_logged_in'
+  ACCESS_TOKEN: "@access_token",
+  REFRESH_TOKEN: "@refresh_token",
+  USER_INFO: "@user_info",
+  PHONE_NUMBER: "@phone_number",
+  IS_LOGGED_IN: "@is_logged_in",
 };
 
 // Interface cho user info
@@ -34,16 +34,16 @@ export interface UserInfo {
 export const saveAuthData = async (userInfo: UserInfo) => {
   try {
     await AsyncStorage.multiSet([
-      [AUTH_KEYS.ACCESS_TOKEN, userInfo.tokens?.accessToken || ''],
-      [AUTH_KEYS.REFRESH_TOKEN, userInfo.tokens?.refreshToken || ''],
+      [AUTH_KEYS.ACCESS_TOKEN, userInfo.tokens?.accessToken || ""],
+      [AUTH_KEYS.REFRESH_TOKEN, userInfo.tokens?.refreshToken || ""],
       [AUTH_KEYS.USER_INFO, JSON.stringify(userInfo)],
       [AUTH_KEYS.PHONE_NUMBER, userInfo.phone],
-      [AUTH_KEYS.IS_LOGGED_IN, 'true']
+      [AUTH_KEYS.IS_LOGGED_IN, "true"],
     ]);
-    console.log('Auth data saved successfully');
+    console.log("Auth data saved successfully");
     console.log(userInfo);
   } catch (error) {
-    console.error('Error saving auth data:', error);
+    console.error("Error saving auth data:", error);
   }
 };
 
@@ -55,7 +55,7 @@ export const getAuthData = async (): Promise<UserInfo | null> => {
       AUTH_KEYS.REFRESH_TOKEN,
       AUTH_KEYS.USER_INFO,
       AUTH_KEYS.PHONE_NUMBER,
-      AUTH_KEYS.IS_LOGGED_IN
+      AUTH_KEYS.IS_LOGGED_IN,
     ]);
 
     const accessToken = results[0]?.[1] || null;
@@ -63,22 +63,22 @@ export const getAuthData = async (): Promise<UserInfo | null> => {
     const userInfoStr = results[2]?.[1] || null;
     const phoneNumber = results[3]?.[1] || null;
     const isLoggedIn = results[4]?.[1] || null;
-    
-    if (isLoggedIn === 'true' && userInfoStr && phoneNumber) {
+
+    if (isLoggedIn === "true" && userInfoStr && phoneNumber) {
       const userInfo = JSON.parse(userInfoStr);
       return {
         ...userInfo,
         tokens: {
-          accessToken: accessToken || userInfo.tokens?.accessToken || '',
-          refreshToken: refreshToken || userInfo.tokens?.refreshToken || '',
+          accessToken: accessToken || userInfo.tokens?.accessToken || "",
+          refreshToken: refreshToken || userInfo.tokens?.refreshToken || "",
           expiresIn: userInfo.tokens?.expiresIn || 0,
         },
-        phone: phoneNumber
+        phone: phoneNumber,
       };
     }
     return null;
   } catch (error) {
-    console.error('Error getting auth data:', error);
+    console.error("Error getting auth data:", error);
     return null;
   }
 };
@@ -91,11 +91,11 @@ export const clearAuthData = async () => {
       AUTH_KEYS.REFRESH_TOKEN,
       AUTH_KEYS.USER_INFO,
       AUTH_KEYS.PHONE_NUMBER,
-      AUTH_KEYS.IS_LOGGED_IN
+      AUTH_KEYS.IS_LOGGED_IN,
     ]);
-    console.log('Auth data cleared successfully');
+    console.log("Auth data cleared successfully");
   } catch (error) {
-    console.error('Error clearing auth data:', error);
+    console.error("Error clearing auth data:", error);
   }
 };
 
@@ -103,9 +103,9 @@ export const clearAuthData = async () => {
 export const isLoggedIn = async (): Promise<boolean> => {
   try {
     const isLoggedIn = await AsyncStorage.getItem(AUTH_KEYS.IS_LOGGED_IN);
-    return isLoggedIn === 'true';
+    return isLoggedIn === "true";
   } catch (error) {
-    console.error('Error checking login status:', error);
+    console.error("Error checking login status:", error);
     return false;
   }
 };
@@ -115,7 +115,7 @@ export const getCurrentToken = async (): Promise<string | null> => {
   try {
     return await AsyncStorage.getItem(AUTH_KEYS.ACCESS_TOKEN);
   } catch (error) {
-    console.error('Error getting token:', error);
+    console.error("Error getting token:", error);
     return null;
   }
 };
@@ -125,7 +125,7 @@ export const getCurrentRefreshToken = async (): Promise<string | null> => {
   try {
     return await AsyncStorage.getItem(AUTH_KEYS.REFRESH_TOKEN);
   } catch (error) {
-    console.error('Error getting refresh token:', error);
+    console.error("Error getting refresh token:", error);
     return null;
   }
 };
@@ -133,72 +133,114 @@ export const getCurrentRefreshToken = async (): Promise<string | null> => {
 // Refresh access token
 export const refreshAccessToken = async (): Promise<string | null> => {
   try {
-    console.log('🔄 Starting token refresh...');
-    
+    console.log("🔄 Starting token refresh...");
+
     const refreshToken = await getCurrentRefreshToken();
     if (!refreshToken) {
-      console.error('❌ No refresh token available');
-      throw new Error('No refresh token available');
+      console.error("❌ No refresh token available");
+      throw new Error("No refresh token available");
     }
 
-    console.log('📡 Sending refresh request to server...');
-    console.log('Refresh token (first 20 chars):', refreshToken.substring(0, 20) + '...');
+    console.log("📡 Sending refresh request to server...");
+    console.log(
+      "Refresh token (first 20 chars):",
+      refreshToken.substring(0, 20) + "...",
+    );
 
-    const response = await fetch('http://175.41.136.189:5000/api/auth/refresh', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ refreshToken }),
-    });
+    // Try multiple fallback endpoints
+    const refreshEndpoints = [
+      "http://175.41.136.189:5000/api/auth/refresh",
+      "http://54.179.206.215:5000/api/auth/refresh",
+      "http://175.41.136.189:3000/api/auth/refresh",
+      "http://localhost:5000/api/auth/refresh"
+    ];
 
-    console.log('📡 Response status:', response.status);
-    console.log('📡 Response ok:', response.ok);
+    let lastError: any = null;
 
-    const data = await response.json();
-    console.log('📡 Response data:', JSON.stringify(data, null, 2));
+    for (const endpoint of refreshEndpoints) {
+      try {
+        console.log(`🔄 Trying refresh endpoint: ${endpoint}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    if (!response.ok) {
-      console.error('❌ Server returned error:', response.status, data.message || 'Unknown error');
-      throw new Error(data.message || `Failed to refresh token (${response.status})`);
-    }
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ refreshToken }),
+          signal: controller.signal
+        });
 
-    // Save new tokens
-    const currentAuthData = await getAuthData();
-    if (currentAuthData) {
-      const newAccessToken = data.tokens?.accessToken || data.accessToken || '';
-      const newRefreshToken = data.tokens?.refreshToken || data.refreshToken || refreshToken;
-      const expiresIn = data.tokens?.expiresIn || data.expiresIn || 0;
+        clearTimeout(timeoutId);
+        console.log(`📡 Response status from ${endpoint}:`, response.status);
+        console.log(`📡 Response ok from ${endpoint}:`, response.ok);
 
-      console.log('💾 Saving new tokens...');
-      console.log('New access token length:', newAccessToken.length);
-      console.log('New refresh token length:', newRefreshToken.length);
+        const data = await response.json();
+        console.log(`📡 Response data from ${endpoint}:`, JSON.stringify(data, null, 2));
 
-      const updatedAuthData = {
-        ...currentAuthData,
-        tokens: {
-          accessToken: newAccessToken,
-          refreshToken: newRefreshToken,
-          expiresIn: expiresIn,
+        if (!response.ok) {
+          console.error(
+            `❌ Server ${endpoint} returned error:`,
+            response.status,
+            data.message || "Unknown error",
+          );
+          lastError = new Error(
+            data.message || `Failed to refresh token (${response.status})`,
+          );
+          continue; // Try next endpoint
         }
-      };
-      
-      await saveAuthData(updatedAuthData);
-      console.log('✅ Token refreshed and saved successfully');
-      return newAccessToken;
+
+        // Save new tokens
+        const currentAuthData = await getAuthData();
+        if (currentAuthData) {
+          const newAccessToken = data.tokens?.accessToken || data.accessToken || "";
+          const newRefreshToken =
+            data.tokens?.refreshToken || data.refreshToken || refreshToken;
+          const expiresIn = data.tokens?.expiresIn || data.expiresIn || 0;
+
+          console.log("💾 Saving new tokens...");
+          console.log("New access token length:", newAccessToken.length);
+          console.log("New refresh token length:", newRefreshToken.length);
+
+          const updatedAuthData = {
+            ...currentAuthData,
+            tokens: {
+              accessToken: newAccessToken,
+              refreshToken: newRefreshToken,
+              expiresIn: expiresIn,
+            },
+          };
+
+          await saveAuthData(updatedAuthData);
+          console.log(`✅ Token refreshed and saved successfully from ${endpoint}`);
+          return newAccessToken;
+        }
+
+        console.error("❌ No current auth data found");
+        return null;
+
+      } catch (endpointError: any) {
+        console.warn(`❌ Refresh endpoint ${endpoint} failed:`, endpointError.message);
+        lastError = endpointError;
+        continue; // Try next endpoint
+      }
     }
 
-    console.error('❌ No current auth data found');
-    return null;
+    // All endpoints failed
+    console.error("❌ All refresh endpoints failed");
+    throw lastError || new Error("All refresh endpoints failed");
+
   } catch (error) {
-    console.error('❌ Error refreshing token:', error);
-    console.error('❌ Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : 'No stack trace'
+    console.error("❌ Error refreshing token:", error);
+    console.error("❌ Error details:", {
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : "No stack trace",
     });
-    
+
     // If refresh fails, clear auth data and force login
-    console.log('🗑️ Clearing auth data due to refresh failure...');
+    console.log("🗑️ Clearing auth data due to refresh failure...");
     await clearAuthData();
     return null;
   }
@@ -210,71 +252,74 @@ export const getCurrentUser = async (): Promise<UserInfo | null> => {
     const userInfoStr = await AsyncStorage.getItem(AUTH_KEYS.USER_INFO);
     return userInfoStr ? JSON.parse(userInfoStr) : null;
   } catch (error) {
-    console.error('Error getting current user:', error);
+    console.error("Error getting current user:", error);
     return null;
   }
 };
 
 // API wrapper with auto-refresh token
-export const apiCallWithRefresh = async (url: string, options: RequestInit = {}): Promise<Response> => {
+export const apiCallWithRefresh = async (
+  url: string,
+  options: RequestInit = {},
+): Promise<Response> => {
   try {
-    console.log('🌐 Making API call to:', url);
-    
+    console.log("🌐 Making API call to:", url);
+
     // Get current access token
     let accessToken = await getCurrentToken();
-    
+
     // If no access token, try to refresh
     if (!accessToken) {
-      console.log('🔄 No access token found, attempting refresh...');
+      console.log("🔄 No access token found, attempting refresh...");
       accessToken = await refreshAccessToken();
       if (!accessToken) {
-        throw new Error('No valid token available after refresh');
+        throw new Error("No valid token available after refresh");
       }
     }
 
-    console.log('📡 Making initial API call...');
-    
+    console.log("📡 Making initial API call...");
+
     // Make initial API call
     const response = await fetch(url, {
       ...options,
       headers: {
         ...options.headers,
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
     });
 
-    console.log('📡 Initial response status:', response.status);
+    console.log("📡 Initial response status:", response.status);
 
     // If token expired (401), try refresh once
     if (response.status === 401) {
-      console.log('🔄 Token expired (401), attempting refresh...');
+      console.log("🔄 Token expired (401), attempting refresh...");
       const newAccessToken = await refreshAccessToken();
-      
+
       if (!newAccessToken) {
-        throw new Error('Failed to refresh token after 401');
+        throw new Error("Failed to refresh token after 401");
       }
 
-      console.log('📡 Retrying API call with new token...');
-      
+      console.log("📡 Retrying API call with new token...");
+
       // Retry with new token
       return fetch(url, {
         ...options,
         headers: {
           ...options.headers,
-          'Authorization': `Bearer ${newAccessToken}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${newAccessToken}`,
+          "Content-Type": "application/json",
         },
       });
     }
 
     return response;
   } catch (error) {
-    console.error('❌ API call error:', error);
-    console.error('❌ API call details:', {
+    console.error("❌ API call error:", error);
+    console.error("❌ API call details:", {
       url,
-      method: options.method || 'GET',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      method: options.method || "GET",
+      error: error instanceof Error ? error.message : "Unknown error",
     });
     throw error;
   }

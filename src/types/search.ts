@@ -1,6 +1,7 @@
 export type SearchResult = {
   id: string;
-  name: string;
-  subtitle: string;
-  avatar: string;
+  fullName: string;
+  avatarUrl: string;
+  phone: string;
+  friendshipStatus: string;
 };

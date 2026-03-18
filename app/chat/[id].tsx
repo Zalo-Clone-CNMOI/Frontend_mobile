@@ -3,6 +3,7 @@ import { ChatOptions } from '@/src/components/chat/ChatOptions';
 import { ImageViewer } from '@/src/components/chat/ImageViewer';
 import { MessageBubble } from '@/src/components/chat/MessageBubble';
 import { VideoViewer } from '@/src/components/chat/VideoViewer';
+import { loadInitialMessages, registerHandlers, sendMessage as sendSocketMessage } from '@/src/services/chatService';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useTheme } from '@/src/theme/themeContext';
@@ -44,7 +45,9 @@ export default function ChatDetailScreen() {
   const messagesByChatId = useMessagesStore((state) => state.messagesByChatId);
   const messages = messagesByChatId[chatId] || [];
   const initializeMessages = useMessagesStore((state) => state.initializeMessages);
-  const sendMessage = useMessagesStore((state) => state.sendMessage);
+  const addMessage = useMessagesStore((state) => state.addMessage);
+  const updateMessage = useMessagesStore((state) => state.updateMessage);
+  const deleteMessage = useMessagesStore((state) => state.deleteMessage);
   const revokeMessage = useMessagesStore((state) => state.revokeMessage);
   const theme = useTheme();
   const messageWidthMap = useRef<Record<string, number>>({});
@@ -55,11 +58,63 @@ export default function ChatDetailScreen() {
     return chats.find((chat) => chat.conversationId === chatId);
   }, [chats, chatId]);
 
+  // Load initial messages and register WebSocket handlers
   useEffect(() => {
-    initializeMessages();
-  }, [initializeMessages]);
+    console.log('🔌 Loading initial messages for chat:', chatId);
+    loadInitialMessages(chatId);
+  }, [chatId]);
 
-  const handleSendFiles = (files: any[]) => {
+  // Register WebSocket handlers for real-time updates
+  useEffect(() => {
+    console.log('🔌 Registering WebSocket handlers for chat:', chatId);
+    
+    const handlers = {
+      onMessage: (msg: ChatMessage) => {
+        console.log('📨 Received message via WebSocket:', msg);
+        if (msg.conversationId === chatId) {
+          addMessage(chatId, msg);
+          // Auto scroll to new message
+          setTimeout(() => {
+            flashListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }
+      },
+      onMessageUpdated: (msg: ChatMessage) => {
+        console.log('📝 Message updated via WebSocket:', msg);
+        if (msg.conversationId === chatId) {
+          updateMessage(chatId, msg.id, msg);
+        }
+      },
+      onMessageDeleted: (info: any) => {
+        console.log('🗑️ Message deleted via WebSocket:', info);
+        if (info.conversationId === chatId) {
+          deleteMessage(chatId, info.messageId);
+        }
+      },
+      onReactionAdded: (info: any) => {
+        console.log('😊 Reaction added via WebSocket:', info);
+        if (info.conversationId === chatId) {
+          updateMessage(chatId, info.messageId, { reactions: info.reactions });
+        }
+      },
+      onReactionRemoved: (info: any) => {
+        console.log('😊 Reaction removed via WebSocket:', info);
+        if (info.conversationId === chatId) {
+          updateMessage(chatId, info.messageId, { reactions: info.reactions });
+        }
+      }
+    };
+
+    registerHandlers(handlers);
+
+    // Cleanup on unmount
+    return () => {
+      console.log('🔌 Cleaning up WebSocket handlers for chat:', chatId);
+      registerHandlers({});
+    };
+  }, [chatId, addMessage, updateMessage, deleteMessage]);
+
+  const handleSendFiles = async (files: any[]) => {
     const newMessages = files.map((file, index) => {
       const isImage = file.mimeType?.startsWith('image/');
       const isVideo = file.mimeType?.startsWith('video/');
@@ -80,7 +135,17 @@ export default function ChatDetailScreen() {
       } as any;
     });
 
-    newMessages.forEach((msg) => sendMessage(chatId, msg as any));
+    // Send each file via WebSocket
+    for (const msg of newMessages) {
+      try {
+        const { optimisticMessage, sendPromise } = await sendSocketMessage(chatId, msg.text || msg.fileInfo?.name || 'File', [msg.fileInfo]);
+        addMessage(chatId, optimisticMessage); // Optimistic UI update
+        await sendPromise; // Real-time send
+      } catch (error) {
+        console.error('❌ Failed to send file message:', error);
+      }
+    }
+    
     setTimeout(() => {
       flashListRef.current?.scrollToEnd({ animated: true });
     }, 100);
@@ -107,29 +172,23 @@ export default function ChatDetailScreen() {
     ]);
   };
 
-  const onSend = () => {
+  const onSend = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    sendMessage(chatId, {
-      text: trimmed,
-      fromMe: true,
-      senderId: 'user-me',
-      type: 'text',
-      timestamp: Date.now(),
-      replyTo: replyingMessage
-        ? {
-          id: replyingMessage.id,
-          senderName: replyingMessage.fromMe ? 'Bạn' : title,
-          text: replyingMessage.isRevoked ? 'Tin nhắn đã thu hồi' : (replyingMessage.text || ''),
-        }
-        : undefined,
-    } as any);
-    setInput('');
-    setReplyingMessage(null);
-    setTimeout(() => {
-      flashListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    try {
+      console.log('📤 Sending message via WebSocket:', trimmed);
+      const { optimisticMessage, sendPromise } = await sendSocketMessage(chatId, trimmed);
+      addMessage(chatId, optimisticMessage); // Optimistic UI update
+      await sendPromise; // Real-time send
+      setInput('');
+      setReplyingMessage(null);
+      setTimeout(() => {
+        flashListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error) {
+      console.error('❌ Failed to send message:', error);
+    }
   };
 
   return (

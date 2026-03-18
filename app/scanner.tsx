@@ -1,6 +1,7 @@
 
 import { Colors } from '@/src/constants/Colors';
 import { useAuth } from '@/src/contexts/AuthContext';
+import api from '@/src/services/http';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -70,11 +71,10 @@ export default function ScannerScreen() {
 
   const pollQrStatus = async (sid: string) => {
     try {
-      const res = await fetch(`http://175.41.136.189:5000/api/auth/qr/status/${sid}`);
-      const data = await res.json();
+      const resp = await api.get(`/api/auth/qr/status/${sid}`);
+      const data = resp?.data || {};
       if (data.status === 'waiting') {
         setQrStatus('waiting');
-        // Poll again after 2s
         setTimeout(() => pollQrStatus(sid), 2000);
       } else if (data.status === 'confirmed') {
         setQrStatus('confirmed');
@@ -96,17 +96,9 @@ export default function ScannerScreen() {
 
     setLoading(true);
     try {
-      const res = await fetch('http://175.41.136.189:5000/api/auth/qr/confirm', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.tokens.accessToken}`,
-          'userId': user.id
-        },
-        body: JSON.stringify({ sessionId }),
-      });
-      const data = await res.json();
-      if (res.ok) {
+      const resp = await api.post('/api/auth/qr/confirm', { sessionId }, { headers: { userId: user.id } });
+      const data = resp?.data || {};
+      if (resp.status >= 200 && resp.status < 300) {
         setQrStatus('confirmed');
         Alert.alert('Thành công', 'Đã xác nhận QR thành công!',
           [
@@ -139,38 +131,14 @@ export default function ScannerScreen() {
 
     try {
 
-      const res = await fetch('http://175.41.136.189:5000/api/auth/qr/reject', {
-
-        method: 'POST',
-
-        headers: {
-
-          'Content-Type': 'application/json',
-
-          'Authorization': `Bearer ${user.tokens.accessToken}`,
-
-          'userId': user.id
-
-        },
-
-        body: JSON.stringify({ sessionId }),
-
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-
+      const resp = await api.post('/api/auth/qr/reject', { sessionId }, { headers: { userId: user.id } });
+      const data = resp?.data || {};
+      if (resp.status >= 200 && resp.status < 300) {
         setQrStatus('rejected');
-
         Alert.alert('Đã từ chối', 'Bạn đã từ chối yêu cầu QR');
-
       } else {
-
         Alert.alert('Lỗi', data.message || 'Không thể từ chối QR');
-
       }
-
     } catch (e) {
 
       Alert.alert('Lỗi', 'Không thể kết nối máy chủ');

@@ -1,5 +1,8 @@
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { clearAuthData, getAuthData, saveAuthData, UserInfo } from '../services/authService';
+import * as authApi from '../services/authApi';
+import { disconnectSocket } from '../services/socket';
+import * as usersApi from '../services/usersApi';
 
 interface AuthContextType {
   user: UserInfo | null;
@@ -36,6 +39,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (authData) {
           setUser(authData);
           console.log('User already logged in:', authData.phone);
+          // Attempt to refresh user profile from server to populate latest fields
+          try {
+            const resp = await usersApi.getProfile();
+            const serverData = resp?.data?.data || resp?.data || null;
+            if (serverData) {
+              const merged: UserInfo = {
+                ...authData,
+                name: serverData.fullName || serverData.name || authData.name,
+                email: serverData.email || authData.email,
+                avatarUrl: serverData.avatarUrl || serverData.avatar || authData.avatarUrl,
+                bio: serverData.bio || authData.bio,
+                dateOfBirth: serverData.dateOfBirth || authData.dateOfBirth,
+                gender: serverData.gender || authData.gender,
+                id: serverData.id || authData.id,
+                status: serverData.status || authData.status,
+                createdAt: serverData.createdAt || authData.createdAt,
+                tokens: authData.tokens,
+                phone: authData.phone,
+                loginTime: authData.loginTime,
+              };
+              await saveAuthData(merged);
+              setUser(merged);
+            }
+          } catch (e) {
+            console.warn('Failed to refresh profile from server', e);
+          }
         } else {
           console.log('No active session found');
         }
@@ -62,6 +91,30 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const logout = async () => {
     try {
+      // Attempt to notify backend to invalidate refresh token / logout session
+      try {
+        // If device token was stored, backend may expect it in body to unregister push token
+        // We don't have deviceId stored centrally; call /logout without body as best-effort
+        await authApi.logout({});
+      } catch (e) {
+        console.warn('authApi.logout failed (continuing):', e);
+      }
+
+      // Try to delete device token on server if any (best-effort)
+      try {
+        // If you store a device token id in AsyncStorage, fetch and call delete here.
+        // Example: await deviceTokensApi.deleteDeviceToken(deviceId);
+      } catch (e) {
+        console.warn('device token unregister failed (continuing):', e);
+      }
+
+      // Disconnect realtime socket
+      try {
+        disconnectSocket();
+      } catch (e) {
+        console.warn('disconnectSocket failed (continuing):', e);
+      }
+
       await clearAuthData();
       setUser(null);
       console.log('User logged out');
