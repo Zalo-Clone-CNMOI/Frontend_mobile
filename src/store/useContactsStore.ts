@@ -1,31 +1,44 @@
 import { create } from 'zustand';
 import { fetchContacts } from '../services/chatService';
-import { Contact, UserV2 } from '../data/contactsMockData';
+
+type UserPresence = 'online' | 'offline' | 'away';
+
+type UserV2 = {
+  id: string;
+  fullName: string;
+  avatar?: string;
+  status?: UserPresence;
+  lastSeen?: number | null;
+};
+
+type Contact = {
+  id: string;
+  name: string;
+  subtitle: string;
+  avatar: string;
+  type: 'friend' | 'group' | 'oa';
+};
 
 interface ContactsState {
-  // State
   friends: Contact[];
   groups: Contact[];
   oas: Contact[];
-  activeTab: number; // 0: friends, 1: groups, 2: oas
+  activeTab: number;
   filterType: 'all' | 'recent';
   searchQuery: string;
   isLoading: boolean;
   error: string | null;
 
-  // Computed
   currentData: Contact[];
   filteredData: Contact[];
-  // V2 users (production-like)
   usersV2: UserV2[];
   filteredUsersV2: UserV2[];
   usersFilterType: 'all' | 'recent';
 
-  // Actions
   initializeContacts: () => Promise<void>;
   setActiveTab: (tab: number) => void;
+  setFilterType: (filter: 'all' | 'recent') => void;
   setSearchQuery: (query: string) => void;
-  // V2 actions
   setUsersFilterType: (filter: 'all' | 'recent') => void;
   setUsersSearchQuery: (query: string) => void;
   addFriend: (friend: Contact) => void;
@@ -34,8 +47,65 @@ interface ContactsState {
   deleteGroup: (groupId: string) => void;
 }
 
+const RECENT_SUBTITLES = new Set(['Vua truy cap', 'Dang hoat dong']);
+
+const normalizeText = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const buildBaseDataByTab = (tab: number, friends: Contact[], groups: Contact[], oas: Contact[]) =>
+  tab === 0 ? friends : tab === 1 ? groups : oas;
+
+const filterContacts = (
+  list: Contact[],
+  tab: number,
+  filterType: 'all' | 'recent',
+  searchQuery: string,
+) => {
+  const normalizedQuery = normalizeText(searchQuery.trim());
+
+  let result = list;
+  if (tab === 0 && filterType === 'recent') {
+    result = result.filter((item) => RECENT_SUBTITLES.has(normalizeText(item.subtitle || '')));
+  }
+
+  if (normalizedQuery) {
+    result = result.filter((item) => normalizeText(item.name).includes(normalizedQuery));
+  }
+
+  return result;
+};
+
+const filterUsers = (users: UserV2[], filterType: 'all' | 'recent', searchQuery: string) => {
+  const normalizedQuery = normalizeText(searchQuery.trim());
+
+  let result = users.filter((u) => u.id !== 'user-me');
+
+  if (filterType === 'recent') {
+    result = result.filter((u) => u.status === 'online');
+  }
+
+  if (normalizedQuery) {
+    result = result.filter((u) => normalizeText(u.fullName || '').includes(normalizedQuery));
+  }
+
+  return result;
+};
+
+const mapUsersToFriends = (users: UserV2[]): Contact[] =>
+  users
+    .filter((u) => u.id !== 'user-me')
+    .map((u) => ({
+      id: u.id,
+      name: u.fullName,
+      subtitle: u.status === 'online' ? 'Dang hoat dong' : 'Vua truy cap',
+      avatar: u.avatar || '',
+      type: 'friend' as const,
+    }));
+
 export const useContactsStore = create<ContactsState>((set, get) => ({
-  // State
   friends: [],
   groups: [],
   oas: [],
@@ -50,31 +120,25 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  // Actions
   initializeContacts: async () => {
     set({ isLoading: true, error: null });
+
     try {
       const { users } = await fetchContacts();
-
-      const friends: Contact[] = users
-        .filter((u) => u.id !== 'user-me')
-        .map((u) => ({
-          id: u.id,
-          name: u.fullName,
-          subtitle: u.status === 'online' ? 'Đang hoạt động' : 'Vừa truy cập',
-          avatar: u.avatar || '',
-          type: 'friend' as const,
-        }));
+      const friends = mapUsersToFriends(users);
+      const currentData = buildBaseDataByTab(0, friends, [], []);
 
       set({
         usersV2: users,
         friends,
         groups: [],
         oas: [],
-        filteredUsersV2: users.filter((u) => u.id !== 'user-me'),
+        activeTab: 0,
+        currentData,
+        filteredData: filterContacts(currentData, 0, 'all', ''),
+        filteredUsersV2: filterUsers(users, 'all', ''),
         isLoading: false,
       });
-      get().setActiveTab(0);
     } catch (err) {
       set({ error: String(err), isLoading: false });
     }
@@ -82,118 +146,105 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
 
   setActiveTab: (tab: number) => {
     set((state) => {
-      let baseData = tab === 0 ? state.friends : tab === 1 ? state.groups : state.oas;
-
-      // Apply filter
-      if (tab === 0 && state.filterType === 'recent') {
-        baseData = baseData.filter(
-          (item) =>
-            item.subtitle === 'Vừa truy cập' || item.subtitle === 'Đang hoạt động'
-        );
-      }
-
-      // Apply search
-      let filtered = baseData;
-      if (state.searchQuery.trim()) {
-        const query = state.searchQuery.trim().toLowerCase();
-        filtered = baseData.filter((item) => item.name.toLowerCase().includes(query));
-      }
-
+      const currentData = buildBaseDataByTab(tab, state.friends, state.groups, state.oas);
       return {
         activeTab: tab,
-        currentData: baseData,
-        filteredData: filtered,
+        currentData,
+        filteredData: filterContacts(currentData, tab, state.filterType, state.searchQuery),
       };
     });
   },
 
   setFilterType: (filter: 'all' | 'recent') => {
-    set((state) => {
-      let baseData =
-        state.activeTab === 0
-          ? state.friends
-          : state.activeTab === 1
-            ? state.groups
-            : state.oas;
-
-      if (state.activeTab === 0 && filter === 'recent') {
-        baseData = baseData.filter(
-          (item) =>
-            item.subtitle === 'Vừa truy cập' || item.subtitle === 'Đang hoạt động'
-        );
-      }
-
-      return {
-        filterType: filter,
-        currentData: baseData,
-        filteredData: baseData,
-      };
-    });
+    set((state) => ({
+      filterType: filter,
+      filteredData: filterContacts(state.currentData, state.activeTab, filter, state.searchQuery),
+    }));
   },
 
-  // V2: filter users by presence or search
   setUsersFilterType: (filter: 'all' | 'recent') => {
-    set((state) => {
-      let users = state.usersV2 || [];
-      if (filter === 'recent') {
-        users = users.filter((u) => u.status === 'online');
-      }
-
-      return {
-        usersFilterType: filter,
-        filteredUsersV2: users.filter((u) => u.id !== 'user-me'),
-      };
-    });
+    set((state) => ({
+      usersFilterType: filter,
+      filteredUsersV2: filterUsers(state.usersV2 || [], filter, state.searchQuery),
+    }));
   },
 
   setUsersSearchQuery: (query: string) => {
-    set((state) => {
-      const trimmed = query.trim().toLowerCase();
-      const filtered = trimmed
-        ? (state.usersV2 || []).filter((u) => u.fullName.toLowerCase().includes(trimmed) && u.id !== 'user-me')
-        : (state.usersV2 || []).filter((u) => u.id !== 'user-me');
-
-      return { filteredUsersV2: filtered };
-    });
+    set((state) => ({
+      searchQuery: query,
+      filteredUsersV2: filterUsers(state.usersV2 || [], state.usersFilterType, query),
+    }));
   },
 
   setSearchQuery: (query: string) => {
+    set((state) => ({
+      searchQuery: query,
+      filteredData: filterContacts(state.currentData, state.activeTab, state.filterType, query),
+      filteredUsersV2: filterUsers(state.usersV2 || [], state.usersFilterType, query),
+    }));
+  },
+
+  addFriend: (friend: Contact) => {
     set((state) => {
-      const trimmedQuery = query.trim().toLowerCase();
-      const filtered = trimmedQuery
-        ? state.currentData.filter((item) =>
-            item.name.toLowerCase().includes(trimmedQuery)
-          )
-        : state.currentData;
+      const friends = [friend, ...state.friends];
+      const currentData =
+        state.activeTab === 0
+          ? friends
+          : buildBaseDataByTab(state.activeTab, friends, state.groups, state.oas);
 
       return {
-        searchQuery: query,
-        filteredData: filtered,
+        friends,
+        currentData,
+        filteredData: filterContacts(currentData, state.activeTab, state.filterType, state.searchQuery),
       };
     });
   },
 
-  addFriend: (friend: Contact) => {
-    set((state) => ({
-      friends: [friend, ...state.friends],
-    }));
-  },
-
   deleteFriend: (friendId: string) => {
-    set((state) => ({
-      friends: state.friends.filter((f) => f.id !== friendId),
-    }));
+    set((state) => {
+      const friends = state.friends.filter((f) => f.id !== friendId);
+      const currentData =
+        state.activeTab === 0
+          ? friends
+          : buildBaseDataByTab(state.activeTab, friends, state.groups, state.oas);
+
+      return {
+        friends,
+        currentData,
+        filteredData: filterContacts(currentData, state.activeTab, state.filterType, state.searchQuery),
+      };
+    });
   },
 
   addGroup: (group: Contact) => {
-    set((state) => ({
-      groups: [group, ...state.groups],
-    }));
+    set((state) => {
+      const groups = [group, ...state.groups];
+      const currentData =
+        state.activeTab === 1
+          ? groups
+          : buildBaseDataByTab(state.activeTab, state.friends, groups, state.oas);
+
+      return {
+        groups,
+        currentData,
+        filteredData: filterContacts(currentData, state.activeTab, state.filterType, state.searchQuery),
+      };
+    });
   },
 
   deleteGroup: (groupId: string) => {
-    set((state) => ({
-      groups: state.groups.filter((g) => g.id !== groupId),
-    }));
+    set((state) => {
+      const groups = state.groups.filter((g) => g.id !== groupId);
+      const currentData =
+        state.activeTab === 1
+          ? groups
+          : buildBaseDataByTab(state.activeTab, state.friends, groups, state.oas);
+
+      return {
+        groups,
+        currentData,
+        filteredData: filterContacts(currentData, state.activeTab, state.filterType, state.searchQuery),
+      };
+    });
   },
 }));

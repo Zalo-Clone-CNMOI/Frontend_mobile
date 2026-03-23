@@ -1,7 +1,10 @@
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { clearAuthData, getAuthData, saveAuthData, UserInfo } from '../services/authService';
 import * as authApi from '../services/authApi';
+import { resetChatRuntime } from '../services/chatService';
 import { disconnectSocket } from '../services/socket';
+import { useChatsStore } from '../store/useChatsStore';
+import { useMessagesStore } from '../store/useMessagesStore';
 import * as usersApi from '../services/usersApi';
 
 interface AuthContextType {
@@ -29,6 +32,8 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const resetChatsStore = useChatsStore((state) => state.reset);
+  const resetMessagesStore = useMessagesStore((state) => state.reset);
 
   // Kiểm tra phiên đăng nhập khi app khởi động
   useEffect(() => {
@@ -80,6 +85,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const login = async (userInfo: UserInfo) => {
     try {
+      // Ensure no cross-account residue before starting a new session
+      try {
+        disconnectSocket();
+      } catch {}
+      resetChatRuntime();
+      resetChatsStore();
+      resetMessagesStore();
+
       await saveAuthData(userInfo);
       setUser(userInfo);
       console.log('User logged in:', userInfo.phone);
@@ -114,6 +127,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       } catch (e) {
         console.warn('disconnectSocket failed (continuing):', e);
       }
+
+      resetChatRuntime();
+      resetChatsStore();
+      resetMessagesStore();
 
       await clearAuthData();
       setUser(null);

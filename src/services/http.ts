@@ -1,11 +1,9 @@
 import axios from "axios";
+import { NETWORK_CONFIG } from "../config/network";
 import { getCurrentToken, refreshAccessToken } from "./authService";
 
-const HOST = "http://175.41.136.189";
-const BASE_URL = `${HOST}:3000`;
-
 const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: NETWORK_CONFIG.BFF_BASE_URL,
   timeout: 10000, // 10 second timeout
 });
 

@@ -1,7 +1,7 @@
-import { USERS_V2 } from '@/src/data/contactsMockData';
+
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
-import { FileText, Play } from 'lucide-react-native';
+import { FileText, Play, Check, CheckCheck, RotateCcw } from 'lucide-react-native';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -18,11 +18,13 @@ export function MessageBubble({
   onLongPress,
   onImagePress,
   onVideoPress,
+  onReuseRevoked,
 }: {
   item: ChatMessage;
   onLongPress?: (item: ChatMessage) => void;
   onImagePress?: (uri: string) => void;
   onVideoPress?: (uri: string) => void;
+  onReuseRevoked?: (item: ChatMessage) => void;
 }) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -30,11 +32,7 @@ export function MessageBubble({
   const avatar = useMemo(() => {
     if (item.fromMe) return undefined;
     if (item.senderId) {
-      const sender = USERS_V2.find((u) => u.id === item.senderId);
-      const avatarUrl = sender?.avatar;
-      return avatarUrl && avatarUrl.trim() !== '' 
-        ? avatarUrl 
-        : 'https://i.pravatar.cc/150?u=unknown';
+      return `https://i.pravatar.cc/150?u=${encodeURIComponent(item.senderId)}`;
     }
     return 'https://i.pravatar.cc/150?u=unknown';
   }, [item.fromMe, item.senderId]);
@@ -60,20 +58,9 @@ export function MessageBubble({
   
   // Handle different message content structures
   const messageText = (item as any).text || (item as any).content || '';
-  const messageType = (item as any).type || 
-    ((item as any).content && typeof (item as any).content === 'string' 
-      ? ((item as any).content.includes('image/') ? 'image' : 
-          ((item as any).content.includes('video/') ? 'video' : 'text'))
-      : 'text');
   const isMe = (item as any).fromMe || ((item as any).sender && (item as any).sender.me === true);
-  
-  // Get file info from different structures
-  const fileInfo = (item as any).fileInfo || ((item as any).attachments && (item as any).attachments.length > 0 ? {
-    uri: (item as any).attachments[0]?.url || '',
-    name: (item as any).attachments[0]?.name || 'File',
-    size: (item as any).attachments[0]?.size || '0 MB',
-    mimeType: (item as any).attachments[0]?.mimeType || ''
-  } : null);
+  const replySenderName = item.replyTo?.senderName || t('messages.replying_to');
+  const replyText = item.replyTo?.text || t('messages.replied_message');
 
   return (
     <View
@@ -107,8 +94,8 @@ export function MessageBubble({
               borderColor: isMe
                 ? theme.colors.primary
                 : theme.colors.border,
-              borderBottomRightRadius: isMe ? 4 : 18,
-              borderBottomLeftRadius: isMe ? 18 : 4,
+              borderBottomRightRadius: isMe ? 2 : 18,
+              borderBottomLeftRadius: isMe ? 18 : 2,
             },
             isImage && styles.imageBubble,
             item.replyTo && styles.bubbleWithReply,
@@ -142,7 +129,7 @@ export function MessageBubble({
                   ]}
                   numberOfLines={1}
                 >
-                  {item.replyTo.senderName}
+                  {replySenderName}
                 </Text>
                 <Text
                   style={[
@@ -151,7 +138,7 @@ export function MessageBubble({
                   ]}
                   numberOfLines={1}
                 >
-                  {item.replyTo.text}
+                  {replyText}
                 </Text>
               </View>
             </View>
@@ -159,14 +146,24 @@ export function MessageBubble({
 
           {/* Content */}
           {item.isRevoked ? (
-            <Text
-              style={[
-                styles.revoked,
-                { color: theme.colors.text, opacity: 0.6 },
-              ]}
-            >
-              {t('messages.revoked')}
-            </Text>
+            <View style={styles.revokedRow}>
+              {!!item.fromMe && !!(item.revokedBackupText || item.text) && (
+                <Pressable
+                  onPress={() => onReuseRevoked?.(item)}
+                  style={[styles.reuseBtn, { borderColor: theme.colors.border }]}
+                >
+                  <RotateCcw size={14} color={isMe ? theme.colors.textMessage : theme.colors.text} />
+                </Pressable>
+              )}
+              <Text
+                style={[
+                  styles.revoked,
+                  { color: theme.colors.text, opacity: 0.6 },
+                ]}
+              >
+                {t('messages.revoked')}
+              </Text>
+            </View>
           ) : isImage ? (
             <Pressable
               onPress={() =>
@@ -275,20 +272,31 @@ export function MessageBubble({
           )}
         </TouchableOpacity>
 
-        {!item.isRevoked && (
-          <Text
-            style={[
-              styles.timestamp,
-              {
-                color: theme.colors.text,
-                opacity: 0.5,
-                alignSelf: isMe ? 'flex-end' : 'flex-start',
-              },
-            ]}
-          >
-            {formatTime(item.timestamp)}
-          </Text>
-        )}
+        <View style={[styles.timeRow, { alignSelf: isMe ? 'flex-end' : 'flex-start' }]}>
+          {!item.isRevoked && (
+            <Text
+              style={[
+                styles.timestamp,
+                {
+                  color: theme.colors.text,
+                  opacity: 0.5,
+                },
+              ]}
+            >
+              {formatTime(item.timestamp)}
+            </Text>
+          )}
+
+          {isMe && !item.isRevoked && (
+            <View style={styles.receiptIcon}>
+              {item.status === 'read' ? (
+                <CheckCheck size={14} color={theme.colors.primary} />
+              ) : (
+                <Check size={14} color={theme.colors.text} opacity={0.5} />
+              )}
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Avatar của mình (chỉ render nếu có) */}
@@ -395,11 +403,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontStyle: 'italic',
   },
+  revokedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  reuseBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   timestamp: {
     fontSize: 10,
+  },
+
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 4,
     marginHorizontal: 4,
+    gap: 4,
+  },
+  receiptIcon: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   replyWrap: {

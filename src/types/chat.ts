@@ -1,24 +1,9 @@
-export type ChatPreview = {
-  id: string;
-  // display name for 1-1 or group
-  name: string;
-  // legacy last message preview used by existing UI
-  lastMsg: string;
-  time?: string;
-  avatar: string;
-  hasDot?: boolean;
-  isOfficial?: boolean;
-  // optional flags used in newer UI
-  isGroup?: boolean;
-  unreadCount?: number;
-  pinned?: boolean;
-  muted?: boolean;
-};
 
 // Conversation shape used by Zalo v2 (production-like)
 
 export type ConversationV2 = {
   conversationId: string;
+  type?: 'direct' | 'group' | 'oa' | string;
   isGroup: boolean;
   name?: string;
   avatar?: string;
@@ -27,9 +12,13 @@ export type ConversationV2 = {
     type: MessageType;
     timestamp: number;
   };
+  lastMessageAt?: number;
   unreadCount?: number;
   pinned?: boolean;
+  isMuted?: boolean;
   muted?: boolean;
+  memberCount?: number;
+  createdAt?: number;
 };
 
 // Rich chat message used across components and mock v2 data
@@ -51,6 +40,7 @@ export type ReplyInfo = {
 
 export type ChatMessage = {
   id: string;
+  serverMessageId?: string;
   conversationId?: string;
   senderId?: string;
   // keeps old `fromMe` boolean used in UI
@@ -71,7 +61,11 @@ export type ChatMessage = {
   // reactions mapping emoji -> userIds
   reactions?: Record<string, string[]>;
 
+  // optimistic sending state
+  status?: "sending" | "sent" | "read" | "failed";
+
   // per-user deletion and revoke flags
   deletedFor?: string[];
   isRevoked?: boolean;
+  revokedBackupText?: string;
 };

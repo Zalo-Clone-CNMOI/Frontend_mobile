@@ -1,4 +1,4 @@
-import i18n from 'i18next';
+import { createInstance } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
 import en from './en.json';
@@ -12,6 +12,8 @@ const resources = {
     translation: en
   }
 };
+
+const i18n = createInstance();
 
 // Initialize i18n WITHOUT AsyncStorage at top-level
 i18n

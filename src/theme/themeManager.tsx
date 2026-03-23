@@ -22,7 +22,6 @@ interface ThemeManagerProviderProps {
 export const ThemeManagerProvider = ({ children }: ThemeManagerProviderProps) => {
   const systemScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>('light');
-  const [isLoading, setIsLoading] = useState(true);
 
   const isSystemDark = systemScheme === 'dark';
   
@@ -34,8 +33,6 @@ export const ThemeManagerProvider = ({ children }: ThemeManagerProviderProps) =>
         setThemeModeState(savedMode);
       } catch (error) {
         console.error('Error loading theme:', error);
-      } finally {
-        setIsLoading(false);
       }
     };
     

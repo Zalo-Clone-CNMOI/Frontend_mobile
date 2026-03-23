@@ -6,13 +6,11 @@ import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function DiscoveryScreen() {
   const theme = useTheme();
-  const { t } = useTranslation();
   const router = useRouter();
 
   const features = useDiscoveryStore((state) => state.features);

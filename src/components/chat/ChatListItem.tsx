@@ -11,6 +11,7 @@ export function ChatListItem({
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const messageTime = item.lastMessage?.timestamp || item.lastMessageAt;
   return (
     <TouchableOpacity style={[styles.chatItem, { borderBottomColor: theme.colors.border }]} onPress={onPress}>
       <View>
@@ -20,7 +21,11 @@ export function ChatListItem({
       <View style={styles.chatContent}>
         <View style={styles.chatHeader}>
           <Text style={[styles.chatName, { color: theme.colors.text }]}>{item.name}</Text>
-          <Text style={[styles.chatTime, { color: '#8e8e93' }]}>{item.lastMessage ? new Date(item.lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}</Text>
+          <Text style={[styles.chatTime, { color: '#8e8e93' }]}>
+            {messageTime
+              ? new Date(messageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+              : ''}
+          </Text>
         </View>
         <Text style={[styles.lastMsg, { color: '#8e8e93' }]} numberOfLines={1}>
           {item.lastMessage?.content || ''}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/src/theme/themeContext';
-import { USERS_V2 } from '@/src/data/contactsMockData';
+import { USERS_V2 } from '../../data/contactsMockData';
 import { useTranslation } from 'react-i18next';
 import { formatTimeAgo } from '../../utils/formatTimeAgo';
 

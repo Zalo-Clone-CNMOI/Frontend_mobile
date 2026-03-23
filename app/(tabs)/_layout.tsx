@@ -4,7 +4,6 @@ import { Tabs } from 'expo-router';
 import { Clock3, Contact2, LayoutGrid, MessageSquare, User2 } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
 
 export default function TabsLayout() {
   const theme = useTheme()

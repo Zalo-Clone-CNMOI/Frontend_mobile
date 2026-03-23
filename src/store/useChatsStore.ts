@@ -18,6 +18,7 @@ interface ChatsState {
   addChat: (chat: ConversationV2) => void;
   deleteChat: (chatId: string) => void;
   updateChat: (chatId: string, updates: Partial<ConversationV2>) => void;
+  reset: () => void;
 }
 
 export const useChatsStore = create<ChatsState>((set) => ({
@@ -85,5 +86,16 @@ export const useChatsStore = create<ChatsState>((set) => ({
         c.conversationId === chatId ? { ...c, ...updates } : c
       ),
     }));
+  },
+
+  reset: () => {
+    set({
+      chats: [],
+      filteredChats: [],
+      searchQuery: '',
+      filterTab: 'priority',
+      isLoading: false,
+      error: null,
+    });
   },
 }));

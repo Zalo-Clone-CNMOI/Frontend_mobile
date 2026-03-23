@@ -24,7 +24,6 @@ export default function AccountScreen() {
   const theme = useTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
-  const profile = useProfileStore((state) => state.profile);
   const initializeProfile = useProfileStore((state) => state.initializeProfile);
 
   const [currentLang, setCurrentLang] = useState(getCurrentLanguage());

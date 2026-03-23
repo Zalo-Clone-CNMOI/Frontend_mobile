@@ -60,26 +60,36 @@ export default function LoginStep2() {
     try {
       const resp = await authApi.login({ phone: phone as string, password });
       const data = resp?.data || {};
+      const persistedUserInfo = (resp as any)?.persistedUserInfo as UserInfo | undefined;
 
       if (resp.status < 200 || resp.status >= 300) {
         throw new Error(data.message || 'Login failed');
       }
 
-      const userObj = data?.data || {};
-      const userInfo: UserInfo = {
-        phone: phone as string,
+      const payloadData = data?.data || data || {};
+      const rawUser = payloadData?.user || payloadData?.profile || {};
+      const rawTokens = payloadData?.tokens || data?.tokens || {};
+
+      const userInfo: UserInfo = persistedUserInfo || {
+        phone: String(rawUser?.phone || phone || ''),
         password: password,
-        name: userObj?.user?.fullName || 'User ' + phone,
-        email: userObj?.user?.email || '',
-        avatarUrl: userObj?.user?.avatarUrl || '',
-        bio: userObj?.user?.bio || '',
-        dateOfBirth: userObj?.user?.dateOfBirth || '',
-        gender: userObj?.user?.gender || '',
-        id: userObj?.user?.id || '',
-        status: userObj?.user?.status || '',
-        createdAt: userObj?.user?.createdAt || '',
-        tokens: userObj?.tokens || undefined,
-        loginTime: Date.now()
+        name: rawUser?.fullName || rawUser?.name || ('User ' + phone),
+        email: rawUser?.email || '',
+        avatarUrl: rawUser?.avatarUrl || rawUser?.avatar || '',
+        bio: rawUser?.bio || '',
+        dateOfBirth: rawUser?.dateOfBirth || '',
+        gender: rawUser?.gender || '',
+        id: rawUser?.id || rawUser?._id || '',
+        status: rawUser?.status || '',
+        createdAt: rawUser?.createdAt || '',
+        tokens: rawTokens?.accessToken
+          ? {
+              accessToken: String(rawTokens.accessToken),
+              refreshToken: String(rawTokens.refreshToken || ''),
+              expiresIn: Number(rawTokens.expiresIn || 0),
+            }
+          : undefined,
+        loginTime: Date.now(),
       };
 
       await login(userInfo);

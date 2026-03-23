@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { Country } from '../data/countriesMockData';
-import { COUNTRIES_MOCK_DATA } from '../data/countriesMockData';
+import { Country , COUNTRIES_MOCK_DATA } from '../data/countriesMockData';
+
 
 interface CountriesState {
   // State

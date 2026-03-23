@@ -1,11 +1,9 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { useRouter } from 'expo-router';
-import { Cloud, UserCheck, UserPlus, Users } from 'lucide-react-native';
+import { Cloud, UserPlus, Users } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-
-const { width, height } = Dimensions.get('window');
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type HeaderMenuProps = {
   visible: boolean;

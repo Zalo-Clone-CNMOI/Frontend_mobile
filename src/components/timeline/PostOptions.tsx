@@ -42,12 +42,12 @@ export function PostOptions({
   const handleSendPost = useCallback(() => {
     onClose();
     Alert.alert(t('screenPostOptions.send_post'), t('screenPostOptions.send_post_to_friends'));
-  }, [onClose]);
+  }, [onClose, t]);
 
   const handleReportPost = useCallback(() => {
     onClose();
     Alert.alert(t('screenPostOptions.report_post'), t('screenPostOptions.report_post_functionality_would_be_implemented_here'));
-  }, [onClose]);
+  }, [onClose, t]);
 
 
 

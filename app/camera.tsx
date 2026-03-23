@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Camera, RefreshCw, SwitchCamera } from 'lucide-react-native';
-import React from 'react';
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
+
 import { View, TouchableOpacity, Image, StyleSheet } from 'react-native';
 
 export default function CameraScreen() {

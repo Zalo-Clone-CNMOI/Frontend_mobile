@@ -1,91 +1,61 @@
 import { io, Socket } from "socket.io-client";
+import { NETWORK_CONFIG } from "../config/network";
 import { getCurrentToken, refreshAccessToken } from "./authService";
 
-const WS_HOST = "ws://175.41.136.189:3001";
+const WS_URL = NETWORK_CONFIG.SOCKET_URL;
 
 let socket: Socket | null = null;
-let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+const withBearer = (token: string | null) => (token ? `Bearer ${token}` : "");
 
 export const createSocket = async (): Promise<Socket> => {
   if (socket) return socket;
 
-  const token = await getCurrentToken();
-
-  socket = io(WS_HOST, {
-    autoConnect: false,
+  const accessToken = await getCurrentToken();
+  const bearerToken = withBearer(accessToken);
+  
+  socket = io(WS_URL, {
+    auth: { token: bearerToken },
+    extraHeaders: accessToken ? { Authorization: bearerToken } : {},
     transports: ["websocket", "polling"],
-    auth: { token },
+    reconnection: true,
   });
 
   socket.on("connect", () => {
-    console.log("Socket connected", socket?.id);
-    startHeartbeat();
-  });
-
-  socket.on("disconnect", (reason) => {
-    console.log("Socket disconnected:", reason);
-    stopHeartbeat();
+    console.log("🔌 WebSocket connected:", socket?.id);
   });
 
   socket.on("connect_error", async (err: any) => {
-    console.warn("Socket connect_error", err?.message || err);
-    const message = (err && (err.message || err)) || "";
-    if (
-      message.toLowerCase().includes("unauthor") ||
-      (err && err.data && err.data.type === "Unauthorized")
-    ) {
-      try {
-        const newToken = await refreshAccessToken();
-        if (newToken && socket) {
-          socket.auth = { token: newToken } as any;
-          socket.connect();
-        }
-      } catch (e) {
-        console.error("Failed to refresh token from socket connect_error:", e);
+    const message = String(err?.message || "").toLowerCase();
+    if (!message.includes("unauthorized")) return;
+
+    try {
+      const newToken = await refreshAccessToken();
+      if (!newToken || !socket) return;
+      
+      const newBearer = withBearer(newToken);
+      socket.auth = { token: newBearer };
+      if (socket.io.opts.extraHeaders) {
+        socket.io.opts.extraHeaders.Authorization = newBearer;
       }
+      
+      socket.connect();
+    } catch (refreshErr) {
+      console.warn("🔌 Socket token refresh failed:", refreshErr);
     }
   });
 
   return socket;
 };
 
-export const connectSocket = async () => {
-  const s = await createSocket();
-  if (!s.connected) s.connect();
-  return s;
-};
+export const getSocket = (): Socket | null => socket;
 
 export const disconnectSocket = () => {
   if (socket) {
     socket.disconnect();
     socket = null;
   }
-  stopHeartbeat();
 };
 
-function startHeartbeat() {
-  stopHeartbeat();
-  heartbeatTimer = setInterval(() => {
-    try {
-      socket?.emit("presence:heartbeat", { ts: Date.now() });
-    } catch (e) {
-      console.warn("Heartbeat emit failed", e);
-    }
-  }, 30_000);
-}
-
-function stopHeartbeat() {
-  if (heartbeatTimer) {
-    clearInterval(heartbeatTimer as any);
-    heartbeatTimer = null;
-  }
-}
-
-export const getSocket = () => socket;
-
-export default {
-  createSocket,
-  connectSocket,
-  disconnectSocket,
-  getSocket,
-};
+// Export alias for backward compatibility
+export const connectSocket = createSocket;

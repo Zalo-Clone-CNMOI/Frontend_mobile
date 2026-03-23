@@ -1,4 +1,7 @@
-import { LucideIcon } from 'lucide-react-native';
+import { LucideIcon , Video, CircleDollarSign, ShoppingBag, Newspaper, Gamepad2, MapPin, Sparkles } from 'lucide-react-native';
+
+
+
 
 export interface DiscoveryFeature {
   id: string;
@@ -6,9 +9,6 @@ export interface DiscoveryFeature {
   icon: LucideIcon;
   description: string;
 }
-
-
-import { Video, CircleDollarSign, ShoppingBag, Newspaper, Gamepad2, MapPin, Sparkles } from 'lucide-react-native';
 
 export const DISCOVERY_FEATURES_MOCK_DATA: DiscoveryFeature[] = [
   { id: '1', title: 'Zalo Video', icon: Video, description: 'Xem video tuyệt vời' },

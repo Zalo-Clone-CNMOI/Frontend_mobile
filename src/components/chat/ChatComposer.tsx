@@ -14,7 +14,7 @@ import {
   User,
   X,
 } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -33,30 +33,56 @@ export function ChatComposer({
   onChangeText,
   onSend,
   onSendFiles,
+  editingTo,
+  onCancelEdit,
   replyingTo,
   onCancelReply,
+  onTypingStart,
+  onTypingStop,
 }: {
   value: string;
   onChangeText: (v: string) => void;
   onSend: () => void;
   onSendFiles: (files: DocumentPicker.DocumentPickerAsset[]) => void;
+  editingTo?: {
+    text: string;
+  } | null;
+  onCancelEdit?: () => void;
   replyingTo?: {
     senderName: string;
     text: string;
   } | null;
   onCancelReply?: () => void;
+  onTypingStart?: () => void;
+  onTypingStop?: () => void;
 }) {
   const theme = useTheme();
   const [showEmoji, setShowEmoji] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const typingTimeoutRef = useRef<any>(null);
 
   const { t } = useTranslation();
+  const modernMediaType = (ImagePicker as any).MediaType;
 
 
   const canSend = useMemo(() => value.trim().length > 0, [value]);
 
+  const handleTextChange = (text: string) => {
+    onChangeText(text);
+
+    if (onTypingStart) onTypingStart();
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      if (onTypingStop) onTypingStop();
+    }, 1500);
+  };
+
   const handlePickEmoji = (emoji: EmojiType) => {
-    onChangeText(value + emoji.emoji);
+    handleTextChange(value + emoji.emoji);
   };
 
   const handlePickDocument = async () => {
@@ -78,7 +104,7 @@ export function ChatComposer({
   const handlePickVideo = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        mediaTypes: modernMediaType ? [modernMediaType.videos] : ImagePicker.MediaTypeOptions.Videos,
         quality: 1,
         selectionLimit: 1,
       });
@@ -106,7 +132,7 @@ export function ChatComposer({
   const handlePickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: modernMediaType ? [modernMediaType.images] : ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 0.8,
         selectionLimit: 5, // Allow up to 5 images
@@ -142,7 +168,49 @@ export function ChatComposer({
       ]}
     >
       {/* ===== Reply ===== */}
-      {!!replyingTo && (
+      {!!editingTo && (
+        <View
+          style={[
+            styles.replyingWrap,
+            {
+              backgroundColor: theme.colors.background,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.replyingBar,
+              { backgroundColor: theme.colors.primary },
+            ]}
+          />
+          <View style={styles.replyingContent}>
+            <Text
+              style={[
+                styles.replyingTitle,
+                { color: theme.colors.primary },
+              ]}
+              numberOfLines={1}
+            >
+              {t('common.edit')}
+            </Text>
+            <Text
+              style={[
+                styles.replyingText,
+                { color: theme.colors.text, opacity: 0.7 },
+              ]}
+              numberOfLines={1}
+            >
+              {editingTo.text}
+            </Text>
+          </View>
+          <Pressable style={styles.replyingClose} onPress={onCancelEdit}>
+            <X size={18} color={theme.colors.text} />
+          </Pressable>
+        </View>
+      )}
+
+      {!!replyingTo && !editingTo && (
         <View
           style={[
             styles.replyingWrap,
@@ -201,7 +269,7 @@ export function ChatComposer({
 
         <TextInput
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={handleTextChange}
           placeholder={t('chat.placeholder')}
           placeholderTextColor="#8e8e93"
           multiline
@@ -238,7 +306,11 @@ export function ChatComposer({
               styles.sendBtn,
               { backgroundColor: theme.colors.primary },
             ]}
-            onPress={onSend}
+            onPress={() => {
+              if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+              if (onTypingStop) onTypingStop();
+              onSend();
+            }}
           >
             <Send size={18} color={theme.colors.icon} />
           </Pressable>

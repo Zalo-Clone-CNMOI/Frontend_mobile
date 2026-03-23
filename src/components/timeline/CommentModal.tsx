@@ -96,7 +96,7 @@ export function CommentModal({
         )}
       </View>
     );
-  }, [theme, currentUserId]);
+  }, [theme, currentUserId, t]);
 
   return (
     <Modal

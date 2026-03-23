@@ -8,7 +8,6 @@ import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 import type { Comment } from './CommentModal';
 import { CommentModal } from './CommentModal';
 import { PostOptions } from './PostOptions';
-import { useTranslation } from 'react-i18next';
 
 export type PostAuthor = {
   id: string;
@@ -48,7 +47,6 @@ export function PostCard({
   onPressMedia,
 }: PostCardProps) {
   const theme = useTheme();
-  const { t } = useTranslation();
   const router = useRouter();
   const [showOptions, setShowOptions] = useState(false);
   const [showComments, setShowComments] = useState(false);

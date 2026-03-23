@@ -14,7 +14,7 @@ import { ThemeManagerProvider, useThemeManager } from '../src/theme/themeManager
 
 function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
   const { theme } = useThemeManager();
-  const { isLoading: authLoading, isAuthenticated } = useAuth();
+  const { isLoading: authLoading } = useAuth();
   const [ready, setReady] = useState(false);
 
   // Apply SystemUI background & StatusBar style when theme changes

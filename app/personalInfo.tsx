@@ -21,7 +21,6 @@ export default function PersonalInfoScreen() {
   const { user } = useAuth();
   const theme = useTheme();
   const { t } = useTranslation();
-  const profile = useProfileStore((state) => state.profile);
   const initializeProfile = useProfileStore((state) => state.initializeProfile);
 
   useEffect(() => {

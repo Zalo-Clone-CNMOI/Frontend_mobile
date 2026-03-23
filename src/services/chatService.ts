@@ -1,34 +1,183 @@
 import { Socket } from "socket.io-client";
-import { ContactUser } from './../types/ContactUser';
+import { getCurrentUser } from "./authService";
+import { ContactUser } from "../types/ContactUser";
+import type { ChatMessage, ConversationV2 } from "../types/chat";
+import type { SocketChatJoinPayload } from "../types/dto/SocketDTO";
+import { mapConversationsListFromApi } from "../types/mappers/DTOMappers";
 import * as conversationsApi from "./conversationsApi";
 import * as friendsApi from "./friendsApi";
 import * as messagesApi from "./messagesApi";
 import { connectSocket, getSocket } from "./socket";
 
-import type { ChatMessage, ConversationV2 } from '../types/chat';
+const normalizeId = (value: unknown): string => String(value ?? "").trim();
+const currentActorIds = new Set<string>(["user-me"]);
+let actorIdsHydrated = false;
 
-type Message = any;
+const hydrateCurrentActorIds = async () => {
+  if (actorIdsHydrated) return;
 
-// Mapper function to convert API message format to UI format
-function mapApiMessageToUIMessage(apiMessage: any): ChatMessage {
+  try {
+    const user = await getCurrentUser();
+    const ids = [
+      user?.id,
+      user?.phone,
+      (user as any)?.userId,
+      (user as any)?._id,
+      (user as any)?.uid,
+      (user as any)?.sub,
+    ];
+    ids
+      .map(normalizeId)
+      .filter(Boolean)
+      .forEach((id) => currentActorIds.add(id));
+  } catch (e) {
+    console.warn("hydrateCurrentActorIds failed:", e);
+  } finally {
+    actorIdsHydrated = true;
+  }
+};
+
+const isCurrentActor = (senderId: unknown): boolean => {
+  const normalized = normalizeId(senderId);
+  return normalized.length > 0 && currentActorIds.has(normalized);
+};
+
+const buildStableMessageId = (apiMessage: any): string => {
+  const directId = normalizeId(
+    apiMessage?.messageId ?? apiMessage?.message_id ?? apiMessage?.id,
+  );
+  if (directId) return directId;
+
+  const conversationId = normalizeId(
+    apiMessage?.conversationId ?? apiMessage?.conversation_id,
+  );
+  const senderId = normalizeId(
+    apiMessage?.senderId ??
+      apiMessage?.sender_id ??
+      apiMessage?.sender?.id ??
+      apiMessage?.sender?.userId ??
+      apiMessage?.user_id ??
+      apiMessage?.author_id,
+  );
+  const createdAt = normalizeId(
+    apiMessage?.createdAt ??
+      apiMessage?.created_at ??
+      apiMessage?.sent_at ??
+      apiMessage?.timestamp,
+  );
+  const body = normalizeId(apiMessage?.body ?? apiMessage?.text ?? apiMessage?.content);
+  const attachmentKey = normalizeId(
+    Array.isArray(apiMessage?.attachments) ? apiMessage?.attachments?.[0]?.key : "",
+  );
+
+  const composite = [conversationId, senderId, createdAt, body, attachmentKey]
+    .filter(Boolean)
+    .join("|");
+
+  if (composite) return `msg_${composite}`;
+  return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const toTimestampMs = (value: unknown): number => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return Date.now();
+};
+
+function toLegacyChatMessage(apiMessage: any): ChatMessage {
+  const firstAttachment = Array.isArray(apiMessage?.attachments)
+    ? apiMessage.attachments[0]
+    : undefined;
+  const senderId =
+    apiMessage?.senderId ??
+    apiMessage?.sender_id ??
+    apiMessage?.sender?.id ??
+    apiMessage?.sender?.userId ??
+    apiMessage?.user_id ??
+    apiMessage?.author_id;
+  const body = apiMessage?.body ?? apiMessage?.text ?? apiMessage?.content ?? "";
+  const createdAtRaw =
+    apiMessage?.createdAt ??
+    apiMessage?.created_at ??
+    apiMessage?.sent_at ??
+    apiMessage?.timestamp ??
+    Date.now();
+  const attachmentType = firstAttachment?.type;
+  const serverMessageId = normalizeId(
+    apiMessage?.messageId ?? apiMessage?.message_id ?? apiMessage?.id,
+  );
+  const messageType =
+    attachmentType === "document"
+      ? "file"
+      : attachmentType === "audio"
+        ? "voice"
+      : attachmentType || apiMessage?.type || "text";
+
   return {
-    id: apiMessage.id,
-    conversationId: apiMessage.conversationId,
-    fromMe: apiMessage.senderId === 'user-me' || (apiMessage.sender && apiMessage.sender.me === true),
-    senderId: apiMessage.senderId || (apiMessage.sender ? 'user-me' : undefined),
-    type: apiMessage.type || 'text',
-    text: apiMessage.text || apiMessage.content || '',
-    timestamp: apiMessage.timestamp || apiMessage.createdAt || Date.now(),
-    fileInfo: apiMessage.fileInfo || (apiMessage.attachments && apiMessage.attachments.length > 0 && apiMessage.attachments[0] ? {
-      uri: apiMessage.attachments[0]?.url || '',
-      name: apiMessage.attachments[0]?.name || 'File',
-      size: apiMessage.attachments[0]?.size || '0 MB',
-      mimeType: apiMessage.attachments[0]?.mimeType || ''
-    } : undefined),
-    replyTo: apiMessage.replyTo,
-    reactions: apiMessage.reactions,
-    deletedFor: apiMessage.deletedFor,
-    isRevoked: apiMessage.revoked || apiMessage.isRevoked
+    id: buildStableMessageId(apiMessage),
+    serverMessageId: serverMessageId || undefined,
+    conversationId: apiMessage?.conversationId ?? apiMessage?.conversation_id,
+    fromMe:
+      apiMessage?.fromMe === true ||
+      apiMessage?.sender?.me === true ||
+      isCurrentActor(senderId),
+    senderId: senderId,
+    type: messageType,
+    text: body,
+    timestamp: toTimestampMs(createdAtRaw),
+    fileInfo: firstAttachment
+      ? {
+          uri:
+            firstAttachment.url ||
+            firstAttachment.uri ||
+            firstAttachment.thumbnail_url ||
+            firstAttachment.thumbnail_key ||
+            firstAttachment.key ||
+            "",
+          name: firstAttachment.name || "File",
+          size: firstAttachment.size || 0,
+          mimeType:
+            firstAttachment.contentType ||
+            firstAttachment.content_type ||
+            firstAttachment.mimeType ||
+            firstAttachment.type ||
+            "",
+        }
+      : undefined,
+    replyTo:
+      apiMessage?.replyTo ||
+      (apiMessage?.reply_to
+        ? {
+            id: apiMessage.reply_to?.id || apiMessage.reply_to?.message_id,
+            senderId: apiMessage.reply_to?.sender_id || apiMessage.reply_to?.senderId,
+            senderName: apiMessage.reply_to?.sender_name || apiMessage.reply_to?.senderName,
+            text: apiMessage.reply_to?.body || apiMessage.reply_to?.text,
+          }
+        : apiMessage?.replyToMessage
+          ? {
+              id: apiMessage.replyToMessage?.id || apiMessage.replyToMessage?.message_id,
+              senderId:
+                apiMessage.replyToMessage?.sender_id || apiMessage.replyToMessage?.senderId,
+              senderName:
+                apiMessage.replyToMessage?.sender_name || apiMessage.replyToMessage?.senderName,
+              text: apiMessage.replyToMessage?.body || apiMessage.replyToMessage?.text,
+            }
+          : apiMessage?.reply_to_message_id || apiMessage?.replyToMessageId
+            ? {
+                id: apiMessage?.reply_to_message_id || apiMessage?.replyToMessageId,
+              }
+            : undefined),
+    reactions: apiMessage?.reactions,
+    status: apiMessage?.status,
+    deletedFor: apiMessage?.deletedFor,
+    isRevoked: Boolean(apiMessage?.isDeleted || apiMessage?.is_deleted || apiMessage?.isRevoked),
   };
 }
 
@@ -40,13 +189,85 @@ const pendingAcks = new Map<
 
 let socketInstance: Socket | null = null;
 let listenersRegistered = false;
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+const recentMessageIds: string[] = [];
+const RECENT_MESSAGE_CACHE_SIZE = 200;
+
+const buildChatJoinPayload = (conversationId: string): SocketChatJoinPayload => ({
+  conversation_id: String(conversationId || "").trim(),
+});
+
+type OutgoingFile = {
+  uri?: string;
+  name?: string;
+  type?: string;
+  mimeType?: string;
+  size?: number | string;
+  fileSize?: number;
+};
+
+const inferAttachmentType = (mimeType?: string) => {
+  if (!mimeType) return "document";
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("audio/")) return "audio";
+  return "document";
+};
+
+const normalizeOutgoingFile = (file: OutgoingFile) => {
+  const uri = String(file?.uri || "").trim();
+  const mimeType = String(file?.mimeType || file?.type || "").trim();
+  const type = mimeType || "application/octet-stream";
+  const size = Number(file?.size ?? file?.fileSize ?? 0);
+  const nameFromUri = uri ? uri.split("/").pop() : "";
+  const fallbackExt = type.includes("/") ? type.split("/")[1] : "bin";
+  const name =
+    String(file?.name || "").trim() ||
+    nameFromUri ||
+    `file_${Date.now()}.${fallbackExt}`;
+
+  return {
+    uri,
+    name,
+    type,
+    size: Number.isFinite(size) && size > 0 ? size : 0,
+    attachmentType: inferAttachmentType(type),
+  };
+};
+
+const buildFallbackAttachment = (
+  file: ReturnType<typeof normalizeOutgoingFile>,
+  conversationId: string,
+  index: number,
+) => {
+  const safeName = String(file.name || `file_${Date.now()}`).replace(/\s+/g, "_");
+  const fallbackKey = `uploads/${conversationId}/${Date.now()}_${index}_${safeName}`;
+  return {
+    key: fallbackKey,
+    type: file.attachmentType,
+    name: file.name || "File",
+    size: Number(file.size || 0),
+    content_type: file.type || "application/octet-stream",
+    uri: file.uri,
+    url: file.uri,
+    thumbnail_key: fallbackKey,
+  };
+};
+
+const sortMessagesAscending = (messages: ChatMessage[]): ChatMessage[] => {
+  return [...messages].sort((a, b) => {
+    const timeDiff = Number(a.timestamp || 0) - Number(b.timestamp || 0);
+    if (timeDiff !== 0) return timeDiff;
+    return String(a.id || "").localeCompare(String(b.id || ""));
+  });
+};
 
 function generateUUID(): string {
   try {
     // Prefer native if available
     if (typeof globalThis?.crypto?.randomUUID === "function")
       return (globalThis.crypto as any).randomUUID();
-  } catch (e) {
+  } catch {
     // fallthrough
   }
   // fallback v4
@@ -58,6 +279,7 @@ function generateUUID(): string {
 }
 
 async function ensureSocket() {
+  await hydrateCurrentActorIds();
   if (!socketInstance) {
     socketInstance = await connectSocket();
   }
@@ -66,32 +288,39 @@ async function ensureSocket() {
 }
 
 export async function loadInitialMessages(conversationId: string) {
-  // First page (limit 50)
-  const resp = await messagesApi.getMessages(conversationId, 50);
-  const payload = resp?.data || {};
-  
-  // Convert messages to UI format - handle different response structures
-  let messages: any[] = [];
-  if (Array.isArray(payload.messages)) {
-    messages = payload.messages;
-  } else if (Array.isArray(payload.data)) {
-    messages = payload.data;
-  } else if (Array.isArray(payload)) {
-    messages = payload;
+  await hydrateCurrentActorIds();
+  const normalizedConversationId = String(conversationId || "").trim();
+  if (!normalizedConversationId) {
+    return { messages: [], nextCursor: null, hasMore: false };
   }
-  
-  const uiMessages = messages.map(mapApiMessageToUIMessage);
+
+  const resp = await messagesApi.getMessages(normalizedConversationId, 50);
+  const payload = resp?.data ?? {};
+  const messages = Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(payload?.messages)
+      ? payload.messages
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload)
+          ? payload
+          : [];
+  const uiMessages = sortMessagesAscending(messages.map(toLegacyChatMessage));
 
   // Mark room open and join after loaded
-  openConversations.add(conversationId);
+  openConversations.add(normalizedConversationId);
   const s = await ensureSocket();
   try {
-    s.emit("chat:join", { conversation_id: conversationId });
+    s.emit("chat:join", buildChatJoinPayload(normalizedConversationId));
   } catch (e) {
     console.warn("chat:join emit failed", e);
   }
 
-  return { messages: uiMessages, nextCursor: payload.nextCursor }; // caller expects { messages: [], nextCursor }
+  return {
+    messages: uiMessages,
+    nextCursor: payload?.nextCursor ?? null,
+    hasMore: Boolean(payload?.hasMore),
+  };
 }
 
 export async function fetchMoreMessages(
@@ -99,81 +328,174 @@ export async function fetchMoreMessages(
   cursor?: string,
   limit = 50,
 ) {
+  await hydrateCurrentActorIds();
   const resp = await messagesApi.getMessages(conversationId, limit, cursor);
-  const payload = resp?.data || {};
-  
-  // Convert messages to UI format - handle different response structures
-  let messages: any[] = [];
-  if (Array.isArray(payload.messages)) {
-    messages = payload.messages;
-  } else if (Array.isArray(payload.data)) {
-    messages = payload.data;
-  } else if (Array.isArray(payload)) {
-    messages = payload;
-  }
-  
-  const uiMessages = messages.map(mapApiMessageToUIMessage);
-  return { messages: uiMessages, nextCursor: payload.nextCursor };
+  const payload = resp?.data ?? {};
+  const messages = Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(payload?.messages)
+      ? payload.messages
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload)
+          ? payload
+          : [];
+
+  const uiMessages = sortMessagesAscending(messages.map(toLegacyChatMessage));
+  return {
+    messages: uiMessages,
+    nextCursor: payload?.nextCursor ?? null,
+    hasMore: Boolean(payload?.hasMore),
+  };
 }
 
 export async function sendMessage(
   conversationId: string,
   content: any,
-  files?: Array<any>,
+  files?: any[],
+  options?: {
+    replyToMessage?: ChatMessage | null;
+  },
 ) {
   const socket = await ensureSocket();
 
   // Handle attachments: upload first to get keys
   let attachments: any[] = [];
   if (files && files.length > 0) {
-    for (const file of files) {
-      const fd = new FormData();
-      // 'file' expects { uri, name, type } on React Native
-      fd.append("file", file as any);
-      const uploadResp = await messagesApi.uploadMedia(fd);
-      const key = uploadResp?.data?.key || uploadResp?.data?.fileKey || null;
-      if (key) attachments.push({ key, meta: uploadResp?.data });
+    let fileIndex = 0;
+    for (const rawFile of files as OutgoingFile[]) {
+      const file = normalizeOutgoingFile(rawFile);
+      if (!file.uri) continue;
+      try {
+        const fd = new FormData();
+        // 'file' expects { uri, name, type } on React Native
+        fd.append("file", {
+          uri: file.uri,
+          name: file.name,
+          type: file.type,
+        } as any);
+        const uploadResp = await messagesApi.uploadMedia(fd);
+        const key = uploadResp?.data?.key || uploadResp?.data?.fileKey || null;
+        if (key) {
+          attachments.push({
+            key,
+            type: file.attachmentType,
+            name: file.name || uploadResp?.data?.name || "File",
+            size: Number(file.size || uploadResp?.data?.size || 0),
+            content_type: file.type || uploadResp?.data?.mimeType || "application/octet-stream",
+            uri: file.uri,
+            url: file.uri,
+            thumbnail_key: key,
+          });
+        } else {
+          attachments.push(buildFallbackAttachment(file, conversationId, fileIndex));
+        }
+      } catch (uploadErr) {
+        console.warn("uploadMedia failed, fallback to socket attachment payload", uploadErr);
+        attachments.push(buildFallbackAttachment(file, conversationId, fileIndex));
+      } finally {
+        fileIndex += 1;
+      }
     }
   }
 
+  const firstAttachmentType = attachments[0]?.type;
+  const outgoingMessageType =
+    firstAttachmentType === "document"
+      ? "file"
+      : firstAttachmentType === "audio"
+        ? "voice"
+        : firstAttachmentType || "text";
+
+  const replyToMessageId = String(
+    (options?.replyToMessage as any)?.serverMessageId ||
+      options?.replyToMessage?.id ||
+      "",
+  ).trim();
   const localId = generateUUID();
-  const optimisticMessage: Message = {
+  const optimisticMessage = {
     id: localId,
     conversationId,
-    content: content || (files && files.length > 0 ? files[0].name : ''),
+    body: content || (files && files.length > 0 ? files[0].name : ""),
     attachments,
     createdAt: Date.now(),
     sender: { me: true },
+    senderId: "user-me",
+    type: outgoingMessageType,
+    replyTo: options?.replyToMessage
+      ? {
+          id: replyToMessageId || options.replyToMessage.id,
+          senderId: options.replyToMessage.senderId,
+          text: options.replyToMessage.text,
+        }
+      : undefined,
     status: "sending",
   };
 
-  // Convert to UI format for optimistic update
-  const uiOptimisticMessage = mapApiMessageToUIMessage(optimisticMessage);
+  const uiOptimisticMessage = toLegacyChatMessage(optimisticMessage);
 
   // Emit chat:send with idempotency key message_id
   const payload = {
     conversation_id: conversationId,
     message_id: localId,
-    content: content || (files && files.length > 0 ? files[0].name : ''),
-    attachments: attachments.map((a) => a.key),
-    meta: {},
+    body: content || (files && files.length > 0 ? files[0].name : ""),
+    sent_at: Date.now(),
+    ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
+    attachments: attachments.map((a) => ({
+      key: a.key,
+      type: a.type || "document",
+      name: a.name || "File",
+      size: Number(a.size || 0),
+      content_type: a.content_type || "application/octet-stream",
+      thumbnail_key: a.thumbnail_key,
+    })),
   };
 
   const sendPromise = new Promise<any>((resolve, reject) => {
-    pendingAcks.set(localId, { resolve, reject });
+    const ackTimeout = setTimeout(() => {
+      pendingAcks.delete(localId);
+      reject({ message_id: localId, error: "chat:ack timeout" });
+    }, 15000);
+
+    const safeResolve = (payloadAck: any) => {
+      clearTimeout(ackTimeout);
+      resolve(payloadAck);
+    };
+    const safeReject = (err: any) => {
+      clearTimeout(ackTimeout);
+      reject(err);
+    };
+
+    pendingAcks.set(localId, { resolve: safeResolve, reject: safeReject });
     try {
+      if (__DEV__) {
+        console.log("[chat:send][emit]", {
+          conversation_id: payload.conversation_id,
+          message_id: payload.message_id,
+          reply_to_message_id: payload.reply_to_message_id,
+          attachments: payload.attachments?.length || 0,
+        });
+      }
       socket.emit("chat:send", payload, (ack: any) => {
         // some servers provide immediate callback; still rely on chat:ack event
         // resolve here if ack provided
-        if (ack && ack.status === "ok") {
+        if (__DEV__) {
+          console.log("[chat:send][callback-ack]", ack);
+        }
+        if (ack && ack.status === "accepted") {
           const p = pendingAcks.get(localId);
           p?.resolve(ack);
+          pendingAcks.delete(localId);
+        } else if (ack && ack.status === "rejected") {
+          const p = pendingAcks.get(localId);
+          p?.reject(ack);
           pendingAcks.delete(localId);
         }
       });
     } catch (e) {
+      clearTimeout(ackTimeout);
       pendingAcks.delete(localId);
-      reject(e);
+      safeReject(e);
     }
   });
 
@@ -205,32 +527,75 @@ function registerSocketListeners() {
     // Re-emit chat:join for all open conversations
     for (const conv of Array.from(openConversations)) {
       try {
-        s.emit("chat:join", { conversation_id: conv });
+        s.emit("chat:join", buildChatJoinPayload(conv));
       } catch (e) {
         console.warn("Re-emit chat:join failed", e);
       }
     }
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+    heartbeatTimer = setInterval(() => {
+      try {
+        s.emit("presence:heartbeat", { ts: Date.now() });
+      } catch (e) {
+        console.warn("presence:heartbeat emit failed", e);
+      }
+    }, 30_000);
   });
 
   s.on("chat:ack", (payload: any) => {
-    // payload expected to contain message_id (client local id) and serverId/createdAt
+    if (__DEV__) {
+      console.log("[chat:ack][event]", payload);
+    }
     const clientId = payload?.message_id;
     if (clientId) {
       const p = pendingAcks.get(clientId);
       if (p) {
-        p.resolve(payload);
+        if (payload?.status === "rejected") p.reject(payload);
+        else p.resolve(payload);
         pendingAcks.delete(clientId);
       }
     }
   });
 
   s.on("chat:message", async (payload: any) => {
-    // Append to message list. Server event doesn't include attachments per spec
+    if (__DEV__) {
+      console.log("[chat:message][event]", {
+        message_id: payload?.message_id || payload?.id,
+        conversation_id: payload?.conversation_id || payload?.conversationId,
+      });
+    }
     const conversationId = payload?.conversation_id || payload?.conversationId;
     const messageId = payload?.id || payload?.message_id;
-    const createdAt = payload?.createdAt || payload?.ts || payload?.timestamp;
+    const createdAt =
+      payload?.created_at ?? payload?.createdAt ?? payload?.ts ?? payload?.timestamp;
 
-    // Fetch full details (attachments) as required
+    const messageKey = String(messageId || "");
+    if (messageKey && recentMessageIds.includes(messageKey)) {
+      return;
+    }
+
+    if (messageKey) {
+      recentMessageIds.push(messageKey);
+      if (recentMessageIds.length > RECENT_MESSAGE_CACHE_SIZE) {
+        recentMessageIds.shift();
+      }
+    }
+
+    const hasAttachmentsInPayload =
+      Array.isArray(payload?.attachments) && payload.attachments.length > 0;
+    const requiresDetails = Boolean(
+      conversationId &&
+        messageId &&
+        createdAt &&
+        (hasAttachmentsInPayload || payload?.attachment_key || payload?.fileKey),
+    );
+
+    if (!requiresDetails) {
+      const uiMessage = toLegacyChatMessage(payload);
+      _handlers.onMessage?.(uiMessage);
+      return;
+    }
+
     try {
       const detailsResp = await messagesApi.getMessageDetails(
         conversationId,
@@ -238,40 +603,130 @@ function registerSocketListeners() {
         messageId,
       );
       const fullMessage = detailsResp?.data || payload;
-      const uiMessage = mapApiMessageToUIMessage(fullMessage);
+      const uiMessage = toLegacyChatMessage(fullMessage);
       _handlers.onMessage?.(uiMessage);
     } catch (e) {
-      console.warn(
-        "Failed to fetch message details, falling back to event payload",
-        e,
-      );
-      const uiMessage = mapApiMessageToUIMessage(payload);
+      console.warn("Failed to fetch message details, fallback to event payload", e);
+      const uiMessage = toLegacyChatMessage(payload);
       _handlers.onMessage?.(uiMessage);
     }
   });
 
   s.on("chat:message:updated", (payload: any) => {
-    const uiMessage = mapApiMessageToUIMessage(payload);
+    const uiMessage = toLegacyChatMessage({
+      id: payload?.message_id,
+      conversationId: payload?.conversation_id,
+      body: payload?.new_body,
+      editedAt: payload?.edited_at,
+      senderId: payload?.sender_id,
+    });
     _handlers.onMessageUpdated?.(uiMessage);
   });
 
   s.on("chat:message:deleted", (payload: any) => {
-    _handlers.onMessageDeleted?.(payload);
+    _handlers.onMessageDeleted?.({
+      messageId: payload?.message_id,
+      conversationId: payload?.conversation_id,
+      deletedAt: payload?.deleted_at,
+    });
   });
 
   s.on("chat:reaction:added", (payload: any) => {
-    _handlers.onReactionAdded?.(payload);
+    _handlers.onReactionAdded?.({
+      messageId: payload?.message_id,
+      conversationId: payload?.conversation_id,
+      userId: payload?.user_id,
+      reactionType: payload?.reaction_type,
+      createdAt: payload?.created_at,
+    });
   });
 
   s.on("chat:reaction:removed", (payload: any) => {
-    _handlers.onReactionRemoved?.(payload);
+    _handlers.onReactionRemoved?.({
+      messageId: payload?.message_id,
+      conversationId: payload?.conversation_id,
+      userId: payload?.user_id,
+      reactionType: payload?.reaction_type,
+      removedAt: payload?.removed_at,
+    });
   });
 
   listenersRegistered = true;
 }
 
 export async function leaveConversation(conversationId: string) {
+  openConversations.delete(conversationId);
   return conversationsApi.leaveConversation(conversationId);
+}
+
+export async function editMessage(
+  conversationId: string,
+  messageId: string,
+  newBody: string,
+) {
+  const socket = await ensureSocket();
+  socket.emit("chat:edit", {
+    message_id: messageId,
+    conversation_id: conversationId,
+    new_body: newBody,
+  });
+}
+
+export async function deleteMessage(
+  conversationId: string,
+  messageId: string,
+) {
+  const socket = await ensureSocket();
+  socket.emit("chat:delete", {
+    message_id: messageId,
+    conversation_id: conversationId,
+  });
+}
+
+export async function reactMessage(
+  conversationId: string,
+  messageId: string,
+  reactionType: "like" | "love" | "haha" | "wow" | "sad" | "angry",
+) {
+  const socket = await ensureSocket();
+  socket.emit("chat:react", {
+    message_id: messageId,
+    conversation_id: conversationId,
+    reaction_type: reactionType,
+  });
+}
+
+export async function unreactMessage(
+  conversationId: string,
+  messageId: string,
+  reactionType: "like" | "love" | "haha" | "wow" | "sad" | "angry",
+) {
+  const socket = await ensureSocket();
+  socket.emit("chat:unreact", {
+    message_id: messageId,
+    conversation_id: conversationId,
+    reaction_type: reactionType,
+  });
+}
+
+export function resetChatRuntime() {
+  openConversations.clear();
+  recentMessageIds.splice(0, recentMessageIds.length);
+  pendingAcks.forEach((p) => p.reject({ error: "runtime reset" }));
+  pendingAcks.clear();
+  _handlers = {};
+
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+
+  socketInstance = null;
+  listenersRegistered = false;
+
+  currentActorIds.clear();
+  currentActorIds.add("user-me");
+  actorIdsHydrated = false;
 }
 
 
@@ -280,6 +735,11 @@ export default {
   fetchMoreMessages,
   sendMessage,
   registerHandlers,
+  resetChatRuntime,
+  editMessage,
+  deleteMessage,
+  reactMessage,
+  unreactMessage,
   leaveConversation,
 };
 
@@ -298,12 +758,8 @@ export async function fetchConversations(): Promise<ConversationV2[]> {
 
     if (!payload) return [];
 
-    if (Array.isArray(payload.data)) {
-      return payload.data;
-    }
-
-    if (Array.isArray(payload.conversations)) {
-      return payload.conversations;
+    if (Array.isArray(payload.data) || Array.isArray(payload.conversations)) {
+      return mapConversationsListFromApi(payload);
     }
 
     console.warn("Unexpected conversations response format:", payload);
@@ -357,14 +813,15 @@ export async function fetchAllMessages(): Promise<
     });
 
     const convs =
-      convResp?.data?.data ||
-      convResp?.data?.conversations ||
-      [];
+      mapConversationsListFromApi(
+        convResp?.data?.data || convResp?.data?.conversations || [],
+      );
 
     const result: Record<string, ChatMessage[]> = {};
 
     await Promise.all(
-      convs.map(async (c: any) => {
+      convs.map(async (c: ConversationV2) => {
+        if (!c.conversationId) return;
         try {
           const msgResp = await messagesApi.getMessages(
             c.conversationId,
@@ -373,15 +830,15 @@ export async function fetchAllMessages(): Promise<
 
           const payload = msgResp?.data;
 
-          if (Array.isArray(payload?.data)) {
-            result[c.conversationId] = payload.data;
-          } else if (Array.isArray(payload?.messages)) {
-            result[c.conversationId] = payload.messages;
-          } else {
-            console.warn("Invalid messages format:", payload);
-            result[c.conversationId] = [];
-          }
-        } catch (e) {
+          const list = Array.isArray(payload?.items)
+            ? payload.items
+            : Array.isArray(payload?.data)
+              ? payload.data
+              : Array.isArray(payload?.messages)
+                ? payload.messages
+                : [];
+          result[c.conversationId] = list.map(toLegacyChatMessage);
+        } catch {
           result[c.conversationId] = [];
         }
       })

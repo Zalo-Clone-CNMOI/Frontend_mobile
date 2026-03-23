@@ -1,37 +1,25 @@
+import { useSearchScreenLogic } from '@/src/hooks/screens/useSearchScreen';
+import { useTheme } from '@/src/theme/themeContext';
+import { mapFriendshipStatus } from '@/src/utils/friendshipStatus';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter } from 'expo-router';
 import { Search, X } from 'lucide-react-native';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useSearchStore } from '../src/store/searchStore';
-import { useTheme } from '../src/theme/themeContext';
-import { mapFriendshipStatus } from '../src/utils/friendshipStatus';
 
 export default function SearchScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const query = useSearchStore((state) => state.query);
-  const filteredResults = useSearchStore((state) => state.filteredResults);
-  const filteredResultsV2 = useSearchStore((state) => state.filteredResultsV2);
-  const setQuery = useSearchStore((state) => state.setQuery);
-  const loading = useSearchStore((state) => state.loading);
-  const error = useSearchStore((state) => state.error);
-  const lastPayload = useSearchStore((state) => state.lastPayload);
-  const initializeSearchData = useSearchStore((state) => state.initializeSearchData);
   const { t } = useTranslation();
-
-  // Initialize search data on mount
-  useEffect(() => {
-    initializeSearchData();
-  }, [initializeSearchData]);
+  const { error, filteredResults, filteredResultsV2, loading, query, setQuery } = useSearchScreenLogic();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Tìm kiếm',
+          title: 'Tim kiem',
           headerStyle: { backgroundColor: theme.colors.card },
           headerTintColor: theme.colors.text,
         }}
@@ -57,11 +45,9 @@ export default function SearchScreen() {
           <View style={styles.clearBtn}>
             <ActivityIndicator size="small" color="#8e8e93" />
           </View>
-        ) : !!query ? (
+        ) : query ? (
           <View style={styles.searchActions}>
-            <Text style={[styles.charCount, { color: query.length > 40 ? '#ff6b6b' : '#8e8e93' }]}>
-              {query.length}/50
-            </Text>
+            <Text style={[styles.charCount, { color: query.length > 40 ? '#ff6b6b' : '#8e8e93' }]}>{query.length}/50</Text>
             <TouchableOpacity onPress={() => setQuery('')} style={styles.clearBtn}>
               <X size={18} color="#8e8e93" />
             </TouchableOpacity>
@@ -70,16 +56,15 @@ export default function SearchScreen() {
       </View>
 
       {error ? <Text style={[styles.errorText]}>{error}</Text> : null}
-      {/* debug payload removed */}
 
       <Text style={[styles.sectionTitle, { color: '#8e8e93' }]}>{t('common.suggestions')}</Text>
 
-      {/* Render v2 results first (users + conversations), fall back to legacy results */}
       <FlashList
         data={filteredResultsV2 && filteredResultsV2.length ? filteredResultsV2 : filteredResults}
-        keyExtractor={(item: any) => (item.type === 'user' ? item.id : item.type === 'conversation' ? item.conversationId : item.id)}
+        keyExtractor={(item: any) =>
+          item.type === 'user' ? item.id : item.type === 'conversation' ? item.conversationId : item.id
+        }
         renderItem={({ item }: any) => {
-          // v2 item
           if (item.type === 'user') {
             return (
               <TouchableOpacity
@@ -90,19 +75,19 @@ export default function SearchScreen() {
                 <View style={[styles.rowContent, { borderBottomColor: theme.colors.border }]}>
                   <Text style={[styles.name, { color: theme.colors.text }]}>{item.fullName}</Text>
                   <Text style={[styles.subtitle, { color: '#8e8e93' }]} numberOfLines={1}>
-                    {item.phone ?? ''} {item.friendshipStatus ? `· ${item.friendshipStatus}` : ''}
+                    {item.phone ?? ''} {item.friendshipStatus ? `� ${item.friendshipStatus}` : ''}
                   </Text>
                 </View>
-                {item.friendshipStatus && (
-                  (() => {
-                    const st = mapFriendshipStatus(item.friendshipStatus);
-                    return (
-                      <View style={[styles.statusBadge, { backgroundColor: st.color, borderColor: st.color }]}> 
-                        <Text style={[styles.statusText, { color: st.textColor }]}>{st.label}</Text>
-                      </View>
-                    );
-                  })()
-                )}
+                {item.friendshipStatus
+                  ? (() => {
+                      const st = mapFriendshipStatus(item.friendshipStatus);
+                      return (
+                        <View style={[styles.statusBadge, { backgroundColor: st.color, borderColor: st.color }]}>
+                          <Text style={[styles.statusText, { color: st.textColor }]}>{st.label}</Text>
+                        </View>
+                      );
+                    })()
+                  : null}
               </TouchableOpacity>
             );
           }
@@ -111,7 +96,9 @@ export default function SearchScreen() {
             return (
               <TouchableOpacity
                 style={[styles.row, { backgroundColor: theme.colors.background }]}
-                onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.conversationId, name: item.name } })}
+                onPress={() =>
+                  router.push({ pathname: '/chat/[id]', params: { id: item.conversationId, name: item.name } })
+                }
               >
                 <Image source={{ uri: item.avatar }} style={styles.avatar} />
                 <View style={[styles.rowContent, { borderBottomColor: theme.colors.border }]}>
@@ -124,7 +111,6 @@ export default function SearchScreen() {
             );
           }
 
-          // legacy item
           return (
             <TouchableOpacity
               style={[styles.row, { backgroundColor: theme.colors.background }]}
@@ -167,11 +153,11 @@ const styles = StyleSheet.create({
     minWidth: 30,
     textAlign: 'right',
   },
-  clearBtn: { 
-    width: 34, 
-    height: 34, 
-    alignItems: 'center', 
-    justifyContent: 'center' 
+  clearBtn: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: { fontSize: 13, marginHorizontal: 16, marginBottom: 8 },
   errorText: { color: '#ff6b6b', marginHorizontal: 16, marginBottom: 8 },

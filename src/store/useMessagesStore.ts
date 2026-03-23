@@ -12,10 +12,31 @@ interface MessagesState {
   getMessagesByChatId: (chatId: string) => ChatMessage[];
   sendMessage: (chatId: string, message: Omit<ChatMessage, 'id'>) => void;
   addMessage: (chatId: string, message: ChatMessage) => void;
+  setMessagesForChat: (chatId: string, messages: ChatMessage[]) => void;
   updateMessage: (chatId: string, messageId: string, updates: Partial<ChatMessage>) => void;
   deleteMessage: (chatId: string, messageId: string) => void;
   revokeMessage: (chatId: string, messageId: string) => void;
+  reset: () => void;
 }
+
+const sortMessagesAscending = (messages: ChatMessage[]): ChatMessage[] => {
+  return [...messages].sort((a, b) => {
+    const ta = Number(a.timestamp || 0);
+    const tb = Number(b.timestamp || 0);
+    if (ta !== tb) return ta - tb;
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  });
+};
+
+const dedupeMessages = (messages: ChatMessage[]): ChatMessage[] => {
+  const map = new Map<string, ChatMessage>();
+  for (const msg of messages) {
+    const key = String(msg.id || '').trim() || `${msg.conversationId || 'chat'}:${msg.senderId || ''}:${msg.timestamp || 0}:${msg.text || ''}`;
+    const existing = map.get(key);
+    map.set(key, existing ? { ...existing, ...msg } : msg);
+  }
+  return Array.from(map.values());
+};
 
 export const useMessagesStore = create<MessagesState>((set, get) => ({
   messagesByChatId: {},
@@ -52,7 +73,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       return {
         messagesByChatId: {
           ...state.messagesByChatId,
-          [chatId]: [...existing, newMessage],
+          [chatId]: sortMessagesAscending([...existing, newMessage]),
         },
       };
     });
@@ -61,22 +82,73 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   addMessage: (chatId, message) => {
     set((state) => {
       const existing = state.messagesByChatId[chatId] || [];
+      const normalizedMessageId = String(message.id || '').trim();
+      const dedupeIndexById = normalizedMessageId
+        ? existing.findIndex((m) => String(m.id || '').trim() === normalizedMessageId)
+        : -1;
+
+      const dedupeIndexBySignature =
+        dedupeIndexById >= 0
+          ? dedupeIndexById
+          : existing.findIndex(
+              (m) =>
+                m.timestamp === message.timestamp &&
+                (m.senderId || '') === (message.senderId || '') &&
+                (m.text || '') === (message.text || ''),
+            );
+
+      const index = dedupeIndexBySignature;
+      if (index >= 0) {
+        const updated = [...existing];
+        const merged = { ...updated[index], ...message };
+        if (!message.replyTo && updated[index].replyTo) {
+          merged.replyTo = updated[index].replyTo;
+        }
+        if (!message.fileInfo && updated[index].fileInfo) {
+          merged.fileInfo = updated[index].fileInfo;
+        }
+        if (!message.serverMessageId && updated[index].serverMessageId) {
+          merged.serverMessageId = updated[index].serverMessageId;
+        }
+        updated[index] = merged;
+        return {
+          messagesByChatId: {
+            ...state.messagesByChatId,
+            [chatId]: sortMessagesAscending(updated),
+          },
+        };
+      }
       return {
         messagesByChatId: {
           ...state.messagesByChatId,
-          [chatId]: [...existing, message],
+          [chatId]: sortMessagesAscending([...existing, message]),
         },
       };
     });
   },
 
+  setMessagesForChat: (chatId, messages) => {
+    set((state) => ({
+      messagesByChatId: {
+        ...state.messagesByChatId,
+        [chatId]: sortMessagesAscending(dedupeMessages(messages)),
+      },
+    }));
+  },
+
   updateMessage: (chatId, messageId, updates) => {
     set((state) => {
       const existing = state.messagesByChatId[chatId] || [];
+      const target = existing.find((m) => m.id === messageId);
+      if (!target) return state;
+
+      const hasAnyChange = Object.entries(updates).some(([key, value]) => (target as any)[key] !== value);
+      if (!hasAnyChange) return state;
+
       return {
         messagesByChatId: {
           ...state.messagesByChatId,
-          [chatId]: existing.map((m) => (m.id === messageId ? { ...m, ...updates } : m)),
+          [chatId]: sortMessagesAscending(existing.map((m) => (m.id === messageId ? { ...m, ...updates } : m))),
         },
       };
     });
@@ -101,10 +173,24 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
         messagesByChatId: {
           ...state.messagesByChatId,
           [chatId]: existing.map((m) =>
-            m.id === messageId ? { ...m, isRevoked: true } : m
+            m.id === messageId
+              ? {
+                  ...m,
+                  revokedBackupText: m.revokedBackupText || m.text || '',
+                  isRevoked: true,
+                }
+              : m
           ),
         },
       };
+    });
+  },
+
+  reset: () => {
+    set({
+      messagesByChatId: {},
+      isLoading: false,
+      error: null,
     });
   },
 }));
