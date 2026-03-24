@@ -109,6 +109,10 @@ function toLegacyChatMessage(apiMessage: any): ChatMessage {
     apiMessage?.sent_at ??
     apiMessage?.timestamp ??
     Date.now();
+  const editedAtRaw =
+    apiMessage?.editedAt ??
+    apiMessage?.edited_at ??
+    null;
   const attachmentType = firstAttachment?.type;
   const serverMessageId = normalizeId(
     apiMessage?.messageId ?? apiMessage?.message_id ?? apiMessage?.id,
@@ -176,6 +180,8 @@ function toLegacyChatMessage(apiMessage: any): ChatMessage {
             : undefined),
     reactions: apiMessage?.reactions,
     status: apiMessage?.status,
+    isEdited: Boolean(apiMessage?.isEdited || apiMessage?.is_edited || editedAtRaw),
+    editedAt: editedAtRaw ? toTimestampMs(editedAtRaw) : undefined,
     deletedFor: apiMessage?.deletedFor,
     isRevoked: Boolean(apiMessage?.isDeleted || apiMessage?.is_deleted || apiMessage?.isRevoked),
   };
@@ -619,6 +625,8 @@ function registerSocketListeners() {
       body: payload?.new_body,
       editedAt: payload?.edited_at,
       senderId: payload?.sender_id,
+      createdAt: payload?.created_at,
+      timestamp: payload?.timestamp,
     });
     _handlers.onMessageUpdated?.(uiMessage);
   });
@@ -857,7 +865,7 @@ export async function fetchAllMessages(): Promise<
  */
 export async function fetchContacts(): Promise<{ users: ContactUser[] }> {
   try {
-    const resp = await friendsApi.getFriends({ page: 1, limit: 100 });
+    const resp = await friendsApi.getFriendsList({ page: 1, limit: 100 });
     const payload = resp?.data;
 
     let list: any[] = [];
@@ -899,3 +907,4 @@ export async function fetchContacts(): Promise<{ users: ContactUser[] }> {
     return { users: [] };
   }
 }
+

@@ -12,7 +12,7 @@ export default function SearchScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { t } = useTranslation();
-  const { error, filteredResults, filteredResultsV2, loading, query, setQuery } = useSearchScreenLogic();
+  const { error, filteredResults, filteredResultsV2, hasNext, loadMore, loading, query, setQuery } = useSearchScreenLogic();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -64,6 +64,15 @@ export default function SearchScreen() {
         keyExtractor={(item: any) =>
           item.type === 'user' ? item.id : item.type === 'conversation' ? item.conversationId : item.id
         }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={() =>
+          loading && hasNext ? (
+            <View style={{ paddingVertical: 12 }}>
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            </View>
+          ) : null
+        }
         renderItem={({ item }: any) => {
           if (item.type === 'user') {
             return (
@@ -75,7 +84,7 @@ export default function SearchScreen() {
                 <View style={[styles.rowContent, { borderBottomColor: theme.colors.border }]}>
                   <Text style={[styles.name, { color: theme.colors.text }]}>{item.fullName}</Text>
                   <Text style={[styles.subtitle, { color: '#8e8e93' }]} numberOfLines={1}>
-                    {item.phone ?? ''} {item.friendshipStatus ? `· ${item.friendshipStatus}` : ''}
+                    {item.phone ?? ''} {item.friendshipStatus ? `Â· ${item.friendshipStatus}` : ''}
                   </Text>
                 </View>
                 {item.friendshipStatus

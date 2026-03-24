@@ -14,10 +14,13 @@ interface SearchState {
   query: string;
   loading: boolean;
   error: string | null;
+  currentPage: number;
+  hasNext: boolean;
 
   initializeSearchData: () => void;
   setQuery: (query: string) => void;
   performSearch: (query: string, page?: number, limit?: number) => Promise<void>;
+  loadMore: () => Promise<void>;
 }
 
 export const useSearchStore = create<SearchState>((set, get) => ({
@@ -28,6 +31,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   query: '',
   loading: false,
   error: null,
+  currentPage: 1,
+  hasNext: false,
 
   initializeSearchData: () => {
     set({
@@ -35,30 +40,32 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       filteredResultsV2: [],
       allResults: [],
       filteredResults: [],
+      currentPage: 1,
+      hasNext: false,
     });
   },
 
-  performSearch: async (query: string, page = 1, limit = 10) => {
+  performSearch: async (query: string, page = 1, limit = 20) => {
     const requestId = ++latestSearchRequestId;
     const trimmed = query.trim();
 
     if (!trimmed) {
-      set({ filteredResultsV2: [], loading: false, error: null });
+      set({ filteredResultsV2: [], loading: false, error: null, currentPage: 1, hasNext: false });
       return;
     }
 
     if (typeof trimmed !== 'string') {
-      set({ filteredResultsV2: [], loading: false, error: 'Search query must be text' });
+      set({ filteredResultsV2: [], loading: false, error: 'Search query must be text', currentPage: 1, hasNext: false });
       return;
     }
 
     if (trimmed.length < 2) {
-      set({ filteredResultsV2: [], loading: false, error: 'Search query must be at least 2 characters' });
+      set({ filteredResultsV2: [], loading: false, error: 'Search query must be at least 2 characters', currentPage: 1, hasNext: false });
       return;
     }
 
     if (trimmed.length > 50) {
-      set({ filteredResultsV2: [], loading: false, error: 'Search query must not exceed 50 characters' });
+      set({ filteredResultsV2: [], loading: false, error: 'Search query must not exceed 50 characters', currentPage: 1, hasNext: false });
       return;
     }
 
@@ -79,7 +86,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
       const mapped = users.map((u: any) => ({
         type: 'user',
-        id: u.id,
+        id: u.id || u._id,
         fullName: u.fullName || u.name || '',
         avatarUrl: u.avatarUrl || (u.avatar && u.avatar.url) || null,
         phone: u.phone,
@@ -88,12 +95,23 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
       const current = get().searchV2 || { users: [], conversations: [] };
       const conversations = current.conversations || [];
+      const existingUsers = page > 1 ? current.users || [] : [];
+      const mergedUsers = page > 1 ? [...existingUsers, ...mapped] : mapped;
+      const dedupedUsers = Array.from(
+        new Map(mergedUsers.map((item: any) => [String(item.id), item])).values(),
+      );
+      const meta = payload?.meta || {};
+      const next =
+        Boolean(meta?.hasNext) ||
+        (meta?.page && meta?.totalPages ? Number(meta.page) < Number(meta.totalPages) : false);
 
       set({
-        searchV2: { users: mapped, conversations },
-        filteredResultsV2: [...mapped, ...conversations],
+        searchV2: { users: dedupedUsers, conversations },
+        filteredResultsV2: [...dedupedUsers, ...conversations],
         loading: false,
         error: null,
+        currentPage: page,
+        hasNext: next,
       });
     } catch (e: any) {
       if (requestId !== latestSearchRequestId) return;
@@ -102,6 +120,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
         filteredResultsV2: [],
         loading: false,
         error: getErrorMessage(e),
+        currentPage: page,
+        hasNext: false,
       });
     }
   },
@@ -116,10 +136,18 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     searchDebounceTimer = setTimeout(() => {
       const current = get().query || '';
       if (current.trim()) {
-        get().performSearch(current.trim());
+        get().performSearch(current.trim(), 1, 20);
       } else {
-        set({ filteredResultsV2: [], loading: false, error: null });
+        set({ filteredResultsV2: [], loading: false, error: null, currentPage: 1, hasNext: false });
       }
     }, 350);
+  },
+
+  loadMore: async () => {
+    const state = get();
+    if (state.loading || !state.hasNext) return;
+    const trimmed = state.query.trim();
+    if (!trimmed || trimmed.length < 2) return;
+    await state.performSearch(trimmed, state.currentPage + 1, 20);
   },
 }));

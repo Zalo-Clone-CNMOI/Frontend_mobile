@@ -1,6 +1,7 @@
 import { ChatComposer } from '@/src/components/chat/ChatComposer';
 import { ChatOptions } from '@/src/components/chat/ChatOptions';
 import { ImageViewer } from '@/src/components/chat/ImageViewer';
+import { MessageActionMenu } from '@/src/components/chat/MessageActionMenu';
 import { MessageBubble } from '@/src/components/chat/MessageBubble';
 import { TypingIndicator } from '@/src/components/chat/TypingIndicator';
 import { VideoViewer } from '@/src/components/chat/VideoViewer';
@@ -28,7 +29,11 @@ export default function ChatDetailScreen() {
     listBottomPadding,
     messages,
     onSend,
+    editingMessage,
+    handleCancelEdit,
     handleReuseRevokedMessage,
+    handleRevokedRestoreExpired,
+    handleJumpToReplySource,
     openMessageActions,
     replyingMessage,
     selectedImage,
@@ -41,6 +46,13 @@ export default function ChatDetailScreen() {
     showChatOptions,
     title,
     typingUsers,
+    closeMessageActions,
+    handleReplyAction,
+    handleRevokeAction,
+    handleDeleteAction,
+    handleReactAction,
+    selectedActionMessage,
+    isMessageActionMenuVisible,
   } = useChatDetailScreenLogic();
 
   return (
@@ -84,6 +96,8 @@ export default function ChatDetailScreen() {
               item={item}
               onLongPress={openMessageActions}
               onReuseRevoked={handleReuseRevokedMessage}
+              onRevokeRestoreExpired={handleRevokedRestoreExpired}
+              onPressReply={handleJumpToReplySource}
               onImagePress={(uri) => setSelectedImage(uri)}
               onVideoPress={(uri: string) => setSelectedVideo(uri)}
             />
@@ -99,6 +113,14 @@ export default function ChatDetailScreen() {
             onSendFiles={handleSendFiles}
             onTypingStart={handleTypingStart}
             onTypingStop={handleTypingStop}
+            editingTo={
+              editingMessage
+                ? {
+                    text: editingMessage.text || '',
+                  }
+                : null
+            }
+            onCancelEdit={handleCancelEdit}
             replyingTo={
               replyingMessage
                 ? {
@@ -119,6 +141,16 @@ export default function ChatDetailScreen() {
           chatId={chatId}
           chatName={title}
           chatAvatar={currentChat?.avatar}
+        />
+        
+        <MessageActionMenu
+          visible={isMessageActionMenuVisible}
+          message={selectedActionMessage}
+          onClose={closeMessageActions}
+          onReply={handleReplyAction}
+          onRevoke={handleRevokeAction}
+          onDelete={handleDeleteAction}
+          onReact={handleReactAction}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -2,7 +2,7 @@
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
 import { FileText, Play, Check, CheckCheck, RotateCcw } from 'lucide-react-native';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Image,
@@ -19,12 +19,16 @@ export function MessageBubble({
   onImagePress,
   onVideoPress,
   onReuseRevoked,
+  onRevokeRestoreExpired,
+  onPressReply,
 }: {
   item: ChatMessage;
   onLongPress?: (item: ChatMessage) => void;
   onImagePress?: (uri: string) => void;
   onVideoPress?: (uri: string) => void;
   onReuseRevoked?: (item: ChatMessage) => void;
+  onRevokeRestoreExpired?: (messageId: string) => void;
+  onPressReply?: (item: ChatMessage) => void;
 }) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -60,7 +64,33 @@ export function MessageBubble({
   const messageText = (item as any).text || (item as any).content || '';
   const isMe = (item as any).fromMe || ((item as any).sender && (item as any).sender.me === true);
   const replySenderName = item.replyTo?.senderName || t('messages.replying_to');
-  const replyText = item.replyTo?.text || t('messages.replied_message');
+  const replyText =
+    String(item.replyTo?.text || '').trim() ||
+    t('messages.replied_message', { defaultValue: t('chat.reply') });
+  const canReuseRevoked =
+    Boolean(item.fromMe) &&
+    Boolean(item.revokedBackupText && String(item.revokedBackupText).trim().length > 0) &&
+    Number(item.revokeRestoreUntil || 0) > Date.now();
+
+  useEffect(() => {
+    if (!item.isRevoked) return;
+    if (!item.revokedBackupText || !String(item.revokedBackupText).trim()) return;
+
+    const expiresAt = Number(item.revokeRestoreUntil || 0);
+    if (!expiresAt) return;
+
+    const remain = expiresAt - Date.now();
+    if (remain <= 0) {
+      onRevokeRestoreExpired?.(item.id);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      onRevokeRestoreExpired?.(item.id);
+    }, remain);
+
+    return () => clearTimeout(timer);
+  }, [item.id, item.isRevoked, item.revokedBackupText, item.revokeRestoreUntil, onRevokeRestoreExpired]);
 
   return (
     <View
@@ -105,15 +135,17 @@ export function MessageBubble({
         >
           {/* Reply preview */}
           {item.replyTo && (
-            <View
-              style={[
+            <Pressable
+              onPress={() => onPressReply?.(item)}
+              style={({ pressed }) => ([
                 styles.replyWrap,
                 {
                   backgroundColor: isMe
                     ? 'rgba(223, 218, 218, 0.15)'
                     : 'rgba(153, 149, 149, 0.08)',
+                  opacity: pressed ? 0.85 : 1,
                 },
-              ]}
+              ])}
             >
               <View
                 style={[
@@ -141,13 +173,13 @@ export function MessageBubble({
                   {replyText}
                 </Text>
               </View>
-            </View>
+            </Pressable>
           )}
 
           {/* Content */}
           {item.isRevoked ? (
             <View style={styles.revokedRow}>
-              {!!item.fromMe && !!(item.revokedBackupText || item.text) && (
+              {canReuseRevoked && (
                 <Pressable
                   onPress={() => onReuseRevoked?.(item)}
                   style={[styles.reuseBtn, { borderColor: theme.colors.border }]}
@@ -274,17 +306,24 @@ export function MessageBubble({
 
         <View style={[styles.timeRow, { alignSelf: isMe ? 'flex-end' : 'flex-start' }]}>
           {!item.isRevoked && (
-            <Text
-              style={[
-                styles.timestamp,
-                {
-                  color: theme.colors.text,
-                  opacity: 0.5,
-                },
-              ]}
-            >
-              {formatTime(item.timestamp)}
-            </Text>
+            <>
+              {item.isEdited ? (
+                <Text style={[styles.edited, { color: theme.colors.text, opacity: 0.5 }]}>
+                  (Đã chỉnh sửa)
+                </Text>
+              ) : null}
+              <Text
+                style={[
+                  styles.timestamp,
+                  {
+                    color: theme.colors.text,
+                    opacity: 0.5,
+                  },
+                ]}
+              >
+                {formatTime(item.timestamp)}
+              </Text>
+            </>
           )}
 
           {isMe && !item.isRevoked && (
@@ -418,6 +457,9 @@ const styles = StyleSheet.create({
   },
 
   timestamp: {
+    fontSize: 10,
+  },
+  edited: {
     fontSize: 10,
   },
 

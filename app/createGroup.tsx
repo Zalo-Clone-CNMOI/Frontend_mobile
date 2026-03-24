@@ -3,24 +3,24 @@ import { useTheme } from "@/src/theme/themeContext";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
-  ArrowRight,
-  Camera,
-  Check,
-  ChevronLeft,
-  Search,
-  X,
+    ArrowRight,
+    Camera,
+    Check,
+    ChevronLeft,
+    Search,
+    X,
 } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  FlatList,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    FlatList,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 

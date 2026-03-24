@@ -38,6 +38,8 @@ const dedupeMessages = (messages: ChatMessage[]): ChatMessage[] => {
   return Array.from(map.values());
 };
 
+const REVOKED_RESTORE_TTL_MS = 30_000;
+
 export const useMessagesStore = create<MessagesState>((set, get) => ({
   messagesByChatId: {},
   isLoading: false,
@@ -101,6 +103,13 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       if (index >= 0) {
         const updated = [...existing];
         const merged = { ...updated[index], ...message };
+        // Never flip ownership from "mine" to "other" due to partial/ambiguous socket payload.
+        if (updated[index].fromMe === true && message.fromMe !== true) {
+          merged.fromMe = true;
+        }
+        if (!message.senderId && updated[index].senderId) {
+          merged.senderId = updated[index].senderId;
+        }
         if (!message.replyTo && updated[index].replyTo) {
           merged.replyTo = updated[index].replyTo;
         }
@@ -169,6 +178,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   revokeMessage: (chatId, messageId) => {
     set((state) => {
       const existing = state.messagesByChatId[chatId] || [];
+      const now = Date.now();
       return {
         messagesByChatId: {
           ...state.messagesByChatId,
@@ -177,7 +187,9 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
               ? {
                   ...m,
                   revokedBackupText: m.revokedBackupText || m.text || '',
+                  text: '',
                   isRevoked: true,
+                  revokeRestoreUntil: now + REVOKED_RESTORE_TTL_MS,
                 }
               : m
           ),

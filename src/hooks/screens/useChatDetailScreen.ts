@@ -1,4 +1,12 @@
-import { fetchMoreMessages, loadInitialMessages, registerHandlers, sendMessage as sendSocketMessage } from '@/src/services/chatService';
+import {
+  deleteMessage as sendSocketDeleteMessage,
+  editMessage as sendSocketEditMessage,
+  fetchMoreMessages,
+  loadInitialMessages,
+  registerHandlers,
+  sendMessage as sendSocketMessage,
+  reactMessage,
+} from '@/src/services/chatService';
 import { connectSocket, getSocket } from '@/src/services/socket';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
@@ -24,6 +32,7 @@ export function useChatDetailScreenLogic() {
   }, [params?.name, t]);
 
   const [input, setInput] = useState('');
+  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
   const [replyingMessage, setReplyingMessage] = useState<ChatMessage | null>(null);
   const flashListRef = useRef<any>(null);
   const loadedCursorRef = useRef<string | null>(null);
@@ -34,6 +43,8 @@ export function useChatDetailScreenLogic() {
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [selectedActionMessage, setSelectedActionMessage] = useState<ChatMessage | null>(null);
+  const [isMessageActionMenuVisible, setIsMessageActionMenuVisible] = useState(false);
 
   const messagesByChatId = useMessagesStore((state) => state.messagesByChatId);
   const messages = messagesByChatId[chatId] || [];
@@ -136,6 +147,8 @@ export function useChatDetailScreenLogic() {
               fileInfo: msg.fileInfo ?? existing.fileInfo,
               replyTo: msg.replyTo ?? existing.replyTo,
               status: msg.status ?? existing.status,
+              isEdited: msg.isEdited ?? existing.isEdited,
+              editedAt: msg.editedAt ?? existing.editedAt,
               serverMessageId:
                 existing.serverMessageId ||
                 msg.serverMessageId ||
@@ -162,16 +175,26 @@ export function useChatDetailScreenLogic() {
           if (match) {
             const oldText = String(match.text || '');
             const nextText = String(msg.text || '');
-            const oldTs = Number(match.timestamp || 0);
-            const nextTs = Number(msg.timestamp || 0);
-            if (oldText === nextText && oldTs === nextTs) return;
-            updateMessage(chatId, match.id, { text: msg.text, timestamp: msg.timestamp });
+            const oldEditedAt = Number(match.editedAt || 0);
+            const nextEditedAt = Number(msg.editedAt || 0);
+            if (oldText === nextText && oldEditedAt === nextEditedAt) return;
+            updateMessage(chatId, match.id, {
+              text: msg.text ?? match.text,
+              isEdited: true,
+              editedAt: msg.editedAt || Date.now(),
+            });
           }
         }
       },
       onMessageDeleted: (info: any) => {
         if (info.conversationId === chatId) {
-          deleteMessage(chatId, info.messageId);
+          const current = useMessagesStore.getState().messagesByChatId[chatId] || [];
+          const match =
+            current.find((m) => m.id === info.messageId) ||
+            current.find((m) => (m.serverMessageId || '') === String(info.messageId || '').trim());
+          if (match) {
+            deleteMessage(chatId, match.id);
+          }
         }
       },
       onReactionAdded: (info: any) => {
@@ -268,30 +291,45 @@ export function useChatDetailScreenLogic() {
   }, [addMessage, chatId, replyingMessage, updateMessage]);
 
   const openMessageActions = useCallback((msg: ChatMessage) => {
-    const actions: { text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }[] = [
-      {
-        text: t('chat.reply_to'),
-        onPress: () => {
-          if (msg.isRevoked) return;
-          setReplyingMessage(msg);
-        },
-      },
-      {
-        text: t('chat.revoke'),
-        style: 'destructive',
-        onPress: () => {
-          revokeMessage(chatId, msg.id);
-          if (replyingMessage?.id === msg.id) setReplyingMessage(null);
-        },
-      },
-      {
-        text: t('chat.cancel'),
-        style: 'cancel',
-      },
-    ];
+    setSelectedActionMessage(msg);
+    setIsMessageActionMenuVisible(true);
+  }, []);
 
-    Alert.alert(t('chat.actions'), undefined, actions);
-  }, [chatId, replyingMessage?.id, revokeMessage, t]);
+  const closeMessageActions = useCallback(() => {
+    setIsMessageActionMenuVisible(false);
+    setSelectedActionMessage(null);
+  }, []);
+
+  const handleReplyAction = useCallback((msg: ChatMessage) => {
+    if (msg.isRevoked) return;
+    setReplyingMessage(msg);
+  }, []);
+
+  const handleRevokeAction = useCallback((msg: ChatMessage) => {
+    if (!msg.fromMe) return;
+    revokeMessage(chatId, msg.id);
+    if (replyingMessage?.id === msg.id) setReplyingMessage(null);
+    if (editingMessage?.id === msg.id) setEditingMessage(null);
+  }, [chatId, editingMessage?.id, replyingMessage?.id, revokeMessage]);
+
+  const handleDeleteAction = useCallback(async (msg: ChatMessage) => {
+    try {
+      await sendSocketDeleteMessage(chatId, msg.serverMessageId || msg.id);
+    } catch (error) {
+      console.warn('chat:delete emit failed:', error);
+    }
+    if (replyingMessage?.id === msg.id) setReplyingMessage(null);
+    if (editingMessage?.id === msg.id) setEditingMessage(null);
+  }, [chatId, editingMessage?.id, replyingMessage?.id]);
+
+  const handleReactAction = useCallback(async (msg: ChatMessage, reaction: "like" | "love" | "haha" | "wow" | "sad" | "angry") => {
+    try {
+      await reactMessage(chatId, msg.serverMessageId || msg.id, reaction);
+    } catch (error) {
+      console.warn('chat:react emit failed:', error);
+    }
+    closeMessageActions();
+  }, [chatId, closeMessageActions]);
 
   const handleReuseRevokedMessage = useCallback((msg: ChatMessage) => {
     const restoredText = String(msg.revokedBackupText || msg.text || '').trim();
@@ -300,9 +338,51 @@ export function useChatDetailScreenLogic() {
     setInput(restoredText);
   }, []);
 
+  const handleRevokedRestoreExpired = useCallback((messageId: string) => {
+    const current = useMessagesStore.getState().messagesByChatId[chatId] || [];
+    const target = current.find((m) => m.id === messageId);
+    if (!target || !target.isRevoked || !target.revokedBackupText) return;
+    updateMessage(chatId, messageId, {
+      revokedBackupText: '',
+      revokeRestoreUntil: undefined,
+    });
+  }, [chatId, updateMessage]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingMessage(null);
+    setInput('');
+  }, []);
+
+  const handleJumpToReplySource = useCallback((msg: ChatMessage) => {
+    const sourceId = String(msg.replyTo?.id || '').trim();
+    if (!sourceId) return;
+    const current = useMessagesStore.getState().messagesByChatId[chatId] || [];
+    const index = current.findIndex(
+      (m) => String(m.id || '').trim() === sourceId || String(m.serverMessageId || '').trim() === sourceId,
+    );
+    if (index < 0) return;
+    flashListRef.current?.scrollToIndex?.({ index, animated: true, viewPosition: 0.5 });
+  }, [chatId]);
+
   const onSend = useCallback(async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
+
+    if (editingMessage) {
+      try {
+        await sendSocketEditMessage(chatId, editingMessage.serverMessageId || editingMessage.id, trimmed);
+        updateMessage(chatId, editingMessage.id, {
+          text: trimmed,
+          isEdited: true,
+          editedAt: Date.now(),
+        });
+        setInput('');
+        setEditingMessage(null);
+      } catch (error) {
+        console.error('Failed to edit message:', error);
+      }
+      return;
+    }
 
     try {
       const { optimisticMessage, sendPromise } = await sendSocketMessage(
@@ -325,7 +405,7 @@ export function useChatDetailScreenLogic() {
         updateMessage(chatId, (error as any).message_id, { status: 'failed' });
       }
     }
-  }, [addMessage, chatId, input, replyingMessage, updateMessage]);
+  }, [addMessage, chatId, editingMessage, input, replyingMessage, updateMessage]);
 
   const handleTypingStart = useCallback(() => {
     const activeSocket = getSocket();
@@ -355,7 +435,18 @@ export function useChatDetailScreenLogic() {
     messages,
     onSend,
     openMessageActions,
+    closeMessageActions,
+    handleReplyAction,
+    handleRevokeAction,
+    handleDeleteAction,
+    handleReactAction,
+    selectedActionMessage,
+    isMessageActionMenuVisible,
+    editingMessage,
+    handleCancelEdit,
     handleReuseRevokedMessage,
+    handleRevokedRestoreExpired,
+    handleJumpToReplySource,
     replyingMessage,
     selectedImage,
     selectedVideo,

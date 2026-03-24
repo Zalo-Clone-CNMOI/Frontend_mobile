@@ -44,7 +44,7 @@
     "theme_dark": "Dark", 
     "theme_system": "System",
     "change_language": "Change Language",
-    "vietnamese": "Tiếng Việt",
+    "vietnamese": "Tiáº¿ng Viá»‡t",
     "english": "English"
   },
   "auth": {
@@ -155,11 +155,12 @@
     "suggestions": "Suggestions",
     "revoked": "Message Revoked",
     "cancel": "Cancel",
-    "replying_to": "Replying to"
+    "replying_to": "Replying to",
+    "replied_message": "Replied message"
   },
   "add_friend": {
     "title": "Add Friend",
-    "user_name": "Mai Huỳnh Dương Tuấn K...",
+    "user_name": "Mai Huá»³nh DÆ°Æ¡ng Tuáº¥n K...",
     "qr_description": "Scan QR code to add me on Zalo",
     "phone_placeholder": "Enter phone number",
     "scan_qr": "Scan QR Code",
@@ -213,19 +214,19 @@
   "loginstep2": {
     "enter_password": "Enter password for account linked with phone number",
     "enter_code": "Enter Code",
-    "code_placeholder": "Nhập mã",
-    "send_code": "Gửi mã",
-    "resend_code": "Gửi lại mã"
+    "code_placeholder": "Nháº­p mÃ£",
+    "send_code": "Gá»­i mÃ£",
+    "resend_code": "Gá»­i láº¡i mÃ£"
   },
   "register": {
     "terms_agreement": "I agree to the",
     "terms_of_service": "Zalo Terms of Service",
     "social_terms": "Zalo Social Network Terms",
     "has_account": "Already have an account?",
-    "fill_all_fields": "Vui lòng điền đầy đủ thông tin",
-    "password_mismatch": "Mật khẩu không khớp",
-    "password_too_short": "Mật khẩu phải có ít nhất 6 ký tự",
-    "password_changed": "Đổi mật khẩu thành công"
+    "fill_all_fields": "Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin",
+    "password_mismatch": "Máº­t kháº©u khÃ´ng khá»›p",
+    "password_too_short": "Máº­t kháº©u pháº£i cÃ³ Ã­t nháº¥t 6 kÃ½ tá»±",
+    "password_changed": "Äá»•i máº­t kháº©u thÃ nh cÃ´ng"
   },
   "account_security": {
     "title": "Account and Security",
@@ -296,3 +297,5 @@
     "add_from_gallery": "Add from Gallery"
   }
 }
+
+

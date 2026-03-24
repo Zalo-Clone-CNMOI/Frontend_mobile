@@ -38,20 +38,32 @@ export default function ContactsScreen() {
     const isOnline = item.status === 'online' || item.isOnline;
     const title = item.fullName || item.name;
     const subtitle = item.isOnline ? t('contacts.online') : t('contacts.offline');
+    const lastSeenText = item.lastSeenAt
+      ? new Date(item.lastSeenAt).toLocaleString()
+      : null;
+    const friendsSinceText = item.friendsSince
+      ? new Date(item.friendsSince).toLocaleDateString()
+      : null;
 
     return (
       <TouchableOpacity
-        style={[styles.row, { backgroundColor: itemTheme.colors.card }]}
+        style={[
+          styles.cardRow,
+          {
+            backgroundColor: itemTheme.colors.card,
+            borderColor: itemTheme.colors.border,
+          },
+        ]}
         activeOpacity={0.7}
         onPress={() => handleStartConversation(item.id, title)}
         disabled={creatingConversation}
       >
-        <View style={styles.avatarContainer}>
+        <View style={styles.cardAvatarContainer}>
           <Image source={{ uri: item.avatar }} style={styles.avatar} />
-          {isOnline ? <View style={[styles.onlineDot, { borderColor: itemTheme.colors.background }]} /> : null}
+          {isOnline ? <View style={[styles.onlineDot, { borderColor: itemTheme.colors.card }]} /> : null}
         </View>
 
-        <View style={[styles.rowContent, { borderBottomColor: itemTheme.colors.border }]}>
+        <View style={styles.cardContent}>
           <View style={styles.textWrapper}>
             <Text style={[styles.name, { color: itemTheme.colors.text }]}>{title}</Text>
             <Text style={[styles.subtitle, { color: '#8E8E93' }]} numberOfLines={1}>
@@ -64,15 +76,39 @@ export default function ContactsScreen() {
             ) : null}
             {item.friendsSince ? (
               <Text style={[styles.friendsSince, { color: '#8E8E93' }]} numberOfLines={1}>
-                Friends since {new Date(item.friendsSince).toLocaleDateString()}
+                Friends since {friendsSinceText}
+              </Text>
+            ) : null}
+            {!isOnline && lastSeenText ? (
+              <Text style={[styles.friendsSince, { color: '#8E8E93' }]} numberOfLines={1}>
+                Last seen {lastSeenText}
               </Text>
             ) : null}
           </View>
-          {creatingConversation ? (
-            <View style={styles.loadingIndicator}>
-              <ActivityIndicator size="small" color={itemTheme.colors.primary} />
+          <View style={styles.trailingWrap}>
+            <View
+              style={[
+                styles.statusPill,
+                {
+                  backgroundColor: isOnline ? `${itemTheme.colors.primary}22` : `${itemTheme.colors.border}55`,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusPillText,
+                  { color: isOnline ? itemTheme.colors.primary : '#8E8E93' },
+                ]}
+              >
+                {isOnline ? t('contacts.online') : t('contacts.offline')}
+              </Text>
             </View>
-          ) : null}
+            {creatingConversation ? (
+              <View style={styles.loadingIndicator}>
+                <ActivityIndicator size="small" color={itemTheme.colors.primary} />
+              </View>
+            ) : null}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -226,13 +262,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: { flex: 1 },
-  row: {
+  cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    marginHorizontal: 12,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: 14,
+    borderWidth: 0.5,
   },
-  avatarContainer: {
+  cardAvatarContainer: {
     position: 'relative',
   },
   avatar: {
@@ -250,13 +290,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
     borderWidth: 2,
   },
-  rowContent: {
+  cardContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 15,
-    borderBottomWidth: 0.5,
-    paddingBottom: 10,
+    marginLeft: 12,
   },
   textWrapper: {
     flex: 1,
@@ -279,8 +317,22 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   loadingIndicator: {
-    paddingLeft: 8,
+    paddingLeft: 6,
     justifyContent: 'center',
+  },
+  trailingWrap: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+  statusPill: {
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   tabText: {
     fontSize: 16,

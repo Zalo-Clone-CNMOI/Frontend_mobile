@@ -63,9 +63,12 @@ export type ChatMessage = {
 
   // optimistic sending state
   status?: "sending" | "sent" | "read" | "failed";
+  isEdited?: boolean;
+  editedAt?: number;
 
   // per-user deletion and revoke flags
   deletedFor?: string[];
   isRevoked?: boolean;
   revokedBackupText?: string;
+  revokeRestoreUntil?: number;
 };

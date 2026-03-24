@@ -8,6 +8,8 @@ export function useSearchScreenLogic() {
   const setQuery = useSearchStore((state) => state.setQuery);
   const loading = useSearchStore((state) => state.loading);
   const error = useSearchStore((state) => state.error);
+  const hasNext = useSearchStore((state) => state.hasNext);
+  const loadMore = useSearchStore((state) => state.loadMore);
   const initializeSearchData = useSearchStore((state) => state.initializeSearchData);
 
   useEffect(() => {
@@ -21,5 +23,8 @@ export function useSearchScreenLogic() {
     loading,
     query,
     setQuery,
+    hasNext,
+    loadMore,
   };
 }
+

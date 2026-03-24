@@ -123,18 +123,18 @@ export function useContactsScreenLogic() {
       else setLoading(true);
 
       try {
-        const resp = await friendsApi.getFriends({ page: p, limit: LIMIT });
-        const data = resp?.data || {};
+        const resp = await friendsApi.getFriendsList({ page: p, limit: LIMIT });
+        const payload = resp?.data || {};
 
         if (resp.status >= 200 && resp.status < 300) {
           setError(null);
 
-          const friendsArray = Array.isArray(data)
-            ? data
-            : Array.isArray(data?.data)
-              ? data.data
-              : Array.isArray(data?.friends)
-                ? data.friends
+          const friendsArray = Array.isArray(payload)
+            ? payload
+            : Array.isArray(payload?.data)
+              ? payload.data
+              : Array.isArray((payload as any)?.friends)
+                ? (payload as any).friends
                 : [];
 
           const mappedFriends = Array.isArray(friendsArray)
@@ -144,10 +144,16 @@ export function useContactsScreenLogic() {
           if (opts.replace || p === 1) {
             setFriends(mappedFriends);
           } else {
-            setFriends((prev) => [...prev, ...mappedFriends]);
+            setFriends((prev) => {
+              const byId = new Map<string, ContactListItem>();
+              [...prev, ...mappedFriends].forEach((item) => {
+                byId.set(String(item.id), item);
+              });
+              return Array.from(byId.values());
+            });
           }
 
-          const meta = data.meta || data.pagination || {};
+          const meta = (payload as any).meta || (payload as any).pagination || {};
           setHasNext(
             !!meta.hasNext ||
               !!meta.has_next ||
@@ -212,3 +218,6 @@ export function useContactsScreenLogic() {
     usersFilterType,
   };
 }
+
+
+
