@@ -1,4 +1,5 @@
 import { useAuth } from '@/src/contexts/AuthContext';
+import { NETWORK_CONFIG } from '@/src/config/network';
 import api from '@/src/services/http';
 import { BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
@@ -30,7 +31,7 @@ export function useScannerScreenLogic() {
 
   const pollQrStatus = useCallback(async (sid: string) => {
     try {
-      const resp = await api.get(`/api/auth/qr/status/${sid}`);
+      const resp = await api.get(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/status/${sid}`);
       const data = resp?.data || {};
       if (data.status === 'waiting') {
         setQrStatus('waiting');
@@ -74,7 +75,7 @@ export function useScannerScreenLogic() {
 
     setLoading(true);
     try {
-      const resp = await api.post('/api/auth/qr/confirm', { sessionId }, { headers: { userId: user.id } });
+      const resp = await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/confirm`, { sessionId }, { headers: { userId: user.id } });
       const data = resp?.data || {};
       if (resp.status >= 200 && resp.status < 300) {
         setQrStatus('confirmed');
@@ -99,7 +100,7 @@ export function useScannerScreenLogic() {
 
     setLoading(true);
     try {
-      const resp = await api.post('/api/auth/qr/reject', { sessionId }, { headers: { userId: user.id } });
+      const resp = await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/reject`, { sessionId }, { headers: { userId: user.id } });
       const data = resp?.data || {};
       if (resp.status >= 200 && resp.status < 300) {
         setQrStatus('rejected');
