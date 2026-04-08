@@ -1,113 +1,48 @@
-import { getCurrentToken } from "./authService";
-import api from "./http";
+import { NETWORK_CONFIG } from '../config/network';
+import { apiCallWithRefresh } from './authService';
 
-export const registerDeviceToken = async (payload: any) => {
-  try {
-    console.log('📱 Registering device token with payload:', payload);
-    const response = await api.post("/api/device-tokens", payload);
-    console.log('✅ Device token registration successful');
-    return response;
-  } catch (e: any) {
-    console.warn('deviceTokensApi.registerDeviceToken primary request failed, attempting fallback:', e.message);
-    
-    const fallbackEndpoints = [
-      'http://54.179.206.215:5000/api/device-tokens',
-      'http://175.41.136.189:5000/api/device-tokens',
-      'http://localhost:5000/api/device-tokens'
-    ];
+export async function registerDeviceToken(payload: {
+  token: string;
+  platform: 'android' | 'ios';
+}) {
+  // Backend (per Swagger): POST /api/device-tokens (auth required)
+  const candidates = [
+    `${NETWORK_CONFIG.API_BASE_URL}/device-tokens`, // e.g. http://host:5000/api/device-tokens
+  ];
 
-    for (const endpoint of fallbackEndpoints) {
-      try {
-        console.log(`🔄 Trying device token register fallback endpoint: ${endpoint}`);
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-        
-        const token = await getCurrentToken();
-        const headers: Record<string, string> = { 
+  let lastError: any;
+  for (const url of candidates) {
+    try {
+      // Use shared refresh-on-401 wrapper to avoid "session expired" failures.
+      const resp = await apiCallWithRefresh(url, {
+        method: 'POST',
+        headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        };
-        if (token) headers.Authorization = `Bearer ${token}`;
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
 
-        const resp = await fetch(endpoint, { 
-          method: 'POST', 
-          headers,
-          body: JSON.stringify(payload),
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (resp.ok) {
-          const json = await resp.json();
-          console.log(`✅ Device token register fallback successful: ${endpoint}`);
-          return { data: json, status: resp.status };
-        }
-      } catch (fallbackErr: any) {
-        console.warn(`Device token register fallback error for ${endpoint}:`, fallbackErr.message);
-        continue;
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        const err: any = new Error(`Device token register failed: HTTP ${resp.status}`);
+        err.status = resp.status;
+        err.url = url;
+        err.body = text;
+        throw err;
       }
+
+      // Return a small axios-like shape for existing call sites
+      const data = await resp.json().catch(() => ({}));
+      return { data, status: resp.status, url };
+    } catch (e: any) {
+      lastError = e;
+      const status = e?.response?.status ?? e?.status;
+      // Only fall back on Not Found; otherwise surface the real failure.
+      if (status !== 404) throw e;
     }
-    
-    throw e;
   }
-};
 
-export const deleteDeviceToken = async (tokenId: string) => {
-  try {
-    console.log('🗑️ Deleting device token:', tokenId);
-    const response = await api.delete(`/api/device-tokens/${encodeURIComponent(tokenId)}`);
-    console.log('✅ Device token deletion successful');
-    return response;
-  } catch (e: any) {
-    console.warn('deviceTokensApi.deleteDeviceToken primary request failed, attempting fallback:', e.message);
-    
-    const fallbackEndpoints = [
-      'http://54.179.206.215:5000/api/device-tokens',
-      'http://175.41.136.189:5000/api/device-tokens',
-      'http://localhost:5000/api/device-tokens'
-    ];
+  throw lastError;
+}
 
-    for (const endpoint of fallbackEndpoints) {
-      try {
-        const fallbackUrl = `${endpoint}/${encodeURIComponent(tokenId)}`;
-        console.log(`🔄 Trying device token delete fallback endpoint: ${fallbackUrl}`);
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-        
-        const token = await getCurrentToken();
-        const headers: Record<string, string> = { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        };
-        if (token) headers.Authorization = `Bearer ${token}`;
-
-        const resp = await fetch(fallbackUrl, { 
-          method: 'DELETE', 
-          headers,
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (resp.ok) {
-          const json = await resp.json();
-          console.log(`✅ Device token delete fallback successful: ${endpoint}`);
-          return { data: json, status: resp.status };
-        }
-      } catch (fallbackErr: any) {
-        console.warn(`Device token delete fallback error for ${endpoint}:`, fallbackErr.message);
-        continue;
-      }
-    }
-    
-    throw e;
-  }
-};
-
-export default {
-  registerDeviceToken,
-  deleteDeviceToken,
-};

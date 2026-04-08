@@ -9,6 +9,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import { initializeLanguage } from '../src/i18n';
 import '../src/i18n/config'; // Import config to initialize i18n
+import { useNotifications } from '../src/notifications/useNotifications';
 import { ThemeProvider as AppThemeProvider } from '../src/theme/themeContext';
 import { ThemeManagerProvider, useThemeManager } from '../src/theme/themeManager';
 
@@ -16,6 +17,8 @@ function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
   const { theme } = useThemeManager();
   const { isLoading: authLoading } = useAuth();
   const [ready, setReady] = useState(false);
+
+  useNotifications();
 
   // Apply SystemUI background & StatusBar style when theme changes
   useEffect(() => {
