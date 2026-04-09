@@ -1,24 +1,14 @@
-<<<<<<< HEAD
-import { apiCallWithRefresh } from "./authService";
-import api from "./http";
-=======
 import { NETWORK_CONFIG } from '../config/network';
 import { apiCallWithRefresh } from './authService';
->>>>>>> 0574c9bf85f4d736a36d11560f37540f4c8b10c4
+import api from "./http";
 
 export async function registerDeviceToken(payload: {
   token: string;
   platform: 'android' | 'ios';
 }) {
-<<<<<<< HEAD
-  // Backend: POST /api/device-tokens (auth required)
-  const candidates = [
-    'http://54.179.206.215:5000/api/device-tokens',
-=======
   // Backend (per Swagger): POST /api/device-tokens (auth required)
   const candidates = [
     `${NETWORK_CONFIG.API_BASE_URL}/device-tokens`, // e.g. http://host:5000/api/device-tokens
->>>>>>> 0574c9bf85f4d736a36d11560f37540f4c8b10c4
   ];
 
   let lastError: any;
@@ -53,19 +43,14 @@ export async function registerDeviceToken(payload: {
       if (status !== 404) throw e;
     }
   }
-<<<<<<< HEAD
-
-  throw lastError;
+throw lastError;
 }
 
 export const deleteDeviceToken = async (tokenId: string) => {
   try {
-    console.log('Deleting device token:', tokenId);
-    const response = await api.delete(`http://54.179.206.215:5000/api/device-tokens/${encodeURIComponent(tokenId)}`);
-    console.log('Device token deletion successful');
+    const response = await api.delete(`${NETWORK_CONFIG.API_BASE_URL}/device-tokens/${encodeURIComponent(tokenId)}`);
     return response;
   } catch (e: any) {
-    console.error('Device token deletion failed:', e.message);
     throw e;
   }
 };
@@ -74,9 +59,3 @@ export default {
   registerDeviceToken,
   deleteDeviceToken,
 };
-=======
-
-  throw lastError;
-}
-
->>>>>>> 0574c9bf85f4d736a36d11560f37540f4c8b10c4

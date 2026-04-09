@@ -8,14 +8,9 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { AppRealtimeBridge } from '../src/components/app/AppRealtimeBridge';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
-import { useNotifications } from '../src/notifications/useNotifications';
 import { initializeLanguage } from '../src/i18n';
-<<<<<<< HEAD
 import '../src/i18n/config';
-=======
-import '../src/i18n/config'; // Import config to initialize i18n
 import { useNotifications } from '../src/notifications/useNotifications';
->>>>>>> 0574c9bf85f4d736a36d11560f37540f4c8b10c4
 import { ThemeProvider as AppThemeProvider } from '../src/theme/themeContext';
 import { ThemeManagerProvider, useThemeManager } from '../src/theme/themeManager';
 
@@ -24,13 +19,9 @@ function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
   const { isLoading: authLoading } = useAuth();
   const [ready, setReady] = useState(false);
 
-<<<<<<< HEAD
-   useNotifications();
-=======
-  useNotifications();
+useNotifications();
 
   // Apply SystemUI background & StatusBar style when theme changes
->>>>>>> 0574c9bf85f4d736a36d11560f37540f4c8b10c4
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(theme.colors.statusBar);
   }, [theme]);
