@@ -2,11 +2,13 @@ import { useTimelineStore } from '@/src/store/useTimelineStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TimelineScreen() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const initializePosts = useTimelineStore((s) => s.initializePosts);
 
   useEffect(() => {
@@ -26,7 +28,7 @@ export default function TimelineScreen() {
             const user = USERS_V2.find((u: any) => u.id === item.userId);
             const author = {
               id: item.userId,
-              name: user ? user.fullName : 'Unknown User',
+              name: user ? user.fullName : t('timeline.default_user'),
               avatarUrl: user?.avatar
             };
             

@@ -1,8 +1,9 @@
 import { useAuth } from '@/src/contexts/AuthContext';
 import { createDirect } from '@/src/services/conversationsApi';
-import * as friendsApi from '@/src/services/friendsApi';
+import { fetchRuntimeFriendSnapshot } from '@/src/services/realtime/runtimeFriendService';
+import { useRealtimeStore } from '@/src/store/useRealtimeStore';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 export type ContactListItem = {
   id: string;
@@ -27,24 +28,18 @@ export type ContactListItem = {
 
 const mapFriend = (friend: any): ContactListItem => ({
   id: friend.id || friend._id,
-  fullName:
-    friend.fullName ||
-    friend.name ||
-    `${friend.firstName || ''} ${friend.lastName || ''}`.trim(),
-  avatar:
-    friend.avatarUrl ||
-    friend.avatar ||
-    `https://i.pravatar.cc/200?u=${friend.id || Math.random()}`,
+  fullName: friend.fullName || friend.name || '',
+  avatar: friend.avatarUrl || friend.avatar || `https://i.pravatar.cc/200?u=${friend.id || Math.random()}`,
   status: friend.status || 'offline',
   phone: friend.phone || '',
   email: friend.email || '',
   bio: friend.bio || '',
-  isOnline: friend.isOnline || friend.status === 'online',
-  lastSeenAt: friend.lastSeenAt,
-  friendsSince: friend.friendsSince,
+  isOnline: friend.status === 'online',
+  lastSeenAt: friend.lastSeenAt || undefined,
+  friendsSince: friend.friendsSince || undefined,
   mutualFriends: friend.mutualFriends || 0,
   friendType: friend.friendType || 'normal',
-  friendStatus: friend.friendStatus || 'pending',
+  friendStatus: friend.friendStatus || 'accepted',
   friendCategory: friend.friendCategory || 'personal',
   friendRequestStatus: friend.friendRequestStatus || 'none',
   friendRequestSent: friend.friendRequestSent || false,
@@ -55,18 +50,18 @@ const mapFriend = (friend: any): ContactListItem => ({
 export function useContactsScreenLogic() {
   const router = useRouter();
   const { user } = useAuth();
+  const realtimeFriends = useRealtimeStore((state) => state.friends);
+  const receivedRequests = useRealtimeStore((state) => state.receivedRequests);
+  const isHydrating = useRealtimeStore((state) => state.isHydrating);
 
-  const [friends, setFriends] = useState<ContactListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasNext, setHasNext] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(0);
   const [usersFilterType, setUsersFilterType] = useState<'all' | 'recent'>('all');
   const [creatingConversation, setCreatingConversation] = useState(false);
 
-  const LIMIT = 50;
+  const friends = useMemo(() => realtimeFriends.map(mapFriend), [realtimeFriends]);
 
   const navigateToChat = useCallback(
     (conversationId: string, friendName: string) => {
@@ -93,7 +88,6 @@ export function useContactsScreenLogic() {
       try {
         const response = await createDirect(friendId);
         const conversation = response?.data;
-
         const conversationId =
           conversation?.data?.id ||
           conversation?.data?._id ||
@@ -114,84 +108,31 @@ export function useContactsScreenLogic() {
     [creatingConversation, navigateToChat],
   );
 
-  const fetchFriends = useCallback(
-    async (opts: { page?: number; replace?: boolean } = {}) => {
-      const p = opts.page || 1;
-      if (!user?.tokens?.accessToken) return;
+  const refreshFriends = useCallback(async () => {
+    if (!user?.id) return;
+    setError(null);
+    try {
+      const snapshot = await fetchRuntimeFriendSnapshot();
+      useRealtimeStore.getState().setFriendSnapshot(snapshot);
+    } catch (fetchErr) {
+      console.error('Error fetching friends:', fetchErr);
+      setError('Network connection failed. Please check your internet connection.');
+    }
+  }, [user?.id]);
 
-      if (opts.replace) setRefreshing(true);
-      else setLoading(true);
-
-      try {
-        const resp = await friendsApi.getFriendsList({ page: p, limit: LIMIT });
-        const payload = resp?.data || {};
-
-        if (resp.status >= 200 && resp.status < 300) {
-          setError(null);
-
-          const friendsArray = Array.isArray(payload)
-            ? payload
-            : Array.isArray(payload?.data)
-              ? payload.data
-              : Array.isArray((payload as any)?.friends)
-                ? (payload as any).friends
-                : [];
-
-          const mappedFriends = Array.isArray(friendsArray)
-            ? friendsArray.map(mapFriend)
-            : [];
-
-          if (opts.replace || p === 1) {
-            setFriends(mappedFriends);
-          } else {
-            setFriends((prev) => {
-              const byId = new Map<string, ContactListItem>();
-              [...prev, ...mappedFriends].forEach((item) => {
-                byId.set(String(item.id), item);
-              });
-              return Array.from(byId.values());
-            });
-          }
-
-          const meta = (payload as any).meta || (payload as any).pagination || {};
-          setHasNext(
-            !!meta.hasNext ||
-              !!meta.has_next ||
-              (meta.page && meta.totalPages ? meta.page < meta.totalPages : false),
-          );
-          setPage(p);
-        }
-      } catch (fetchErr) {
-        console.error('Error fetching friends:', fetchErr);
-        setFriends([]);
-        setHasNext(false);
-        setError('Network connection failed. Please check your internet connection.');
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [user?.tokens?.accessToken],
-  );
-
-  useEffect(() => {
-    fetchFriends({ page: 1, replace: true });
-  }, [fetchFriends]);
-
-  const onRefresh = useCallback(
-    () => fetchFriends({ page: 1, replace: true }),
-    [fetchFriends],
-  );
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshFriends();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshFriends]);
 
   const handleRetry = useCallback(() => {
-    setError(null);
-    fetchFriends({ page: 1, replace: true });
-  }, [fetchFriends]);
-
-  const loadMore = useCallback(() => {
-    if (!hasNext || loading) return;
-    fetchFriends({ page: page + 1 });
-  }, [fetchFriends, hasNext, loading, page]);
+    setLoading(true);
+    refreshFriends().finally(() => setLoading(false));
+  }, [refreshFriends]);
 
   const filteredFriends = useMemo(() => {
     if (usersFilterType === 'recent') {
@@ -208,16 +149,14 @@ export function useContactsScreenLogic() {
     friends,
     handleRetry,
     handleStartConversation,
-    hasNext,
-    loading,
-    loadMore,
+    hasNext: false,
+    loading: loading || isHydrating,
+    loadMore: () => undefined,
     onRefresh,
+    receivedRequests,
     refreshing,
     setActiveTab,
     setUsersFilterType,
     usersFilterType,
   };
 }
-
-
-

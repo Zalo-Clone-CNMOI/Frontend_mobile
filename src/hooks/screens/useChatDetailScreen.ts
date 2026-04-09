@@ -7,7 +7,9 @@ import {
   sendMessage as sendSocketMessage,
   reactMessage,
 } from '@/src/services/chatService';
-import { connectSocket, getSocket } from '@/src/services/socket';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { useTypingIndicator } from '@/src/hooks/useTypingIndicator';
+import { connectSocket } from '@/src/services/socket';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
 import type { ChatMessage } from '@/src/types/chat';
@@ -15,12 +17,12 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert } from 'react-native';
 
 export function useChatDetailScreenLogic() {
   const params = useLocalSearchParams<{ id?: string; name?: string }>();
   const chatId = params?.id || '';
   const { t } = useTranslation();
+  const { user } = useAuth();
   const headerHeight = useHeaderHeight();
   const isKeyboardVisible = false;
 
@@ -42,7 +44,7 @@ export function useChatDetailScreenLogic() {
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [typingSocket, setTypingSocket] = useState<Awaited<ReturnType<typeof connectSocket>> | null>(null);
   const [selectedActionMessage, setSelectedActionMessage] = useState<ChatMessage | null>(null);
   const [isMessageActionMenuVisible, setIsMessageActionMenuVisible] = useState(false);
 
@@ -56,6 +58,12 @@ export function useChatDetailScreenLogic() {
 
   const chats = useChatsStore((state) => state.chats);
   const currentChat = useMemo(() => chats.find((chat) => chat.conversationId === chatId), [chats, chatId]);
+  const { emitTyping, isTypingVisible, typingText, typingUsers } = useTypingIndicator({
+    socket: typingSocket,
+    conversationId: chatId,
+    myUserId: String(user?.id || ''),
+    enabled: Boolean(typingSocket && chatId),
+  });
 
   useEffect(() => {
     let active = true;
@@ -158,8 +166,7 @@ export function useChatDetailScreenLogic() {
             addMessage(chatId, msg);
           }
 
-          const activeSocket = getSocket();
-          if (activeSocket) activeSocket.emit('chat:read', { conversation_id: chatId });
+          if (typingSocket) typingSocket.emit('chat:read', { conversation_id: chatId });
           setTimeout(() => {
             flashListRef.current?.scrollToEnd({ animated: true });
           }, 100);
@@ -211,21 +218,6 @@ export function useChatDetailScreenLogic() {
 
     registerHandlers(handlers);
 
-    const handleTyping = (data: any) => {
-      if (data.conversation_id === chatId && data.user_id) {
-        if (data.is_typing) {
-          setTypingUsers((prev) => {
-            if (prev.includes(data.user_id)) return prev;
-            return [...prev, data.user_id];
-          });
-        } else {
-          setTypingUsers((prev) => {
-            if (!prev.includes(data.user_id)) return prev;
-            return prev.filter((id) => id !== data.user_id);
-          });
-        }
-      }
-    };
 
     const handleRead = (data: any) => {
       if (data.conversation_id === chatId) {
@@ -239,14 +231,14 @@ export function useChatDetailScreenLogic() {
     };
 
     let active = true;
-    let connectedSocket: ReturnType<typeof getSocket> = null;
+    let connectedSocket: Awaited<ReturnType<typeof connectSocket>> | null = null;
 
     const bindSocket = async () => {
       connectedSocket = await connectSocket();
       if (!active || !connectedSocket) return;
 
+      setTypingSocket(connectedSocket);
       connectedSocket.emit('chat:read', { conversation_id: chatId });
-      connectedSocket.on('chat:typing', handleTyping);
       connectedSocket.on('chat:read', handleRead);
     };
 
@@ -256,11 +248,10 @@ export function useChatDetailScreenLogic() {
       active = false;
       registerHandlers({});
       if (connectedSocket) {
-        connectedSocket.off('chat:typing', handleTyping);
         connectedSocket.off('chat:read', handleRead);
       }
     };
-  }, [addMessage, chatId, deleteMessage, updateMessage, upsertReaction]);
+  }, [addMessage, chatId, deleteMessage, typingSocket, updateMessage, upsertReaction]);
 
   const handleSendFiles = useCallback(async (files: any[]) => {
     for (const file of files) {
@@ -408,14 +399,11 @@ export function useChatDetailScreenLogic() {
   }, [addMessage, chatId, editingMessage, input, replyingMessage, updateMessage]);
 
   const handleTypingStart = useCallback(() => {
-    const activeSocket = getSocket();
-    if (activeSocket && chatId) activeSocket.emit('chat:typing', { conversation_id: chatId, is_typing: true });
-  }, [chatId]);
+    if (!chatId) return;
+    emitTyping(user?.name || user?.phone || user?.id || 'User');
+  }, [chatId, emitTyping, user?.id, user?.name, user?.phone]);
 
-  const handleTypingStop = useCallback(() => {
-    const activeSocket = getSocket();
-    if (activeSocket && chatId) activeSocket.emit('chat:typing', { conversation_id: chatId, is_typing: false });
-  }, [chatId]);
+  const handleTypingStop = useCallback(() => undefined, []);
 
   const bottomComposerPadding = 0;
   const listBottomPadding = 12 + 64;
@@ -457,7 +445,15 @@ export function useChatDetailScreenLogic() {
     setShowChatOptions,
     showChatOptions,
     title,
+    typingText,
     typingUsers,
+    isTypingVisible,
     bottomComposerPadding,
   };
 }
+
+
+
+
+
+

@@ -45,6 +45,14 @@ const toOptionalTimestamp = (...values: unknown[]): number | undefined => {
   return undefined;
 };
 
+const toPresenceStatus = (value: unknown): ContactUser["status"] => {
+  const normalized = String(value || "offline").toLowerCase();
+  if (normalized === "online" || normalized === "away") {
+    return normalized;
+  }
+  return "offline";
+};
+
 const mapAttachmentTypeToMessageType = (
   attachment?: ApiAttachmentDTO,
   fallbackType?: string,
@@ -84,12 +92,7 @@ export const mapApiMessageToChatMessage = (
     fromMe,
     type: mapAttachmentTypeToMessageType(firstAttachment, dto.type),
     text: body,
-    timestamp: toNumberTimestamp(
-      dto.createdAt,
-      dto.created_at,
-      dto.timestamp,
-      dto.sent_at,
-    ),
+    timestamp: toNumberTimestamp(dto.createdAt, dto.created_at, dto.timestamp, dto.sent_at),
     fileInfo: firstAttachment
       ? {
           uri: firstAttachment.url || firstAttachment.uri || "",
@@ -196,11 +199,7 @@ export const mapApiUserToContactUser = (dto: ApiUserDTO): ContactUser => {
   const id = toStringId(dto.id, dto._id, dto.userId, dto.user_id);
   const firstName = dto.firstName || dto.first_name || "";
   const lastName = dto.lastName || dto.last_name || "";
-  const fullName =
-    dto.fullName ||
-    dto.name ||
-    `${firstName} ${lastName}`.trim() ||
-    "Unknown";
+  const fullName = dto.fullName || dto.name || `${firstName} ${lastName}`.trim() || "Unknown";
 
   return {
     id,
@@ -210,8 +209,8 @@ export const mapApiUserToContactUser = (dto: ApiUserDTO): ContactUser => {
       dto.avatarUrl ||
       dto.avatar_url ||
       `https://i.pravatar.cc/150?u=${id || "default"}`,
-    status: dto.status ?? "offline",
-    lastSeen: dto.lastSeen ?? dto.last_seen ?? null,
+    status: toPresenceStatus(dto.status),
+    lastSeen: toOptionalTimestamp(dto.lastSeen, dto.last_seen) ?? null,
   };
 };
 

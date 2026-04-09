@@ -45,7 +45,8 @@ export default function ChatDetailScreen() {
     setShowChatOptions,
     showChatOptions,
     title,
-    typingUsers,
+    typingText,
+    isTypingVisible,
     closeMessageActions,
     handleReplyAction,
     handleRevokeAction,
@@ -80,8 +81,8 @@ export default function ChatDetailScreen() {
 
       <KeyboardAvoidingView
         style={styles.body}
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? keyboardOffset : 0}
+        behavior={Platform.OS === 'android' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'android' ? keyboardOffset : undefined}
       >
         <FlashList
           ref={flashListRef}
@@ -105,7 +106,7 @@ export default function ChatDetailScreen() {
         />
 
         <View>
-          {typingUsers.length > 0 ? <TypingIndicator /> : null}
+          {isTypingVisible ? <TypingIndicator text={typingText} /> : null}
           <ChatComposer
             value={input}
             onChangeText={setInput}
@@ -168,4 +169,6 @@ const styles = StyleSheet.create({
     padding: 10,
   },
 });
+
+
 

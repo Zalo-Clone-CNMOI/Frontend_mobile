@@ -19,34 +19,37 @@
     "user": "User",
     "conversation": "Conversation"
   },
+
   "navigation": {
     "tabs": {
       "messages": "Messages",
-      "contacts": "Contacts", 
+      "contacts": "Contacts",
       "discover": "Discover",
-      "timeline": "Time",
+      "timeline": "Timeline",
       "profile": "Profile"
     },
     "headers": {
       "add_friend": "Add Friend",
-      "create_group": "New Group",
+      "create_group": "Create Group",
       "settings": "Settings",
       "appearance": "Appearance",
       "search": "Search",
-      "my_Documents": "My Documents"
+      "my_documents": "My Documents"
     }
   },
+
   "appearance": {
     "title": "Appearance",
     "theme": "Theme",
     "language": "Language",
     "theme_light": "Light",
-    "theme_dark": "Dark", 
+    "theme_dark": "Dark",
     "theme_system": "System",
     "change_language": "Change Language",
-    "vietnamese": "Tiáº¿ng Viá»‡t",
+    "vietnamese": "Vietnamese",
     "english": "English"
   },
+
   "auth": {
     "login": "Login",
     "register": "Register",
@@ -55,199 +58,179 @@
     "password": "Password",
     "confirm_password": "Confirm Password",
     "forgot_password": "Forgot Password?",
-    "login_error": "Login Failed",
-    "register_error": "Registration Failed"
+    "login_error": "Login failed",
+    "register_error": "Registration failed"
   },
+
   "welcome": {
     "select_language": "Select Language",
     "slide1_title": "Stable Video Calls",
-    "slide1_subtitle": "Chat with stable video quality anytime, anywhere",
+    "slide1_subtitle": "Smooth video calls anytime, anywhere",
     "slide2_title": "Fast Messaging",
-    "slide2_subtitle": "Send messages instantly with support for large file attachments",
+    "slide2_subtitle": "Send messages instantly with large file support",
     "slide3_title": "Friends Timeline",
     "slide3_subtitle": "Keep beautiful moments with family and friends"
   },
+
   "chat": {
-    "placeholder": "Message",
+    "placeholder": "Type a message",
     "send": "Send",
     "reply": "Reply",
-    "revoked": "Message Revoked",
+    "revoked": "Message revoked",
     "typing": "Typing...",
     "online": "Online",
     "offline": "Offline",
     "search_placeholder": "Search",
-    "no_messages": "No Messages",
+    "no_messages": "No messages",
     "default_title": "Chat",
     "file": "File",
     "location": "Location",
     "contact": "Contact",
     "document": "Document",
     "reply_to": "Reply to",
-    "cancel": "Cancel",
     "revoke": "Revoke",
     "actions": "Actions"
   },
+
   "chat_options": {
     "title": "Options",
     "search_messages": "Search Messages",
     "profile": "Profile",
     "change_wallpaper": "Change Wallpaper",
-    "disable_notifications": "Disable Notifications",
+    "disable_notifications": "Mute Notifications",
     "change_nickname": "Change Nickname",
-    "mark_best_friend": "Mark Best Friend",
+    "mark_best_friend": "Mark as Best Friend",
     "shared_timeline": "Shared Timeline",
     "language": "Language",
-    "media_files_links": "Photos, Files, Links",
-    "create_group_with": "Create Group with {{name}}",
-    "add_to_group": "Add {{name}} to Group",
-    "view_shared_groups": "View Shared Groups ({{count}})",
+    "media_files_links": "Media, Files, Links",
+    "create_group_with": "Create group with {{name}}",
+    "add_to_group": "Add {{name}} to group",
+    "view_shared_groups": "View shared groups ({{count}})",
     "pin_conversation": "Pin Conversation",
     "hide_conversation": "Hide Conversation",
     "report_calls": "Report Calls",
     "personal_settings": "Personal Settings",
-    "auto_delete_messages": "Auto Delete Messages",
-    "no_auto_delete": "No Auto Delete",
+    "auto_delete_messages": "Auto-delete Messages",
+    "no_auto_delete": "No Auto-delete",
     "report": "Report",
-    "manage_block": "Manage Block",
-    "conversation_storage": "Conversation Storage",
-    "delete_history": "Delete History"
+    "manage_block": "Manage Block List",
+    "conversation_storage": "Storage Usage",
+    "delete_history": "Delete Chat History"
   },
+
   "contacts": {
     "search_placeholder": "Search",
     "add_friend": "Add Friend",
     "friends": "Friends",
     "all": "All",
     "recent": "Recent",
-    "no_contacts": "No Contacts",
-    "friendRequests": "Friend Requests",
+    "no_contacts": "No contacts",
+    "empty": "No contacts yet",
+    "friend_requests": "Friend Requests",
     "birthdays": "Birthdays",
-    "createGroup": "Create Group",
-    "joinedGroups": "Joined Groups",
+    "create_group": "Create Group",
+    "joined_groups": "Joined Groups",
     "oa": "OA",
     "online": "Online",
-    "offline": "Offline"
+    "offline": "Offline",
+    "unknown": "Unknown",
+    "friends_since": "Friends since",
+    "last_seen": "Last seen",
+    "unknown_user": "Unknown user"
   },
+
   "timeline": {
     "title": "Timeline",
     "scan_qr": "Scan QR Code",
     "add_friend": "Add Friend",
     "minutes_ago": "{{count}} minutes",
-    "hours_ago": "{{count}} hours", 
+    "hours_ago": "{{count}} hours",
     "days_ago": "{{count}} days",
     "default_user": "User"
   },
+
   "settings": {
     "title": "Settings",
-    "account": "Account and Security",
+    "account": "Account & Security",
     "privacy": "Privacy",
     "notifications": "Notifications",
     "language": "Language",
     "theme": "Theme",
     "about": "About",
     "logout": "Logout",
-    "appearance_language": "Appearance and Language",
-    "contact": "Contact"
+    "appearance_language": "Appearance & Language",
+    "contact": "Contact",
+    "data_storage": "Data Storage",
+    "backup_restore": "Backup & Restore",
+    "notifications_menu": "Notifications",
+    "messages_menu": "Messages",
+    "calls_menu": "Calls",
+    "timeline_menu": "Timeline",
+    "contacts_menu": "Contacts"
   },
+
   "messages": {
     "title": "Messages",
     "search_placeholder": "Search",
-    "no_results": "No Results",
+    "no_results": "No results",
     "suggestions": "Suggestions",
-    "revoked": "Message Revoked",
-    "cancel": "Cancel",
+    "revoked": "Message revoked",
     "replying_to": "Replying to",
-    "replied_message": "Replied message"
+    "replied_message": "Replied message",
+    "empty": "No conversations yet"
   },
+
   "add_friend": {
     "title": "Add Friend",
-    "user_name": "Mai Huá»³nh DÆ°Æ¡ng Tuáº¥n K...",
     "qr_description": "Scan QR code to add me on Zalo",
     "phone_placeholder": "Enter phone number",
     "scan_qr": "Scan QR Code",
-    "suggested_friends": "People You May Know",
+    "suggested_friends": "Suggested Friends",
     "select_country": "Select Country",
     "search_country": "Search Country"
   },
+
   "create_group": {
-    "title": "New Group",
+    "title": "Create Group",
     "selected_count": "Selected: {{count}}",
-    "name_placeholder": "Set group name"
+    "name_placeholder": "Enter group name"
   },
-  "discovery": {
-    "zaloVideo": "Zalo Video",
-    "zaloPay": "ZaloPay",
-    "shopping": "Shopping",
-    "news": "News",
-    "game": "Game",
-    "nearby": "Nearby",
-    "recommended": "Recommended",
-    "miniApp": "Zalo Mini App",
-    "live": "Zalo Live",
-    "community": "Zalo Community",
-    "groups": "Zalo Groups",
-    "events": "Zalo Events"
-  },
-  "profile": {
-    "wallet": "Wallet",
-    "notifications": "Notifications",
-    "privacy": "Privacy",
-    "settings": "Settings",
-    "search_placeholder": "Search"
-  },
+
   "scanner": {
     "title": "Scan",
-
-    "touchOff": "Touch to cancel",
+    "touch_off": "Tap to cancel",
     "qr_description": "Scan QR code to add me on Zalo",
-    "switchCamera": "Switch camera",
+    "switch_camera": "Switch Camera",
     "flash": "Flash",
-    "cancel": "Cancel",
     "rescan": "Rescan"
-
   },
+
   "loginstep1": {
-    "enter_phone": "Enter Phone Number",
+    "enter_phone": "Enter phone number",
     "phone_placeholder": "Enter phone number",
     "select_country": "Select Country",
     "search_country": "Search Country"
   },
+
   "loginstep2": {
-    "enter_password": "Enter password for account linked with phone number",
-    "enter_code": "Enter Code",
-    "code_placeholder": "Nháº­p mÃ£",
-    "send_code": "Gá»­i mÃ£",
-    "resend_code": "Gá»­i láº¡i mÃ£"
+    "enter_password": "Enter password linked to your phone number",
+    "enter_code": "Enter code",
+    "code_placeholder": "Enter code",
+    "send_code": "Send code",
+    "resend_code": "Resend code"
   },
+
   "register": {
     "terms_agreement": "I agree to the",
     "terms_of_service": "Zalo Terms of Service",
-    "social_terms": "Zalo Social Network Terms",
+    "social_terms": "Zalo Social Terms",
     "has_account": "Already have an account?",
-    "fill_all_fields": "Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin",
-    "password_mismatch": "Máº­t kháº©u khÃ´ng khá»›p",
-    "password_too_short": "Máº­t kháº©u pháº£i cÃ³ Ã­t nháº¥t 6 kÃ½ tá»±",
-    "password_changed": "Äá»•i máº­t kháº©u thÃ nh cÃ´ng"
+    "fill_all_fields": "Please fill in all fields",
+    "password_mismatch": "Passwords do not match",
+    "password_too_short": "Password must be at least 6 characters",
+    "password_changed": "Password changed successfully"
   },
-  "account_security": {
-    "title": "Account and Security",
-    "account": "Account",
-    "personal_info": "Personal information",
-    "phone_number": "Phone number",
-    "email": "Email",
-    "not_linked": "Not linked",
-    "my_qr_code": "My QR code",
-    "security": "Security",
-    "password": "Password"
-  },
-  "personal_info": {
-    "title": "Personal Information",
-    "zalo_name": "Zalo Name",
-    "date_of_birth": "Date of Birth",
-    "gender": "Gender",
-    "male": "Male",
-    "female": "Female",
-    "edit": "Edit"
-  },
+
   "change_password": {
     "title": "Change Password",
     "current_password": "Current Password",
@@ -257,45 +240,48 @@
     "enter_new_password": "Enter new password",
     "enter_confirm_password": "Re-enter new password",
     "change_password": "Change Password",
-    "error": "Error",
-    "success": "Success",
     "fill_all_fields": "Please fill in all fields"
   },
-  "screenPostOptions":{
-    "chat_with_author": "Chat with author",
-    "share_post": "Share post",
-    "send_post": "Send post",
-    "report_post": "Report post",
-    "comment_title": "Comment title",
-    "write_comment": "Write comment",
-    "send": "Send",
-    "delete_comment": "Delete comment",
-    "delete_comment_confirm": "Are you sure you want to delete this comment?",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "edited": "(edited)",
-    "reply": "Reply",
-    "reply_button": "Reply",
-    "send_post_to_friends": "Send post to friends functionality would be implemented here",
-    "report_post_functionality_would_be_implemented_here": "Report post functionality would be implemented here",
-    "postOptions":"Post options" 
-  },
-  "commentPost": {
-    "delete_comment":"Delete comment",
-    "delete_comment_confirm": "Are you sure you want to delete this comment?",
-    "cancel":"Cancel",
-    "delete":"Delete",
-    "comment_post":"Comment post of ",
-    "write_comment":"Write comment"
-  },
+
   "create_post": {
     "title": "Create Post",
     "you": "You",
     "now": "Now",
-    "placeholder": "What are you thinking?",
+    "placeholder": "What's on your mind?",
     "add_photo": "Add Photo",
     "add_from_gallery": "Add from Gallery"
+  },
+
+  "profile": {
+    "logout_title": "Logout",
+    "logout_message": "Are you sure you want to logout?",
+    "logout_cancel": "Cancel",
+    "logout_confirm": "Logout",
+    "not_updated": "Not updated",
+    "phone_number": "Phone Number",
+    "email": "Email",
+    "date_of_birth": "Date of Birth",
+    "gender": "Gender",
+    "male": "Male",
+    "female": "Female",
+    "bio": "Bio",
+    "wallet": "Wallet",
+    "notifications": "Notifications",
+    "privacy": "Privacy",
+    "settings": "Settings",
+    "search_placeholder": "Search"
+  },
+
+  "countries": {
+    "vietnam": "Vietnam",
+    "default_country": "Vietnam"
+  },
+
+  "personal_info": {
+    "title": "Personal Information",
+    "zalo_name": "Zalo Name",
+    "date_of_birth": "Date of Birth",
+    "gender": "Gender",
+    "edit": "Edit"
   }
 }
-
-

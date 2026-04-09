@@ -2,21 +2,23 @@ import { useAuth } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/theme/themeContext';
 import { Calendar, LogOut, Mail, Phone, User } from 'lucide-react-native';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ProfileScreen() {
   const theme = useTheme();
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   console.log(user);
 
   const handleLogout = () => {
     Alert.alert(
-      'Đăng xuất',
-      'Bạn có chắc chắn muốn đăng xuất?',
+      t('profile.logout_title'),
+      t('profile.logout_message'),
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: t('profile.logout_cancel'), style: 'cancel' },
         {
-          text: 'Đăng xuất',
+          text: t('profile.logout_confirm'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -31,12 +33,12 @@ export default function ProfileScreen() {
   };
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'Chưa cập nhật';
+    if (!dateString) return t('profile.not_updated');
     try {
       const date = new Date(dateString);
       return date.toLocaleDateString('vi-VN');
     } catch {
-      return 'Chưa cập nhật';
+      return t('profile.not_updated');
     }
   };
 
@@ -64,7 +66,7 @@ export default function ProfileScreen() {
         <View style={styles.infoItem}>
           <Phone size={20} color={theme.colors.icon} />
           <View style={styles.infoContent}>
-            <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>Số điện thoại</Text>
+            <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>{t('profile.phone_number')}</Text>
             <Text style={[styles.infoValue, { color: theme.colors.text }]}>{user?.phone}</Text>
           </View>
         </View>
@@ -72,9 +74,9 @@ export default function ProfileScreen() {
         <View style={styles.infoItem}>
           <Mail size={20} color={theme.colors.icon} />
           <View style={styles.infoContent}>
-            <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>Email</Text>
+            <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>{t('profile.email')}</Text>
             <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-              {user?.email || 'Chưa cập nhật'}
+              {user?.email || t('profile.not_updated')}
             </Text>
           </View>
         </View>
@@ -82,7 +84,7 @@ export default function ProfileScreen() {
         <View style={styles.infoItem}>
           <Calendar size={20} color={theme.colors.icon} />
           <View style={styles.infoContent}>
-            <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>Ngày sinh</Text>
+            <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>{t('profile.date_of_birth')}</Text>
             <Text style={[styles.infoValue, { color: theme.colors.text }]}>
               {formatDate(user?.dateOfBirth || '')}
             </Text>
@@ -92,9 +94,9 @@ export default function ProfileScreen() {
         <View style={styles.infoItem}>
           <User size={20} color={theme.colors.icon} />
           <View style={styles.infoContent}>
-            <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>Giới tính</Text>
+            <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>{t('profile.gender')}</Text>
             <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-              {user?.gender === 'male' ? 'Nam' : user?.gender === 'female' ? 'Nữ' : 'Chưa cập nhật'}
+              {user?.gender === 'male' ? t('profile.male') : user?.gender === 'female' ? t('profile.female') : t('profile.not_updated')}
             </Text>
           </View>
         </View>
@@ -102,7 +104,7 @@ export default function ProfileScreen() {
 
       {user?.bio && (
         <View style={[styles.bioCard, { backgroundColor: theme.colors.card }]}>
-          <Text style={[styles.bioTitle, { color: theme.colors.text }]}>Tiểu sử</Text>
+          <Text style={[styles.bioTitle, { color: theme.colors.text }]}>{t('profile.bio')}</Text>
           <Text style={[styles.bioText, { color: theme.colors.icon }]}>
             {user.bio}
           </Text>
@@ -114,7 +116,7 @@ export default function ProfileScreen() {
         onPress={handleLogout}
       >
         <LogOut size={20} color="#fff" />
-        <Text style={styles.logoutText}>Đăng xuất</Text>
+        <Text style={styles.logoutText}>{t('profile.logout_confirm')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

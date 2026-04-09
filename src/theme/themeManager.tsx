@@ -22,10 +22,8 @@ interface ThemeManagerProviderProps {
 export const ThemeManagerProvider = ({ children }: ThemeManagerProviderProps) => {
   const systemScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>('light');
-
   const isSystemDark = systemScheme === 'dark';
-  
-  // Load saved theme on mount
+
   useEffect(() => {
     const loadTheme = async () => {
       try {
@@ -35,10 +33,10 @@ export const ThemeManagerProvider = ({ children }: ThemeManagerProviderProps) =>
         console.error('Error loading theme:', error);
       }
     };
-    
+
     loadTheme();
   }, []);
-  
+
   const getEffectiveTheme = (): AppTheme => {
     if (themeMode === 'system') {
       return isSystemDark ? ZaloDarkTheme : ZaloLightTheme;
@@ -50,18 +48,14 @@ export const ThemeManagerProvider = ({ children }: ThemeManagerProviderProps) =>
 
   const setThemeMode = async (mode: ThemeMode) => {
     setThemeModeState(mode);
-    // Save to storage if not 'system'
-    if (mode !== 'system') {
-      await ThemeService.saveThemeMode(mode);
-    }
+    await ThemeService.saveThemeMode(mode);
   };
 
   const toggleTheme = () => {
     const currentEffectiveTheme = getEffectiveTheme();
-    const newMode = currentEffectiveTheme.dark ? 'light' : 'dark';
-    setThemeMode(newMode);
+    const newMode: ThemeMode = currentEffectiveTheme.dark ? 'light' : 'dark';
+    void setThemeMode(newMode);
   };
-
 
   return (
     <ThemeManagerContext.Provider
@@ -80,10 +74,10 @@ export const ThemeManagerProvider = ({ children }: ThemeManagerProviderProps) =>
 
 export const useThemeManager = (): ThemeManagerContextType => {
   const context = useContext(ThemeManagerContext);
-  
+
   if (!context) {
     throw new Error('useThemeManager must be used within ThemeManagerProvider');
   }
-  
+
   return context;
 };

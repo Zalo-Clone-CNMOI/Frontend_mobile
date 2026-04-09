@@ -868,13 +868,9 @@ export async function fetchContacts(): Promise<{ users: ContactUser[] }> {
     const resp = await friendsApi.getFriendsList({ page: 1, limit: 100 });
     const payload = resp?.data;
 
-    let list: any[] = [];
+    const list = Array.isArray(payload?.data) ? payload.data : [];
 
-    if (Array.isArray(payload?.data)) {
-      list = payload.data;
-    } else if (Array.isArray(payload?.friends)) {
-      list = payload.friends;
-    } else {
+    if (!Array.isArray(list)) {
       console.warn("Invalid friends response:", payload);
       return { users: [] };
     }
@@ -907,4 +903,5 @@ export async function fetchContacts(): Promise<{ users: ContactUser[] }> {
     return { users: [] };
   }
 }
+
 

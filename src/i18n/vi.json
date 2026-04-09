@@ -19,6 +19,7 @@
     "user": "Người dùng",
     "conversation": "Cuộc trò chuyện"
   },
+
   "navigation": {
     "tabs": {
       "messages": "Tin nhắn",
@@ -36,6 +37,7 @@
       "my_documents": "Tài liệu của tôi"
     }
   },
+
   "appearance": {
     "title": "Giao diện",
     "theme": "Chủ đề",
@@ -47,6 +49,7 @@
     "vietnamese": "Tiếng Việt",
     "english": "Tiếng Anh"
   },
+
   "auth": {
     "login": "Đăng nhập",
     "register": "Đăng ký",
@@ -58,6 +61,7 @@
     "login_error": "Đăng nhập thất bại",
     "register_error": "Đăng ký thất bại"
   },
+
   "welcome": {
     "select_language": "Chọn ngôn ngữ",
     "slide1_title": "Gọi video ổn định",
@@ -67,6 +71,7 @@
     "slide3_title": "Dòng thời gian bạn bè",
     "slide3_subtitle": "Lưu giữ khoảnh khắc đẹp cùng gia đình và bạn bè"
   },
+
   "chat": {
     "placeholder": "Nhập tin nhắn",
     "send": "Gửi",
@@ -83,12 +88,12 @@
     "contact": "Liên hệ",
     "document": "Tài liệu",
     "reply_to": "Trả lời",
-    "cancel": "Hủy",
     "revoke": "Thu hồi",
     "actions": "Thao tác"
   },
+
   "chat_options": {
-    "title": "Tuỳ chọn",
+    "title": "Tùy chọn",
     "search_messages": "Tìm tin nhắn",
     "profile": "Trang cá nhân",
     "change_wallpaper": "Đổi hình nền",
@@ -112,6 +117,7 @@
     "conversation_storage": "Dung lượng trò chuyện",
     "delete_history": "Xóa lịch sử trò chuyện"
   },
+
   "contacts": {
     "search_placeholder": "Tìm kiếm",
     "add_friend": "Thêm bạn",
@@ -119,14 +125,20 @@
     "all": "Tất cả",
     "recent": "Gần đây",
     "no_contacts": "Không có liên hệ",
-    "friendRequests": "Lời mời kết bạn",
+    "empty": "Chưa có liên hệ nào",
+    "friend_requests": "Lời mời kết bạn",
     "birthdays": "Sinh nhật",
-    "createGroup": "Tạo nhóm",
-    "joinedGroups": "Nhóm đã tham gia",
+    "create_group": "Tạo nhóm",
+    "joined_groups": "Nhóm đã tham gia",
     "oa": "OA",
     "online": "Trực tuyến",
-    "offline": "Ngoại tuyến"
+    "offline": "Ngoại tuyến",
+    "unknown": "Không xác định",
+    "friends_since": "Bạn bè từ",
+    "last_seen": "Lần cuối",
+    "unknown_user": "Người dùng không xác định"
   },
+
   "timeline": {
     "title": "Nhật ký",
     "scan_qr": "Quét mã QR",
@@ -136,6 +148,7 @@
     "days_ago": "{{count}} ngày",
     "default_user": "Người dùng"
   },
+
   "settings": {
     "title": "Cài đặt",
     "account": "Tài khoản",
@@ -146,20 +159,29 @@
     "about": "Giới thiệu",
     "logout": "Đăng xuất",
     "appearance_language": "Giao diện & Ngôn ngữ",
-    "contact": "Liên hệ"
+    "contact": "Liên hệ",
+    "data_storage": "Dữ liệu trên máy",
+    "backup_restore": "Sao lưu và khôi phục",
+    "notifications_menu": "Thông báo",
+    "messages_menu": "Tin nhắn",
+    "calls_menu": "Cuộc gọi",
+    "timeline_menu": "Nhật ký",
+    "contacts_menu": "Danh bạ"
   },
+
   "messages": {
     "title": "Tin nhắn",
     "search_placeholder": "Tìm kiếm",
     "no_results": "Không có kết quả",
     "suggestions": "Gợi ý",
     "revoked": "Tin nhắn đã thu hồi",
-    "cancel": "Hủy",
-    "replying_to": "Đang trả lời"
+    "replying_to": "Đang trả lời",
+    "replied_message": "Tin nhắn đã trả lời",
+    "empty": "Chưa có cuộc trò chuyện nào"
   },
+
   "add_friend": {
     "title": "Thêm bạn",
-    "user_name": "Mai Huỳnh Dương Tuấn K...",
     "qr_description": "Quét mã QR để thêm tôi trên Zalo",
     "phone_placeholder": "Nhập số điện thoại",
     "scan_qr": "Quét mã QR",
@@ -167,47 +189,29 @@
     "select_country": "Chọn quốc gia",
     "search_country": "Tìm quốc gia"
   },
+
   "create_group": {
     "title": "Tạo nhóm mới",
     "selected_count": "Đã chọn: {{count}}",
     "name_placeholder": "Đặt tên nhóm"
   },
-  "discovery": {
-    "zaloVideo": "Zalo Video",
-    "zaloPay": "ZaloPay",
-    "shopping": "Mua sắm",
-    "news": "Tin tức",
-    "game": "Trò chơi",
-    "nearby": "Gần đây",
-    "recommended": "Đề xuất",
-    "miniApp": "Zalo Mini App",
-    "live": "Zalo Live",
-    "community": "Cộng đồng Zalo",
-    "groups": "Nhóm Zalo",
-    "events": "Sự kiện Zalo"
-  },
-  "profile": {
-    "wallet": "Ví",
-    "notifications": "Thông báo",
-    "privacy": "Quyền riêng tư",
-    "settings": "Cài đặt",
-    "search_placeholder": "Tìm kiếm"
-  },
+
   "scanner": {
     "title": "Quét",
-    "touchOff": "Chạm để hủy",
+    "touch_off": "Chạm để hủy",
     "qr_description": "Quét mã QR để thêm tôi trên Zalo",
-    "switchCamera": "Đổi camera",
+    "switch_camera": "Đổi camera",
     "flash": "Đèn flash",
-    "cancel": "Hủy",
     "rescan": "Quét lại"
   },
+
   "loginstep1": {
     "enter_phone": "Nhập số điện thoại",
     "phone_placeholder": "Nhập số điện thoại",
     "select_country": "Chọn quốc gia",
     "search_country": "Tìm quốc gia"
   },
+
   "loginstep2": {
     "enter_password": "Nhập mật khẩu cho tài khoản liên kết với số điện thoại",
     "enter_code": "Nhập mã",
@@ -215,32 +219,18 @@
     "send_code": "Gửi mã",
     "resend_code": "Gửi lại mã"
   },
+
   "register": {
     "terms_agreement": "Tôi đồng ý với",
     "terms_of_service": "Điều khoản sử dụng Zalo",
     "social_terms": "Điều khoản mạng xã hội Zalo",
-    "has_account": "Đã có tài khoản?"
+    "has_account": "Đã có tài khoản?",
+    "fill_all_fields": "Vui lòng điền đầy đủ thông tin",
+    "password_mismatch": "Mật khẩu xác nhận không khớp",
+    "password_too_short": "Mật khẩu phải có ít nhất 6 ký tự",
+    "password_changed": "Đổi mật khẩu thành công"
   },
-  "account_security": {
-    "title": "Tài khoản và bảo mật",
-    "account": "Tài khoản",
-    "personal_info": "Thông tin cá nhân",
-    "phone_number": "Số điện thoại",
-    "email": "Email",
-    "not_linked": "Chưa liên kết",
-    "my_qr_code": "Mã QR của tôi",
-    "security": "Bảo mật",
-    "password": "Mật khẩu"
-  },
-  "personal_info": {
-    "title": "Thông tin cá nhân",
-    "zalo_name": "Tên Zalo",
-    "date_of_birth": "Ngày sinh",
-    "gender": "Giới tính",
-    "male": "Nam",
-    "female": "Nữ",
-    "edit": "Chỉnh sửa"
-  },
+
   "change_password": {
     "title": "Đổi mật khẩu",
     "current_password": "Mật khẩu hiện tại",
@@ -250,20 +240,48 @@
     "enter_new_password": "Nhập mật khẩu mới",
     "enter_confirm_password": "Nhập lại mật khẩu mới",
     "change_password": "Đổi mật khẩu",
-    "error": "Lỗi",
-    "success": "Thành công",
-    "fill_all_fields": "Vui lòng điền đầy đủ thông tin",
-    "password_mismatch": "Mật khẩu xác nhận không khớp",
-    "password_too_short": "Mật khẩu phải có ít nhất 6 ký tự",
-    "password_changed": "Đổi mật khẩu thành công"
+    "fill_all_fields": "Vui lòng điền đầy đủ thông tin"
   },
-  "screenPostOptions": {
-    "chat_with_author": "Nhắn tin với",
-    "share_post": "Chia sẻ bài viết",
-    "send_post": "Gửi bài viết",
-    "report_post": "Báo cáo bài viết",
-    "comment_title": "Bình luận về bài viết của",
-    "write_comment": "Viết bình luận...",
-    "send": "Gửi"
+
+  "create_post": {
+    "title": "Tạo bài viết",
+    "you": "Bạn",
+    "now": "Bây giờ",
+    "placeholder": "Bạn đang nghĩ gì?",
+    "add_photo": "Thêm ảnh",
+    "add_from_gallery": "Thêm từ thư viện"
+  },
+
+  "profile": {
+    "logout_title": "Đăng xuất",
+    "logout_message": "Bạn có chắc chắn muốn đăng xuất?",
+    "logout_cancel": "Hủy",
+    "logout_confirm": "Đăng xuất",
+    "not_updated": "Chưa cập nhật",
+    "phone_number": "Số điện thoại",
+    "email": "Email",
+    "date_of_birth": "Ngày sinh",
+    "gender": "Giới tính",
+    "male": "Nam",
+    "female": "Nữ",
+    "bio": "Tiểu sử",
+    "wallet": "Ví",
+    "notifications": "Thông báo",
+    "privacy": "Quyền riêng tư",
+    "settings": "Cài đặt",
+    "search_placeholder": "Tìm kiếm"
+  },
+
+  "personal_info": {
+    "title": "Thông tin cá nhân",
+    "zalo_name": "Tên Zalo",
+    "date_of_birth": "Ngày sinh",
+    "gender": "Giới tính",
+    "edit": "Chỉnh sửa"
+  },
+
+  "countries": {
+    "vietnam": "Việt Nam",
+    "default_country": "Việt Nam"
   }
 }

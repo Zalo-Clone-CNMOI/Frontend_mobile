@@ -11,7 +11,7 @@
 /** Base URL của backend thật – dùng khi chuyển sang production */
 import { getCurrentToken } from './authService';
 
-export const BASE_URL = "http://175.41.136.189:5000/api";
+export const BASE_URL = "http://54.179.206.215:5000/api";
 
 // Simple fetch wrapper that attaches stored access token and returns parsed JSON.
 export async function apiFetch<T>(

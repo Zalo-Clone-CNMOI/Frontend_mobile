@@ -1,16 +1,15 @@
 import { useTheme } from '@/src/theme/themeContext';
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 
-export function TypingIndicator() {
+export function TypingIndicator({ text }: { text: string }) {
   const theme = useTheme();
-  
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const animateDot = (dot: Animated.Value, delay: number) => {
+    const createLoop = (dot: Animated.Value, delay: number) =>
       Animated.loop(
         Animated.sequence([
           Animated.delay(delay),
@@ -24,13 +23,15 @@ export function TypingIndicator() {
             duration: 300,
             useNativeDriver: true,
           }),
-        ])
-      ).start();
-    };
+        ]),
+      );
 
-    animateDot(dot1, 0);
-    animateDot(dot2, 150);
-    animateDot(dot3, 300);
+    const animations = [createLoop(dot1, 0), createLoop(dot2, 150), createLoop(dot3, 300)];
+    animations.forEach((animation) => animation.start());
+
+    return () => {
+      animations.forEach((animation) => animation.stop());
+    };
   }, [dot1, dot2, dot3]);
 
   const translateY = (dot: Animated.Value) =>
@@ -41,10 +42,13 @@ export function TypingIndicator() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.bubble, { backgroundColor: theme.colors.card }]}>
-        <Animated.View style={[styles.dot, { backgroundColor: theme.colors.text, transform: [{ translateY: translateY(dot1) }] }]} />
-        <Animated.View style={[styles.dot, { backgroundColor: theme.colors.text, transform: [{ translateY: translateY(dot2) }] }]} />
-        <Animated.View style={[styles.dot, { backgroundColor: theme.colors.text, transform: [{ translateY: translateY(dot3) }] }]} />
+      <View style={[styles.bubble, { backgroundColor: theme.colors.card }]}> 
+        <Text style={[styles.label, { color: theme.colors.text }]} numberOfLines={1}>{text}</Text>
+        <View style={styles.dotsRow}>
+          <Animated.View style={[styles.dot, { backgroundColor: theme.colors.text, transform: [{ translateY: translateY(dot1) }] }]} />
+          <Animated.View style={[styles.dot, { backgroundColor: theme.colors.text, transform: [{ translateY: translateY(dot2) }] }]} />
+          <Animated.View style={[styles.dot, { backgroundColor: theme.colors.text, transform: [{ translateY: translateY(dot3) }] }]} />
+        </View>
       </View>
     </View>
   );
@@ -58,11 +62,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   bubble: {
-    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 18,
     borderBottomLeftRadius: 4,
+  },
+  label: {
+    fontSize: 12,
+    marginBottom: 6,
+    opacity: 0.9,
+  },
+  dotsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },

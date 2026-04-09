@@ -1,22 +1,22 @@
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Info,
-  LifeBuoy,
-  LogOut,
-  Palette,
-  Users
+    ChevronLeft,
+    ChevronRight,
+    Info,
+    LifeBuoy,
+    LogOut,
+    Palette,
+    Users
 } from "lucide-react-native";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from '../src/theme/themeContext';
@@ -54,19 +54,19 @@ export default function SettingsScreen() {
       </View>
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <ScrollView>
-        {/* <SettingItem icon={ShieldCheck} title="Tài khoản và bảo mật" />
-        <SettingItem icon={Lock} title="Quyền riêng tư" />
+        {/* <SettingItem icon={ShieldCheck} title={t('settings.account')} />
+        <SettingItem icon={Lock} title={t('settings.privacy')} />
         <View style={styles.divider} />
 
-        <SettingItem icon={Database} title="Dữ liệu trên máy" />
-        <SettingItem icon={RefreshCcw} title="Sao lưu và khôi phục" />
+        <SettingItem icon={Database} title={t('settings.data_storage')} />
+        <SettingItem icon={RefreshCcw} title={t('settings.backup_restore')} />
         <View style={styles.divider} />
 
-        <SettingItem icon={Bell} title="Thông báo" />
-        <SettingItem icon={MessageCircle} title="Tin nhắn" />
-        <SettingItem icon={Phone} title="Cuộc gọi" />
-        <SettingItem icon={Clock} title="Nhật ký" />
-        <SettingItem icon={Contact2} title="Danh bạ" />
+        <SettingItem icon={Bell} title={t('settings.notifications_menu')} />
+        <SettingItem icon={MessageCircle} title={t('settings.messages_menu')} />
+        <SettingItem icon={Phone} title={t('settings.calls_menu')} />
+        <SettingItem icon={Clock} title={t('settings.timeline_menu')} />
+        <SettingItem icon={Contact2} title={t('settings.contacts_menu')} />
         <View style={styles.divider} /> */}
 
         <SettingItem icon={Palette} title={t('settings.appearance_language')} onPress={() => router.push('/appearance')} />

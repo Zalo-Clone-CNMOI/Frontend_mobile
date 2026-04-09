@@ -87,12 +87,12 @@ export default function ScannerScreen() {
       <View style={styles.bottomBar}>
         <Pressable style={styles.actionBtn} onPress={() => setTorch((v) => !v)}>
           {torch ? <Zap size={20} color="#fff" /> : <ZapOff size={20} color="#fff" />}
-          <Text style={styles.actionText}>{torch ? t('scanner.touchOff') : t('scanner.flash')}</Text>
+          <Text style={styles.actionText}>{torch ? t('scanner.touch_off') : t('scanner.flash')}</Text>
         </Pressable>
 
         <Pressable style={styles.actionBtn} onPress={() => setFacing((v) => (v === 'back' ? 'front' : 'back'))}>
           <SwitchCamera size={20} color="#fff" />
-          <Text style={styles.actionText}>{t('scanner.switchCamera')}</Text>
+          <Text style={styles.actionText}>{t('scanner.switch_camera')}</Text>
         </Pressable>
       </View>
 

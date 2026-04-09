@@ -3,24 +3,24 @@ import { useTheme } from '@/src/theme/themeContext';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
-  ArrowLeft,
-  ArrowRight,
-  ChevronDown,
-  QrCode,
-  Search,
-  Users,
+    ArrowLeft,
+    ArrowRight,
+    ChevronDown,
+    QrCode,
+    Search,
+    Users,
 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  FlatList,
-  Image,
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    FlatList,
+    Image,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -37,7 +37,7 @@ export default function AddFriendScreen() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState(
-    countries[0] || { name: 'Việt Nam', code: '+84' }
+    countries[0] || { name: t('countries.vietnam'), code: '+84' }
   );
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isFocused, setIsFocused] = useState(false);

@@ -12,10 +12,28 @@ export function ChatListItem({
 }) {
   const theme = useTheme();
   const messageTime = item.lastMessage?.timestamp || item.lastMessageAt;
+
+  const getAvatarSource = () => {
+    if (item.isGroup && item.avatar) {
+      // For group chats, use the group avatar
+      return { uri: item.avatar };
+    } else if (!item.isGroup && item.avatar) {
+      // For individual chats, use the person's avatar
+      return { uri: item.avatar };
+    } else if (item.isGroup) {
+      // For group chats without avatar, show default group avatar
+      return { uri: 'https://ui-avatars.com/api/?name=Group&background=random&color=7F9CFB' };
+    } else {
+      // For individual chats without avatar, show default user avatar
+      const userName = item.name || 'User';
+      return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random&color=7F9CFB` };
+    }
+  };
+
   return (
     <TouchableOpacity style={[styles.chatItem, { borderBottomColor: theme.colors.border }]} onPress={onPress}>
       <View>
-        <Image source={{ uri: item.avatar || '' }} style={styles.avatar} />
+        <Image source={getAvatarSource()} style={styles.avatar} />
         {item.unreadCount && item.unreadCount > 0 ? <View style={[styles.redDot, { borderColor: theme.colors.background }]} /> : null}
       </View>
       <View style={styles.chatContent}>

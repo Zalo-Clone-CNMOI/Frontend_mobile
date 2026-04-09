@@ -34,12 +34,11 @@ export default function HomeScreen() {
         <FlashList
           data={listData}
           keyExtractor={(item: any) => item.conversationId || item.id || item._id || ''}
-          estimatedItemSize={80}
           onRefresh={onRefresh}
           refreshing={refreshing}
           ListEmptyComponent={() => (
             <View style={{ padding: 24, alignItems: 'center' }}>
-              <Text style={{ color: theme.colors.text }}>{t('messages.empty') || 'No conversations yet'}</Text>
+              <Text style={{ color: theme.colors.text }}>{t('messages.empty')}</Text>
             </View>
           )}
           renderItem={({ item }) => <ChatListItem item={item} onPress={() => openChat(item)} />}
@@ -50,9 +49,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
+  safeArea: { flex: 1 },
   container: { flex: 1 },
   filterContainer: {
     flexDirection: 'row',

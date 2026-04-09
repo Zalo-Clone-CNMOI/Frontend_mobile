@@ -1,21 +1,23 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Camera, RefreshCw, SwitchCamera } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
+import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-import { View, TouchableOpacity, Image, StyleSheet } from 'react-native';
+type CameraHandle = {
+  takePictureAsync: (options?: { quality?: number }) => Promise<{ uri: string }>;
+};
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef(null);
-
-  const [facing, setFacing] = useState('back');
-  const [photoUri, setPhotoUri] = useState(null);
+  const cameraRef = useRef<CameraHandle | null>(null);
+  const [facing, setFacing] = useState<'back' | 'front'>('back');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   if (!permission?.granted) {
     return (
       <View style={styles.center}>
         <TouchableOpacity onPress={requestPermission}>
-          <Camera  size={40} />
+          <Camera size={40} />
         </TouchableOpacity>
       </View>
     );
@@ -23,9 +25,7 @@ export default function CameraScreen() {
 
   const takePhoto = async () => {
     if (!cameraRef.current) return;
-    const photo = await cameraRef.current.takePictureAsync({
-      quality: 0.8,
-    });
+    const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
     setPhotoUri(photo.uri);
   };
 
@@ -33,40 +33,21 @@ export default function CameraScreen() {
     <View style={{ flex: 1 }}>
       {!photoUri ? (
         <>
-          <CameraView
-            ref={cameraRef}
-            style={{ flex: 1 }}
-            facing={facing as 'back' | 'front'}
-          />
-
-          {/* Thanh điều khiển */}
+          <CameraView ref={cameraRef as any} style={{ flex: 1 }} facing={facing} />
           <View style={styles.controls}>
-            {/* Đổi camera */}
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() =>
-                setFacing(facing === 'back' ? 'front' : 'back')
-              }
-            >
-              <SwitchCamera  size={28} color="#fff" />
+            <TouchableOpacity style={styles.iconButton} onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}>
+              <SwitchCamera size={28} color="#fff" />
             </TouchableOpacity>
-
-            {/* Nút chụp */}
             <TouchableOpacity style={styles.capture} onPress={takePhoto}>
               <View style={styles.captureInner} />
             </TouchableOpacity>
-
-            {/* Placeholder */}
             <View style={styles.iconButton} />
           </View>
         </>
       ) : (
         <>
           <Image source={{ uri: photoUri }} style={{ flex: 1 }} />
-          <TouchableOpacity
-            style={styles.retake}
-            onPress={() => setPhotoUri(null)}
-          >
+          <TouchableOpacity style={styles.retake} onPress={() => setPhotoUri(null)}>
             <RefreshCw size={26} color="#fff" />
           </TouchableOpacity>
         </>
