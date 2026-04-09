@@ -1,13 +1,24 @@
+<<<<<<< HEAD
 import { apiCallWithRefresh } from "./authService";
 import api from "./http";
+=======
+import { NETWORK_CONFIG } from '../config/network';
+import { apiCallWithRefresh } from './authService';
+>>>>>>> 0574c9bf85f4d736a36d11560f37540f4c8b10c4
 
 export async function registerDeviceToken(payload: {
   token: string;
   platform: 'android' | 'ios';
 }) {
+<<<<<<< HEAD
   // Backend: POST /api/device-tokens (auth required)
   const candidates = [
     'http://54.179.206.215:5000/api/device-tokens',
+=======
+  // Backend (per Swagger): POST /api/device-tokens (auth required)
+  const candidates = [
+    `${NETWORK_CONFIG.API_BASE_URL}/device-tokens`, // e.g. http://host:5000/api/device-tokens
+>>>>>>> 0574c9bf85f4d736a36d11560f37540f4c8b10c4
   ];
 
   let lastError: any;
@@ -42,6 +53,7 @@ export async function registerDeviceToken(payload: {
       if (status !== 404) throw e;
     }
   }
+<<<<<<< HEAD
 
   throw lastError;
 }
@@ -62,3 +74,9 @@ export default {
   registerDeviceToken,
   deleteDeviceToken,
 };
+=======
+
+  throw lastError;
+}
+
+>>>>>>> 0574c9bf85f4d736a36d11560f37540f4c8b10c4
