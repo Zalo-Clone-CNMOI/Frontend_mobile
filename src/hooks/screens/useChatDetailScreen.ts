@@ -18,6 +18,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+const EMPTY_MESSAGES: ChatMessage[] = [];
+
 export function useChatDetailScreenLogic() {
   const params = useLocalSearchParams<{ id?: string; name?: string }>();
   const chatId = params?.id || '';
@@ -48,16 +50,14 @@ export function useChatDetailScreenLogic() {
   const [selectedActionMessage, setSelectedActionMessage] = useState<ChatMessage | null>(null);
   const [isMessageActionMenuVisible, setIsMessageActionMenuVisible] = useState(false);
 
-  const messagesByChatId = useMessagesStore((state) => state.messagesByChatId);
-  const messages = messagesByChatId[chatId] || [];
+  const messages = useMessagesStore((state) => state.messagesByChatId[chatId] || EMPTY_MESSAGES);
   const addMessage = useMessagesStore((state) => state.addMessage);
   const setMessagesForChat = useMessagesStore((state) => state.setMessagesForChat);
   const updateMessage = useMessagesStore((state) => state.updateMessage);
   const deleteMessage = useMessagesStore((state) => state.deleteMessage);
   const revokeMessage = useMessagesStore((state) => state.revokeMessage);
 
-  const chats = useChatsStore((state) => state.chats);
-  const currentChat = useMemo(() => chats.find((chat) => chat.conversationId === chatId), [chats, chatId]);
+  const currentChat = useChatsStore((state) => state.chats.find((chat) => chat.conversationId === chatId));
   const { emitTyping, isTypingVisible, typingText, typingUsers } = useTypingIndicator({
     socket: typingSocket,
     conversationId: chatId,

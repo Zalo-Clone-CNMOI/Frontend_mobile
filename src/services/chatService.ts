@@ -1,12 +1,14 @@
 import { Socket } from "socket.io-client";
-import { getCurrentUser } from "./authService";
+import { getCurrentUser, getCurrentToken } from "./authService";
 import { ContactUser } from "../types/ContactUser";
 import type { ChatMessage, ConversationV2 } from "../types/chat";
 import type { SocketChatJoinPayload } from "../types/dto/SocketDTO";
+import type { MediaFileInput } from "../types/media";
 import { mapConversationsListFromApi } from "../types/mappers/DTOMappers";
 import * as conversationsApi from "./conversationsApi";
 import * as friendsApi from "./friendsApi";
 import * as messagesApi from "./messagesApi";
+import { uploadMedia, buildAttachmentDto, getAttachmentType } from "./mediaService";
 import { connectSocket, getSocket } from "./socket";
 
 const normalizeId = (value: unknown): string => String(value ?? "").trim();
@@ -365,40 +367,74 @@ export async function sendMessage(
 ) {
   const socket = await ensureSocket();
 
-  // Handle attachments: upload first to get keys
+  // Handle attachments: upload via presigned URL (direct to S3)
   let attachments: any[] = [];
   if (files && files.length > 0) {
+    // Get current user ID for x-user-id header
+    let currentUserId = '';
+    try {
+      const user = await getCurrentUser();
+      currentUserId = user?.id || user?.phone || '';
+      if (__DEV__) {
+        console.log('[chat:send][upload] currentUserId:', currentUserId, 'user keys:', user ? Object.keys(user) : 'null');
+      }
+    } catch (e) {
+      console.warn('Could not get current user for media upload', e);
+    }
+
+    if (!currentUserId) {
+      console.error('[chat:send][upload] ⚠️ No user ID available! Upload will fail.');
+    }
+
     let fileIndex = 0;
     for (const rawFile of files as OutgoingFile[]) {
       const file = normalizeOutgoingFile(rawFile);
       if (!file.uri) continue;
-      try {
-        const fd = new FormData();
-        // 'file' expects { uri, name, type } on React Native
-        fd.append("file", {
-          uri: file.uri,
+
+      if (__DEV__) {
+        console.log('[chat:send][upload] file:', {
           name: file.name,
           type: file.type,
-        } as any);
-        const uploadResp = await messagesApi.uploadMedia(fd);
-        const key = uploadResp?.data?.key || uploadResp?.data?.fileKey || null;
-        if (key) {
-          attachments.push({
-            key,
-            type: file.attachmentType,
-            name: file.name || uploadResp?.data?.name || "File",
-            size: Number(file.size || uploadResp?.data?.size || 0),
-            content_type: file.type || uploadResp?.data?.mimeType || "application/octet-stream",
-            uri: file.uri,
-            url: file.uri,
-            thumbnail_key: key,
+          size: file.size,
+          uri: file.uri?.substring(0, 60),
+        });
+      }
+
+      try {
+        // 3-step presigned upload (direct to S3 via media-service)
+        const mediaInput: MediaFileInput = {
+          uri: file.uri,
+          name: file.name,
+          mimeType: file.type,
+          size: file.size,
+        };
+        const uploadResult = await uploadMedia(mediaInput, currentUserId, conversationId);
+
+        if (__DEV__) {
+          console.log('[chat:send][upload] ✅ presigned upload success:', {
+            key: uploadResult.key,
+            visibility: uploadResult.visibility,
+            thumbnailKey: uploadResult.thumbnailKey,
           });
-        } else {
-          attachments.push(buildFallbackAttachment(file, conversationId, fileIndex));
         }
+
+        const dto = buildAttachmentDto(uploadResult);
+        attachments.push({
+          key: dto.key,
+          type: dto.type,
+          name: dto.name,
+          size: dto.size,
+          content_type: dto.content_type,
+          thumbnail_key: dto.thumbnail_key,
+          visibility: dto.visibility,
+          uri: file.uri,
+          url: file.uri,
+        });
       } catch (uploadErr) {
-        console.warn("uploadMedia failed, fallback to socket attachment payload", uploadErr);
-        attachments.push(buildFallbackAttachment(file, conversationId, fileIndex));
+        console.error('[chat:send][upload] ❌ presigned upload failed:', uploadErr);
+        // Do NOT fallback to FormData — those keys won't be in media-service DB
+        // and will cause attachment_not_found rejection.
+        throw uploadErr;
       } finally {
         fileIndex += 1;
       }
@@ -454,6 +490,7 @@ export async function sendMessage(
       size: Number(a.size || 0),
       content_type: a.content_type || "application/octet-stream",
       thumbnail_key: a.thumbnail_key,
+      visibility: a.visibility,
     })),
   };
 

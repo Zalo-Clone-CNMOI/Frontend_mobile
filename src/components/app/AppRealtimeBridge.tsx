@@ -43,27 +43,54 @@ export function AppRealtimeBridge() {
 
         const friendService = await getRuntimeFriendService();
         cleanupFriendRealtime = friendService.subscribeRealtime({
-          onFriendRequestSend: ({ request, actorUserId, targetUserId }) => {
-            const senderId = actorUserId || request.requesterId;
-            const recipientId = targetUserId || request.targetUserId;
+          onFriendRequestSend: (payload) => {
+            // API sends { requestId, requester: { id, fullName, avatarUrl, phone } }
+            // Build a FriendRequestRecord to store
+            const requester = payload.requester || payload.request?.requester;
+            const requesterId = requester?.id || payload.actorUserId || payload.request?.requesterId || '';
+            const targetId = payload.targetUserId || payload.request?.targetUserId || '';
 
-            if (recipientId === user.id) {
-              upsertReceivedRequest(request);
-            } else if (senderId === user.id) {
-              upsertSentRequest(request);
+            const record = payload.request || {
+              id: payload.requestId || buildEventId('req'),
+              requesterId,
+              targetUserId: targetId,
+              requester: requester ? {
+                id: requester.id,
+                fullName: requester.fullName,
+                avatarUrl: requester.avatarUrl,
+                phone: requester.phone,
+              } : undefined,
+              status: 'pending' as const,
+              createdAt: payload.createdAt || new Date().toISOString(),
+            };
+
+            if (targetId === user.id || (!targetId && requesterId !== user.id)) {
+              upsertReceivedRequest(record);
+            } else if (requesterId === user.id) {
+              upsertSentRequest(record);
             }
           },
           onFriendRequestRespond: (payload) => {
             removeRequest(payload.requestId);
-            if (payload.action === "accepted" && payload.friend) {
-              upsertFriend(payload.friend);
+            const action = payload.status || payload.action;
+            if (action === 'accepted' || action === 'accept') {
+              // Build friend record from addressee or legacy friend field
+              const addressee = payload.addressee || payload.friend;
+              if (addressee) {
+                upsertFriend({
+                  id: addressee.id,
+                  fullName: addressee.fullName || '',
+                  avatarUrl: addressee.avatarUrl,
+                });
+              }
             }
           },
           onFriendRequestCancel: ({ requestId }) => {
             removeRequest(requestId);
           },
-          onFriendRemoved: ({ friendId }) => {
-            removeFriend(friendId);
+          onFriendRemoved: (payload) => {
+            const id = payload.userId || payload.friendId || '';
+            if (id) removeFriend(id);
           },
         });
 

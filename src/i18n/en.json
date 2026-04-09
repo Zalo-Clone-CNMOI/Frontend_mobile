@@ -243,6 +243,31 @@
     "fill_all_fields": "Please fill in all fields"
   },
 
+  "forgot_password": {
+    "title": "Reset Password",
+    "verify_code": "Verify Code",
+    "create_password": "Create Password",
+    "enter_phone": "Enter phone number",
+    "phone_description": "Enter the phone number registered with your Zalo account to reset your password",
+    "invalid_phone": "Invalid phone number",
+    "send_otp": "Send OTP",
+    "enter_otp": "Enter verification code",
+    "otp_sent_to": "Verification code sent to",
+    "invalid_otp": "Invalid verification code",
+    "resend_otp": "Resend code",
+    "verify": "Verify",
+    "enter_new_password": "Create new password",
+    "password_description": "Password must be at least 6 characters",
+    "new_password": "New password",
+    "confirm_password": "Confirm password",
+    "password_too_short": "Password must be at least 6 characters",
+    "password_mismatch": "Passwords do not match",
+    "reset_password": "Reset Password",
+    "success_title": "Success!",
+    "success_description": "Your password has been changed. Please log in again to continue.",
+    "back_to_login": "Back to Login"
+  },
+
   "create_post": {
     "title": "Create Post",
     "you": "You",
@@ -283,5 +308,16 @@
     "date_of_birth": "Date of Birth",
     "gender": "Gender",
     "edit": "Edit"
+  },
+
+  "account_security": {
+    "title": "Account and Security",
+    "account": "Account",
+    "personal_info": "Personal Info",
+    "phone_number": "Phone Number",
+    "email": "Email",
+    "my_qr_code": "My QR Code",
+    "security": "Security",
+    "password": "Password"
   }
 }

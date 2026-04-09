@@ -30,14 +30,14 @@ export const sendRuntimeFriendRequest = async (targetUserId: string) => {
 
 export const respondRuntimeFriendRequest = async (
   requestId: string,
-  action: "accepted" | "rejected",
+  action: "accept" | "reject",
 ) => {
   const service = await getRuntimeFriendService();
   const response = await service.respondToFriendRequest(requestId, { action });
   const currentUser = await getCurrentUser();
   useRealtimeStore.getState().removeRequest(requestId);
 
-  if (action === "accepted") {
+  if (action === "accept") {
     const payload = response.data as any;
     const nextFriend = payload.friend || deriveFriendFromRequest(payload.request, currentUser?.id);
     if (nextFriend) {

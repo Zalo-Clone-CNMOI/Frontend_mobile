@@ -80,7 +80,7 @@ export default function AccountScreen() {
             <ChevronLeft size={28} color={theme.colors.iconHeader} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.colors.textHeader }]}>
-            {t('account_security.title')}
+            {t('account_security.title') || 'Tài khoản và bảo mật'}
           </Text>                </View>
       </View>
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -88,7 +88,7 @@ export default function AccountScreen() {
           {/* Tài khoản Section */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              {t('account_security.account')}
+              {t('account_security.account') || 'Tài khoản'}
             </Text>
 
             {/* Profile Card */}
@@ -102,7 +102,7 @@ export default function AccountScreen() {
               />
               <View style={styles.profileInfo}>
                 <Text style={[styles.profileSubtitle, { color: '#8e8e93' }]}>
-                  {t('account_security.personal_info')}
+                  {t('account_security.personal_info') || 'Thông tin cá nhân'}
                 </Text>
                 <Text style={[styles.profileName, { color: theme.colors.text }]}>
                   {user?.name || ""}
@@ -115,19 +115,19 @@ export default function AccountScreen() {
             <View style={[styles.accountList, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
               <AccountItem
                 icon={Phone}
-                title={t('account_security.phone_number')}
+                title={t('account_security.phone_number') || 'Số điện thoại'}
                 subtitle={user?.phone
                   ? `(+84) ${user.phone.replace(/^\+?84/, '').replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3')}`
                   : ''}
               />
               <AccountItem
                 icon={Mail}
-                title={t('account_security.email')}
+                title={t('account_security.email') || 'Email'}
                 subtitle={user?.email || ''}
               />
               <AccountItem
                 icon={QrCode}
-                title={t('account_security.my_qr_code')}
+                title={t('account_security.my_qr_code') || 'Mã QR của tôi'}
                 onPress={() => router.push('/scanner')}
               />
               <AccountItem
@@ -142,14 +142,14 @@ export default function AccountScreen() {
           {/* Bảo mật Section */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              {t('account_security.security')}
+              {t('account_security.security') || 'Bảo mật'}
             </Text>
 
             {/* Security Options */}
             <View style={[styles.accountList, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
               <AccountItem
                 icon={Lock}
-                title={t('account_security.password')}
+                title={t('account_security.password') || 'Mật khẩu'}
                 onPress={() => router.push('/changePassword')}
               />
             </View>

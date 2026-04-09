@@ -243,6 +243,31 @@
     "fill_all_fields": "Vui lòng điền đầy đủ thông tin"
   },
 
+  "forgot_password": {
+    "title": "Lấy lại mật khẩu",
+    "verify_code": "Xác nhận mã",
+    "create_password": "Tạo mật khẩu",
+    "enter_phone": "Nhập số điện thoại",
+    "phone_description": "Nhập số điện thoại đã đăng ký tài khoản Zalo để lấy lại mật khẩu",
+    "invalid_phone": "Số điện thoại không hợp lệ",
+    "send_otp": "Gửi mã OTP",
+    "enter_otp": "Nhập mã xác nhận",
+    "otp_sent_to": "Mã xác nhận đã được gửi đến",
+    "invalid_otp": "Mã xác nhận không hợp lệ",
+    "resend_otp": "Gửi lại mã",
+    "verify": "Xác nhận",
+    "enter_new_password": "Tạo mật khẩu mới",
+    "password_description": "Mật khẩu phải có ít nhất 6 ký tự",
+    "new_password": "Mật khẩu mới",
+    "confirm_password": "Xác nhận mật khẩu",
+    "password_too_short": "Mật khẩu phải có ít nhất 6 ký tự",
+    "password_mismatch": "Mật khẩu xác nhận không khớp",
+    "reset_password": "Đặt lại mật khẩu",
+    "success_title": "Thành công!",
+    "success_description": "Mật khẩu của bạn đã được thay đổi. Vui lòng đăng nhập lại để tiếp tục.",
+    "back_to_login": "Quay lại đăng nhập"
+  },
+
   "create_post": {
     "title": "Tạo bài viết",
     "you": "Bạn",
@@ -278,6 +303,17 @@
     "date_of_birth": "Ngày sinh",
     "gender": "Giới tính",
     "edit": "Chỉnh sửa"
+  },
+
+  "account_security": {
+    "title": "Tài khoản và bảo mật",
+    "account": "Tài khoản",
+    "personal_info": "Thông tin cá nhân",
+    "phone_number": "Số điện thoại",
+    "email": "Email",
+    "my_qr_code": "Mã QR của tôi",
+    "security": "Bảo mật",
+    "password": "Mật khẩu"
   },
 
   "countries": {

@@ -21,7 +21,7 @@ export function useCreatePostScreenLogic() {
   const handleAddFromCamera = useCallback(async () => {
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images' as ImagePicker.MediaType],
         allowsEditing: true,
         quality: 0.8,
       });
@@ -38,7 +38,7 @@ export function useCreatePostScreenLogic() {
   const handleAddFromGallery = useCallback(async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images' as ImagePicker.MediaType],
         allowsEditing: true,
         quality: 0.8,
         selectionLimit: 5 - selectedImages.length,

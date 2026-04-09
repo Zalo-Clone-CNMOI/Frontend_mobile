@@ -13,15 +13,7 @@ import {
     View,
 } from 'react-native';
 
-export function MessageBubble({
-  item,
-  onLongPress,
-  onImagePress,
-  onVideoPress,
-  onReuseRevoked,
-  onRevokeRestoreExpired,
-  onPressReply,
-}: {
+type MessageBubbleProps = {
   item: ChatMessage;
   onLongPress?: (item: ChatMessage) => void;
   onImagePress?: (uri: string) => void;
@@ -29,7 +21,18 @@ export function MessageBubble({
   onReuseRevoked?: (item: ChatMessage) => void;
   onRevokeRestoreExpired?: (messageId: string) => void;
   onPressReply?: (item: ChatMessage) => void;
-}) {
+};
+
+export const MessageBubble = React.memo(
+  function MessageBubble({
+    item,
+    onLongPress,
+    onImagePress,
+    onVideoPress,
+    onReuseRevoked,
+    onRevokeRestoreExpired,
+    onPressReply,
+  }: MessageBubbleProps) {
   const theme = useTheme();
   const { t } = useTranslation();
 
@@ -344,7 +347,7 @@ export function MessageBubble({
       )}
     </View>
   );
-}
+});
 
 /* ================= STYLES ================= */
 

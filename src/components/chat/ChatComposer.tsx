@@ -24,22 +24,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Keyboard,
 } from 'react-native';
-import EmojiPicker, { EmojiType } from 'rn-emoji-keyboard';
+import { EmojiKeyboard, EmojiType } from 'rn-emoji-keyboard';
 
 
-export function ChatComposer({
-  value,
-  onChangeText,
-  onSend,
-  onSendFiles,
-  editingTo,
-  onCancelEdit,
-  replyingTo,
-  onCancelReply,
-  onTypingStart,
-  onTypingStop,
-}: {
+export type ChatComposerProps = {
   value: string;
   onChangeText: (v: string) => void;
   onSend: () => void;
@@ -55,14 +45,27 @@ export function ChatComposer({
   onCancelReply?: () => void;
   onTypingStart?: () => void;
   onTypingStop?: () => void;
-}) {
+};
+
+export const ChatComposer = React.memo(function ChatComposer({
+  value,
+  onChangeText,
+  onSend,
+  onSendFiles,
+  editingTo,
+  onCancelEdit,
+  replyingTo,
+  onCancelReply,
+  onTypingStart,
+  onTypingStop,
+}: ChatComposerProps) {
   const theme = useTheme();
   const [showEmoji, setShowEmoji] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const typingTimeoutRef = useRef<any>(null);
 
   const { t } = useTranslation();
-  const modernMediaType = (ImagePicker as any).MediaType;
+
 
 
   const canSend = useMemo(() => value.trim().length > 0, [value]);
@@ -104,7 +107,7 @@ export function ChatComposer({
   const handlePickVideo = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: modernMediaType ? [modernMediaType.videos] : ImagePicker.MediaTypeOptions.Videos,
+        mediaTypes: ['videos' as ImagePicker.MediaType],
         quality: 1,
         selectionLimit: 1,
       });
@@ -132,7 +135,7 @@ export function ChatComposer({
   const handlePickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: modernMediaType ? [modernMediaType.images] : ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images' as ImagePicker.MediaType],
         allowsEditing: true,
         quality: 0.8,
         selectionLimit: 5, // Allow up to 5 images
@@ -260,6 +263,7 @@ export function ChatComposer({
             { backgroundColor: theme.colors.card },
           ]}
           onPress={() => {
+            Keyboard.dismiss();
             setShowEmoji(true);
             setShowMore(false);
           }}
@@ -293,6 +297,7 @@ export function ChatComposer({
             { backgroundColor: theme.colors.card },
           ]}
           onPress={() => {
+            if (!showMore) Keyboard.dismiss();
             setShowMore((v) => !v);
             setShowEmoji(false);
           }}
@@ -350,20 +355,23 @@ export function ChatComposer({
       )}
 
       {/* ===== Emoji ===== */}
-      <EmojiPicker
-        open={showEmoji}
-        onEmojiSelected={handlePickEmoji}
-        onClose={() => setShowEmoji(false)}
-        theme={{
-          backdrop: '#00000066',
-          knob: theme.colors.primary,
-          container: theme.colors.card,
-          header: theme.colors.text,
-        }}
-      />
+      {showEmoji && (
+        <View style={{ height: 300 }}>
+          <EmojiKeyboard
+            onEmojiSelected={handlePickEmoji}
+            theme={{
+              container: theme.colors.card,
+              header: theme.colors.text,
+            }}
+            styles={{
+              container: { borderRadius: 0 },
+            }}
+          />
+        </View>
+      )}
     </View>
   );
-}
+});
 
 /* ===== Option ===== */
 function Option({
@@ -469,6 +477,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     padding: 10,
     gap: 10,
+    height: 300, // mimics keyboard height
   },
 
   option: {

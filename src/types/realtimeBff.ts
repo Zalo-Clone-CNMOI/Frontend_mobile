@@ -48,7 +48,8 @@ export type FriendApiErrorCode =
   | "RATE_LIMITED"
   | "UNKNOWN";
 
-export type FriendRequestAction = "accepted" | "rejected";
+// API request: "accept" | "reject" — WS response may return "accepted" | "rejected"
+export type FriendRequestAction = "accept" | "reject" | "accepted" | "rejected";
 export type FriendRequestStatus =
   | "pending"
   | "accepted"
@@ -100,7 +101,15 @@ export type RespondToFriendRequestPayload = {
 };
 
 export type FriendRequestSendPayload = {
-  request: FriendRequestRecord;
+  requestId: EntityId;
+  requester: {
+    id: EntityId;
+    fullName: string;
+    avatarUrl: string | null;
+    phone: string;
+  };
+  // Legacy compat fields (may be present from older server versions)
+  request?: FriendRequestRecord;
   actorUserId?: EntityId;
   targetUserId?: EntityId;
   createdAt?: string;
@@ -108,7 +117,14 @@ export type FriendRequestSendPayload = {
 
 export type FriendRequestRespondPayload = {
   requestId: EntityId;
-  action: FriendRequestAction;
+  status: FriendRequestAction;
+  addressee?: {
+    id: EntityId;
+    fullName: string;
+    avatarUrl: string | null;
+  };
+  // Legacy compat fields
+  action?: FriendRequestAction;
   request?: FriendRequestRecord;
   friend?: FriendRecord;
   actorUserId?: EntityId;
@@ -118,13 +134,17 @@ export type FriendRequestRespondPayload = {
 
 export type FriendRequestCancelPayload = {
   requestId: EntityId;
+  requesterId: EntityId;
+  // Legacy compat
   actorUserId?: EntityId;
   targetUserId?: EntityId;
   cancelledAt?: string;
 };
 
 export type FriendRemovedPayload = {
-  friendId: EntityId;
+  userId: EntityId;
+  // Legacy compat
+  friendId?: EntityId;
   removedByUserId?: EntityId;
   removedAt?: string;
 };

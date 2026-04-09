@@ -36,37 +36,50 @@ function ContactItem({ item, creatingConversation, onPress }: {
       </View>
 
       <View style={styles.cardContent}>
-        <View style={styles.textWrapper}>
-          <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={1}>{title}</Text>
-          <Text style={[styles.subtitle, { color: '#8E8E93' }]} numberOfLines={1}>{subtitle}</Text>
-          {item.phone ? (
-            <Text style={[styles.phone, { color: '#8E8E93' }]} numberOfLines={1}>{item.phone}</Text>
-          ) : null}
-          {item.friendsSince ? (
-            <Text style={[styles.friendsSince, { color: '#8E8E93' }]} numberOfLines={1}>{t('contacts.friends_since')} {friendsSinceText}</Text>
-          ) : null}
-          {!isOnline && lastSeenText ? (
-            <Text style={[styles.friendsSince, { color: '#8E8E93' }]} numberOfLines={1}>{t('contacts.last_seen')} {lastSeenText}</Text>
-          ) : null}
-        </View>
-        <View style={styles.trailingWrap}>
-          <View
-            style={[
-              styles.statusPill,
-              { backgroundColor: isOnline ? `${theme.colors.primary}22` : `${theme.colors.border}55` },
-            ]}
-          >
-            <Text style={[styles.statusPillText, { color: isOnline ? theme.colors.primary : '#8E8E93' }]}>
-              {isOnline ? t('contacts.online') : t('contacts.offline')}
-            </Text>
-          </View>
-          {creatingConversation ? (
-            <View style={styles.loadingIndicator}>
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-            </View>
-          ) : null}
-        </View>
-      </View>
+  <View style={styles.textWrapper}>
+    {/* Dòng 1: Tên - Zalo thường dùng font Medium, đen đậm */}
+    <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={1}>
+      {title}
+    </Text>
+
+    {/* Dòng 2: Subtitle/Tin nhắn mới nhất - Màu xám nhẹ hơn */}
+    <Text style={[styles.subtitle, { color: '#666' }]} numberOfLines={1}>
+      {subtitle}
+    </Text>
+
+    {/* Các thông tin bổ sung: Phone hoặc Ngày kết bạn */}
+    {item.phone || item.friendsSince ? (
+      <Text style={styles.metaText} numberOfLines={1}>
+        {item.phone ? item.phone : `${t('contacts.friends_since')} ${friendsSinceText}`}
+      </Text>
+    ) : null}
+
+    {/* Trạng thái hoạt động dạng Text nhỏ phía dưới (tùy chọn) */}
+    {!isOnline && lastSeenText && (
+      <Text style={styles.lastSeenText}>
+        {t('contacts.last_seen')} {lastSeenText}
+      </Text>
+    )}
+  </View>
+
+  <View style={styles.trailingWrap}>
+    {/* Badge trạng thái: Zalo thường chỉ dùng chấm xanh ở Avatar, 
+        nhưng nếu bạn muốn để ở cuối, hãy dùng phong cách Badge nhỏ */}
+    <View style={styles.statusContainer}>
+      <Text style={[
+        styles.statusText, 
+        { color: isOnline ? '#006AF5' : '#8E8E93' } // Màu xanh Zalo: #006AF5
+      ]}>
+        {isOnline ? t('contacts.online') : ''} 
+      </Text>
+      {isOnline && <View style={styles.onlineDot} />}
+    </View>
+
+    {creatingConversation && (
+      <ActivityIndicator size="small" color="#006AF5" style={{ marginTop: 4 }} />
+    )}
+  </View>
+</View>
     </TouchableOpacity>
   );
 }
@@ -261,6 +274,58 @@ export default function ContactsScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
+  cardContent: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E5E5E5', // Đường kẻ mờ giữa các row
+  },
+  textWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  name: {
+    fontSize: 17,
+    fontWeight: '500', // Zalo sử dụng font hơi đậm cho tên
+    marginBottom: 2,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  metaText: {
+    fontSize: 12,
+    color: '#8E8E93',
+  },
+  lastSeenText: {
+    fontSize: 12,
+    color: '#8E8E93',
+    fontStyle: 'italic',
+  },
+  trailingWrap: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    minWidth: 60,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusText: {
+    fontSize: 12,
+    marginRight: 4,
+  },
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#4CD964', // Màu xanh lá trạng thái
+  },
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -273,29 +338,6 @@ const styles = StyleSheet.create({
   },
   cardAvatarContainer: { position: 'relative' },
   avatar: { width: 50, height: 50, borderRadius: 25 },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#4CAF50',
-    borderWidth: 2,
-  },
-  cardContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 12,
-  },
-  textWrapper: { flex: 1 },
-  name: { fontSize: 16, fontWeight: '500' },
-  subtitle: { fontSize: 13, marginTop: 2 },
-  phone: { fontSize: 12, marginTop: 2 },
-  friendsSince: { fontSize: 11, marginTop: 2, fontStyle: 'italic' },
-  loadingIndicator: { paddingLeft: 6 },
-  trailingWrap: { alignItems: 'flex-end', justifyContent: 'center', marginLeft: 8 },
   statusPill: {
     paddingHorizontal: 8,
     paddingVertical: 5,
@@ -365,5 +407,6 @@ const styles = StyleSheet.create({
     width: 42,
     borderRadius: 999,
   },
+  
 });
 

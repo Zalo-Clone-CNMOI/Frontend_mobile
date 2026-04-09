@@ -164,7 +164,7 @@ export default function LoginStep2() {
         </ScrollView>
 
         <View style={styles.footer}>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/(auth)/forgotPassword')}>
             <Text style={styles.linkText}>{t('auth.forgot_password')}</Text>
           </TouchableOpacity>
         </View>

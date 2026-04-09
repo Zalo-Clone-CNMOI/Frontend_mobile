@@ -28,6 +28,14 @@ const MESSAGE_BASE_URL = trimTrailingSlash(
   readEnv('EXPO_PUBLIC_MESSAGE_BASE_URL', 'http://54.179.206.215:5000'),
 );
 
+const MEDIA_BASE_URL = trimTrailingSlash(
+  readEnv('EXPO_PUBLIC_MEDIA_BASE_URL', 'http://54.179.206.215:5000'),
+);
+
+const SSO_BASE_URL = trimTrailingSlash(
+  readEnv('EXPO_PUBLIC_SSO_BASE_URL', 'http://54.179.206.215:5001'),
+);
+
 const AUTH_REFRESH_URL = trimTrailingSlash(
   readEnv('EXPO_PUBLIC_AUTH_REFRESH_URL', `${AUTH_BASE_URL}/refresh`),
 );
@@ -38,6 +46,8 @@ export const NETWORK_CONFIG = {
   AUTH_LOGIN_URL: `${AUTH_BASE_URL}/login`,
   AUTH_REFRESH_URL,
   BFF_BASE_URL,
+  MEDIA_BASE_URL,
   MESSAGE_BASE_URL,
   SOCKET_URL,
+  SSO_BASE_URL,
 } as const;

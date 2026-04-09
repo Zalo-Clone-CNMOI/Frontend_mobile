@@ -8,6 +8,7 @@ import {
   FriendApiErrorResponse,
   FriendRealtimeHandlers,
   FriendRecord,
+  FriendRemovedPayload,
   FriendRequestAction,
   FriendRequestCancelPayload,
   FriendRequestListKind,
@@ -113,7 +114,8 @@ const buildRequestPath = (
   if (requestKind === "sent") {
     return buildEndpoint("/friends/requests/sent");
   }
-  return buildEndpoint("/friends/requests");
+  // Swagger: GET /api/friends/requests/pending
+  return buildEndpoint("/friends/requests/pending");
 };
 
 export const createFriendService = ({
@@ -181,7 +183,8 @@ export const createFriendService = ({
   ) =>
     withErrorMapping(async () => {
       rateLimiter.consume("mutation");
-      const response = await httpClient.post<
+      // Swagger: PATCH /api/friends/requests/{requestId}
+      const response = await httpClient.patch<
         ApiEnvelope<FriendRequestRecord | FriendRequestRespondPayload>
       >(endpoint(`/friends/requests/${requestId}`), payload);
       return response.data;
@@ -236,7 +239,7 @@ export const createFriendService = ({
       handlers.onFriendRequestCancel?.(payload);
     };
 
-    const handleFriendRemoved = (payload: { friendId: string }) => {
+    const handleFriendRemoved = (payload: FriendRemovedPayload) => {
       handlers.onFriendRemoved?.(payload);
     };
 
@@ -275,4 +278,4 @@ export type FriendService = ReturnType<typeof createFriendService>;
 
 export const isFriendRequestAccepted = (
   action: FriendRequestAction | undefined,
-) => action === "accepted";
+) => action === "accepted" || action === "accept";

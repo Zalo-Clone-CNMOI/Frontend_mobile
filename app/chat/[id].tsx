@@ -56,6 +56,27 @@ export default function ChatDetailScreen() {
     isMessageActionMenuVisible,
   } = useChatDetailScreenLogic();
 
+  const renderItem = React.useCallback(({ item }: { item: any }) => {
+    return (
+      <MessageBubble
+        item={item}
+        onLongPress={openMessageActions}
+        onReuseRevoked={handleReuseRevokedMessage}
+        onRevokeRestoreExpired={handleRevokedRestoreExpired}
+        onPressReply={handleJumpToReplySource}
+        onImagePress={setSelectedImage}
+        onVideoPress={setSelectedVideo}
+      />
+    );
+  }, [
+    openMessageActions, 
+    handleReuseRevokedMessage, 
+    handleRevokedRestoreExpired,
+    handleJumpToReplySource, 
+    setSelectedImage, 
+    setSelectedVideo
+  ]);
+
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen
@@ -81,8 +102,8 @@ export default function ChatDetailScreen() {
 
       <KeyboardAvoidingView
         style={styles.body}
-        behavior={Platform.OS === 'android' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'android' ? keyboardOffset : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? keyboardOffset : 0}
       >
         <FlashList
           ref={flashListRef}
@@ -92,17 +113,7 @@ export default function ChatDetailScreen() {
           keyboardShouldPersistTaps="handled"
           onStartReached={handleLoadMore}
           onStartReachedThreshold={0.2}
-          renderItem={({ item }) => (
-            <MessageBubble
-              item={item}
-              onLongPress={openMessageActions}
-              onReuseRevoked={handleReuseRevokedMessage}
-              onRevokeRestoreExpired={handleRevokedRestoreExpired}
-              onPressReply={handleJumpToReplySource}
-              onImagePress={(uri) => setSelectedImage(uri)}
-              onVideoPress={(uri: string) => setSelectedVideo(uri)}
-            />
-          )}
+          renderItem={renderItem}
         />
 
         <View>

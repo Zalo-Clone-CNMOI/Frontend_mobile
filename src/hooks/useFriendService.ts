@@ -153,7 +153,7 @@ export const useFriendService = ({
       const response = await friendService.respondToFriendRequest(requestId, payload);
       setReceivedRequests((current) => removeById(current, requestId));
 
-      if (payload.action === "accepted") {
+      if (payload.action === "accept" || payload.action === "accepted") {
         const nextFriend =
           "friend" in response.data && response.data.friend
             ? response.data.friend
@@ -208,16 +208,31 @@ export const useFriendService = ({
     if (!enabled) return;
 
     const unsubscribe = friendService.subscribeRealtime({
-      onFriendRequestSend: ({ request, actorUserId, targetUserId }) => {
-        const requesterId = actorUserId || request.requesterId;
-        const recipientId = targetUserId || request.targetUserId;
+      onFriendRequestSend: (payload) => {
+        const requester = payload.requester || payload.request?.requester;
+        const requesterId = requester?.id || payload.actorUserId || payload.request?.requesterId || '';
+        const targetId = payload.targetUserId || payload.request?.targetUserId || '';
 
-        if (recipientId === currentUserId) {
-          setReceivedRequests((current) => dedupeById([request, ...current]));
+        const record: FriendRequestRecord = payload.request || {
+          id: payload.requestId || `req-${Date.now()}`,
+          requesterId,
+          targetUserId: targetId,
+          requester: requester ? {
+            id: requester.id,
+            fullName: requester.fullName,
+            avatarUrl: requester.avatarUrl,
+            phone: requester.phone,
+          } : undefined,
+          status: 'pending' as const,
+          createdAt: payload.createdAt || new Date().toISOString(),
+        };
+
+        if (targetId === currentUserId || (!targetId && requesterId !== currentUserId)) {
+          setReceivedRequests((current) => dedupeById([record, ...current]));
         }
 
         if (requesterId === currentUserId) {
-          setSentRequests((current) => dedupeById([request, ...current]));
+          setSentRequests((current) => dedupeById([record, ...current]));
         }
       },
       onFriendRequestRespond: (payload) => {
@@ -227,9 +242,12 @@ export const useFriendService = ({
           setSentRequests((current) => removeById(current, requestId));
         }
 
-        if (payload.action === "accepted") {
-          const nextFriend =
-            payload.friend || deriveFriendFromRequest(payload.request, currentUserId);
+        const action = payload.status || payload.action;
+        if (action === 'accepted' || action === 'accept') {
+          const addressee = payload.addressee || payload.friend;
+          const nextFriend: FriendRecord | null = addressee
+            ? { id: addressee.id, fullName: addressee.fullName || '', avatarUrl: addressee.avatarUrl }
+            : deriveFriendFromRequest(payload.request, currentUserId);
           if (nextFriend) {
             setFriends((current) => dedupeById([nextFriend, ...current]));
           }
@@ -239,8 +257,9 @@ export const useFriendService = ({
         setReceivedRequests((current) => removeById(current, requestId));
         setSentRequests((current) => removeById(current, requestId));
       },
-      onFriendRemoved: ({ friendId }) => {
-        setFriends((current) => removeById(current, friendId));
+      onFriendRemoved: (payload) => {
+        const id = payload.userId || payload.friendId || '';
+        if (id) setFriends((current) => removeById(current, id));
       },
     });
 
