@@ -1,10 +1,10 @@
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useProfileStore } from '@/src/store/useProfileStore';
 import { useTheme } from '@/src/theme/themeContext';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from "expo-status-bar";
 import { Calendar, ChevronLeft, Edit, User } from 'lucide-react-native';
-import React, { useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Image,
@@ -18,14 +18,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function PersonalInfoScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
   const theme = useTheme();
   const { t } = useTranslation();
   const initializeProfile = useProfileStore((state) => state.initializeProfile);
 
-  useEffect(() => {
-    initializeProfile();
-  }, [initializeProfile]);
+  useFocusEffect(
+    useCallback(() => {
+      initializeProfile();
+    }, [initializeProfile])
+  );
+
 
   const InfoRow = ({
     icon: Icon,
@@ -48,7 +51,7 @@ export default function PersonalInfoScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
       <StatusBar style="light" />
-      {/* Header chuẩn Zalo */}
+      
       <View style={[styles.header, { borderBottomColor: theme.colors.border }, {backgroundColor: theme.colors.statusBar}]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()}>
@@ -61,37 +64,37 @@ export default function PersonalInfoScreen() {
       </View>
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-          {/* Profile Picture */}
+          
           <View style={styles.profilePictureContainer}>
             <Image
-              source={{ uri: user?.avatarUrl }}
+              source={{ uri: authUser?.avatarUrl }}
               style={styles.profilePicture}
             />
           </View>
 
-          {/* Personal Information Details */}
+          
           <View style={[styles.detailsSection, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <InfoRow
               icon={User}
               label={t('personal_info.zalo_name')}
-              value={user?.name || ''}
+              value={authUser?.name || ''}
             />
             <InfoRow
               icon={Calendar}
               label={t('personal_info.date_of_birth')}
-              value={user?.dateOfBirth || ''}
+              value={authUser?.dateOfBirth || ''}
             />
             <InfoRow
               icon={User}
               label={t('personal_info.gender')}
-              value={user?.gender || ''}
+              value={authUser?.gender || ''}
             />
           </View>
 
-          {/* Edit Button */}
+          
           <TouchableOpacity
             style={[styles.editButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
-            onPress={() => { }}
+            onPress={() => router.push('/editPersonalInfo')}
           >
             <Edit size={18} color={theme.colors.text} />
             <Text style={[styles.editButtonText, { color: theme.colors.text }]}>

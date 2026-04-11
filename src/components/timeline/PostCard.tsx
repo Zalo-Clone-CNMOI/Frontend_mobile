@@ -76,12 +76,10 @@ export function PostCard({
       await ShareUtils.sharePost(content, author.name, images);
       onPressShare?.();
     } catch (error) {
-      console.error('Share failed:', error);
     }
   };
 
   const handleChatWithAuthor = () => {
-    // Navigate to chat with author
     router.push(`/chat/${author.id}`);
   };
 
@@ -96,12 +94,10 @@ export function PostCard({
   };
 
   const handleAddComment = (postId: string, content: string) => {
-    // This would typically get user info from auth context
-    const currentUserId = 'user-me'; // This should come from auth context
+    const currentUserId = 'user-me';
     const currentUserName = 'Bạn (Me)';
     const currentUserAvatar = 'https://i.pravatar.cc/150?u=user-me';
     
-    // For now, just update local state
     const newComment: Comment = {
       id: `comment-${Date.now()}-${Math.random()}`,
       postId,

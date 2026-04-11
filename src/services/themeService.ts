@@ -9,7 +9,6 @@ export class ThemeService {
     try {
       await AsyncStorage.setItem(THEME_MODE_KEY, mode);
     } catch (error) {
-      console.error('Error saving theme mode:', error);
     }
   }
 
@@ -21,7 +20,6 @@ export class ThemeService {
       }
       return 'dark';
     } catch (error) {
-      console.error('Error getting theme mode:', error);
       return 'dark';
     }
   }
@@ -30,7 +28,6 @@ export class ThemeService {
     try {
       await AsyncStorage.removeItem(THEME_MODE_KEY);
     } catch (error) {
-      console.error('Error clearing theme mode:', error);
     }
   }
 }

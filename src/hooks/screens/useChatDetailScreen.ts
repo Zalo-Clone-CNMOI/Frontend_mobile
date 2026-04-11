@@ -16,6 +16,7 @@ import type { ChatMessage } from '@/src/types/chat';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 const EMPTY_MESSAGES: ChatMessage[] = [];
@@ -78,7 +79,6 @@ export function useChatDetailScreenLogic() {
         }, 50);
       })
       .catch((err) => {
-        console.error('Failed to load initial messages:', err);
       });
     return () => {
       active = false;
@@ -125,7 +125,6 @@ export function useChatDetailScreenLogic() {
       setHasMore(Boolean(res.hasMore));
     } catch (error) {
       loadedCursorRef.current = null;
-      console.error('Failed to load more messages:', error);
     } finally {
       setIsLoadingMore(false);
     }
@@ -268,10 +267,11 @@ export function useChatDetailScreenLogic() {
         await sendPromise;
         updateMessage(chatId, optimisticMessage.id, { status: 'sent' });
       } catch (error) {
-        console.error('Failed to send file message:', error);
         if ((error as any)?.message_id) {
           updateMessage(chatId, (error as any).message_id, { status: 'failed' });
         }
+        const reason = (error as any)?.reason || (error as any)?.message || 'Kiểm tra lại file đính kèm';
+        Alert.alert('Gửi file thất bại', `Không thể gửi file: ${reason}`);
       }
     }
 
@@ -307,7 +307,6 @@ export function useChatDetailScreenLogic() {
     try {
       await sendSocketDeleteMessage(chatId, msg.serverMessageId || msg.id);
     } catch (error) {
-      console.warn('chat:delete emit failed:', error);
     }
     if (replyingMessage?.id === msg.id) setReplyingMessage(null);
     if (editingMessage?.id === msg.id) setEditingMessage(null);
@@ -317,7 +316,6 @@ export function useChatDetailScreenLogic() {
     try {
       await reactMessage(chatId, msg.serverMessageId || msg.id, reaction);
     } catch (error) {
-      console.warn('chat:react emit failed:', error);
     }
     closeMessageActions();
   }, [chatId, closeMessageActions]);
@@ -370,7 +368,6 @@ export function useChatDetailScreenLogic() {
         setInput('');
         setEditingMessage(null);
       } catch (error) {
-        console.error('Failed to edit message:', error);
       }
       return;
     }
@@ -391,7 +388,6 @@ export function useChatDetailScreenLogic() {
         flashListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
-      console.error('Failed to send message:', error);
       if ((error as any)?.message_id) {
         updateMessage(chatId, (error as any).message_id, { status: 'failed' });
       }

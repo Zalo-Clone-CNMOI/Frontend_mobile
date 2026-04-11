@@ -3,24 +3,20 @@ import { Country , COUNTRIES_MOCK_DATA } from '../data/countriesMockData';
 
 
 interface CountriesState {
-  // State
   countries: Country[];
   filteredCountries: Country[];
   searchQuery: string;
 
-  // Actions
   initializeCountries: () => void;
   setSearchQuery: (query: string) => void;
   getFilteredCountries: () => Country[];
 }
 
 export const useCountriesStore = create<CountriesState>((set, get) => ({
-  // State
   countries: [],
   filteredCountries: [],
   searchQuery: '',
 
-  // Actions
   initializeCountries: () => {
     set({
       countries: COUNTRIES_MOCK_DATA,

@@ -33,7 +33,6 @@ const hydrateCurrentActorIds = async () => {
       .filter(Boolean)
       .forEach((id) => currentActorIds.add(id));
   } catch (e) {
-    console.warn("hydrateCurrentActorIds failed:", e);
   } finally {
     actorIdsHydrated = true;
   }
@@ -186,6 +185,7 @@ function toLegacyChatMessage(apiMessage: any): ChatMessage {
     editedAt: editedAtRaw ? toTimestampMs(editedAtRaw) : undefined,
     deletedFor: apiMessage?.deletedFor,
     isRevoked: Boolean(apiMessage?.isDeleted || apiMessage?.is_deleted || apiMessage?.isRevoked),
+    attachments: Array.isArray(apiMessage?.attachments) ? apiMessage.attachments : undefined,
   };
 }
 
@@ -272,13 +272,10 @@ const sortMessagesAscending = (messages: ChatMessage[]): ChatMessage[] => {
 
 function generateUUID(): string {
   try {
-    // Prefer native if available
     if (typeof globalThis?.crypto?.randomUUID === "function")
       return (globalThis.crypto as any).randomUUID();
   } catch {
-    // fallthrough
   }
-  // fallback v4
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
     const r = (Math.random() * 16) | 0;
     const v = c === "x" ? r : (r & 0x3) | 0x8;
@@ -315,13 +312,11 @@ export async function loadInitialMessages(conversationId: string) {
           : [];
   const uiMessages = sortMessagesAscending(messages.map(toLegacyChatMessage));
 
-  // Mark room open and join after loaded
   openConversations.add(normalizedConversationId);
   const s = await ensureSocket();
   try {
     s.emit("chat:join", buildChatJoinPayload(normalizedConversationId));
   } catch (e) {
-    console.warn("chat:join emit failed", e);
   }
 
   return {
@@ -367,23 +362,18 @@ export async function sendMessage(
 ) {
   const socket = await ensureSocket();
 
-  // Handle attachments: upload via presigned URL (direct to S3)
   let attachments: any[] = [];
   if (files && files.length > 0) {
-    // Get current user ID for x-user-id header
     let currentUserId = '';
     try {
       const user = await getCurrentUser();
-      currentUserId = user?.id || user?.phone || '';
+      currentUserId = user?.id || (user as any)?._id || (user as any)?.userId || user?.phone || '';
       if (__DEV__) {
-        console.log('[chat:send][upload] currentUserId:', currentUserId, 'user keys:', user ? Object.keys(user) : 'null');
       }
     } catch (e) {
-      console.warn('Could not get current user for media upload', e);
     }
 
     if (!currentUserId) {
-      console.error('[chat:send][upload] ⚠️ No user ID available! Upload will fail.');
     }
 
     let fileIndex = 0;
@@ -392,16 +382,9 @@ export async function sendMessage(
       if (!file.uri) continue;
 
       if (__DEV__) {
-        console.log('[chat:send][upload] file:', {
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          uri: file.uri?.substring(0, 60),
-        });
       }
 
       try {
-        // 3-step presigned upload (direct to S3 via media-service)
         const mediaInput: MediaFileInput = {
           uri: file.uri,
           name: file.name,
@@ -411,11 +394,6 @@ export async function sendMessage(
         const uploadResult = await uploadMedia(mediaInput, currentUserId, conversationId);
 
         if (__DEV__) {
-          console.log('[chat:send][upload] ✅ presigned upload success:', {
-            key: uploadResult.key,
-            visibility: uploadResult.visibility,
-            thumbnailKey: uploadResult.thumbnailKey,
-          });
         }
 
         const dto = buildAttachmentDto(uploadResult);
@@ -431,9 +409,6 @@ export async function sendMessage(
           url: file.uri,
         });
       } catch (uploadErr) {
-        console.error('[chat:send][upload] ❌ presigned upload failed:', uploadErr);
-        // Do NOT fallback to FormData — those keys won't be in media-service DB
-        // and will cause attachment_not_found rejection.
         throw uploadErr;
       } finally {
         fileIndex += 1;
@@ -476,7 +451,6 @@ export async function sendMessage(
 
   const uiOptimisticMessage = toLegacyChatMessage(optimisticMessage);
 
-  // Emit chat:send with idempotency key message_id
   const payload = {
     conversation_id: conversationId,
     message_id: localId,
@@ -512,18 +486,9 @@ export async function sendMessage(
     pendingAcks.set(localId, { resolve: safeResolve, reject: safeReject });
     try {
       if (__DEV__) {
-        console.log("[chat:send][emit]", {
-          conversation_id: payload.conversation_id,
-          message_id: payload.message_id,
-          reply_to_message_id: payload.reply_to_message_id,
-          attachments: payload.attachments?.length || 0,
-        });
       }
       socket.emit("chat:send", payload, (ack: any) => {
-        // some servers provide immediate callback; still rely on chat:ack event
-        // resolve here if ack provided
         if (__DEV__) {
-          console.log("[chat:send][callback-ack]", ack);
         }
         if (ack && ack.status === "accepted") {
           const p = pendingAcks.get(localId);
@@ -552,7 +517,6 @@ export function registerHandlers(handlers: {
   onReactionAdded?: (info: any) => void;
   onReactionRemoved?: (info: any) => void;
 }) {
-  // Attach to module-level callbacks
   _handlers = handlers;
   if (!listenersRegistered && socketInstance) {
     registerSocketListeners();
@@ -566,13 +530,10 @@ function registerSocketListeners() {
   if (!s) return;
 
   s.on("connect", () => {
-    console.log("chatService socket connect");
-    // Re-emit chat:join for all open conversations
     for (const conv of Array.from(openConversations)) {
       try {
         s.emit("chat:join", buildChatJoinPayload(conv));
       } catch (e) {
-        console.warn("Re-emit chat:join failed", e);
       }
     }
     if (heartbeatTimer) clearInterval(heartbeatTimer);
@@ -580,14 +541,12 @@ function registerSocketListeners() {
       try {
         s.emit("presence:heartbeat", { ts: Date.now() });
       } catch (e) {
-        console.warn("presence:heartbeat emit failed", e);
       }
     }, 30_000);
   });
 
   s.on("chat:ack", (payload: any) => {
     if (__DEV__) {
-      console.log("[chat:ack][event]", payload);
     }
     const clientId = payload?.message_id;
     if (clientId) {
@@ -602,10 +561,6 @@ function registerSocketListeners() {
 
   s.on("chat:message", async (payload: any) => {
     if (__DEV__) {
-      console.log("[chat:message][event]", {
-        message_id: payload?.message_id || payload?.id,
-        conversation_id: payload?.conversation_id || payload?.conversationId,
-      });
     }
     const conversationId = payload?.conversation_id || payload?.conversationId;
     const messageId = payload?.id || payload?.message_id;
@@ -649,7 +604,6 @@ function registerSocketListeners() {
       const uiMessage = toLegacyChatMessage(fullMessage);
       _handlers.onMessage?.(uiMessage);
     } catch (e) {
-      console.warn("Failed to fetch message details, fallback to event payload", e);
       const uiMessage = toLegacyChatMessage(payload);
       _handlers.onMessage?.(uiMessage);
     }
@@ -806,11 +760,8 @@ export async function fetchConversations(): Promise<ConversationV2[]> {
     if (Array.isArray(payload.data) || Array.isArray(payload.conversations)) {
       return mapConversationsListFromApi(payload);
     }
-
-    console.warn("Unexpected conversations response format:", payload);
     return [];
   } catch (e) {
-    console.warn("fetchConversations failed", e);
     return [];
   }
 }
@@ -835,11 +786,8 @@ export async function fetchMessages(
     if (Array.isArray(payload.messages)) {
       return payload.messages;
     }
-
-    console.warn("Unexpected messages response format:", payload);
     return [];
   } catch (e) {
-    console.warn("fetchMessages failed", e);
     return [];
   }
 }
@@ -891,7 +839,6 @@ export async function fetchAllMessages(): Promise<
 
     return result;
   } catch (e) {
-    console.warn("fetchAllMessages failed", e);
     return {};
   }
 }
@@ -908,7 +855,6 @@ export async function fetchContacts(): Promise<{ users: ContactUser[] }> {
     const list = Array.isArray(payload?.data) ? payload.data : [];
 
     if (!Array.isArray(list)) {
-      console.warn("Invalid friends response:", payload);
       return { users: [] };
     }
 
@@ -936,7 +882,6 @@ export async function fetchContacts(): Promise<{ users: ContactUser[] }> {
 
     return { users };
   } catch (e) {
-    console.warn("fetchContacts failed", e);
     return { users: [] };
   }
 }

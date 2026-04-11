@@ -12,13 +12,10 @@ export interface Comment {
 }
 
 interface TimelineState {
-  // State
   posts: TimelinePost[];
-  // v2 posts
   postsV2: TimelinePostV2[];
   comments: Comment[];
 
-  // Actions
   initializePosts: () => void;
   getPosts: () => TimelinePost[];
   getPostsV2: () => TimelinePostV2[];
@@ -26,26 +23,21 @@ interface TimelineState {
   deletePost: (postId: string) => void;
   updatePost: (postId: string, updates: Partial<TimelinePost>) => void;
   
-  // v2 post interactions
   toggleLike: (postId: string) => void;
   incrementComments: (postId: string) => void;
   incrementShares: (postId: string) => void;
   
-  // Comments
   addComment: (postId: string, userId: string, userName: string, content: string, userAvatar?: string) => void;
   deleteComment: (commentId: string) => void;
   getCommentsByPostId: (postId: string) => Comment[];
 }
 
 export const useTimelineStore = create<TimelineState>((set, get) => ({
-  // State
   posts: [],
   postsV2: [],
   comments: [],
 
-  // Actions
   initializePosts: () => {
-    // Prefer v2 timeline posts directly
     if (TIMELINE_V2 && TIMELINE_V2.length) {
       set({ postsV2: TIMELINE_V2, posts: [] });
       return;
@@ -81,7 +73,6 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
     }));
   },
 
-  // v2 post interactions
   toggleLike: (postId: string) => {
     set((state) => ({
       postsV2: state.postsV2.map((post) =>
@@ -116,7 +107,6 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
     }));
   },
 
-  // Comments
   addComment: (postId: string, userId: string, userName: string, content: string, userAvatar?: string) => {
     const newComment: Comment = {
       id: `comment-${Date.now()}-${Math.random()}`,

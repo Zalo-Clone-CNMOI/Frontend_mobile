@@ -17,7 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/contexts/AuthContext';
 import * as authApi from '../../src/services/authApi';
 
-// Interface cho user info
 interface UserInfo {
   phone: string;
   password?: string;
@@ -40,19 +39,17 @@ interface UserInfo {
 
 export default function LoginStep2() {
   const [password, setPassword] = useState('');
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false); // Trạng thái hiện/ẩn mật khẩu
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { phone } = useLocalSearchParams();
   const { t } = useTranslation();
-  const { login } = useAuth(); // Use login function from AuthContext
+  const { login } = useAuth();
 
   const handlePasswordChange = (text: string) => {
-    // Regex: Loại bỏ khoảng trắng (mật khẩu không nên có khoảng trắng)
     const cleaned = text.replace(/\s/g, '');
     setPassword(cleaned);
   };
 
-  // Xử lý đăng nhập và lưu phiên
   const handleLogin = async () => {
     if (password.length === 0) return;
     
@@ -93,12 +90,11 @@ export default function LoginStep2() {
       };
 
       await login(userInfo);
-      console.log('Login successful, user data saved');
-      console.log('userInfo >>>>>', userInfo);
       router.push('/(tabs)/home');
     } catch (error: any) {
-      console.error('Login failed:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể đăng nhập');
+      const errorMsg = error?.response?.data?.message || error?.message || 'Không thể đăng nhập';
+      const displayMsg = Array.isArray(errorMsg) ? errorMsg.join('\n') : String(errorMsg);
+      Alert.alert('Đăng nhập thất bại', displayMsg);
     } finally {
       setIsLoading(false);
     }
@@ -126,14 +122,14 @@ export default function LoginStep2() {
                 style={styles.textInput}
                 placeholder={t('auth.password')}
                 placeholderTextColor="#8e8e93"
-                secureTextEntry={!isPasswordVisible} // Ẩn/hiện mật khẩu
+                secureTextEntry={!isPasswordVisible}
                 value={password}
                 onChangeText={handlePasswordChange}
                 autoFocus={true}
               />
 
               <View style={styles.rightIcons}>
-                {/* Nút ẩn/hiện mật khẩu */}
+                
                 <TouchableOpacity 
                   onPress={() => setIsPasswordVisible(!isPasswordVisible)}
                   style={styles.iconButton}
@@ -141,7 +137,7 @@ export default function LoginStep2() {
                   {isPasswordVisible ? <EyeOff size={22} color="#666" /> : <Eye size={22} color="#666" />}
                 </TouchableOpacity>
 
-                {/* Nút xóa nhanh */}
+                
                 {password.length > 0 && (
                   <TouchableOpacity onPress={() => setPassword('')} style={styles.iconButton}>
                     <XCircle size={20} color="#666" fill="#ccc" />
@@ -154,7 +150,6 @@ export default function LoginStep2() {
               style={[styles.primaryBtn, password.length === 0 && styles.btnDisabled]}
               disabled={password.length === 0 || isLoading}
               onPress={handleLogin}
-              // onPress={()=>router.push('/(tabs)/home')}
             >
               <Text style={styles.btnText}>
                 {isLoading ? t('common.loading') : t('auth.login')}
@@ -195,7 +190,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1.5, // Dùng gạch chân giống Zalo Step 2
+    borderBottomWidth: 1.5,
     borderColor: '#0091ff',
     height: 50,
     marginBottom: 40,

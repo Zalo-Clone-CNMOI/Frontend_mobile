@@ -3,7 +3,34 @@ import { apiCallWithRefresh } from './authService';
 import api from './http';
 
 export const getProfile = () => api.get('/api/users/me');
-export const updateProfile = (payload: any) => api.patch('/api/users/me', payload);
+
+export const updateProfile = async (payload: any) => {
+  try {
+    const url = `${NETWORK_CONFIG.API_BASE_URL}/users/me`;
+    const response = await apiCallWithRefresh(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    const text = await response.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
+    
+    if (!response.ok) {
+      throw new Error(data?.message || `Update failed (${response.status})`);
+    }
+    
+    return { data, status: response.status };
+  } catch (error: any) {
+    throw error;
+  }
+};
 
 export type SearchUserDTO = {
   id?: string;
@@ -30,7 +57,6 @@ export type SearchUsersResponse = {
   timestamp?: string;
 };
 
-// Search users through BFF endpoint only (no fallback).
 export const searchUsers = async (query: string, params?: any) => {
   const trimmedQuery = query.trim();
 
@@ -74,7 +100,6 @@ export const searchUsers = async (query: string, params?: any) => {
 
     return payload;
   } catch (e: any) {
-    console.warn('usersApi.searchUsers failed:', e?.message || e);
     throw e;
   }
 };

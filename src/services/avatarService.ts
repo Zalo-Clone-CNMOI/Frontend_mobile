@@ -13,7 +13,6 @@ import { uploadMedia } from './mediaService';
 
 const SSO_URL = NETWORK_CONFIG.SSO_BASE_URL;
 
-// ─── Public API ──────────────────────────────────────────────────────────────
 
 export interface UploadAvatarResult extends UploadResult {
   /** Whether the SSO profile update succeeded */
@@ -42,10 +41,8 @@ export async function uploadAvatar(
   token: string,
 ): Promise<UploadAvatarResult> {
   try {
-    // Steps 1-3: Upload to S3 (no conversationId for avatars)
     const uploadResult = await uploadMedia(file, userId);
 
-    // Step 4: Update SSO profile with the new avatar key
     const profileUpdated = await updateSsoAvatar(uploadResult.key, token);
 
     return {
@@ -54,10 +51,8 @@ export async function uploadAvatar(
     };
   } catch (error) {
     if (error instanceof MediaError) {
-      console.error(`[avatarService] uploadAvatar media error (${error.status}):`, error.message);
       throw error;
     }
-    console.error('[avatarService] uploadAvatar unexpected error:', error);
     throw new MediaError(
       0,
       `Avatar upload failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -65,7 +60,6 @@ export async function uploadAvatar(
   }
 }
 
-// ─── SSO Profile Update ──────────────────────────────────────────────────────
 
 /**
  * PUT to SSO service to update the user's avatar URL.

@@ -2,7 +2,6 @@
  * Utility functions for data transformation and normalization
  */
 
-// Local type definition since FriendsApiService was deleted
 export type FriendDTO = {
   id?: string;
   _id?: string;

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { X } from 'lucide-react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import { useEffect } from 'react';
 
 type VideoViewerProps = {
   visible: boolean;
@@ -12,14 +13,20 @@ type VideoViewerProps = {
 };
 
 export function VideoViewer({ visible, uri, onClose }: VideoViewerProps) {
-  const source = useMemo(() => uri || '', [uri]);
+  const source = useMemo(() => uri || null, [uri]);
 
   const player = useVideoPlayer(source, (p) => {
     p.loop = false;
     p.muted = false;
   });
 
-  if (!uri) return null;
+  useEffect(() => {
+    if (visible && source && player) {
+      player.play();
+    } else if (player) {
+      player.pause();
+    }
+  }, [visible, source, player]);
 
   return (
     <Modal

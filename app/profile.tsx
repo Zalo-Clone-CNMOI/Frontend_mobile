@@ -1,5 +1,6 @@
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/theme/themeContext';
+import { useRouter } from 'expo-router';
 import { Calendar, LogOut, Mail, Phone, User } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,9 +8,9 @@ import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } fr
 
 export default function ProfileScreen() {
   const theme = useTheme();
-  const { user, logout } = useAuth();
+  const { user: authUser, logout } = useAuth();
   const { t } = useTranslation();
-  console.log(user);
+  const router = useRouter();
 
   const handleLogout = () => {
     Alert.alert(
@@ -23,8 +24,8 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await logout();
+              router.replace('/(auth)' as any);
             } catch (error) {
-              console.error('Logout error:', error);
             }
           },
         },
@@ -46,8 +47,8 @@ export default function ProfileScreen() {
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
-          {user?.avatarUrl ? (
-            <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
+          {authUser?.avatarUrl ? (
+            <Image source={{ uri: authUser.avatarUrl }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatarPlaceholder, { backgroundColor: theme.colors.primary }]}>
               <User size={40} color="#fff" />
@@ -55,10 +56,10 @@ export default function ProfileScreen() {
           )}
         </View>
         <Text style={[styles.name, { color: theme.colors.text }]}>
-          {user?.name || 'User ' + user?.phone}
+          {authUser?.name || 'User ' + authUser?.phone}
         </Text>
         <Text style={[styles.phone, { color: theme.colors.icon }]}>
-          {user?.phone}
+          {authUser?.phone}
         </Text>
       </View>
 
@@ -67,7 +68,7 @@ export default function ProfileScreen() {
           <Phone size={20} color={theme.colors.icon} />
           <View style={styles.infoContent}>
             <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>{t('profile.phone_number')}</Text>
-            <Text style={[styles.infoValue, { color: theme.colors.text }]}>{user?.phone}</Text>
+            <Text style={[styles.infoValue, { color: theme.colors.text }]}>{authUser?.phone}</Text>
           </View>
         </View>
 
@@ -76,7 +77,7 @@ export default function ProfileScreen() {
           <View style={styles.infoContent}>
             <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>{t('profile.email')}</Text>
             <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-              {user?.email || t('profile.not_updated')}
+              {authUser?.email || t('profile.not_updated')}
             </Text>
           </View>
         </View>
@@ -86,7 +87,7 @@ export default function ProfileScreen() {
           <View style={styles.infoContent}>
             <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>{t('profile.date_of_birth')}</Text>
             <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-              {formatDate(user?.dateOfBirth || '')}
+              {formatDate(authUser?.dateOfBirth || '')}
             </Text>
           </View>
         </View>
@@ -96,17 +97,17 @@ export default function ProfileScreen() {
           <View style={styles.infoContent}>
             <Text style={[styles.infoLabel, { color: theme.colors.icon }]}>{t('profile.gender')}</Text>
             <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-              {user?.gender === 'male' ? t('profile.male') : user?.gender === 'female' ? t('profile.female') : t('profile.not_updated')}
+              {authUser?.gender === 'male' ? t('profile.male') : authUser?.gender === 'female' ? t('profile.female') : t('profile.not_updated')}
             </Text>
           </View>
         </View>
       </View>
 
-      {user?.bio && (
+      {authUser?.bio && (
         <View style={[styles.bioCard, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.bioTitle, { color: theme.colors.text }]}>{t('profile.bio')}</Text>
           <Text style={[styles.bioText, { color: theme.colors.icon }]}>
-            {user.bio}
+            {authUser.bio}
           </Text>
         </View>
       )}

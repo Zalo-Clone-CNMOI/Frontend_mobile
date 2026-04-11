@@ -51,7 +51,6 @@ export function useWelcomeScreenLogic() {
       setLang(languageId);
       setShowLangModal(false);
     } catch (error) {
-      console.log('Error changing language:', error);
     }
   }, []);
 

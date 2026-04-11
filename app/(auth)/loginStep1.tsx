@@ -42,12 +42,10 @@ export default function LoginScreen() {
     setErrorMessage(isValid ? '' : 'Số điện thoại không hợp lệ. Kiểm tra và thử lại.');
   }; 
 
-  // Hàm xử lý khi người dùng chọn một quốc gia từ danh sách
   const selectCountry = (country: any) => {
     setSelectedCountry(country);
     setIsModalVisible(false);
 
-    // re-validate existing phone for new country
     if (phoneNumber.length > 0) {
       const isValid = validatePhoneByCountry(phoneNumber, country.code);
       setIsPhoneError(!isValid);
@@ -72,7 +70,7 @@ export default function LoginScreen() {
             <Text style={styles.title}>{t('loginstep1.enter_phone')}</Text>
 
             <View style={[styles.inputContainer, isPhoneError && styles.inputError]}>
-              {/* Nhấn vào đây để mở Modal chọn dial_code */}
+              
               <TouchableOpacity
                 style={styles.countrySelector}
                 onPress={() => setIsModalVisible(true)}
@@ -136,7 +134,7 @@ export default function LoginScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* MODAL CHỌN MÃ VÙNG QUỐC GIA */}
+      
       <Modal visible={isModalVisible} animationType="slide" transparent={false}>
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -199,7 +197,6 @@ const styles = StyleSheet.create({
   footerText: { fontSize: 14, color: '#666' },
   linkText: { fontSize: 14, color: '#0091ff', fontWeight: '700' },
 
-  // Styles cho Modal
   modalContainer: { flex: 1, backgroundColor: '#fff' },
   modalHeader: {
     flexDirection: 'row',

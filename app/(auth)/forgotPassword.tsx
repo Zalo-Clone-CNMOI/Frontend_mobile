@@ -1,7 +1,11 @@
+import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
 import { router } from 'expo-router';
 import { Check, ChevronLeft, Eye, EyeOff, XCircle } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { confirmOtp, getFirebaseIdToken, sendOtp, setRecaptchaVerifier } from "../../src/services/auth/firebaseAuth.service";
+import * as authApi from '../../src/services/authApi';
+import { FIREBASE_CONFIG, getFirebaseApp } from "../../src/services/firebase";
 import {
     ActivityIndicator,
     Alert,
@@ -16,36 +20,33 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Các bước trong flow quên mật khẩu
 type Step = 'phone' | 'otp' | 'password' | 'success';
 
 export default function ForgotPasswordScreen() {
   const { t } = useTranslation();
   const [currentStep, setCurrentStep] = useState<Step>('phone');
   
-  // Phone step
   const [phone, setPhone] = useState('');
   
-  // OTP step
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const otpInputs = useRef<(TextInput | null)[]>([]);
   
-  // Password step
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
-  // Loading state
   const [isLoading, setIsLoading] = useState(false);
 
-  // Validate phone number VN
+  getFirebaseApp();
+  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
+  const [firebaseIdToken, setFirebaseIdToken] = useState('');
+
   const isValidPhone = (phoneNum: string) => {
     const cleaned = phoneNum.replace(/\s/g, '');
     return /^0[3|5|7|8|9][0-9]{8}$/.test(cleaned) || /^\+84[3|5|7|8|9][0-9]{8}$/.test(cleaned);
   };
 
-  // Step 1: Send OTP
   const handleSendOTP = async () => {
     if (!isValidPhone(phone)) {
       Alert.alert(t('common.error'), t('forgot_password.invalid_phone'));
@@ -53,14 +54,27 @@ export default function ForgotPasswordScreen() {
     }
 
     setIsLoading(true);
-    // TODO: Call API to send OTP
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const phoneStr = phone.trim();
+      let phoneE164 = phoneStr;
+      if (phoneStr.startsWith('0')) {
+        phoneE164 = '+84' + phoneStr.slice(1);
+      } else if (!phoneStr.startsWith('+')) {
+        phoneE164 = '+84' + phoneStr;
+      }
+      
+      setRecaptchaVerifier((recaptchaVerifier.current as any) || null);
+      await sendOtp(phoneE164);
       setCurrentStep('otp');
-    }, 1500);
+    } catch (e: any) {
+      const errorMsg = e?.response?.data?.message || e?.message || 'Vui lòng thử lại.';
+      const displayMsg = Array.isArray(errorMsg) ? errorMsg.join('\n') : String(errorMsg);
+      Alert.alert('Không thể gửi OTP', displayMsg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Step 2: Verify OTP
   const handleVerifyOTP = async () => {
     const otpCode = otp.join('');
     if (otpCode.length !== 6) {
@@ -69,14 +83,18 @@ export default function ForgotPasswordScreen() {
     }
 
     setIsLoading(true);
-    // TODO: Call API to verify OTP
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await confirmOtp(otpCode);
+      const token = await getFirebaseIdToken();
+      setFirebaseIdToken(token);
       setCurrentStep('password');
-    }, 1500);
+    } catch (e: any) {
+      Alert.alert('Xác thực thất bại', 'Mã OTP không chính xác hoặc đã hết hạn.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Step 3: Reset password
   const handleResetPassword = async () => {
     if (newPassword.length < 6) {
       Alert.alert(t('common.error'), t('forgot_password.password_too_short'));
@@ -89,14 +107,18 @@ export default function ForgotPasswordScreen() {
     }
 
     setIsLoading(true);
-    // TODO: Call API to reset password
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await authApi.resetPassword({ firebaseIdToken, newPassword });
       setCurrentStep('success');
-    }, 1500);
+    } catch (e: any) {
+      const errorMsg = e?.response?.data?.message || e?.message || 'Vui lòng thử lại sau.';
+      const displayMsg = Array.isArray(errorMsg) ? errorMsg.join('\n') : String(errorMsg);
+      Alert.alert('Đổi mật khẩu thất bại', displayMsg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Handle OTP input
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return;
     
@@ -104,7 +126,6 @@ export default function ForgotPasswordScreen() {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto focus next input
     if (value && index < 5) {
       otpInputs.current[index + 1]?.focus();
     }
@@ -116,7 +137,6 @@ export default function ForgotPasswordScreen() {
     }
   };
 
-  // Render từng bước
   const renderPhoneStep = () => (
     <>
       <Text style={styles.subTitle}>{t('forgot_password.enter_phone')}</Text>
@@ -201,7 +221,7 @@ export default function ForgotPasswordScreen() {
       <Text style={styles.subTitle}>{t('forgot_password.enter_new_password')}</Text>
       <Text style={styles.description}>{t('forgot_password.password_description')}</Text>
 
-      {/* New Password */}
+      
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.textInput}
@@ -224,7 +244,7 @@ export default function ForgotPasswordScreen() {
         </View>
       </View>
 
-      {/* Confirm Password */}
+      
       <View style={[styles.inputContainer, { marginTop: 20 }]}>
         <TextInput
           style={styles.textInput}
@@ -293,8 +313,12 @@ export default function ForgotPasswordScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={FIREBASE_CONFIG as any}
+      />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        {/* Header */}
+        
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ChevronLeft size={28} color="#000" />
@@ -303,7 +327,7 @@ export default function ForgotPasswordScreen() {
           <View style={styles.placeholder} />
         </View>
 
-        {/* Progress Steps */}
+        
         {currentStep !== 'success' && (
           <View style={styles.progressContainer}>
             <View style={[styles.progressStep, styles.progressStepActive]} />
@@ -432,7 +456,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
-  // OTP Styles
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -460,7 +483,6 @@ const styles = StyleSheet.create({
     color: '#0091ff',
     fontWeight: '600',
   },
-  // Success Styles
   successContainer: {
     flex: 1,
     justifyContent: 'center',

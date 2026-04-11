@@ -81,7 +81,7 @@ export default function AddFriendScreen() {
     >
       <StatusBar style="light" />
 
-      {/* ═══ Header ═══ */}
+      
       <View
         style={[
           styles.header,
@@ -99,7 +99,7 @@ export default function AddFriendScreen() {
       </View>
 
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-        {/* ═══ Phone Input ═══ */}
+        
         <View style={styles.inputSection}>
           <View
             style={[
@@ -163,7 +163,7 @@ export default function AddFriendScreen() {
           </View>
         </View>
 
-        {/* ═══ Search Result ═══ */}
+        
         {isSearching && !searchResult && (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -201,7 +201,7 @@ export default function AddFriendScreen() {
               )}
             </View>
 
-            {/* Status / Action */}
+            
             {searchResult.status === 'self' && (
               <View style={[styles.statusBadge, { backgroundColor: theme.colors.border }]}>
                 <Text style={[styles.statusText, { color: theme.colors.icon }]}>Tài khoản của bạn</Text>
@@ -246,7 +246,7 @@ export default function AddFriendScreen() {
           </View>
         )}
 
-        {/* ═══ Quick Actions ═══ */}
+        
         {!searchResult && !searchError && !isSearching && (
           <View style={styles.menuSection}>
             <TouchableOpacity
@@ -277,7 +277,7 @@ export default function AddFriendScreen() {
           </View>
         )}
 
-        {/* ═══ Country Picker Modal ═══ */}
+        
         <Modal visible={modalVisible} animationType="slide">
           <SafeAreaView style={[styles.modalBg, { backgroundColor: theme.colors.background }]}>
             <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
@@ -328,7 +328,7 @@ export default function AddFriendScreen() {
   );
 }
 
-/* ═══ Styles ═══ */
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
@@ -371,11 +371,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* ═══ Loading ═══ */
+  
   loadingWrap: { alignItems: 'center', marginTop: 60, gap: 12 },
   loadingText: { fontSize: 14 },
 
-  /* ═══ Error ═══ */
+  
   errorCard: {
     marginHorizontal: 16,
     marginTop: 24,
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   },
   errorText: { fontSize: 14, textAlign: 'center' },
 
-  /* ═══ Result Card ═══ */
+  
   resultCard: {
     marginHorizontal: 16,
     marginTop: 16,
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
-  /* ═══ Menu Items ═══ */
+  
   menuSection: { paddingHorizontal: 16, marginTop: 20, gap: 2 },
   menuItem: {
     flexDirection: 'row',
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
   },
   menuText: { flex: 1, fontSize: 15, fontWeight: '500' },
 
-  /* ═══ Modal ═══ */
+  
   modalBg: { flex: 1 },
   modalHeader: {
     flexDirection: 'row',

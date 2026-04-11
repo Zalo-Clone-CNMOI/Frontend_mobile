@@ -1,14 +1,14 @@
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { clearAuthData, getAuthData, saveAuthData, UserInfo } from '../services/authService';
 import * as authApi from '../services/authApi';
+import { clearAuthData, getAuthData, saveAuthData, UserInfo } from '../services/authService';
 import { resetChatRuntime } from '../services/chatService';
-import { disconnectSocket } from '../services/socket';
 import { resetRealtimeClients } from '../services/realtime/defaultRealtimeClients';
 import { resetRuntimeFriendService } from '../services/realtime/runtimeFriendService';
+import { disconnectSocket } from '../services/socket';
+import * as usersApi from '../services/usersApi';
 import { useChatsStore } from '../store/useChatsStore';
 import { useMessagesStore } from '../store/useMessagesStore';
 import { useRealtimeStore } from '../store/useRealtimeStore';
-import * as usersApi from '../services/usersApi';
 
 interface AuthContextType {
   user: UserInfo | null;
@@ -16,6 +16,7 @@ interface AuthContextType {
   login: (userInfo: UserInfo) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
+  updateUser: (updates: Partial<UserInfo>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,7 +47,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const authData = await getAuthData();
         if (authData) {
           setUser(authData);
-          console.log('User already logged in:', authData.phone);
           try {
             const resp = await usersApi.getProfile();
             const serverData = resp?.data?.data || resp?.data || null;
@@ -70,14 +70,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               setUser(merged);
             }
           } catch (e) {
-            console.warn('Failed to refresh profile from server', e);
           }
         } else {
-          console.log('No active session found');
         }
         setIsLoading(false);
       } catch (error) {
-        console.error('Error checking auth status:', error);
         setIsLoading(false);
       }
     };
@@ -102,9 +99,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       await resetRuntimeState();
       await saveAuthData(userInfo);
       setUser(userInfo);
-      console.log('User logged in:', userInfo.phone);
     } catch (error) {
-      console.error('Login error:', error);
       throw error;
     }
   };
@@ -114,15 +109,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       try {
         await authApi.logout();
       } catch (e) {
-        console.warn('authApi.logout failed (continuing):', e);
       }
 
       await resetRuntimeState();
       await clearAuthData();
       setUser(null);
-      console.log('User logged out');
     } catch (error) {
-      console.error('Logout error:', error);
+      throw error;
+    }
+  };
+
+  const updateUser = async (updates: Partial<UserInfo>) => {
+    try {
+      if (!user) return;
+      const updatedUser = { ...user, ...updates };
+      await saveAuthData(updatedUser);
+      setUser(updatedUser);
+    } catch (error) {
       throw error;
     }
   };
@@ -133,6 +136,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     login,
     logout,
     isAuthenticated: !!user,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

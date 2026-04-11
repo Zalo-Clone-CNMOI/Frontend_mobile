@@ -1,5 +1,4 @@
 
-// Conversation shape used by Zalo v2 (production-like)
 
 export type ConversationV2 = {
   conversationId: string;
@@ -21,7 +20,6 @@ export type ConversationV2 = {
   createdAt?: number;
 };
 
-// Rich chat message used across components and mock v2 data
 export type MessageType = 'text' | 'image' | 'video' | 'file' | 'voice' | 'system';
 
 export type FileInfo = {
@@ -43,32 +41,26 @@ export type ChatMessage = {
   serverMessageId?: string;
   conversationId?: string;
   senderId?: string;
-  // keeps old `fromMe` boolean used in UI
   fromMe: boolean;
 
   type: MessageType;
-  // textual content (for text messages)
   text?: string;
-  // file metadata for images/files
   fileInfo?: FileInfo;
 
-  // timestamp in ms since epoch (components call `new Date(...)` on this)
   timestamp: number;
 
-  // reply information shown inline in message bubble
   replyTo?: ReplyInfo;
 
-  // reactions mapping emoji -> userIds
   reactions?: Record<string, string[]>;
 
-  // optimistic sending state
   status?: "sending" | "sent" | "read" | "failed";
   isEdited?: boolean;
   editedAt?: number;
 
-  // per-user deletion and revoke flags
   deletedFor?: string[];
   isRevoked?: boolean;
   revokedBackupText?: string;
   revokeRestoreUntil?: number;
+
+  attachments?: any[];
 };

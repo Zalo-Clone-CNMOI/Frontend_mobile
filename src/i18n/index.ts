@@ -4,7 +4,6 @@ import i18n from './config';
 
 const LANGUAGE_KEY = '@app_language';
 
-// Initialize with saved language (only when called, not at top-level)
 export const initializeLanguage = async () => {
   try {
     const savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
@@ -12,7 +11,6 @@ export const initializeLanguage = async () => {
       await i18n.changeLanguage(savedLanguage);
     }
   } catch (error) {
-    console.log('Error loading language from AsyncStorage:', error);
   }
 };
 
@@ -21,7 +19,6 @@ export const changeLanguage = async (language: string) => {
     await i18n.changeLanguage(language);
     await AsyncStorage.setItem(LANGUAGE_KEY, language);
   } catch (error) {
-    console.log('Error saving language to AsyncStorage:', error);
   }
 };
 

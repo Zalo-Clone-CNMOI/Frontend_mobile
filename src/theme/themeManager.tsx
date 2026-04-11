@@ -30,7 +30,6 @@ export const ThemeManagerProvider = ({ children }: ThemeManagerProviderProps) =>
         const savedMode = await ThemeService.getThemeMode();
         setThemeModeState(savedMode);
       } catch (error) {
-        console.error('Error loading theme:', error);
       }
     };
 

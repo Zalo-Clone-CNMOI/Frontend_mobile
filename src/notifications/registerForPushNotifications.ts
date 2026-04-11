@@ -4,7 +4,6 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 function getProjectId(): string | undefined {
-  // EAS build provides one of these; allow local override via .env
   const envProjectId = (process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '').trim();
   if (envProjectId) return envProjectId;
 

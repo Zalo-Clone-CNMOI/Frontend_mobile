@@ -75,7 +75,7 @@ export function MessageActionMenu({
           style={[styles.menuContainer, { backgroundColor: theme.colors.card }]} 
           onPress={(e) => e.stopPropagation()}
         >
-          {/* Reactions Row */}
+          
           <View style={[styles.reactionsRow, { borderBottomColor: theme.colors.border }]}>
             {REACTIONS.map((r, i) => (
               <TouchableOpacity
@@ -91,9 +91,9 @@ export function MessageActionMenu({
             ))}
           </View>
 
-          {/* Menu Items Grid */}
+          
           <View style={styles.grid}>
-            {/* Reply */}
+            
             <TouchableOpacity style={styles.gridItem} onPress={() => { onReply(message); onClose(); }}>
               <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
                 <Reply size={24} color={theme.colors.primary} />
@@ -101,7 +101,7 @@ export function MessageActionMenu({
               <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.reply_to', { defaultValue: 'Trả lời' })}</Text>
             </TouchableOpacity>
 
-            {/* Copy */}
+            
             <TouchableOpacity style={styles.gridItem} onPress={handleCopy}>
               <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
                 <Copy size={24} color={theme.colors.primary} />
@@ -109,7 +109,7 @@ export function MessageActionMenu({
               <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('common.copy', { defaultValue: 'Sao chép' })}</Text>
             </TouchableOpacity>
 
-            {/* Revoke */}
+            
             {canRevoke && (
               <TouchableOpacity style={styles.gridItem} onPress={() => { onRevoke?.(message); onClose(); }}>
                 <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
@@ -119,7 +119,7 @@ export function MessageActionMenu({
               </TouchableOpacity>
             )}
 
-            {/* Delete */}
+            
             <TouchableOpacity style={styles.gridItem} onPress={() => { onDelete(message); onClose(); }}>
               <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
                 <Trash2 size={24} color="#ef4444" />

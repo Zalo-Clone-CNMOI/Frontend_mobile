@@ -128,7 +128,6 @@ export const ChatComposer = React.memo(function ChatComposer({
       }
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể mở thư viện video. Vui lòng thử lại.');
-      console.error('Video picker error:', error);
     }
   };
 
@@ -138,11 +137,10 @@ export const ChatComposer = React.memo(function ChatComposer({
         mediaTypes: ['images' as ImagePicker.MediaType],
         allowsEditing: true,
         quality: 0.8,
-        selectionLimit: 5, // Allow up to 5 images
+        selectionLimit: 5,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Convert ImagePicker assets to DocumentPicker format for compatibility
         const imageAssets: DocumentPicker.DocumentPickerAsset[] = result.assets.map((asset: ImagePicker.ImagePickerAsset) => ({
           uri: asset.uri,
           name: asset.fileName || `image_${Date.now()}.jpg`,
@@ -156,7 +154,6 @@ export const ChatComposer = React.memo(function ChatComposer({
       }
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể mở thư viện ảnh. Vui lòng thử lại.');
-      console.error('Gallery error:', error);
     }
   };
 
@@ -170,7 +167,7 @@ export const ChatComposer = React.memo(function ChatComposer({
         },
       ]}
     >
-      {/* ===== Reply ===== */}
+      
       {!!editingTo && (
         <View
           style={[
@@ -255,7 +252,7 @@ export const ChatComposer = React.memo(function ChatComposer({
         </View>
       )}
 
-      {/* ===== Composer ===== */}
+      
       <View style={styles.composer}>
         <Pressable
           style={[
@@ -342,7 +339,7 @@ export const ChatComposer = React.memo(function ChatComposer({
         )}
       </View>
 
-      {/* ===== More Board ===== */}
+      
       {showMore && (
         <View style={styles.moreBoard}>
           <Option title={t('chat.file')} Icon={File} onPress={handlePickDocument} theme={theme} />
@@ -354,7 +351,7 @@ export const ChatComposer = React.memo(function ChatComposer({
         </View>
       )}
 
-      {/* ===== Emoji ===== */}
+      
       {showEmoji && (
         <View style={{ height: 300 }}>
           <EmojiKeyboard
@@ -373,7 +370,7 @@ export const ChatComposer = React.memo(function ChatComposer({
   );
 });
 
-/* ===== Option ===== */
+
 function Option({
   title,
   Icon,
@@ -411,7 +408,7 @@ function Option({
   );
 }
 
-/* ===== Styles ===== */
+
 const styles = StyleSheet.create({
   container: {
     borderTopWidth: 0.5,
@@ -477,7 +474,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     padding: 10,
     gap: 10,
-    height: 300, // mimics keyboard height
+    height: 300,
   },
 
   option: {

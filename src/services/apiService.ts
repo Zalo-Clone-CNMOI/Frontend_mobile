@@ -6,14 +6,12 @@
  * To switch to a real backend → replace `mockFetch` with real `fetch(BASE_URL + path, ...)`.
  */
 
-// ─── Config ──────────────────────────────────────────────────────────────────
 
 /** Base URL của backend thật – dùng khi chuyển sang production */
 import { getCurrentToken } from './authService';
 
 export const BASE_URL = "http://54.179.206.215:5000/api";
 
-// Simple fetch wrapper that attaches stored access token and returns parsed JSON.
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
@@ -33,7 +31,6 @@ export async function apiFetch<T>(
   return res.json();
 }
 
-// ─── API Error ────────────────────────────────────────────────────────────────
 
 export class ApiError extends Error {
   constructor(

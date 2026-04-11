@@ -5,9 +5,7 @@ export interface UserProfile {
   subtitle: string;
 }
 
-// Legacy PROFILE_MOCK_DATA removed — use `PROFILE_V2`.
 
-// Zalo v2 profile for current user (production-like)
 export interface ProfileV2 {
   id: string;
   fullName: string;

@@ -302,7 +302,23 @@
     "zalo_name": "Tên Zalo",
     "date_of_birth": "Ngày sinh",
     "gender": "Giới tính",
-    "edit": "Chỉnh sửa"
+    "edit": "Chỉnh sửa",
+    "email": "Email",
+    "bio": "Tiểu sử"
+  },
+
+  "edit_personal_info": {
+    "title": "Chỉnh sửa thông tin",
+    "change_avatar": "Đổi ảnh đại diện",
+    "avatar_upload_hint": "Tính năng upload ảnh sẽ được tích hợp sau",
+    "enter_name": "Nhập tên Zalo",
+    "enter_email": "Nhập email",
+    "enter_bio": "Nhập tiểu sử của bạn",
+    "date_format": "YYYY-MM-DD",
+    "other": "Khác",
+    "invalid_email": "Email không hợp lệ",
+    "save_success": "Thông tin đã được cập nhật",
+    "save_failed": "Không thể cập nhật thông tin"
   },
 
   "account_security": {

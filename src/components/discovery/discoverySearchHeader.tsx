@@ -26,7 +26,7 @@ export function DiscoverySearchHeader({
         { backgroundColor: theme.colors.header },
       ]}
     >
-      {/* Search icon */}
+      
       <TouchableOpacity onPress={onPressSearch}>
         <Search
           size={20}
@@ -35,7 +35,7 @@ export function DiscoverySearchHeader({
         />
       </TouchableOpacity>
 
-      {/* Fake search input */}
+      
       <TextInput
         placeholder={t('common.search')}
         placeholderTextColor="#8e8e93"
@@ -53,7 +53,7 @@ export function DiscoverySearchHeader({
   );
 }
 
-/* ================= STYLES ================= */
+
 
 const styles = StyleSheet.create({
   header: {

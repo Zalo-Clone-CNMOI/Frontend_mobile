@@ -106,7 +106,7 @@ export function CommentModal({
       onRequestClose={onClose}
     >
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        {/* Header */}
+        
         <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
           <Pressable onPress={onClose} style={styles.closeButton}>
             <X size={24} color={theme.colors.text} />
@@ -117,7 +117,7 @@ export function CommentModal({
           <View style={styles.placeholder} />
         </View>
 
-        {/* Comments List */}
+        
         <FlatList
           data={comments}
           renderItem={renderComment}
@@ -127,7 +127,7 @@ export function CommentModal({
           showsVerticalScrollIndicator={false}
         />
 
-        {/* Comment Input */}
+        
         <View style={[styles.inputContainer, { borderTopColor: theme.colors.border }]}>
           <TextInput
             style={[

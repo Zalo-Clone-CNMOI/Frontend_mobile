@@ -126,7 +126,6 @@ export const saveAuthData = async (userInfo: UserInfo) => {
     authCache.refreshToken = refreshToken || null;
     authCache.loaded = true;
   } catch (error) {
-    console.error("Error saving auth data:", error);
   }
 };
 
@@ -161,7 +160,6 @@ export const getAuthData = async (): Promise<UserInfo | null> => {
 
     return null;
   } catch (error) {
-    console.error("Error getting auth data:", error);
     return null;
   }
 };
@@ -180,7 +178,6 @@ export const clearAuthData = async () => {
     authCache.refreshToken = null;
     authCache.loaded = true;
   } catch (error) {
-    console.error("Error clearing auth data:", error);
   }
 };
 
@@ -189,7 +186,6 @@ export const isLoggedIn = async (): Promise<boolean> => {
     const isLoggedInValue = await AsyncStorage.getItem(AUTH_KEYS.IS_LOGGED_IN);
     return isLoggedInValue === "true";
   } catch (error) {
-    console.error("Error checking login status:", error);
     return false;
   }
 };
@@ -197,9 +193,16 @@ export const isLoggedIn = async (): Promise<boolean> => {
 export const getCurrentToken = async (): Promise<string | null> => {
   try {
     await hydrateTokenCache();
-    return authCache.accessToken;
+    const token = authCache.accessToken;
+    if (token && __DEV__) {
+      try {
+        const payloadStr = token.split('.')[1];
+        if (payloadStr) {
+        }
+      } catch (e) {}
+    }
+    return token;
   } catch (error) {
-    console.error("Error getting token:", error);
     return null;
   }
 };
@@ -209,7 +212,6 @@ export const getCurrentRefreshToken = async (): Promise<string | null> => {
     await hydrateTokenCache();
     return authCache.refreshToken;
   } catch (error) {
-    console.error("Error getting refresh token:", error);
     return null;
   }
 };
@@ -271,7 +273,6 @@ export const refreshAccessToken = async (): Promise<string | null> => {
 
       return newAccessToken || null;
     } catch (error) {
-      console.error("Error refreshing token:", error);
       if (shouldClearAuthOnRefreshError(error)) {
         await clearAuthData();
       }
@@ -289,7 +290,6 @@ export const getCurrentUser = async (): Promise<UserInfo | null> => {
     const userInfoStr = await AsyncStorage.getItem(AUTH_KEYS.USER_INFO);
     return userInfoStr ? JSON.parse(userInfoStr) : null;
   } catch (error) {
-    console.error("Error getting current user:", error);
     return null;
   }
 };
@@ -340,11 +340,6 @@ export const apiCallWithRefresh = async (
 
     return response;
   } catch (error) {
-    console.error("API call error:", {
-      url,
-      method: options.method || "GET",
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
     throw error;
   }
 };

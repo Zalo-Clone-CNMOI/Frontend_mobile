@@ -85,7 +85,7 @@ export default function ChangePasswordScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
-      {/* Header */}
+      
       <View style={[styles.header, { backgroundColor: theme.colors.header }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <ChevronLeft size={28} color={theme.colors.textHeader} />

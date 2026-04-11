@@ -35,7 +35,6 @@ const request = async (
     throw new Error(errorMessage);
   }
 
-  // Backend may wrap result: { success, data: {...} }
   const data = rawData?.data ?? rawData;
   return { data, status: response.status };
 };

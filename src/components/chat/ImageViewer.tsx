@@ -30,7 +30,7 @@ export function ImageViewer({ visible, uri, onClose }: ImageViewerProps) {
       onRequestClose={onClose}
     >
       <View style={styles.container}>
-        {/* StatusBar chuyển sang đen hoàn toàn khi xem ảnh */}
+        
         <StatusBar style="light" backgroundColor="#000" />
         
         <SafeAreaView style={styles.header}>
@@ -40,7 +40,7 @@ export function ImageViewer({ visible, uri, onClose }: ImageViewerProps) {
             </Pressable>
             
             <View style={{ flexDirection: 'row' }}>
-              <Pressable style={styles.iconBtn} onPress={() => {/* Thêm logic tải ảnh nếu cần */}}>
+              <Pressable style={styles.iconBtn} onPress={() => }>
                 <Download color="#fff" size={22} />
               </Pressable>
             </View>

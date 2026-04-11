@@ -12,6 +12,7 @@ import {
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
+    Alert,
     ScrollView,
     StyleSheet,
     Text,
@@ -19,6 +20,7 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from '../src/contexts/AuthContext';
 import { useTheme } from '../src/theme/themeContext';
 
 const SettingItem = ({ icon: Icon, title, onPress }: any) => {
@@ -40,10 +42,33 @@ export default function SettingsScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { t } = useTranslation();
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    Alert.alert(
+      t('profile.logout_title', 'Đăng xuất'),
+      t('profile.logout_message', 'Bạn có chắc chắn muốn đăng xuất?'),
+      [
+        { text: t('profile.logout_cancel', 'Hủy'), style: 'cancel' },
+        {
+          text: t('profile.logout_confirm', 'Đăng xuất'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              router.replace('/(auth)' as any);
+            } catch (error) {
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
       <StatusBar style="light" />
-      {/* Header chuẩn Zalo */}
+      
       <View style={[styles.header, { borderBottomColor: theme.colors.border },{backgroundColor: theme.colors.statusBar}]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()}>
@@ -54,20 +79,7 @@ export default function SettingsScreen() {
       </View>
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <ScrollView>
-        {/* <SettingItem icon={ShieldCheck} title={t('settings.account')} />
-        <SettingItem icon={Lock} title={t('settings.privacy')} />
-        <View style={styles.divider} />
-
-        <SettingItem icon={Database} title={t('settings.data_storage')} />
-        <SettingItem icon={RefreshCcw} title={t('settings.backup_restore')} />
-        <View style={styles.divider} />
-
-        <SettingItem icon={Bell} title={t('settings.notifications_menu')} />
-        <SettingItem icon={MessageCircle} title={t('settings.messages_menu')} />
-        <SettingItem icon={Phone} title={t('settings.calls_menu')} />
-        <SettingItem icon={Clock} title={t('settings.timeline_menu')} />
-        <SettingItem icon={Contact2} title={t('settings.contacts_menu')} />
-        <View style={styles.divider} /> */}
+        
 
         <SettingItem icon={Palette} title={t('settings.appearance_language')} onPress={() => router.push('/appearance')} />
         <View style={styles.divider} />
@@ -78,8 +90,8 @@ export default function SettingsScreen() {
 
         <SettingItem icon={Users} title={t('settings.account')} onPress={() => router.push('/account')} />
 
-        {/* Nút Đăng xuất */}
-        <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.colors.card , borderColor: theme.colors.border }]} onPress={() => router.push('/')}>
+        
+        <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.colors.card , borderColor: theme.colors.border }]} onPress={handleLogout}>
           <LogOut size={20} color={theme.colors.text} />
           <Text style={[styles.logoutText, { color: theme.colors.text }]}>{t('settings.logout')}</Text>
         </TouchableOpacity>

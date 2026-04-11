@@ -41,7 +41,6 @@ export default function AppearanceScreen() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [language, setLanguage] = useState('vi');
 
-  // Load saved language on component mount
   useEffect(() => {
     const loadLanguage = async () => {
       const currentLang = getCurrentLanguage();
@@ -50,14 +49,12 @@ export default function AppearanceScreen() {
     loadLanguage();
   }, []);
 
-  // Handle language change
   const handleLanguageChange = async (newLanguage: string) => {
     try {
       await changeLanguage(newLanguage);
       setLanguage(newLanguage);
       setIsExpanded(false);
     } catch (error) {
-      console.error('Error changing language:', error);
     }
   };
 
@@ -102,7 +99,7 @@ export default function AppearanceScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
       <StatusBar style="light" />
-      {/* Header */}
+      
       <View style={[styles.header, { borderBottomWidth: 0.5, borderBottomColor: theme.colors.border }, { backgroundColor: theme.colors.statusBar }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()}>
@@ -113,7 +110,7 @@ export default function AppearanceScreen() {
       </View>
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <ScrollView>
-          {/* Section Giao diện */}
+          
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: ZALO_BLUE }]}>{t('appearance.theme')}</Text>
             <View style={styles.themeContainer}>
@@ -132,7 +129,7 @@ export default function AppearanceScreen() {
             </View>
           </View>
 
-          {/* Section Ngôn ngữ */}
+          
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: ZALO_BLUE }]}>{t('appearance.language')}</Text>
           </View>

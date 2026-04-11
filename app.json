@@ -32,7 +32,8 @@
         "android.permission.VIBRATE",
         "android.permission.RECEIVE_BOOT_COMPLETED"
       ],
-      "package": "com.x22664321k.Zalo_2026"
+      "package": "com.x22664321k.Zalo_2026",
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "static",

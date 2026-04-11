@@ -35,46 +35,33 @@ function ContactItem({ item, creatingConversation, onPress }: {
         {isOnline ? <View style={[styles.onlineDot, { borderColor: theme.colors.card }]} /> : null}
       </View>
 
-      <View style={styles.cardContent}>
+      <View style={[styles.cardContent, { backgroundColor: 'transparent', borderBottomColor: 'transparent' }]}>
   <View style={styles.textWrapper}>
-    {/* Dòng 1: Tên - Zalo thường dùng font Medium, đen đậm */}
     <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={1}>
       {title}
     </Text>
-
-    {/* Dòng 2: Subtitle/Tin nhắn mới nhất - Màu xám nhẹ hơn */}
-    <Text style={[styles.subtitle, { color: '#666' }]} numberOfLines={1}>
+    <Text style={[styles.subtitle, { color: theme.colors.text, opacity: 0.6 }]} numberOfLines={1}>
       {subtitle}
     </Text>
-
-    {/* Các thông tin bổ sung: Phone hoặc Ngày kết bạn */}
     {item.phone || item.friendsSince ? (
-      <Text style={styles.metaText} numberOfLines={1}>
+      <Text style={[styles.metaText, { color: theme.colors.text, opacity: 0.5 }]} numberOfLines={1}>
         {item.phone ? item.phone : `${t('contacts.friends_since')} ${friendsSinceText}`}
       </Text>
     ) : null}
-
-    {/* Trạng thái hoạt động dạng Text nhỏ phía dưới (tùy chọn) */}
     {!isOnline && lastSeenText && (
-      <Text style={styles.lastSeenText}>
+      <Text style={[styles.lastSeenText, { color: theme.colors.text, opacity: 0.5 }]}>
         {t('contacts.last_seen')} {lastSeenText}
       </Text>
     )}
   </View>
 
   <View style={styles.trailingWrap}>
-    {/* Badge trạng thái: Zalo thường chỉ dùng chấm xanh ở Avatar, 
-        nhưng nếu bạn muốn để ở cuối, hãy dùng phong cách Badge nhỏ */}
     <View style={styles.statusContainer}>
-      <Text style={[
-        styles.statusText, 
-        { color: isOnline ? '#006AF5' : '#8E8E93' } // Màu xanh Zalo: #006AF5
-      ]}>
+      <Text style={[styles.statusText, { color: isOnline ? '#006AF5' : '#8E8E93' }]}>
         {isOnline ? t('contacts.online') : ''} 
       </Text>
       {isOnline && <View style={styles.onlineDot} />}
     </View>
-
     {creatingConversation && (
       <ActivityIndicator size="small" color="#006AF5" style={{ marginTop: 4 }} />
     )}
@@ -275,13 +262,11 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
   cardContent: {
+    flex: 1,
     flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#fff',
+    paddingVertical: 2,
+    paddingHorizontal: 8,
     alignItems: 'center',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#E5E5E5', // Đường kẻ mờ giữa các row
   },
   textWrapper: {
     flex: 1,
@@ -290,7 +275,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 17,
-    fontWeight: '500', // Zalo sử dụng font hơi đậm cho tên
+    fontWeight: '500',
     marginBottom: 2,
   },
   subtitle: {
@@ -324,7 +309,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#4CD964', // Màu xanh lá trạng thái
+    backgroundColor: '#4CD964',
   },
   cardRow: {
     flexDirection: 'row',
@@ -407,6 +392,4 @@ const styles = StyleSheet.create({
     width: 42,
     borderRadius: 999,
   },
-  
 });
-

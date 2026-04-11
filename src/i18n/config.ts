@@ -15,11 +15,10 @@ const resources = {
 
 const i18n = createInstance();
 
-// Initialize i18n WITHOUT AsyncStorage at top-level
 i18n
   .use(initReactI18next)
   .init({
-    lng: 'vi', // Default language
+    lng: 'vi',
     fallbackLng: 'vi',
     resources,
     interpolation: {

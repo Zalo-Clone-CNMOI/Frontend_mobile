@@ -3,7 +3,6 @@ import { fetchConversations } from '../services/chatService';
 import { ConversationV2 } from '../types/chat';
 
 interface ChatsState {
-  // State
   chats: ConversationV2[];
   filteredChats: ConversationV2[];
   searchQuery: string;
@@ -11,7 +10,6 @@ interface ChatsState {
   isLoading: boolean;
   error: string | null;
 
-  // Actions
   initializeChats: () => Promise<void>;
   setSearchQuery: (query: string) => void;
   setFilterTab: (tab: 'priority' | 'other') => void;
@@ -22,7 +20,6 @@ interface ChatsState {
 }
 
 export const useChatsStore = create<ChatsState>((set) => ({
-  // State
   chats: [],
   filteredChats: [],
   searchQuery: '',
@@ -30,7 +27,6 @@ export const useChatsStore = create<ChatsState>((set) => ({
   isLoading: false,
   error: null,
 
-  // Actions
   initializeChats: async () => {
     set({ isLoading: true, error: null });
     try {

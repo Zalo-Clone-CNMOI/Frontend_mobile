@@ -22,7 +22,6 @@ export const createSocket = async (): Promise<Socket> => {
   });
 
   socket.on("connect", () => {
-    console.log("🔌 WebSocket connected:", socket?.id);
   });
 
   socket.on("connect_error", async (err: any) => {
@@ -41,7 +40,6 @@ export const createSocket = async (): Promise<Socket> => {
       
       socket.connect();
     } catch (refreshErr) {
-      console.warn("🔌 Socket token refresh failed:", refreshErr);
     }
   });
 
@@ -57,5 +55,4 @@ export const disconnectSocket = () => {
   }
 };
 
-// Export alias for backward compatibility
 export const connectSocket = createSocket;

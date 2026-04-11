@@ -4,10 +4,9 @@ import { getCurrentToken, refreshAccessToken } from "./authService";
 
 const api = axios.create({
   baseURL: NETWORK_CONFIG.BFF_BASE_URL,
-  timeout: 10000, // 10 second timeout
+  timeout: 10000,
 });
 
-// Attach access token to every request
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -16,14 +15,12 @@ api.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (err) {
-      console.error("Request interceptor error:", err);
     }
     return config;
   },
   (error) => Promise.reject(error),
 );
 
-// On 401, try refresh once then retry original request
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -44,7 +41,6 @@ api.interceptors.response.use(
           return api(originalRequest);
         }
       } catch (e) {
-        console.error("Refresh token failed from axios interceptor:", e);
       }
     }
     return Promise.reject(error);

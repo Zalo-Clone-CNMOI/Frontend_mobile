@@ -1,16 +1,17 @@
-
+import { useAuth } from '@/src/contexts/AuthContext';
+import * as mediaService from '@/src/services/mediaService';
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
-import { FileText, Play, Check, CheckCheck, RotateCcw } from 'lucide-react-native';
-import React, { useEffect, useMemo } from 'react';
+import { Check, CheckCheck, FileText, Play, RotateCcw } from 'lucide-react-native';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    Image,
-    Pressable,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 type MessageBubbleProps = {
@@ -35,6 +36,9 @@ export const MessageBubble = React.memo(
   }: MessageBubbleProps) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const { user: authUser } = useAuth();
+  const [attachmentUrl, setAttachmentUrl] = useState<string>('');
+  const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
 
   const avatar = useMemo(() => {
     if (item.fromMe) return undefined;
@@ -62,8 +66,40 @@ export const MessageBubble = React.memo(
     ((item as any).text && typeof (item as any).text === 'string' && (item as any).text.includes('video/')) ||
     ((item as any).content && typeof (item as any).content === 'string' && (item as any).content.includes('video/'));
   const isFile = ((item as any).type === 'file' || ((item as any).fileInfo && !isImage && !isVideo));
-  
-  // Handle different message content structures
+
+  useEffect(() => {
+    if (!isImage && !isVideo) return;
+
+    const fetchUrl = async () => {
+      try {
+        const attachment = (item as any).attachment || (item as any).attachments?.[0];
+        if (attachment?.key) {
+          const url = await mediaService.getAttachmentUrl(
+            { key: attachment.key, visibility: attachment.visibility || 'public', url: attachment.url },
+            authUser?.id || ''
+          );
+          setAttachmentUrl(url);
+
+          const tKey = attachment.thumbnailKey || attachment.thumbnail_key;
+          if (tKey) {
+            const tUrl = await mediaService.getAttachmentUrl(
+              { key: tKey, visibility: attachment.visibility || 'public', url: attachment.thumbnailUrl || attachment.thumbnail_url },
+              authUser?.id || ''
+            );
+            setThumbnailUrl(tUrl);
+          }
+        } else {
+          const fallbackUri = (item as any).fileInfo?.uri || '';
+          setAttachmentUrl(fallbackUri);
+        }
+      } catch (error) {
+        setAttachmentUrl((item as any).fileInfo?.uri || '');
+      }
+    };
+
+    fetchUrl();
+  }, [item, isImage, isVideo, authUser?.id]);
+
   const messageText = (item as any).text || (item as any).content || '';
   const isMe = (item as any).fromMe || ((item as any).sender && (item as any).sender.me === true);
   const replySenderName = item.replyTo?.senderName || t('messages.replying_to');
@@ -102,7 +138,7 @@ export const MessageBubble = React.memo(
         isMe ? styles.rowRight : styles.rowLeft,
       ]}
     >
-      {/* Avatar đối phương */}
+      
       {!isMe && avatar && avatar.trim() !== '' && (
         <Image source={{ uri: avatar }} style={styles.avatar} />
       )}
@@ -136,7 +172,7 @@ export const MessageBubble = React.memo(
             isVideo && styles.videoBubble,
           ]}
         >
-          {/* Reply preview */}
+          
           {item.replyTo && (
             <Pressable
               onPress={() => onPressReply?.(item)}
@@ -179,7 +215,7 @@ export const MessageBubble = React.memo(
             </Pressable>
           )}
 
-          {/* Content */}
+          
           {item.isRevoked ? (
             <View style={styles.revokedRow}>
               {canReuseRevoked && (
@@ -202,12 +238,12 @@ export const MessageBubble = React.memo(
           ) : isImage ? (
             <Pressable
               onPress={() =>
-                onImagePress?.(item.fileInfo?.uri || '')
+                onImagePress?.(attachmentUrl || '')
               }
             >
-              {item.fileInfo?.uri && item.fileInfo.uri.trim() !== '' ? (
+              {attachmentUrl && attachmentUrl.trim() !== '' ? (
                 <Image
-                  source={{ uri: item.fileInfo.uri }}
+                  source={{ uri: attachmentUrl }}
                   style={styles.sentImage}
                 />
               ) : (
@@ -219,32 +255,36 @@ export const MessageBubble = React.memo(
           ) : isVideo ? (
             <Pressable
               onPress={() =>
-                onVideoPress?.(item.fileInfo?.uri || '')
+                onVideoPress?.(attachmentUrl || '')
               }
               style={styles.videoThumb}
             >
-              {item.fileInfo?.uri && item.fileInfo.uri.trim() !== '' ? (
-                <View
-                  style={[
-                    styles.videoPlay,
-                    {
-                      backgroundColor: isMe
-                        ? 'rgba(255,255,255,0.25)'
-                        : 'rgba(0,0,0,0.25)',
-                    },
-                  ]}
-                >
-                  <Play
-                    size={22}
-                    color={isMe ? theme.colors.icon : theme.colors.text}
-                    fill={isMe ? theme.colors.icon : theme.colors.text}
-                  />
-                </View>
+              {(thumbnailUrl || attachmentUrl) ? (
+                <Image
+                  source={{ uri: thumbnailUrl || attachmentUrl }}
+                  style={styles.videoThumb}
+                />
               ) : (
                 <View style={[styles.videoThumb, { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' }]}>
                   <Text style={{ color: '#999', fontSize: 12 }}>Video not available</Text>
                 </View>
               )}
+              <View
+                style={[
+                  styles.videoPlay,
+                  {
+                    backgroundColor: isMe
+                      ? 'rgba(255,255,255,0.25)'
+                      : 'rgba(0,0,0,0.25)',
+                  },
+                ]}
+              >
+                <Play
+                  size={22}
+                  color={isMe ? theme.colors.icon : theme.colors.text}
+                  fill={isMe ? theme.colors.icon : theme.colors.text}
+                />
+              </View>
             </Pressable>
           ) : isFile ? (
             <View style={styles.fileContainer}>
@@ -341,7 +381,7 @@ export const MessageBubble = React.memo(
         </View>
       </View>
 
-      {/* Avatar của mình (chỉ render nếu có) */}
+      
       {isMe && avatar && avatar.trim() !== '' && (
         <Image source={{ uri: avatar }} style={styles.avatar} />
       )}
@@ -349,7 +389,7 @@ export const MessageBubble = React.memo(
   );
 });
 
-/* ================= STYLES ================= */
+
 
 const styles = StyleSheet.create({
   container: {

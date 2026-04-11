@@ -44,8 +44,6 @@ export function AppRealtimeBridge() {
         const friendService = await getRuntimeFriendService();
         cleanupFriendRealtime = friendService.subscribeRealtime({
           onFriendRequestSend: (payload) => {
-            // API sends { requestId, requester: { id, fullName, avatarUrl, phone } }
-            // Build a FriendRequestRecord to store
             const requester = payload.requester || payload.request?.requester;
             const requesterId = requester?.id || payload.actorUserId || payload.request?.requesterId || '';
             const targetId = payload.targetUserId || payload.request?.targetUserId || '';
@@ -74,7 +72,6 @@ export function AppRealtimeBridge() {
             removeRequest(payload.requestId);
             const action = payload.status || payload.action;
             if (action === 'accepted' || action === 'accept') {
-              // Build friend record from addressee or legacy friend field
               const addressee = payload.addressee || payload.friend;
               if (addressee) {
                 upsertFriend({
@@ -96,10 +93,8 @@ export function AppRealtimeBridge() {
 
         const socket = await getRealtimeSocket();
         cleanupSocketNotifications = () => {
-          // No notification handlers needed
         };
       } catch (error) {
-        console.warn("AppRealtimeBridge bootstrap failed", error);
       } finally {
         if (!isCancelled) {
           setHydrating(false);

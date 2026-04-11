@@ -1,7 +1,7 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Background } from '@react-navigation/elements';
 import { ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import React, { useEffect, useState } from 'react';
@@ -16,12 +16,13 @@ import { ThemeManagerProvider, useThemeManager } from '../src/theme/themeManager
 
 function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
   const { theme } = useThemeManager();
-  const { isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [ready, setReady] = useState(false);
+  const router = useRouter();
+  const segments = useSegments();
 
 useNotifications();
 
-  // Apply SystemUI background & StatusBar style when theme changes
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(theme.colors.statusBar);
   }, [theme]);
@@ -31,6 +32,22 @@ useNotifications();
       setReady(true);
     });
   }, []);
+
+  useEffect(() => {
+    if (!ready || authLoading) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (isAuthenticated) {
+      if (inAuthGroup || segments.length === 0) {
+        setTimeout(() => router.replace('/(tabs)/home'), 0);
+      }
+    } else {
+      if (!inAuthGroup) {
+        setTimeout(() => router.replace('/(auth)'), 0);
+      }
+    }
+  }, [ready, authLoading, isAuthenticated, segments]);
 
   if (!ready || authLoading) {
     return (

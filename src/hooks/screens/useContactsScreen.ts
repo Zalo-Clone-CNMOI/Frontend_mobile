@@ -100,7 +100,6 @@ export function useContactsScreenLogic() {
           navigateToChat(String(conversationId), friendName);
         }
       } catch (startErr) {
-        console.error('Failed to create conversation:', startErr);
       } finally {
         setCreatingConversation(false);
       }
@@ -115,7 +114,6 @@ export function useContactsScreenLogic() {
       const snapshot = await fetchRuntimeFriendSnapshot();
       useRealtimeStore.getState().setFriendSnapshot(snapshot);
     } catch (fetchErr) {
-      console.error('Error fetching friends:', fetchErr);
       setError('Network connection failed. Please check your internet connection.');
     }
   }, [user?.id]);

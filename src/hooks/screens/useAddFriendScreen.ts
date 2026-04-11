@@ -6,11 +6,11 @@ import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 
 export type SearchResultStatus =
-  | 'none'        // chưa có quan hệ
-  | 'friend'      // đã là bạn
-  | 'sent'        // đã gửi lời mời
-  | 'received'    // đang có lời mời đến
-  | 'self';       // chính mình
+  | 'none'       
+  | 'friend'     
+  | 'sent'       
+  | 'received'   
+  | 'self';      
 
 export type SearchResult = {
   id: string;
@@ -48,7 +48,6 @@ export function useAddFriendScreenLogic() {
       if (sentTargetIds.has(userId)) return 'sent';
       if (receivedRequesterIds.has(userId)) return 'received';
 
-      // Fallback to API's friendshipStatus field
       const fs = dto?.friendshipStatus?.toLowerCase();
       if (fs === 'friend' || fs === 'friends') return 'friend';
       if (fs === 'pending' || fs === 'sent') return 'sent';
@@ -70,7 +69,7 @@ export function useAddFriendScreenLogic() {
 
       try {
         const response = await searchUsers(cleaned);
-        if (__DEV__) console.log('[addFriend] searchUsers response:', JSON.stringify(response).substring(0, 300));
+        
         const users: SearchUserDTO[] = response?.data || [];
 
         if (users.length === 0) {
@@ -87,7 +86,7 @@ export function useAddFriendScreenLogic() {
           undefined;
 
         const status = resolveStatus(userId, dto);
-        if (__DEV__) console.log('[addFriend] found user:', { userId, fullName: dto.fullName, phone: dto.phone, status, friendshipStatus: dto.friendshipStatus });
+        
 
         setSearchResult({
           id: userId,
@@ -98,7 +97,6 @@ export function useAddFriendScreenLogic() {
         });
       } catch (err: any) {
         const msg = err?.message || 'Lỗi kết nối, vui lòng thử lại';
-        if (__DEV__) console.error('[addFriend] search error:', msg);
         setSearchError(msg);
       } finally {
         setIsSearching(false);
@@ -111,9 +109,9 @@ export function useAddFriendScreenLogic() {
     async (targetUserId: string) => {
       setIsSending(true);
       try {
-        if (__DEV__) console.log('[addFriend] sending request to userId:', targetUserId);
+        
         await sendRuntimeFriendRequest(targetUserId);
-        if (__DEV__) console.log('[addFriend] ✅ request sent successfully');
+        
         setSearchResult((prev) =>
           prev ? { ...prev, status: 'sent' } : prev,
         );

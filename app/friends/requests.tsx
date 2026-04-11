@@ -22,9 +22,7 @@ import {
 export default function FriendRequestsScreen() {
   const theme = useTheme();
   const receivedRequests = useRealtimeStore((s) => s.receivedRequests);
-  console.log('receivedRequests >>>>>', receivedRequests);
   const sentRequests = useRealtimeStore((s) => s.sentRequests);
-  console.log('sentRequests >>>>>', sentRequests);
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -58,7 +56,6 @@ export default function FriendRequestsScreen() {
       const snapshot = await fetchRuntimeFriendSnapshot();
       useRealtimeStore.getState().setFriendSnapshot(snapshot);
     } catch (err) {
-      console.warn('Refresh failed:', err);
     } finally {
       setRefreshing(false);
     }
@@ -90,7 +87,7 @@ export default function FriendRequestsScreen() {
         }}
       />
 
-      {/* ═══ Tab Bar ═══ */}
+      
       <View style={[styles.tabBar, { backgroundColor: theme.colors.card }]}>
         <TouchableOpacity
           style={[styles.tab]}
@@ -141,7 +138,7 @@ export default function FriendRequestsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ═══ Content ═══ */}
+      
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -171,7 +168,6 @@ export default function FriendRequestsScreen() {
           </View>
         ) : (
           list.map((request, index) => {
-            // API returns { id, createdAt, user: { id, fullName, avatarUrl } }
             const profile = (request as any).user
               || (activeTab === 'received' ? request.requester : request.target);
             const isBusy = processingId === request.id;
@@ -213,11 +209,11 @@ export default function FriendRequestsScreen() {
                       style={[styles.message, { color: theme.colors.text }]}
                       numberOfLines={2}
                     >
-                      "{request.message}"
+                      &quot;{request.message}&quot;
                     </Text>
                   )}
 
-                  {/* Actions */}
+                  
                   <View style={styles.actions}>
                     {isBusy ? (
                       <ActivityIndicator size="small" color={theme.colors.primary} />
@@ -263,7 +259,7 @@ export default function FriendRequestsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  /* ═══ Tab Bar ═══ */
+  
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 0.5,
@@ -289,10 +285,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 3,
   },
 
-  /* ═══ Content ═══ */
+  
   content: { padding: 16, paddingBottom: 40, gap: 10 },
 
-  /* ═══ Empty ═══ */
+  
   emptyWrap: {
     alignItems: 'center',
     marginTop: 80,
@@ -301,7 +297,7 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 17, fontWeight: '700' },
   emptySubtitle: { fontSize: 13, textAlign: 'center', lineHeight: 20 },
 
-  /* ═══ Card ═══ */
+  
   card: {
     borderRadius: 16,
     padding: 14,
@@ -334,7 +330,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
 
-  /* ═══ Actions ═══ */
+  
   actions: {
     flexDirection: 'row',
     gap: 8,

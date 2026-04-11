@@ -26,7 +26,6 @@ interface ChatOptionsProps {
   chatAvatar?: string;
 }
 
-// Mock media data
 const MOCK_MEDIA = [
   { id: '1', type: 'image', uri: 'https://i.pravatar.cc/200?u=chat1', thumbnail: 'https://i.pravatar.cc/200?u=chat1' },
   { id: '2', type: 'image', uri: 'https://i.pravatar.cc/200?u=chat2', thumbnail: 'https://i.pravatar.cc/200?u=chat2' },
@@ -46,7 +45,6 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('vi');
 
-  // Load current language when component mounts
   useEffect(() => {
     if (visible) {
       const lang = getCurrentLanguage();
@@ -54,14 +52,12 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
     }
   }, [visible]);
 
-  // Handle language change
   const handleLanguageChange = async (language: string) => {
     try {
       await changeLanguage(language);
       setCurrentLanguage(language);
       setShowLanguageModal(false);
     } catch (error) {
-      console.error('Error changing language:', error);
     }
   };
 
@@ -131,7 +127,7 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
     >
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
         <StatusBar style="light" />
-        {/* Header chuẩn Zalo */}
+    
         <View style={[styles.header, { borderBottomColor: theme.colors.border }, {backgroundColor: theme.colors.statusBar}]}>
           <View style={styles.headerLeft}>
             <TouchableOpacity onPress={onClose}>
@@ -142,7 +138,7 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
         </View>
         <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
           <ScrollView style={styles.content}>
-            {/* Profile Section */}
+            
             <View style={styles.profileSection}>
               <Image
                 source={{ uri: chatAvatar || 'https://i.pravatar.cc/150?u=default' }}
@@ -150,7 +146,7 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
               />
               <Text style={[styles.profileName, { color: theme.colors.text }]}>{chatName}</Text>
               
-              {/* Quick Actions */}
+              
               <View style={styles.quickActions}>
                 <TouchableOpacity style={styles.quickActionItem} onPress={() => {}}>
                   <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
@@ -189,7 +185,7 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
               </View>
             </View>
 
-            {/* Additional Options */}
+            
             <View style={[styles.additionalOptions, { backgroundColor: theme.colors.background }]}>
               <OptionItem
                 icon={Settings}
@@ -216,7 +212,7 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
               />
             </View>
 
-            {/* Media Section */}
+            
             <View style={[styles.mediaSectionHeader, { borderTopColor: theme.colors.border }]}>
               <Text style={[styles.mediaSectionTitle, { color: theme.colors.text }]}>{t('chat_options.media_files_links')}</Text>
               <ChevronRight size={18} color="#8e8e93" />
@@ -232,7 +228,7 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
               />
             </View>
 
-            {/* Options List */}
+            
             <View style={[styles.optionsSection, { backgroundColor: theme.colors.background }]}>
               <OptionItem
                 icon={Users}
@@ -304,7 +300,7 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
             </View>
           </ScrollView>
 
-          {/* Language Selection Modal */}
+          
           <Modal
             visible={showLanguageModal}
             transparent

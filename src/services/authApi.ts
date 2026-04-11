@@ -2,17 +2,29 @@ import { NETWORK_CONFIG } from '../config/network';
 import { saveAuthData, type UserInfo } from './authService';
 import api from './http';
 
+const formatPhonePayload = (payload: any) => {
+  if (payload && typeof payload.phone === 'string') {
+    const phoneStr = payload.phone.trim();
+    if (phoneStr.startsWith('0')) {
+      payload.phone = '+84' + phoneStr.slice(1);
+    } else if (!phoneStr.startsWith('+')) {
+      payload.phone = '+84' + phoneStr;
+    }
+  }
+};
+
 export const register = async (payload: any) => {
   try {
-    return await api.post('/api/auth/register', payload);
+    formatPhonePayload(payload);
+    return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/register`, payload);
   } catch (e: any) {
-    console.warn('authApi.register failed:', e?.message);
     throw e;
   }
 };
 
 export const login = async (payload: any) => {
   try {
+    formatPhonePayload(payload);
     const response = await api.post(NETWORK_CONFIG.AUTH_LOGIN_URL, payload);
 
     const raw = response?.data || {};
@@ -47,61 +59,55 @@ export const login = async (payload: any) => {
 
     return response;
   } catch (e: any) {
-    console.warn('authApi.login failed:', e?.message);
     throw e;
   }
 };
 
 export const logout = async () => {
   try {
-    return await api.post('/api/auth/logout');
+    return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/logout`);
   } catch (e: any) {
-    console.warn('authApi.logout failed:', e?.message);
     throw e;
   }
 };
 
 export const resetPassword = async (payload: any) => {
   try {
-    return await api.post('/api/auth/reset-password', payload);
+    formatPhonePayload(payload);
+    return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/reset-password`, payload);
   } catch (e: any) {
-    console.warn('authApi.resetPassword failed:', e?.message);
     throw e;
   }
 };
 
 export const qrGenerate = async (payload?: any) => {
   try {
-    return await api.post('/api/auth/qr/generate', payload || {});
+    return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/generate`, payload || {});
   } catch (e: any) {
-    console.warn('authApi.qrGenerate failed:', e?.message);
     throw e;
   }
 };
 
 export const qrStatus = async (qrId: string) => {
   try {
-    return await api.get(`/api/auth/qr/status/${qrId}`);
+    return await api.get(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/status/${qrId}`);
   } catch (e: any) {
-    console.warn('authApi.qrStatus failed:', e?.message);
     throw e;
   }
 };
 
 export const qrConfirm = async (qrId: string, payload?: any) => {
   try {
-    return await api.post(`/api/auth/qr/confirm/${qrId}`, payload || {});
+    return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/confirm/${qrId}`, payload || {});
   } catch (e: any) {
-    console.warn('authApi.qrConfirm failed:', e?.message);
     throw e;
   }
 };
 
 export const qrReject = async (qrId: string, payload?: any) => {
   try {
-    return await api.post(`/api/auth/qr/reject/${qrId}`, payload || {});
+    return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/reject/${qrId}`, payload || {});
   } catch (e: any) {
-    console.warn('authApi.qrReject failed:', e?.message);
     throw e;
   }
 };

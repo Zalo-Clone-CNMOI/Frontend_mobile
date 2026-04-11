@@ -307,7 +307,23 @@
     "zalo_name": "Zalo Name",
     "date_of_birth": "Date of Birth",
     "gender": "Gender",
-    "edit": "Edit"
+    "edit": "Edit",
+    "email": "Email",
+    "bio": "Bio"
+  },
+
+  "edit_personal_info": {
+    "title": "Edit Profile",
+    "change_avatar": "Change Profile Picture",
+    "avatar_upload_hint": "Avatar upload will be integrated soon",
+    "enter_name": "Enter Zalo name",
+    "enter_email": "Enter email",
+    "enter_bio": "Enter your bio",
+    "date_format": "YYYY-MM-DD",
+    "other": "Other",
+    "invalid_email": "Invalid email",
+    "save_success": "Profile updated successfully",
+    "save_failed": "Failed to update profile"
   },
 
   "account_security": {

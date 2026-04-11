@@ -35,8 +35,6 @@ export class ShareUtils {
 
       await RNShare.share(shareOptions);
     } catch (error) {
-      console.error('Share error:', error);
-      // User cancelled sharing is not an error
       if (error instanceof Error && !error.message.includes('User did not share')) {
         Alert.alert('Lỗi', 'Không thể chia sẻ bài viết. Vui lòng thử lại.');
       }
@@ -54,8 +52,6 @@ export class ShareUtils {
     const shareMessage = `📝 ${authorName}\n\n${content}\n\n— từ Zalo Clone`;
     
     if (images && images.length > 0) {
-      // For now, just share the first image URL
-      // In a real app, you might want to download and share the actual image
       await this.shareContent({
         title: 'Bài viết từ Zalo Clone',
         message: shareMessage,

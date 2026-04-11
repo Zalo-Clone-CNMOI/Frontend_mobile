@@ -7,9 +7,7 @@ export interface TimelinePost {
   photo: string;
 }
 
-// Legacy timeline posts removed — use `TIMELINE_V2` instead.
 
-// Zalo v2 timeline posts (production-like). Uses real user IDs from USERS_V2 for authors.
 export interface TimelinePostV2 {
   id: string;
   userId: string;

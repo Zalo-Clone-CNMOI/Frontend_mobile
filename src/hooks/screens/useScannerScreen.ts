@@ -59,7 +59,6 @@ export function useScannerScreenLogic() {
       try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {
-        // ignore
       }
 
       const raw = String(result.data).trim();

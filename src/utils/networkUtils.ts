@@ -33,7 +33,6 @@ export const getErrorMessage = (error: any): string => {
   }
   
   if (error?.response?.status === 400) {
-    // Handle specific API validation errors
     const errorData = error?.response?.data;
     if (Array.isArray(errorData?.message)) {
       return errorData.message.join(', ');

@@ -5,13 +5,11 @@
  * Used by mediaService, chatAttachmentService, and avatarService.
  */
 
-// ─── Attachment Type ─────────────────────────────────────────────────────────
 
 export type AttachmentType = 'image' | 'video' | 'audio' | 'document';
 
 export type FileVisibility = 'public' | 'private';
 
-// ─── Presign Upload ──────────────────────────────────────────────────────────
 
 export interface PresignUploadRequest {
   contentType: string;
@@ -22,10 +20,9 @@ export interface PresignUploadResponse {
   key: string;
   uploadUrl: string;
   visibility: FileVisibility;
-  expiresAt: string; // ISO-8601
+  expiresAt: string;
 }
 
-// ─── Upload Confirm ──────────────────────────────────────────────────────────
 
 export interface UploadConfirmRequest {
   key: string;
@@ -35,10 +32,9 @@ export interface UploadConfirmRequest {
 
 export interface UploadConfirmResponse {
   ok: boolean;
-  thumbnailKey?: string; // Only returned for images
+  thumbnailKey?: string;
 }
 
-// ─── Presign Download ────────────────────────────────────────────────────────
 
 export interface PresignDownloadRequest {
   key: string;
@@ -46,10 +42,9 @@ export interface PresignDownloadRequest {
 
 export interface PresignDownloadResponse {
   downloadUrl: string;
-  expiresAt: number; // Epoch ms when URL expires (~15 min)
+  expiresAt: number;
 }
 
-// ─── Combined Upload Result ──────────────────────────────────────────────────
 
 export interface UploadResult {
   key: string;
@@ -60,7 +55,6 @@ export interface UploadResult {
   fileSize: number;
 }
 
-// ─── Attachment DTO (payload for WebSocket chat:send — snake_case) ────────────
 
 export interface AttachmentDto {
   key: string;
@@ -72,30 +66,27 @@ export interface AttachmentDto {
   visibility: FileVisibility;
 }
 
-// ─── REST Attachment DTO (from REST API responses — camelCase) ───────────────
 
 export interface RestAttachmentDto {
   key: string;
   type: AttachmentType;
   name: string;
   size: number;
-  contentType: string;          // camelCase in REST response
+  contentType: string;         
   thumbnailKey?: string;
   visibility: FileVisibility;
-  url: string | null;           // CDN URL for public, null for private
-  thumbnailUrl?: string;        // CDN URL for thumbnail
+  url: string | null;          
+  thumbnailUrl?: string;       
 }
 
-// ─── File input (from device picker) ─────────────────────────────────────────
 
 export interface MediaFileInput {
   uri: string;
   name: string;
-  mimeType: string; // e.g. 'image/jpeg'
-  size: number;      // bytes
+  mimeType: string;
+  size: number;     
 }
 
-// ─── Chat Send Payload ───────────────────────────────────────────────────────
 
 export interface ChatSendPayload {
   message_id: string;
@@ -105,7 +96,6 @@ export interface ChatSendPayload {
   attachments: AttachmentDto[];
 }
 
-// ─── Chat Ack Payload ────────────────────────────────────────────────────────
 
 export type ChatAckStatus = 'accepted' | 'rejected';
 
@@ -122,7 +112,6 @@ export interface ChatAckPayload {
   reason?: ChatAckRejectReason;
 }
 
-// ─── Media Error ─────────────────────────────────────────────────────────────
 
 export class MediaError extends Error {
   constructor(

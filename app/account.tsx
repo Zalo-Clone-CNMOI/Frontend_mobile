@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Check, ChevronLeft, ChevronRight, Globe, Lock, Mail, Phone, QrCode, X } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Image,
@@ -23,15 +23,11 @@ export default function AccountScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
   const initializeProfile = useProfileStore((state) => state.initializeProfile);
 
   const [currentLang, setCurrentLang] = useState(getCurrentLanguage());
   const [modalVisible, setModalVisible] = useState(false);
-
-  useEffect(() => {
-    initializeProfile();
-  }, [initializeProfile]);
 
   const handleLanguageChange = async (lang: string) => {
     await changeLanguage(lang);
@@ -73,7 +69,7 @@ export default function AccountScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
       <StatusBar style="light" />
-      {/* Header chuẩn Zalo */}
+      
       <View style={[styles.header, { borderBottomColor: theme.colors.border }, { backgroundColor: theme.colors.statusBar }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()}>
@@ -85,19 +81,19 @@ export default function AccountScreen() {
       </View>
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <ScrollView style={styles.content}>
-          {/* Tài khoản Section */}
+          
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               {t('account_security.account') || 'Tài khoản'}
             </Text>
 
-            {/* Profile Card */}
+            
             <TouchableOpacity
               style={[styles.profileCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
               onPress={() => router.push('/personalInfo')}
             >
               <Image
-                source={{ uri: user?.avatarUrl || 'https://i.pravatar.cc/200?u=user-me' }}
+                source={{ uri: authUser?.avatarUrl || 'https://i.pravatar.cc/200?u=user-me' }}
                 style={styles.profileAvatar}
               />
               <View style={styles.profileInfo}>
@@ -105,25 +101,25 @@ export default function AccountScreen() {
                   {t('account_security.personal_info') || 'Thông tin cá nhân'}
                 </Text>
                 <Text style={[styles.profileName, { color: theme.colors.text }]}>
-                  {user?.name || ""}
+                  {authUser?.name || ""}
                 </Text>
               </View>
               <ChevronRight size={20} color="#8e8e93" />
             </TouchableOpacity>
 
-            {/* Account Details */}
+            
             <View style={[styles.accountList, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
               <AccountItem
                 icon={Phone}
                 title={t('account_security.phone_number') || 'Số điện thoại'}
-                subtitle={user?.phone
-                  ? `(+84) ${user.phone.replace(/^\+?84/, '').replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3')}`
+                subtitle={authUser?.phone
+                  ? `(+84) ${authUser.phone.replace(/^\+?84/, '').replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3')}`
                   : ''}
               />
               <AccountItem
                 icon={Mail}
                 title={t('account_security.email') || 'Email'}
-                subtitle={user?.email || ''}
+                subtitle={authUser?.email || ''}
               />
               <AccountItem
                 icon={QrCode}
@@ -139,13 +135,13 @@ export default function AccountScreen() {
             </View>
           </View>
 
-          {/* Bảo mật Section */}
+          
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               {t('account_security.security') || 'Bảo mật'}
             </Text>
 
-            {/* Security Options */}
+            
             <View style={[styles.accountList, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
               <AccountItem
                 icon={Lock}
@@ -156,7 +152,7 @@ export default function AccountScreen() {
           </View>
         </ScrollView>
 
-        {/* Language Selection Modal */}
+        
         <Modal
           animationType="fade"
           transparent={true}

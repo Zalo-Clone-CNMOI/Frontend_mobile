@@ -1,3 +1,4 @@
+import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
 import { router } from "expo-router";
 import {
   CheckCircle2,
@@ -8,6 +9,8 @@ import {
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -20,10 +23,15 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useOtpRegistration } from "../../src/contexts/OtpRegistrationContext";
 import { COUNTRIES_MOCK_DATA } from "../../src/data/countriesMockData";
+import { sendOtp, setRecaptchaVerifier } from "../../src/services/auth/firebaseAuth.service";
+import { FIREBASE_CONFIG, getFirebaseApp } from "../../src/services/firebase";
 import { validatePhoneByCountry } from "../../src/validators/phoneValidator";
 
 export default function RegisterPhoneScreen() {
+  getFirebaseApp();
+
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isTermAccepted, setIsTermAccepted] = useState(false);
   const [isSocialAccepted, setIsSocialAccepted] = useState(false);
@@ -33,7 +41,22 @@ export default function RegisterPhoneScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isPhoneError, setIsPhoneError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const { setPhoneE164, setConfirmationResult, reset } = useOtpRegistration();
   const { t } = useTranslation();
+
+  const recaptchaVerifier = React.useRef<FirebaseRecaptchaVerifierModal>(null);
+
+  const toE164Phone = (countryCode: string, national: string) => {
+    const dial = String(countryCode || "").trim();
+    const digits = String(national || "").trim().replace(/[^0-9]/g, "");
+
+    if (dial === "+84" && digits.startsWith("0")) {
+      return `${dial}${digits.slice(1)}`;
+    }
+
+    return `${dial}${digits}`;
+  };
 
   const selectCountry = (country: any) => {
     setSelectedCountry(country);
@@ -72,6 +95,10 @@ export default function RegisterPhoneScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={FIREBASE_CONFIG as any}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -124,7 +151,7 @@ export default function RegisterPhoneScreen() {
               </Text>
             )}
 
-            {/* Phần điều khoản (Checkboxes) */}
+            
             <View style={styles.termsSection}>
               <TouchableOpacity
                 style={styles.termItem}
@@ -161,11 +188,11 @@ export default function RegisterPhoneScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Nút Tiếp tục */}
+            
             <TouchableOpacity
               style={[styles.primaryBtn, !isFormValid && styles.btnDisabled]}
-              disabled={!isFormValid}
-              onPress={() => {
+              disabled={!isFormValid || isSendingOtp}
+              onPress={async () => {
                 if (
                   !validatePhoneByCountry(phoneNumber, selectedCountry.code)
                 ) {
@@ -175,10 +202,38 @@ export default function RegisterPhoneScreen() {
                   );
                   return;
                 }
-                // proceed with registration flow
+
+                const phoneE164 = toE164Phone(selectedCountry.code, phoneNumber);
+
+                setIsSendingOtp(true);
+                try {
+                  reset();
+                  setPhoneE164(phoneE164);
+
+                  setRecaptchaVerifier((recaptchaVerifier.current as any) || null);
+                  const confirmation = await sendOtp(phoneE164);
+                  setConfirmationResult(confirmation);
+
+                  router.push("/(auth)/otpVerify");
+                } catch (e: any) {
+                  const message = String(e?.message || "");
+                  Alert.alert(
+                    "Không thể gửi mã OTP",
+                    message || "Vui lòng thử lại sau.",
+                  );
+                } finally {
+                  setIsSendingOtp(false);
+                }
               }}
             >
-              <Text style={styles.btnText}>{t("common.next")}</Text>
+              {isSendingOtp ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <ActivityIndicator color="#fff" />
+                  <Text style={styles.btnText}>{t("common.loading")}</Text>
+                </View>
+              ) : (
+                <Text style={styles.btnText}>{t("common.next")}</Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -236,7 +291,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 40,
   },
-  // Khung viền Input bo góc 12px màu xanh
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -264,23 +318,20 @@ const styles = StyleSheet.create({
   inputError: { borderColor: "#ff3b30" },
   errorText: { color: "#ff3b30", marginBottom: 12, marginTop: -8 },
 
-  // Điều khoản
   termsSection: { marginBottom: 40, gap: 15 },
   termItem: { flexDirection: "row", alignItems: "center", gap: 12 },
   termText: { fontSize: 14, color: "#000", flex: 1 },
   linkText: { color: "#0091ff", fontWeight: "500" },
 
-  // Nút bấm
   primaryBtn: {
     backgroundColor: "#0091ff",
     paddingVertical: 14,
     borderRadius: 30,
     alignItems: "center",
   },
-  btnDisabled: { backgroundColor: "#e0e0e0" }, // Màu xám khi chưa đủ điều kiện
+  btnDisabled: { backgroundColor: "#e0e0e0" },
   btnText: { color: "#fff", fontSize: 17, fontWeight: "600" },
 
-  // Footer
   footer: {
     paddingBottom: 20,
     flexDirection: "row",

@@ -2,19 +2,13 @@
 
 const phoneValidators: Record<string, RegExp> = {
   // Vietnam: local mobile numbers with leading 0 + prefix: 03x, 05x, 07x, 08x, 09x (10 digits)
-  '+84': /^0(?:3|5|7|8|9)\d{8}$/, // e.g. 0912345678
-  // US: 10 digits (area code + local)
-  '+1': /^\d{10}$/, // e.g. 4155551234
-  // Japan/Korea: allow optional leading zero and typical lengths (basic)
-  '+81': /^0?\d{9,10}$/, // basic length check (10-11 digits with optional leading 0)
-  '+82': /^0?\d{9,10}$/, // Korea
-  // China: 11 digits typical for mobile
+  '+84': /^0(?:3|5|7|8|9)\d{8}$/,
+  '+1': /^\d{10}$/,
+  '+81': /^0?\d{9,10}$/,
+  '+82': /^0?\d{9,10}$/,
   '+86': /^\d{11}$/,
-  // Thailand: allow 9-10 digits with optional leading 0
   '+66': /^0?\d{8,9}$/,
-  // Cambodia: 8-9 digits
   '+855': /^0?\d{8,9}$/,
-  // Taiwan: 9 digits typically (allow optional leading 0)
   '+886': /^0?\d{8,9}$/,
 };
 
@@ -31,6 +25,5 @@ export function validatePhoneByCountry(phone: string, countryCode: string): bool
   const validator = phoneValidators[countryCode];
   if (validator) return validator.test(cleaned);
 
-  // Generic fallback: local number between 6 and 15 digits
   return /^\d{6,15}$/.test(cleaned);
 }

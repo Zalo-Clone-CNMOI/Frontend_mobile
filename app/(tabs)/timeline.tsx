@@ -18,40 +18,7 @@ export default function TimelineScreen() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
       <StatusBar style="light" />
-      {/* <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <TimelineSearchHeader onPressSearch={() => router.push('/search')} />
-
-        <FlashList
-          data={data}
-          keyExtractor={(item: any) => item.id}
-          renderItem={({ item }) => {
-            const user = USERS_V2.find((u: any) => u.id === item.userId);
-            const author = {
-              id: item.userId,
-              name: user ? user.fullName : t('timeline.default_user'),
-              avatarUrl: user?.avatar
-            };
-            
-            return (
-              <PostCard
-                author={author}
-                content={item.content}
-                createdAt={item.createdAt}
-                liked={item.liked}
-                likes={item.likes}
-                comments={item.comments}
-                shares={item.shares}
-                images={item.images}
-                onPressLike={() => toggleLike(item.id)}
-                onPressComment={() => incrementComments(item.id)}
-                onPressShare={() => incrementShares(item.id)}
-                onPressMore={() => console.log('More pressed for post:', item.id)}
-                onPressMedia={(uri) => console.log('Media pressed:', uri)}
-              />
-            );
-          }}
-        />
-      </View> */}
+      
     </SafeAreaView>
   );
 }

@@ -15,16 +15,12 @@ export function ChatListItem({
 
   const getAvatarSource = () => {
     if (item.isGroup && item.avatar) {
-      // For group chats, use the group avatar
       return { uri: item.avatar };
     } else if (!item.isGroup && item.avatar) {
-      // For individual chats, use the person's avatar
       return { uri: item.avatar };
     } else if (item.isGroup) {
-      // For group chats without avatar, show default group avatar
       return { uri: 'https://ui-avatars.com/api/?name=Group&background=random&color=7F9CFB' };
     } else {
-      // For individual chats without avatar, show default user avatar
       const userName = item.name || 'User';
       return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random&color=7F9CFB` };
     }

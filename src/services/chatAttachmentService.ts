@@ -18,7 +18,6 @@ import {
   uploadMedia,
 } from './mediaService';
 
-// ─── UUID helper ─────────────────────────────────────────────────────────────
 
 function generateUUID(): string {
   try {
@@ -26,7 +25,6 @@ function generateUUID(): string {
       return (globalThis.crypto as any).randomUUID();
     }
   } catch {
-    // fallthrough
   }
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
@@ -35,11 +33,9 @@ function generateUUID(): string {
   });
 }
 
-// ─── Ack timeout (ms) ────────────────────────────────────────────────────────
 
 const ACK_TIMEOUT_MS = 15_000;
 
-// ─── Public API ──────────────────────────────────────────────────────────────
 
 export interface SendWithAttachmentsOptions {
   /** Socket.IO instance (already connected) */
@@ -97,15 +93,12 @@ export async function sendMessageWithAttachments(
 
   const messageId = explicitId || generateUUID();
 
-  // ── Step 1: Upload all files in parallel ───────────────────────────────
   const uploadResults = await Promise.all(
     files.map((file) => uploadMedia(file, userId, conversationId)),
   );
 
-  // ── Step 2: Build attachment DTOs ──────────────────────────────────────
   const attachments: AttachmentDto[] = uploadResults.map(buildAttachmentDto);
 
-  // ── Step 3: Build chat:send payload ────────────────────────────────────
   const payload: ChatSendPayload = {
     message_id: messageId,
     conversation_id: conversationId,
@@ -114,7 +107,6 @@ export async function sendMessageWithAttachments(
     attachments,
   };
 
-  // ── Step 4: Emit + wait for ack ────────────────────────────────────────
   const ackPromise = new Promise<ChatAckPayload>((resolve, reject) => {
     const timeout = setTimeout(() => {
       cleanup();
@@ -122,7 +114,7 @@ export async function sendMessageWithAttachments(
     }, ACK_TIMEOUT_MS);
 
     const onAck = (ack: ChatAckPayload) => {
-      if (ack.message_id !== messageId) return; // not our ack
+      if (ack.message_id !== messageId) return;
 
       cleanup();
 
@@ -144,7 +136,6 @@ export async function sendMessageWithAttachments(
 
     try {
       socket.emit('chat:send', payload, (callbackAck: any) => {
-        // Some servers provide immediate callback ack
         if (!callbackAck) return;
         if (callbackAck.status === 'accepted') {
           cleanup();
@@ -175,9 +166,6 @@ export function listenForAckErrors(
 ): () => void {
   const handler = (ack: ChatAckPayload) => {
     if (ack.status === 'rejected') {
-      console.error(
-        `[chatAttachment] Message ${ack.message_id} rejected: ${ack.reason}`,
-      );
       onError(ack);
     }
   };
@@ -189,7 +177,6 @@ export function listenForAckErrors(
   };
 }
 
-// Re-export helper for convenience
 export { getAttachmentType };
 
 export default {

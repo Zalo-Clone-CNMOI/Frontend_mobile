@@ -3,7 +3,6 @@ import { fetchAllMessages } from '../services/chatService';
 import { ChatMessage } from '../types/chat';
 
 interface MessagesState {
-  // Map of conversation_id → messages
   messagesByChatId: Record<string, ChatMessage[]>;
   isLoading: boolean;
   error: string | null;
@@ -103,7 +102,6 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       if (index >= 0) {
         const updated = [...existing];
         const merged = { ...updated[index], ...message };
-        // Never flip ownership from "mine" to "other" due to partial/ambiguous socket payload.
         if (updated[index].fromMe === true && message.fromMe !== true) {
           merged.fromMe = true;
         }

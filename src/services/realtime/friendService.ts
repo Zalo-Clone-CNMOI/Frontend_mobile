@@ -114,7 +114,6 @@ const buildRequestPath = (
   if (requestKind === "sent") {
     return buildEndpoint("/friends/requests/sent");
   }
-  // Swagger: GET /api/friends/requests/pending
   return buildEndpoint("/friends/requests/pending");
 };
 
@@ -158,7 +157,6 @@ export const createFriendService = ({
         );
         return response.data;
       } catch (error: any) {
-        // If endpoint doesn't exist, return empty array to prevent app crash
         if (error.response?.status === 404) {
           return [];
         }
@@ -183,7 +181,6 @@ export const createFriendService = ({
   ) =>
     withErrorMapping(async () => {
       rateLimiter.consume("mutation");
-      // Swagger: PATCH /api/friends/requests/{requestId}
       const response = await httpClient.patch<
         ApiEnvelope<FriendRequestRecord | FriendRequestRespondPayload>
       >(endpoint(`/friends/requests/${requestId}`), payload);

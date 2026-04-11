@@ -54,7 +54,6 @@ export const resetRealtimeClients = async () => {
       pendingSocket.removeAllListeners();
       pendingSocket.disconnect();
     } catch {
-      // ignore pending socket errors during reset
     }
   }
 
