@@ -62,9 +62,9 @@ export async function uploadAvatar(
 
 
 /**
- * PUT to SSO service to update the user's avatar URL.
+ * PATCH to SSO service to update the user's avatar URL.
  *
- * Endpoint: PUT http://<host>:5001/api/users/profile
+ * Endpoint: PATCH http://<host>:5001/users/me
  * Headers:  Authorization: Bearer <token>
  * Body:     { avatarUrl: "<s3 key>" }
  */
@@ -72,10 +72,10 @@ async function updateSsoAvatar(
   avatarKey: string,
   token: string,
 ): Promise<boolean> {
-  const url = `${SSO_URL}/api/users/profile`;
+  const url = `${SSO_URL}/users/me`;
 
   const response = await fetch(url, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,

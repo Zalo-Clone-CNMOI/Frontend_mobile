@@ -43,9 +43,9 @@ function ContactItem({ item, creatingConversation, onPress }: {
     <Text style={[styles.subtitle, { color: theme.colors.text, opacity: 0.6 }]} numberOfLines={1}>
       {subtitle}
     </Text>
-    {item.phone || item.friendsSince ? (
+    {item.friendsSince ? (
       <Text style={[styles.metaText, { color: theme.colors.text, opacity: 0.5 }]} numberOfLines={1}>
-        {item.phone ? item.phone : `${t('contacts.friends_since')} ${friendsSinceText}`}
+        {`${t('contacts.friends_since')} ${friendsSinceText}`}
       </Text>
     ) : null}
     {!isOnline && lastSeenText && (

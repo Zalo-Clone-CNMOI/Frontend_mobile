@@ -2,32 +2,34 @@ import { useTheme } from '@/src/theme/themeContext';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  File,
-  FileText,
-  Film,
-  Image as ImageIcon,
-  MapPin,
-  Mic,
-  MoreHorizontal,
-  Send,
-  Smile,
-  User,
-  X,
+    File,
+    FileText,
+    Film,
+    Image as ImageIcon,
+    MapPin,
+    Mic,
+    MoreHorizontal,
+    Send,
+    Smile,
+    User,
+    X,
 } from 'lucide-react-native';
 import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  Keyboard,
+    Alert,
+    Keyboard,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { EmojiKeyboard, EmojiType } from 'rn-emoji-keyboard';
 
+// Video size limit: 50MB (realistic limit for mobile chat apps)
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB in bytes
 
 export type ChatComposerProps = {
   value: string;
@@ -113,6 +115,20 @@ export const ChatComposer = React.memo(function ChatComposer({
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const fileSize = asset.fileSize || 0;
+
+        // Check if video size exceeds limit
+        if (fileSize > MAX_VIDEO_SIZE) {
+          const sizeInMB = (fileSize / (1024 * 1024)).toFixed(2);
+          Alert.alert(
+            'Video quá lớn',
+            `Video của bạn (${sizeInMB}MB) vượt quá giới hạn cho phép (50MB). Vui lòng chọn video nhỏ hơn.`,
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+
         const videoAssets: DocumentPicker.DocumentPickerAsset[] = result.assets.map(
           (asset: ImagePicker.ImagePickerAsset) => ({
             uri: asset.uri,

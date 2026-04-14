@@ -43,13 +43,13 @@ export default function ProfileScreen() {
     <StatusBar style="light" />
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <ProfileSearchHeader onPressSearch={() => router.push('/search')} />
-      <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+      <TouchableOpacity onPress={() => router.push('/personalInfo')} style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <Image source={{ uri: user?.avatarUrl }} style={styles.avatar} />
         <View style={{ flex: 1 }}>
           <Text style={[styles.name, { color: theme.colors.text }]}>{user?.name}</Text>
           <Text style={[styles.subtitle, { color: '#8e8e93' }]}>{user?.bio}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
       <View style={[styles.section, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <Row title={t('profile.wallet')} Icon={Star} />

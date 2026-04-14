@@ -71,8 +71,11 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
     set({ loading: true, error: null });
 
+    // Use original query without normalization to allow searching with '0' at beginning
+    const searchQuery = trimmed;
+
     try {
-      const res: any = await usersApi.searchUsers(trimmed, { page, limit });
+      const res: any = await usersApi.searchUsers(searchQuery, { page, limit });
       if (requestId !== latestSearchRequestId) return;
 
       const payload = res?.data ?? res;

@@ -1,14 +1,14 @@
 import { Socket } from "socket.io-client";
-import { getCurrentUser, getCurrentToken } from "./authService";
 import { ContactUser } from "../types/ContactUser";
 import type { ChatMessage, ConversationV2 } from "../types/chat";
 import type { SocketChatJoinPayload } from "../types/dto/SocketDTO";
-import type { MediaFileInput } from "../types/media";
 import { mapConversationsListFromApi } from "../types/mappers/DTOMappers";
+import type { MediaFileInput } from "../types/media";
+import { getCurrentUser } from "./authService";
 import * as conversationsApi from "./conversationsApi";
 import * as friendsApi from "./friendsApi";
+import { buildAttachmentDto, uploadMedia } from "./mediaService";
 import * as messagesApi from "./messagesApi";
-import { uploadMedia, buildAttachmentDto, getAttachmentType } from "./mediaService";
 import { connectSocket, getSocket } from "./socket";
 
 const normalizeId = (value: unknown): string => String(value ?? "").trim();
@@ -645,8 +645,6 @@ function registerSocketListeners() {
       messageId: payload?.message_id,
       conversationId: payload?.conversation_id,
       userId: payload?.user_id,
-      reactionType: payload?.reaction_type,
-      removedAt: payload?.removed_at,
     });
   });
 
@@ -668,6 +666,7 @@ export async function editMessage(
     message_id: messageId,
     conversation_id: conversationId,
     new_body: newBody,
+    created_at: Date.now(),
   });
 }
 
@@ -676,9 +675,23 @@ export async function deleteMessage(
   messageId: string,
 ) {
   const socket = await ensureSocket();
-  socket.emit("chat:delete", {
-    message_id: messageId,
-    conversation_id: conversationId,
+  return new Promise((resolve, reject) => {
+    const ackTimeout = setTimeout(() => {
+      reject({ message_id: messageId, error: 'Delete ACK timeout' });
+    }, 15000);
+
+    socket.emit("chat:delete", {
+      message_id: messageId,
+      conversation_id: conversationId,
+      created_at: Date.now(),
+    }, (ack: any) => {
+      clearTimeout(ackTimeout);
+      if (ack?.status === 'accepted') {
+        resolve(ack);
+      } else {
+        reject(ack || { message_id: messageId, error: 'Delete failed' });
+      }
+    });
   });
 }
 
@@ -704,7 +717,6 @@ export async function unreactMessage(
   socket.emit("chat:unreact", {
     message_id: messageId,
     conversation_id: conversationId,
-    reaction_type: reactionType,
   });
 }
 

@@ -4,29 +4,29 @@ import { useTheme } from '@/src/theme/themeContext';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  ChevronDown,
-  Clock,
-  QrCode,
-  Search,
-  UserPlus,
-  Users,
-  X,
+    ArrowLeft,
+    ArrowRight,
+    Check,
+    ChevronDown,
+    Clock,
+    QrCode,
+    Search,
+    UserPlus,
+    Users,
+    X,
 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Image,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -62,7 +62,7 @@ export default function AddFriendScreen() {
     initializeCountries();
   }, [initializeCountries]);
 
-  const isValidPhone = phoneNumber.replace(/\D/g, '').length >= 9;
+  const isValidPhone = phoneNumber.trim().length >= 2;
 
   const handleSearch = () => {
     if (!isValidPhone) return;

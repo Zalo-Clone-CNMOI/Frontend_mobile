@@ -174,13 +174,10 @@ export default function SearchScreen() {
         renderItem={({ item }: any) => {
           if (item.type === 'user') {
             return (
-              <View style={[styles.row, { backgroundColor: theme.colors.background }]}> 
+              <View style={[styles.row, { backgroundColor: theme.colors.background }]}>
                 <Image source={{ uri: item.avatarUrl || item.avatar || `https://i.pravatar.cc/150?u=${item.id}` }} style={styles.avatar} />
                 <View style={[styles.rowContent, { borderBottomColor: theme.colors.border }]}>
                   <Text style={[styles.name, { color: theme.colors.text }]}>{item.fullName}</Text>
-                  <Text style={[styles.subtitle, { color: '#8e8e93' }]} numberOfLines={1}>
-                    {item.phone ?? ''}
-                  </Text>
                 </View>
                 {renderUserAction(item)}
               </View>

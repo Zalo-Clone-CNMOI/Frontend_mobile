@@ -1,12 +1,12 @@
+import { useAuth } from '@/src/contexts/AuthContext';
+import { useOtpRegistration, type Gender } from '@/src/contexts/OtpRegistrationContext';
+import * as authApi from '@/src/services/authApi';
+import type { UserInfo } from '@/src/services/authService';
 import { router } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '@/src/contexts/AuthContext';
-import { useOtpRegistration, type Gender } from '@/src/contexts/OtpRegistrationContext';
-import * as authApi from '@/src/services/authApi';
-import type { UserInfo } from '@/src/services/authService';
 
 const friendlyRegisterError = (err: any): string => {
   const status = err?.response?.status;
@@ -18,9 +18,37 @@ const friendlyRegisterError = (err: any): string => {
   return 'Không thể đăng ký. Vui lòng thử lại.';
 };
 
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const isValidDate = (date: string): boolean => {
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(date)) return false;
+
+  const dateObj = new Date(date);
+  if (isNaN(dateObj.getTime())) return false;
+
+  // Check if date is not in the future
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (dateObj > today) return false;
+
+  return true;
+};
+
+const isValidFullName = (name: string): boolean => {
+  // Allow only letters, spaces, and Vietnamese characters
+  // Vietnamese characters: àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ
+  // And uppercase versions
+  const nameRegex = /^[a-zA-Z\u00C0-\u1EF9\s]+$/;
+  return nameRegex.test(name);
+};
+
 export default function OptionalProfileScreen() {
   const { login } = useAuth();
-  const { firebaseIdToken, password, profile, setProfile, reset } = useOtpRegistration();
+  const { firebaseIdToken, password, profile, setProfile, reset, phoneE164 } = useOtpRegistration();
 
   const [fullName, setFullName] = useState(profile.fullName || '');
   const [email, setEmail] = useState(profile.email || '');
@@ -28,25 +56,76 @@ export default function OptionalProfileScreen() {
   const [gender, setGender] = useState<Gender | ''>(profile.gender || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canRegister = useMemo(() => !!firebaseIdToken && !!password && !isSubmitting, [firebaseIdToken, password, isSubmitting]);
+  // Real-time validation states
+  const [fullNameError, setFullNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [dateError, setDateError] = useState('');
 
-  const doRegister = async (skipProfile: boolean) => {
+  const isFullNameValid = useMemo(() => {
+    return fullName.trim() !== '' && isValidFullName(fullName.trim());
+  }, [fullName]);
+
+  const isEmailValid = useMemo(() => {
+    return email.trim() !== '' && isValidEmail(email.trim());
+  }, [email]);
+
+  const isDateValid = useMemo(() => {
+    if (!dateOfBirth.trim()) return true; // Empty is valid (optional field)
+    return isValidDate(dateOfBirth.trim());
+  }, [dateOfBirth]);
+
+  const canRegister = useMemo(() => {
+    return !!firebaseIdToken && !!password && !isSubmitting && isFullNameValid && isEmailValid && isDateValid;
+  }, [firebaseIdToken, password, isSubmitting, isFullNameValid, isEmailValid, isDateValid]);
+
+  const doRegister = async () => {
     if (!firebaseIdToken || !password) {
       Alert.alert('Phiên đăng ký đã hết', 'Vui lòng thực hiện lại từ đầu.');
       router.replace('/(auth)/register');
       return;
     }
 
+    // Validate required fields
+    if (!fullName.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập họ tên.');
+      return;
+    }
+    if (!isValidFullName(fullName.trim())) {
+      Alert.alert('Lỗi', 'Họ tên không được chứa ký tự đặc biệt.');
+      return;
+    }
+    if (!email.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập email.');
+      return;
+    }
+    if (!isValidEmail(email.trim())) {
+      Alert.alert('Lỗi', 'Email không hợp lệ.');
+      return;
+    }
+
+    console.log('firebaseIdToken:', firebaseIdToken ? 'present' : 'missing');
+    console.log('password:', password ? 'present' : 'missing');
+
     setIsSubmitting(true);
     try {
-      const payload = {
+      const payload: Record<string, any> = {
         firebaseIdToken,
         password,
-        fullName: skipProfile ? '' : fullName.trim(),
-        email: skipProfile ? '' : email.trim(),
-        dateOfBirth: skipProfile ? '' : dateOfBirth.trim(),
-        gender: skipProfile ? undefined : (gender || undefined),
+        fullName: fullName.trim(),
+        email: email.trim(),
       };
+
+      // Optional fields
+      if (dateOfBirth.trim() && isValidDate(dateOfBirth.trim())) {
+        payload.dateOfBirth = dateOfBirth.trim();
+      }
+      if (gender) {
+        payload.gender = gender;
+      }
+
+      console.log('Registration payload:', payload);
+      console.log('firebaseIdToken length:', firebaseIdToken?.length);
+      console.log('password length:', password?.length);
 
       const resp = await authApi.register(payload);
       const persistedUserInfo = (resp as any)?.persistedUserInfo as UserInfo | undefined;
@@ -92,7 +171,36 @@ export default function OptionalProfileScreen() {
       reset();
       router.replace('/(tabs)/home');
     } catch (e: any) {
-      Alert.alert('Đăng ký thất bại', friendlyRegisterError(e));
+      console.error('Registration error:', e);
+      console.error('Error response:', e?.response);
+      console.error('Error data:', e?.response?.data);
+
+      const status = e?.response?.status;
+
+      if (status === 409) {
+        Alert.alert(
+          'Số điện thoại đã được đăng ký',
+          'Số điện thoại này đã được sử dụng. Vui lòng đăng nhập hoặc sử dụng số điện thoại khác.',
+          [
+            {
+              text: 'Đăng nhập',
+              onPress: () => {
+                reset();
+                router.replace('/loginStep1');
+              }
+            },
+            {
+              text: 'Đăng ký lại',
+              onPress: () => {
+                reset();
+                router.replace('/(auth)/register');
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Đăng ký thất bại', friendlyRegisterError(e));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -105,37 +213,56 @@ export default function OptionalProfileScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ChevronLeft size={28} color="#000" />
           </TouchableOpacity>
-          <TouchableOpacity disabled={!canRegister} onPress={() => doRegister(true)}>
-            <Text style={[styles.skipText, !canRegister && { opacity: 0.5 }]}>Bỏ qua</Text>
-          </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
           <View style={styles.content}>
-            <Text style={styles.title}>Thông tin cá nhân (tuỳ chọn)</Text>
+            <Text style={styles.title}>Thông tin cá nhân</Text>
 
             <View style={styles.field}>
               <Text style={styles.label}>Họ và tên</Text>
-              <TextInput style={styles.input} value={fullName} onChangeText={setFullName} placeholder="Nguyễn Văn A" placeholderTextColor="#8e8e93" />
+              <TextInput
+                style={[styles.input, fullName.trim() && !isFullNameValid && styles.inputError]}
+                value={fullName}
+                onChangeText={(text) => {
+                  setFullName(text);
+                  if (text.trim() && !isValidFullName(text.trim())) {
+                    setFullNameError('Họ tên không được chứa ký tự đặc biệt');
+                  } else {
+                    setFullNameError('');
+                  }
+                }}
+                placeholder="Nguyễn Văn A"
+                placeholderTextColor="#8e8e93"
+              />
+              {fullNameError && <Text style={styles.errorText}>{fullNameError}</Text>}
             </View>
 
             <View style={styles.field}>
               <Text style={styles.label}>Email</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, email.trim() && !isEmailValid && styles.inputError]}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (text.trim() && !isValidEmail(text.trim())) {
+                    setEmailError('Email không hợp lệ');
+                  } else {
+                    setEmailError('');
+                  }
+                }}
                 placeholder="user@example.com"
                 placeholderTextColor="#8e8e93"
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
+              {emailError && <Text style={styles.errorText}>{emailError}</Text>}
             </View>
 
             <View style={styles.field}>
               <Text style={styles.label}>Ngày sinh</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, dateOfBirth.trim() && !isDateValid && styles.inputError]}
                 value={dateOfBirth}
                 onChangeText={(text) => {
                   const cleaned = text.replace(/\D/g, '');
@@ -147,12 +274,27 @@ export default function OptionalProfileScreen() {
                     formatted = `${formatted.slice(0, 7)}-${cleaned.slice(6, 8)}`;
                   }
                   setDateOfBirth(formatted);
+
+                  // Validate date in real-time
+                  if (formatted.length === 10 && !isValidDate(formatted)) {
+                    const dateObj = new Date(formatted);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (dateObj > today) {
+                      setDateError('Ngày sinh không được lớn hơn ngày hiện tại');
+                    } else {
+                      setDateError('Ngày sinh không hợp lệ. Định dạng: YYYY-MM-DD');
+                    }
+                  } else {
+                    setDateError('');
+                  }
                 }}
                 placeholder="YYYY-MM-DD"
                 placeholderTextColor="#8e8e93"
                 keyboardType="numeric"
                 maxLength={10}
               />
+              {dateError && <Text style={styles.errorText}>{dateError}</Text>}
             </View>
 
             <View style={styles.field}>
@@ -176,7 +318,7 @@ export default function OptionalProfileScreen() {
             <TouchableOpacity
               style={[styles.primaryBtn, !canRegister && styles.btnDisabled]}
               disabled={!canRegister}
-              onPress={() => doRegister(false)}
+              onPress={() => doRegister()}
             >
               <Text style={styles.btnText}>{isSubmitting ? 'Đang đăng ký...' : 'Hoàn tất đăng ký'}</Text>
             </TouchableOpacity>
@@ -209,6 +351,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     fontSize: 16,
     color: '#000',
+  },
+  inputError: {
+    borderColor: '#ff3b30',
+  },
+  errorText: {
+    color: '#ff3b30',
+    fontSize: 13,
+    marginTop: 4,
   },
   genderRow: { flexDirection: 'row', gap: 10 },
   genderBtn: {

@@ -1,23 +1,25 @@
 import { useAuth } from '@/src/contexts/AuthContext';
+import { uploadAvatar } from '@/src/services/mediaService';
 import { updateProfile } from '@/src/services/usersApi';
 import { useTheme } from '@/src/theme/themeContext';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { StatusBar } from "expo-status-bar";
 import { Calendar, Camera, ChevronLeft, FileText, Mail, User } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -81,7 +83,8 @@ export default function EditPersonalInfoScreen() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
   const [fullName, setFullName] = useState(authUser?.name || '');
   const [email, setEmail] = useState(authUser?.email || '');
   const [bio, setBio] = useState(authUser?.bio || '');
@@ -90,7 +93,7 @@ export default function EditPersonalInfoScreen() {
   const [avatarUrl, setAvatarUrl] = useState(authUser?.avatarUrl || '');
 
   useEffect(() => {
-    const changed = 
+    const changed =
       fullName !== (authUser?.name || '') ||
       email !== (authUser?.email || '') ||
       bio !== (authUser?.bio || '') ||
@@ -99,6 +102,61 @@ export default function EditPersonalInfoScreen() {
       avatarUrl !== (authUser?.avatarUrl || '');
     setHasChanges(changed);
   }, [fullName, email, bio, dateOfBirth, gender, avatarUrl, authUser]);
+
+  const handleAvatarUpload = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      if (!asset.uri) {
+        Alert.alert(t('common.error'), 'Không thể lấy ảnh');
+        return;
+      }
+
+      setIsUploadingAvatar(true);
+
+      const uploadResult = await uploadAvatar(
+        {
+          uri: asset.uri,
+          name: asset.fileName || `avatar_${Date.now()}.jpg`,
+          mimeType: asset.mimeType || 'image/jpeg',
+          size: asset.fileSize || 0,
+        },
+        authUser?.id || '',
+        authUser?.tokens?.accessToken || '',
+      );
+
+      if (uploadResult.profileUpdated) {
+        setAvatarUrl(uploadResult.key);
+        Alert.alert(
+          t('common.success'),
+          t('edit_personal_info.avatar_upload_success'),
+        );
+      } else {
+        Alert.alert(
+          t('common.error'),
+          t('edit_personal_info.avatar_upload_partial'),
+        );
+        setAvatarUrl(uploadResult.key);
+      }
+    } catch (error: any) {
+      Alert.alert(
+        t('common.error'),
+        error?.message || t('edit_personal_info.avatar_upload_failed'),
+      );
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!hasChanges) {
@@ -204,19 +262,25 @@ export default function EditPersonalInfoScreen() {
                 source={{ uri: avatarUrl || 'https://i.pravatar.cc/150?u=default' }}
                 style={styles.avatar}
               />
-              <TouchableOpacity style={styles.cameraButton}>
-                <Camera size={20} color="#fff" />
+              <TouchableOpacity
+                style={styles.cameraButton}
+                onPress={handleAvatarUpload}
+                disabled={isUploadingAvatar}
+              >
+                {isUploadingAvatar ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Camera size={20} color="#fff" />
+                )}
               </TouchableOpacity>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.changeAvatarButton}
-              onPress={() => {
-                // TODO: Integrate with avatarService/mediaService for upload
-                Alert.alert(t('common.info'), t('edit_personal_info.avatar_upload_hint'));
-              }}
+              onPress={handleAvatarUpload}
+              disabled={isUploadingAvatar}
             >
               <Text style={[styles.changeAvatarText, { color: theme.colors.primary }]}>
-                {t('edit_personal_info.change_avatar')}
+                {isUploadingAvatar ? t('edit_personal_info.uploading') : t('edit_personal_info.change_avatar')}
               </Text>
             </TouchableOpacity>
           </View>

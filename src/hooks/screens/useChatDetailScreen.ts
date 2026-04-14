@@ -1,14 +1,14 @@
-import {
-  deleteMessage as sendSocketDeleteMessage,
-  editMessage as sendSocketEditMessage,
-  fetchMoreMessages,
-  loadInitialMessages,
-  registerHandlers,
-  sendMessage as sendSocketMessage,
-  reactMessage,
-} from '@/src/services/chatService';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useTypingIndicator } from '@/src/hooks/useTypingIndicator';
+import {
+    fetchMoreMessages,
+    loadInitialMessages,
+    reactMessage,
+    registerHandlers,
+    deleteMessage as sendSocketDeleteMessage,
+    editMessage as sendSocketEditMessage,
+    sendMessage as sendSocketMessage,
+} from '@/src/services/chatService';
 import { connectSocket } from '@/src/services/socket';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
@@ -16,8 +16,8 @@ import type { ChatMessage } from '@/src/types/chat';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Alert } from 'react-native';
 
 const EMPTY_MESSAGES: ChatMessage[] = [];
 
@@ -210,7 +210,16 @@ export function useChatDetailScreenLogic() {
       },
       onReactionRemoved: (info: any) => {
         if (info.conversationId === chatId) {
-          upsertReaction(info.messageId, info.reactionType, info.userId, 'remove');
+          // Backend doesn't send reaction_type, so remove all reactions for this user on this message
+          const currentMessages = useMessagesStore.getState().messagesByChatId[chatId] || [];
+          const target = currentMessages.find((m) => m.id === info.messageId);
+          if (target && target.reactions) {
+            const updatedReactions = { ...target.reactions };
+            Object.keys(updatedReactions).forEach((reactionType) => {
+              updatedReactions[reactionType] = updatedReactions[reactionType].filter((id: string) => id !== info.userId);
+            });
+            updateMessage(chatId, info.messageId, { reactions: updatedReactions });
+          }
         }
       },
     };
@@ -306,10 +315,12 @@ export function useChatDetailScreenLogic() {
   const handleDeleteAction = useCallback(async (msg: ChatMessage) => {
     try {
       await sendSocketDeleteMessage(chatId, msg.serverMessageId || msg.id);
+      if (replyingMessage?.id === msg.id) setReplyingMessage(null);
+      if (editingMessage?.id === msg.id) setEditingMessage(null);
     } catch (error) {
+      const reason = (error as any)?.error || (error as any)?.reason || 'Không thể xóa tin nhắn';
+      Alert.alert('Lỗi', reason);
     }
-    if (replyingMessage?.id === msg.id) setReplyingMessage(null);
-    if (editingMessage?.id === msg.id) setEditingMessage(null);
   }, [chatId, editingMessage?.id, replyingMessage?.id]);
 
   const handleReactAction = useCallback(async (msg: ChatMessage, reaction: "like" | "love" | "haha" | "wow" | "sad" | "angry") => {

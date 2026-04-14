@@ -27,3 +27,30 @@ export function validatePhoneByCountry(phone: string, countryCode: string): bool
 
   return /^\d{6,15}$/.test(cleaned);
 }
+
+/**
+ * Normalize Vietnamese phone number to international format (+84)
+ * - Converts "0923232323" to "+84923232323"
+ * - Handles partial searches like "0923" to "+84923"
+ * - Already normalized numbers remain unchanged
+ * - Non-Vietnamese numbers remain unchanged
+ */
+export function normalizeVietnamesePhoneNumber(phone: string): string {
+  if (!phone || typeof phone !== 'string') return phone;
+
+  const cleaned = phone.replace(/\D/g, '');
+
+  // Check if it's a Vietnamese mobile number (starts with 0)
+  if (cleaned.startsWith('0') && cleaned.length >= 2) {
+    // Remove leading 0 and add +84
+    return '+84' + cleaned.substring(1);
+  }
+
+  // If it already starts with 84 and doesn't have +, add +
+  if (cleaned.startsWith('84') && !phone.startsWith('+')) {
+    return '+' + cleaned;
+  }
+
+  // Return original if not a Vietnamese number
+  return phone;
+}
