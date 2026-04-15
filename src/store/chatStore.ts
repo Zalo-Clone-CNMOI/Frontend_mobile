@@ -87,18 +87,18 @@ export const useChatStore = create<ChatState>((set) => ({
   updateMessage: (payload) => set((state) => {
     const conversationId = payload.conversation_id || '';
     const messageId = payload.message_id || '';
+    const newBody = payload.body || '';
+    const editedAt = typeof payload.edited_at === 'number' ? payload.edited_at :
+                     typeof payload.edited_at === 'string' ? parseInt(payload.edited_at) : undefined;
 
     if (!conversationId || !messageId) return state;
-
-    const editedAt = typeof payload.edited_at === 'number' ? payload.edited_at : 
-                     typeof payload.edited_at === 'string' ? parseInt(payload.edited_at) : undefined;
 
     return {
       messages: {
         ...state.messages,
         [conversationId]: state.messages[conversationId]?.map(msg =>
           msg.message_id === messageId
-            ? { ...msg, body: payload.new_body || '', edited_at: editedAt }
+            ? { ...msg, body: newBody, edited_at: editedAt }
             : msg
         ) || [],
       },
@@ -111,16 +111,11 @@ export const useChatStore = create<ChatState>((set) => ({
 
     if (!conversationId || !messageId) return state;
 
-    const deletedAt = typeof payload.deleted_at === 'number' ? payload.deleted_at :
-                     typeof payload.deleted_at === 'string' ? parseInt(payload.deleted_at) : undefined;
-
     return {
       messages: {
         ...state.messages,
-        [conversationId]: state.messages[conversationId]?.map(msg =>
-          msg.message_id === messageId
-            ? { ...msg, deleted_at: deletedAt }
-            : msg
+        [conversationId]: state.messages[conversationId]?.filter(msg =>
+          msg.message_id !== messageId
         ) || [],
       },
     };

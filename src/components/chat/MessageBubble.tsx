@@ -22,6 +22,7 @@ type MessageBubbleProps = {
   onReuseRevoked?: (item: ChatMessage) => void;
   onRevokeRestoreExpired?: (messageId: string) => void;
   onPressReply?: (item: ChatMessage) => void;
+  onReactionPress?: (messageId: string, reactionType: string) => void;
 };
 
 export const MessageBubble = React.memo(
@@ -33,6 +34,7 @@ export const MessageBubble = React.memo(
     onReuseRevoked,
     onRevokeRestoreExpired,
     onPressReply,
+    onReactionPress,
   }: MessageBubbleProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -157,14 +159,12 @@ export const MessageBubble = React.memo(
           style={[
             styles.bubble,
             {
-              backgroundColor: isMe
-                ? theme.colors.primary
-                : theme.colors.card,
-              borderColor: isMe
-                ? theme.colors.primary
-                : theme.colors.border,
-              borderBottomRightRadius: isMe ? 2 : 18,
-              borderBottomLeftRadius: isMe ? 18 : 2,
+              backgroundColor: isMe ? '#0084FF' : '#FFFFFF',
+              borderColor: isMe ? '#0084FF' : '#E5E5E5',
+              borderTopRightRadius: isMe ? 4 : 16,
+              borderTopLeftRadius: isMe ? 16 : 4,
+              borderBottomRightRadius: isMe ? 16 : 4,
+              borderBottomLeftRadius: isMe ? 4 : 16,
             },
             isImage && styles.imageBubble,
             item.replyTo && styles.bubbleWithReply,
@@ -196,7 +196,7 @@ export const MessageBubble = React.memo(
                 <Text
                   style={[
                     styles.replyName,
-                    { color: isMe ? theme.colors.textMessage : theme.colors.text },
+                    { color: isMe ? '#FFFFFF' : '#000000' },
                   ]}
                   numberOfLines={1}
                 >
@@ -205,7 +205,7 @@ export const MessageBubble = React.memo(
                 <Text
                   style={[
                     styles.replyText,
-                    { color: isMe ? theme.colors.textMessage : theme.colors.text, opacity: 0.7 },
+                    { color: isMe ? '#FFFFFF' : '#000000', opacity: 0.7 },
                   ]}
                   numberOfLines={1}
                 >
@@ -347,11 +347,11 @@ export const MessageBubble = React.memo(
           )}
         </TouchableOpacity>
 
-        <View style={[styles.timeRow, { alignSelf: isMe ? 'flex-end' : 'flex-start' }]}>
+        <View style={[styles.timeRow, { alignSelf: 'flex-end' }]}>
           {!item.isRevoked && (
             <>
               {item.isEdited ? (
-                <Text style={[styles.edited, { color: theme.colors.text, opacity: 0.5 }]}>
+                <Text style={[styles.edited, { color: isMe ? '#FFFFFF' : '#000000', opacity: 0.7 }]}>
                   (Đã chỉnh sửa)
                 </Text>
               ) : null}
@@ -359,8 +359,8 @@ export const MessageBubble = React.memo(
                 style={[
                   styles.timestamp,
                   {
-                    color: theme.colors.text,
-                    opacity: 0.5,
+                    color: isMe ? '#FFFFFF' : '#000000',
+                    opacity: 0.7,
                   },
                 ]}
               >
@@ -372,13 +372,38 @@ export const MessageBubble = React.memo(
           {isMe && !item.isRevoked && (
             <View style={styles.receiptIcon}>
               {item.status === 'read' ? (
-                <CheckCheck size={14} color={theme.colors.primary} />
+                <CheckCheck size={14} color="#FFFFFF" />
               ) : (
-                <Check size={14} color={theme.colors.text} opacity={0.5} />
+                <Check size={14} color="#FFFFFF" opacity={0.7} />
               )}
             </View>
           )}
         </View>
+
+        {/* Reactions display - absolute at bottom-right of bubble */}
+        {item.reactions && Object.keys(item.reactions).length > 0 && (
+          <View style={styles.reactionsContainer}>
+            {Object.entries(item.reactions).map(([reactionType, userIds]) => {
+              const hasMyReaction = userIds.includes(authUser?.id || '');
+              const emoji = getReactionEmoji(reactionType);
+              return (
+                <TouchableOpacity
+                  key={reactionType}
+                  style={[
+                    styles.reactionPill,
+                    hasMyReaction && styles.reactionPillActive,
+                  ]}
+                  onPress={() => hasMyReaction && onReactionPress?.(item.serverMessageId || item.id, reactionType)}
+                >
+                  <Text style={styles.reactionPillEmoji}>{emoji}</Text>
+                  {userIds.length > 1 && (
+                    <Text style={styles.reactionPillCount}>{userIds.length}</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       
@@ -388,6 +413,18 @@ export const MessageBubble = React.memo(
     </View>
   );
 });
+
+const getReactionEmoji = (type: string): string => {
+  const emojis: Record<string, string> = {
+    love: '❤️',
+    like: '👍',
+    haha: '😂',
+    wow: '😲',
+    sad: '😢',
+    angry: '😡',
+  };
+  return emojis[type] || '❓';
+};
 
 
 
@@ -545,5 +582,70 @@ const styles = StyleSheet.create({
   bubbleWithReply: {
     paddingTop: 6,
     minWidth: 220,
+  },
+
+  reactionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 6,
+    gap: 4,
+  },
+  reactionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  reactionBadgeActive: {
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    borderColor: '#3b82f6',
+  },
+  reactionEmoji: {
+    fontSize: 14,
+    marginRight: 4,
+  },
+  reactionCount: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Modern messenger reaction styles
+  reactionsContainer: {
+    position: 'absolute',
+    bottom: -10,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  reactionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 9999,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  reactionPillActive: {
+    backgroundColor: '#e5f4ff',
+    borderColor: '#3b82f6',
+  },
+  reactionPillEmoji: {
+    fontSize: 14,
+  },
+  reactionPillCount: {
+    fontSize: 11,
+    color: '#6b7280',
+    fontWeight: '600',
   },
 });

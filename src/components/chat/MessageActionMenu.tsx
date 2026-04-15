@@ -1,7 +1,7 @@
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
 import * as Clipboard from 'expo-clipboard';
-import { Copy, Reply, RotateCcw, Trash2 } from 'lucide-react-native';
+import { Copy, Edit, Reply, RotateCcw, Trash2 } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -18,6 +18,7 @@ interface MessageActionMenuProps {
   message: ChatMessage | null;
   onClose: () => void;
   onReply: (msg: ChatMessage) => void;
+  onEdit?: (msg: ChatMessage) => void;
   onRevoke?: (msg: ChatMessage) => void;
   onDelete: (msg: ChatMessage) => void;
   onReact?: (msg: ChatMessage, reaction: "like" | "love" | "haha" | "wow" | "sad" | "angry") => void;
@@ -37,6 +38,7 @@ export function MessageActionMenu({
   message,
   onClose,
   onReply,
+  onEdit,
   onRevoke,
   onDelete,
   onReact,
@@ -53,7 +55,7 @@ export function MessageActionMenu({
     } else if (message.fileInfo?.name) {
       contentToCopy = message.fileInfo.name;
     }
-    
+
     if (contentToCopy) {
       await Clipboard.setStringAsync(contentToCopy);
     }
@@ -62,6 +64,7 @@ export function MessageActionMenu({
 
   const isMe = Boolean(message.fromMe);
   const canRevoke = isMe && !message.isRevoked;
+  const canEdit = isMe && !message.isRevoked;
 
   return (
     <Modal
@@ -93,7 +96,7 @@ export function MessageActionMenu({
 
           
           <View style={styles.grid}>
-            
+
             <TouchableOpacity style={styles.gridItem} onPress={() => { onReply(message); onClose(); }}>
               <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
                 <Reply size={24} color={theme.colors.primary} />
@@ -101,7 +104,7 @@ export function MessageActionMenu({
               <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.reply_to', { defaultValue: 'Trả lời' })}</Text>
             </TouchableOpacity>
 
-            
+
             <TouchableOpacity style={styles.gridItem} onPress={handleCopy}>
               <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
                 <Copy size={24} color={theme.colors.primary} />
@@ -109,7 +112,17 @@ export function MessageActionMenu({
               <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('common.copy', { defaultValue: 'Sao chép' })}</Text>
             </TouchableOpacity>
 
-            
+
+            {canEdit && (
+              <TouchableOpacity style={styles.gridItem} onPress={() => { onEdit?.(message); onClose(); }}>
+                <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
+                  <Edit size={24} color="#3b82f6" />
+                </View>
+                <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('common.edit', { defaultValue: 'Chỉnh sửa' })}</Text>
+              </TouchableOpacity>
+            )}
+
+
             {canRevoke && (
               <TouchableOpacity style={styles.gridItem} onPress={() => { onRevoke?.(message); onClose(); }}>
                 <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
@@ -119,7 +132,7 @@ export function MessageActionMenu({
               </TouchableOpacity>
             )}
 
-            
+
             <TouchableOpacity style={styles.gridItem} onPress={() => { onDelete(message); onClose(); }}>
               <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
                 <Trash2 size={24} color="#ef4444" />

@@ -49,9 +49,11 @@ export default function ChatDetailScreen() {
     isTypingVisible,
     closeMessageActions,
     handleReplyAction,
+    handleEditAction,
     handleRevokeAction,
     handleDeleteAction,
     handleReactAction,
+    handleUnreactAction,
     selectedActionMessage,
     isMessageActionMenuVisible,
   } = useChatDetailScreenLogic();
@@ -64,6 +66,7 @@ export default function ChatDetailScreen() {
         onReuseRevoked={handleReuseRevokedMessage}
         onRevokeRestoreExpired={handleRevokedRestoreExpired}
         onPressReply={handleJumpToReplySource}
+        onReactionPress={handleUnreactAction}
         onImagePress={setSelectedImage}
         onVideoPress={setSelectedVideo}
       />
@@ -160,6 +163,7 @@ export default function ChatDetailScreen() {
           message={selectedActionMessage}
           onClose={closeMessageActions}
           onReply={handleReplyAction}
+          onEdit={handleEditAction}
           onRevoke={handleRevokeAction}
           onDelete={handleDeleteAction}
           onReact={handleReactAction}

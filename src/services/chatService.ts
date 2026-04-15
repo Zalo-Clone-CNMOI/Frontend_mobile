@@ -324,7 +324,9 @@ export async function loadInitialMessages(conversationId: string) {
         : Array.isArray(payload)
           ? payload
           : [];
-  const uiMessages = sortMessagesAscending(messages.map(toLegacyChatMessage));
+  // Filter out deleted messages
+  const activeMessages = messages.filter(m => !m?.isDeleted && !m?.is_deleted);
+  const uiMessages = sortMessagesAscending(activeMessages.map(toLegacyChatMessage));
 
   openConversations.add(normalizedConversationId);
   const s = await ensureSocket();
@@ -358,7 +360,9 @@ export async function fetchMoreMessages(
           ? payload
           : [];
 
-  const uiMessages = sortMessagesAscending(messages.map(toLegacyChatMessage));
+  // Filter out deleted messages
+  const activeMessages = messages.filter(m => !m?.isDeleted && !m?.is_deleted);
+  const uiMessages = sortMessagesAscending(activeMessages.map(toLegacyChatMessage));
   return {
     messages: uiMessages,
     nextCursor: payload?.nextCursor ?? null,
@@ -621,7 +625,7 @@ function registerSocketListeners() {
     const uiMessage = toLegacyChatMessage({
       id: payload?.message_id,
       conversationId: payload?.conversation_id,
-      body: payload?.new_body,
+      body: payload?.body ,
       editedAt: payload?.edited_at,
       senderId: payload?.sender_id,
       createdAt: payload?.created_at,
@@ -653,8 +657,6 @@ function registerSocketListeners() {
       messageId: payload?.message_id,
       conversationId: payload?.conversation_id,
       userId: payload?.user_id,
-      reactionType: payload?.reaction_type,
-      removedAt: payload?.removed_at,
     });
   });
 
@@ -670,23 +672,27 @@ export async function editMessage(
   conversationId: string,
   messageId: string,
   newBody: string,
+  createdAt: number,
 ) {
   const socket = await ensureSocket();
   socket.emit("chat:edit", {
     message_id: messageId,
     conversation_id: conversationId,
     new_body: newBody,
+    created_at: createdAt,
   });
 }
 
 export async function deleteMessage(
   conversationId: string,
   messageId: string,
+  createdAt: number,
 ) {
   const socket = await ensureSocket();
   socket.emit("chat:delete", {
     message_id: messageId,
     conversation_id: conversationId,
+    created_at: createdAt,
   });
 }
 
@@ -706,13 +712,11 @@ export async function reactMessage(
 export async function unreactMessage(
   conversationId: string,
   messageId: string,
-  reactionType: "like" | "love" | "haha" | "wow" | "sad" | "angry",
 ) {
   const socket = await ensureSocket();
   socket.emit("chat:unreact", {
     message_id: messageId,
     conversation_id: conversationId,
-    reaction_type: reactionType,
   });
 }
 
@@ -787,14 +791,16 @@ export async function fetchMessages(
 
     if (!payload) return [];
 
+    let messages: any[] = [];
     if (Array.isArray(payload.data)) {
-      return payload.data;
+      messages = payload.data;
+    } else if (Array.isArray(payload.messages)) {
+      messages = payload.messages;
     }
 
-    if (Array.isArray(payload.messages)) {
-      return payload.messages;
-    }
-    return [];
+    // Filter out deleted messages
+    const activeMessages = messages.filter(m => !m?.isDeleted && !m?.is_deleted);
+    return activeMessages.map(toLegacyChatMessage);
   } catch (e) {
     return [];
   }
@@ -838,7 +844,9 @@ export async function fetchAllMessages(): Promise<
               : Array.isArray(payload?.messages)
                 ? payload.messages
                 : [];
-          result[c.conversationId] = list.map(toLegacyChatMessage);
+          // Filter out deleted messages
+          const activeMessages = list.filter(m => !m?.isDeleted && !m?.is_deleted);
+          result[c.conversationId] = activeMessages.map(toLegacyChatMessage);
         } catch {
           result[c.conversationId] = [];
         }

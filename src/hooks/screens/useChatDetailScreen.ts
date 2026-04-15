@@ -8,6 +8,7 @@ import {
     deleteMessage as sendSocketDeleteMessage,
     editMessage as sendSocketEditMessage,
     sendMessage as sendSocketMessage,
+    unreactMessage,
 } from '@/src/services/chatService';
 import { connectSocket } from '@/src/services/socket';
 import { useChatsStore } from '@/src/store/useChatsStore';
@@ -57,6 +58,8 @@ export function useChatDetailScreenLogic() {
   const updateMessage = useMessagesStore((state) => state.updateMessage);
   const deleteMessage = useMessagesStore((state) => state.deleteMessage);
   const revokeMessage = useMessagesStore((state) => state.revokeMessage);
+  const addReaction = useMessagesStore((state) => state.addReaction);
+  const removeReaction = useMessagesStore((state) => state.removeReaction);
   const updateChat = useChatsStore((state) => state.updateChat);
 
   const currentChat = useChatsStore((state) => state.chats.find((chat) => chat.conversationId === chatId));
@@ -85,28 +88,6 @@ export function useChatDetailScreenLogic() {
       active = false;
     };
   }, [chatId, setMessagesForChat]);
-
-  const upsertReaction = useCallback((messageId: string, reactionType: string, userId: string, mode: 'add' | 'remove') => {
-    const currentMessages = useMessagesStore.getState().messagesByChatId[chatId] || [];
-    const target = currentMessages.find((m) => m.id === messageId);
-    if (!target) return;
-
-    const reactions = { ...(target.reactions || {}) };
-    const key = reactionType || 'like';
-    const users = Array.isArray(reactions[key]) ? [...reactions[key]] : [];
-    const hasUser = users.includes(userId);
-
-    if (mode === 'add' && !hasUser) users.push(userId);
-    if (mode === 'remove' && hasUser) {
-      const idx = users.indexOf(userId);
-      users.splice(idx, 1);
-    }
-
-    if (users.length === 0) delete reactions[key];
-    else reactions[key] = users;
-
-    updateMessage(chatId, messageId, { reactions });
-  }, [chatId, updateMessage]);
 
   const handleLoadMore = useCallback(async () => {
     if (!chatId || !hasMore || !nextCursor || isLoadingMore) return;
@@ -215,12 +196,12 @@ export function useChatDetailScreenLogic() {
       },
       onReactionAdded: (info: any) => {
         if (info.conversationId === chatId) {
-          upsertReaction(info.messageId, info.reactionType, info.userId, 'add');
+          addReaction(chatId, info.messageId, info.userId, info.reactionType);
         }
       },
       onReactionRemoved: (info: any) => {
         if (info.conversationId === chatId) {
-          upsertReaction(info.messageId, info.reactionType, info.userId, 'remove');
+          removeReaction(chatId, info.messageId, info.userId);
         }
       },
     };
@@ -260,7 +241,7 @@ export function useChatDetailScreenLogic() {
         connectedSocket.off('chat:read', handleRead);
       }
     };
-  }, [addMessage, chatId, deleteMessage, typingSocket, updateMessage, upsertReaction]);
+  }, [addMessage, addReaction, chatId, deleteMessage, removeReaction, typingSocket, updateMessage]);
 
   const handleSendFiles = useCallback(async (files: any[]) => {
     for (const file of files) {
@@ -306,6 +287,13 @@ export function useChatDetailScreenLogic() {
     setReplyingMessage(msg);
   }, []);
 
+  const handleEditAction = useCallback((msg: ChatMessage) => {
+    if (!msg.fromMe) return;
+    if (msg.isRevoked) return;
+    setEditingMessage(msg);
+    setInput(msg.text || '');
+  }, []);
+
   const handleRevokeAction = useCallback((msg: ChatMessage) => {
     if (!msg.fromMe) return;
     revokeMessage(chatId, msg.id);
@@ -315,12 +303,17 @@ export function useChatDetailScreenLogic() {
 
   const handleDeleteAction = useCallback(async (msg: ChatMessage) => {
     try {
-      await sendSocketDeleteMessage(chatId, msg.serverMessageId || msg.id);
+      // Xóa local ngay lập tức trước khi gửi socket request
+      deleteMessage(chatId, msg.id);
+
+      const createdAt = typeof msg.timestamp === 'number' ? msg.timestamp :
+                       typeof msg.timestamp === 'string' ? parseInt(msg.timestamp) : Date.now();
+      await sendSocketDeleteMessage(chatId, msg.serverMessageId || msg.id, createdAt);
     } catch (error) {
     }
     if (replyingMessage?.id === msg.id) setReplyingMessage(null);
     if (editingMessage?.id === msg.id) setEditingMessage(null);
-  }, [chatId, editingMessage?.id, replyingMessage?.id]);
+  }, [chatId, editingMessage?.id, replyingMessage?.id, deleteMessage]);
 
   const handleReactAction = useCallback(async (msg: ChatMessage, reaction: "like" | "love" | "haha" | "wow" | "sad" | "angry") => {
     try {
@@ -329,6 +322,13 @@ export function useChatDetailScreenLogic() {
     }
     closeMessageActions();
   }, [chatId, closeMessageActions]);
+
+  const handleUnreactAction = useCallback(async (messageId: string, reactionType: string) => {
+    try {
+      await unreactMessage(chatId, messageId);
+    } catch (error) {
+    }
+  }, [chatId]);
 
   const handleReuseRevokedMessage = useCallback((msg: ChatMessage) => {
     const restoredText = String(msg.revokedBackupText || msg.text || '').trim();
@@ -369,7 +369,9 @@ export function useChatDetailScreenLogic() {
 
     if (editingMessage) {
       try {
-        await sendSocketEditMessage(chatId, editingMessage.serverMessageId || editingMessage.id, trimmed);
+        const createdAt = typeof editingMessage.timestamp === 'number' ? editingMessage.timestamp :
+                         typeof editingMessage.timestamp === 'string' ? parseInt(editingMessage.timestamp) : Date.now();
+        await sendSocketEditMessage(chatId, editingMessage.serverMessageId || editingMessage.id, trimmed, createdAt);
         updateMessage(chatId, editingMessage.id, {
           text: trimmed,
           isEdited: true,
@@ -449,9 +451,11 @@ export function useChatDetailScreenLogic() {
     openMessageActions,
     closeMessageActions,
     handleReplyAction,
+    handleEditAction,
     handleRevokeAction,
     handleDeleteAction,
     handleReactAction,
+    handleUnreactAction,
     selectedActionMessage,
     isMessageActionMenuVisible,
     editingMessage,

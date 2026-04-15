@@ -2,9 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
     createSocket,
-    deleteMessage,
     disconnectSocket,
-    editMessage,
     joinConversation,
     offAck,
     offError,
@@ -24,11 +22,10 @@ import {
     onReactionAdded,
     onReactionRemoved,
     onTypingUpdate,
-    removeReaction,
     sendHeartbeat,
-    sendMessage,
     sendTyping
 } from '../services/socket';
+import { deleteMessage, editMessage, sendMessage, unreactMessage } from '../services/chatService';
 import { useChatStore } from '../store/chatStore';
 import type {
     SocketChatDeletePayload,
@@ -154,11 +151,15 @@ export const useChatSocket = () => {
   }, []);
 
   const handleEditMessage = useCallback((payload: SocketChatEditPayload) => {
-    editMessage(payload);
+    const createdAt = typeof payload.created_at === 'number' ? payload.created_at :
+                     typeof payload.created_at === 'string' ? parseInt(payload.created_at) : Date.now();
+    editMessage(payload.conversation_id, payload.message_id, payload.new_body, createdAt);
   }, []);
 
   const handleDeleteMessage = useCallback((payload: SocketChatDeletePayload) => {
-    deleteMessage(payload);
+    const createdAt = typeof payload.created_at === 'number' ? payload.created_at :
+                     typeof payload.created_at === 'string' ? parseInt(payload.created_at) : Date.now();
+    deleteMessage(payload.conversation_id, payload.message_id, createdAt);
   }, []);
 
   const handleAddReaction = useCallback((payload: SocketChatReactPayload) => {
@@ -166,7 +167,7 @@ export const useChatSocket = () => {
   }, []);
 
   const handleRemoveReaction = useCallback((messageId: string, conversationId: string) => {
-    removeReaction(messageId, conversationId);
+    unreactMessage(conversationId, messageId);
   }, []);
 
   const handleSendTyping = useCallback((conversationId: string, username: string) => {

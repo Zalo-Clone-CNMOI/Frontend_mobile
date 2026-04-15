@@ -85,7 +85,7 @@ export type SocketChatMessageUpdatedEvent = {
   message_id?: ID;
   conversation_id?: ID;
   sender_id?: ID;
-  new_body?: string;
+  body?: string;
   edited_at?: string | number;
 };
 

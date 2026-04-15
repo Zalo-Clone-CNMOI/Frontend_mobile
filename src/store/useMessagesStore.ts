@@ -15,6 +15,8 @@ interface MessagesState {
   updateMessage: (chatId: string, messageId: string, updates: Partial<ChatMessage>) => void;
   deleteMessage: (chatId: string, messageId: string) => void;
   revokeMessage: (chatId: string, messageId: string) => void;
+  addReaction: (chatId: string, messageId: string, userId: string, reactionType: string) => void;
+  removeReaction: (chatId: string, messageId: string, userId: string) => void;
   reset: () => void;
 }
 
@@ -140,6 +142,20 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
         if (!message.serverMessageId && existingMsg.serverMessageId) {
           merged.serverMessageId = existingMsg.serverMessageId;
         }
+        // Preserve reactions from existing message
+        if (existingMsg.reactions && !message.reactions) {
+          merged.reactions = existingMsg.reactions;
+        }
+        // Merge reactions if both exist
+        if (existingMsg.reactions && message.reactions) {
+          const mergedReactions: Record<string, string[]> = {};
+          Object.keys({ ...existingMsg.reactions, ...message.reactions }).forEach(key => {
+            const existingUsers = existingMsg.reactions?.[key] || [];
+            const newUsers = message.reactions?.[key] || [];
+            mergedReactions[key] = [...new Set([...existingUsers, ...newUsers])];
+          });
+          merged.reactions = mergedReactions;
+        }
 
         console.log('[useMessagesStore] Merged message state:', {
           messageId: merged.id,
@@ -201,6 +217,10 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       if (target.revokedBackupText && !updates.revokedBackupText) {
         delete (safeUpdates as any).revokedBackupText;
       }
+      // Preserve reactions when updating (unless explicitly updated)
+      if (target.reactions && !updates.reactions) {
+        (safeUpdates as any).reactions = target.reactions;
+      }
 
       console.log('[useMessagesStore] Updating message:', {
         messageId,
@@ -247,6 +267,53 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
                 }
               : m
           ),
+        },
+      };
+    });
+  },
+
+  addReaction: (chatId, messageId, userId, reactionType) => {
+    set((state) => {
+      const existing = state.messagesByChatId[chatId] || [];
+      return {
+        messagesByChatId: {
+          ...state.messagesByChatId,
+          [chatId]: existing.map((m) => {
+            if (m.id !== messageId) return m;
+            const reactions = m.reactions || {};
+            const currentUsers = reactions[reactionType] || [];
+            if (currentUsers.includes(userId)) return m;
+            return {
+              ...m,
+              reactions: {
+                ...reactions,
+                [reactionType]: [...currentUsers, userId],
+              },
+            };
+          }),
+        },
+      };
+    });
+  },
+
+  removeReaction: (chatId, messageId, userId) => {
+    set((state) => {
+      const existing = state.messagesByChatId[chatId] || [];
+      return {
+        messagesByChatId: {
+          ...state.messagesByChatId,
+          [chatId]: existing.map((m) => {
+            if (m.id !== messageId) return m;
+            const reactions = m.reactions || {};
+            const newReactions: Record<string, string[]> = {};
+            Object.entries(reactions).forEach(([type, users]) => {
+              newReactions[type] = users.filter((u) => u !== userId);
+            });
+            return {
+              ...m,
+              reactions: newReactions,
+            };
+          }),
         },
       };
     });
