@@ -36,6 +36,23 @@ const request = async (
   }
 
   const data = rawData?.data ?? rawData;
+
+  // Log Backend response to see url field in attachments
+  if (data?.items && Array.isArray(data.items)) {
+    data.items.forEach((item: any, index: number) => {
+      if (item.attachments && Array.isArray(item.attachments)) {
+        item.attachments.forEach((att: any, attIndex: number) => {
+          console.log(`[messagesApi] Message ${index} Attachment ${attIndex}:`, {
+            key: att.key,
+            url: att.url,
+            thumbnailUrl: att.thumbnailUrl,
+            visibility: att.visibility,
+          });
+        });
+      }
+    });
+  }
+
   return { data, status: response.status };
 };
 

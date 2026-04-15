@@ -720,6 +720,70 @@ export async function unreactMessage(
   });
 }
 
+export async function forwardMessage(
+  originalMessage: any,
+  targetConversationId: string,
+) {
+  const socket = await ensureSocket();
+  const messageId = generateUUID();
+  const sentAt = Date.now();
+
+  // Extract message content and attachments
+  const body = originalMessage.text || originalMessage.content || '';
+  const attachments = originalMessage.attachments || (originalMessage.attachment ? [originalMessage.attachment] : []);
+
+  console.log('[forwardMessage] Sending forward message:', {
+    messageId,
+    targetConversationId,
+    body,
+    attachmentsCount: attachments.length,
+    rawAttachments: attachments,
+  });
+
+  // Prepare attachments for forward - filter out undefined/null attachments
+  const preparedAttachments = attachments
+    .filter((att: any) => att && att.key) // Filter out null/undefined and attachments without key
+    .map((att: any) => ({
+      key: att.key,
+      type: att.type,
+      name: att.name,
+      size: att.size,
+      content_type: att.content_type || att.contentType,
+      thumbnail_key: att.thumbnail_key || att.thumbnailKey,
+      visibility: att.visibility || 'public',
+    }));
+
+  const payload = {
+    message_id: messageId,
+    conversation_id: targetConversationId,
+    body,
+    sent_at: sentAt,
+    attachments: preparedAttachments.length > 0 ? preparedAttachments : undefined,
+  };
+
+  console.log('[forwardMessage] Socket emit chat:send with payload:', payload);
+  socket.emit("chat:send", payload);
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      console.error('[forwardMessage] Timeout waiting for ack');
+      reject(new Error("Forward timeout"));
+    }, 10000);
+
+    socket.once(`chat:ack`, (ack: any) => {
+      console.log('[forwardMessage] Received chat:ack:', ack);
+      if (ack.message_id === messageId) {
+        clearTimeout(timeout);
+        if (ack.status === 'accepted') {
+          resolve(ack);
+        } else {
+          reject(new Error(ack.reason || 'Forward failed'));
+        }
+      }
+    });
+  });
+}
+
 export function resetChatRuntime() {
   openConversations.clear();
   recentMessageIds.splice(0, recentMessageIds.length);
@@ -747,6 +811,7 @@ export default {
   sendMessage,
   registerHandlers,
   resetChatRuntime,
+  forwardMessage,
   editMessage,
   deleteMessage,
   reactMessage,
@@ -797,6 +862,20 @@ export async function fetchMessages(
     } else if (Array.isArray(payload.messages)) {
       messages = payload.messages;
     }
+
+    // Log attachment URLs from Backend response
+    messages.forEach((msg: any, index: number) => {
+      if (msg.attachments && Array.isArray(msg.attachments)) {
+        msg.attachments.forEach((att: any, attIndex: number) => {
+          console.log(`[chatService.fetchMessages] Message ${index} Attachment ${attIndex}:`, {
+            key: att.key,
+            url: att.url,
+            thumbnailUrl: att.thumbnailUrl,
+            visibility: att.visibility,
+          });
+        });
+      }
+    });
 
     // Filter out deleted messages
     const activeMessages = messages.filter(m => !m?.isDeleted && !m?.is_deleted);

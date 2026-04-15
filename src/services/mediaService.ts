@@ -60,6 +60,7 @@ import { getCurrentToken } from './authService';
 
 const MEDIA_URL = NETWORK_CONFIG.MEDIA_BASE_URL;
 const MEDIA_FILE_BASE_URL = NETWORK_CONFIG.MEDIA_FILE_BASE_URL;
+const S3_BUCKET = NETWORK_CONFIG.S3_BUCKET;
 
 
 
@@ -158,17 +159,11 @@ export function getVisibility(type: AttachmentType): FileVisibility {
 /**
 
  * Resolve a media URL from a key or full URL.
-
  * If the key starts with 'http', return it directly.
-
- * Otherwise, prepend MEDIA_FILE_BASE_URL.
-
+ * Otherwise, build CDN URL matching Backend pattern: {base}/{bucket}/{key}
  *
-
  * @param key - Media key or full URL
-
  * @returns Resolved URL
-
  */
 
 export function resolveMediaUrl(key: string): string {
@@ -179,10 +174,14 @@ export function resolveMediaUrl(key: string): string {
 
   }
 
-  return `${MEDIA_FILE_BASE_URL}/${key}`;
+  // Extract bucket name from key if it's in format "bucket/key"
+  // Otherwise use default bucket from config
+  const parts = key.split('/');
+  const keyPath = parts.length > 1 && parts[0].includes('-') ? key : `${S3_BUCKET}/${key}`;
+
+  return `${MEDIA_FILE_BASE_URL}/${keyPath}`;
 
 }
-
 
 
 
@@ -626,7 +625,7 @@ export function buildAttachmentDto(result: UploadResult): AttachmentDto {
 
  * - If the attachment already has a `url` (from REST API response), returns it directly.
 
- * - Public files (image/video): returns the CDN URL.
+ * - Public files (image/video): returns the CDN URL built from key.
 
  * - Private files (audio/document): calls presign/download to get a signed URL.
 
@@ -652,11 +651,23 @@ export async function getAttachmentUrl(
 
   try {
 
-    if (attachment.visibility === 'public' && attachment.url) {
+    // If URL is already provided by Backend (REST API response), use it
+
+    if (attachment.url) {
 
       return attachment.url;
 
     }
+
+    // For public files, build CDN URL from key
+
+    if (attachment.visibility === 'public') {
+
+      return resolveMediaUrl(attachment.key);
+
+    }
+
+    // For private files, get presigned download URL
 
     return await presignDownload(attachment.key, userId);
 

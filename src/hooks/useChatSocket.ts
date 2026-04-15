@@ -1,32 +1,9 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import {
-    createSocket,
-    disconnectSocket,
-    joinConversation,
-    offAck,
-    offError,
-    offMessage,
-    offMessageDeleted,
-    offMessageUpdated,
-    offPresenceUpdate,
-    offReactionAdded,
-    offReactionRemoved,
-    offTypingUpdate,
-    onAck,
-    onError,
-    onMessage,
-    onMessageDeleted,
-    onMessageUpdated,
-    onPresenceUpdate,
-    onReactionAdded,
-    onReactionRemoved,
-    onTypingUpdate,
-    sendHeartbeat,
-    sendTyping
-} from '../services/socket';
+import { createSocket, disconnectSocket, getSocket } from '../services/socket';
 import { deleteMessage, editMessage, sendMessage, unreactMessage } from '../services/chatService';
 import { useChatStore } from '../store/chatStore';
+import { useChatsStore } from '../store/useChatsStore';
 import type {
     SocketChatDeletePayload,
     SocketChatEditPayload,
@@ -43,8 +20,9 @@ export const useChatSocket = () => {
     addReaction,
     removeReaction: removeReactionFromStore,
     updateTypingUsers,
+    updatePresence
   } = useChatStore();
-  const heartbeatIntervalRef = useRef<NodeJS.Timeout>();
+  const { updateLastMessage } = useChatsStore();
 
   useEffect(() => {
     const token = authUser?.tokens?.accessToken;
@@ -53,97 +31,79 @@ export const useChatSocket = () => {
     if (!token || !userId) return;
 
     // Connect socket
-    createSocket({
-      url: '',
-      token,
-      userId,
+    createSocket().then((socket) => {
+      // Setup event listeners
+      setupEventListeners(socket);
     });
 
-    // Setup event listeners
-    const unsubscribe = setupEventListeners();
-
-    // Start heartbeat (every 30s)
-    heartbeatIntervalRef.current = setInterval(() => {
-      sendHeartbeat();
-    }, 30000);
-
     return () => {
-      unsubscribe();
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
-      }
       disconnectSocket();
     };
   }, [authUser?.tokens?.accessToken, authUser?.id]);
 
-  const setupEventListeners = () => {
+  const setupEventListeners = (socket: any) => {
     // New message
-    onMessage((payload) => {
+    socket.on('chat:message', (payload: any) => {
       addMessage(payload);
-      // Show notification if not in current conversation
+      // Update last message in conversation
+      const conversationId = payload.conversation_id || payload.conversationId;
+      const content = payload.body || payload.content || '';
+      const type = payload.type || 'text';
+      const timestamp = payload.created_at || payload.timestamp || Date.now();
+      if (conversationId) {
+        updateLastMessage(conversationId, content, type, timestamp);
+      }
     });
 
     // Message updated
-    onMessageUpdated((payload) => {
+    socket.on('chat:message:updated', (payload: any) => {
       updateMessage(payload);
     });
 
     // Message deleted
-    onMessageDeleted((payload) => {
+    socket.on('chat:message:deleted', (payload: any) => {
       deleteMessageFromStore(payload);
     });
 
     // Reaction added
-    onReactionAdded((payload) => {
+    socket.on('chat:reaction:added', (payload: any) => {
       addReaction(payload);
     });
 
     // Reaction removed
-    onReactionRemoved((payload) => {
+    socket.on('chat:reaction:removed', (payload: any) => {
       removeReactionFromStore(payload);
     });
 
     // Typing update
-    onTypingUpdate((payload) => {
+    socket.on('chat:typing:update', (payload: any) => {
       updateTypingUsers(payload);
     });
 
     // Presence update
-    onPresenceUpdate((payload) => {
-      // Update user presence in store
-      console.log('Presence update:', payload);
+    socket.on('presence:update', (payload: any) => {
+      updatePresence(payload.user_id, payload.status, payload.last_seen_at, payload.expires_at);
     });
 
     // Ack (for sent messages)
-    onAck((payload) => {
+    socket.on('chat:ack', (payload: any) => {
       if (payload.status === 'rejected') {
-        // Handle rejection (show error, retry, etc.)
         console.error('Message rejected:', payload.reason);
       }
     });
 
     // Error handling
-    onError((error) => {
+    socket.on('ws:error', (error: any) => {
       console.error('Socket error:', error);
-      // Show error toast
     });
-
-    return () => {
-      offMessage();
-      offMessageUpdated();
-      offMessageDeleted();
-      offReactionAdded();
-      offReactionRemoved();
-      offTypingUpdate();
-      offPresenceUpdate();
-      offAck();
-      offError();
-    };
   };
 
   // Actions
   const handleJoinConversation = useCallback((conversationId: string) => {
-    joinConversation(conversationId);
+    const socket = getSocket();
+    if (socket) {
+      socket.emit('chat:join', { conversation_id: conversationId });
+    }
   }, []);
 
   const handleSendMessage = useCallback((payload: SocketChatSendPayload) => {
@@ -171,7 +131,10 @@ export const useChatSocket = () => {
   }, []);
 
   const handleSendTyping = useCallback((conversationId: string, username: string) => {
-    sendTyping(conversationId, username);
+    const socket = getSocket();
+    if (socket) {
+      socket.emit('chat:typing', { conversation_id: conversationId, username });
+    }
   }, []);
 
   return {

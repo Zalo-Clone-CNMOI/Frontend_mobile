@@ -1,7 +1,7 @@
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
 import * as Clipboard from 'expo-clipboard';
-import { Copy, Edit, Reply, RotateCcw, Trash2 } from 'lucide-react-native';
+import { Copy, Edit, Forward, Reply, RotateCcw, Trash2 } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -22,6 +22,7 @@ interface MessageActionMenuProps {
   onRevoke?: (msg: ChatMessage) => void;
   onDelete: (msg: ChatMessage) => void;
   onReact?: (msg: ChatMessage, reaction: "like" | "love" | "haha" | "wow" | "sad" | "angry") => void;
+  onForward?: (msg: ChatMessage) => void;
 }
 
 const REACTIONS = [
@@ -42,6 +43,7 @@ export function MessageActionMenu({
   onRevoke,
   onDelete,
   onReact,
+  onForward,
 }: MessageActionMenuProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -110,6 +112,14 @@ export function MessageActionMenu({
                 <Copy size={24} color={theme.colors.primary} />
               </View>
               <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('common.copy', { defaultValue: 'Sao chép' })}</Text>
+            </TouchableOpacity>
+
+
+            <TouchableOpacity style={styles.gridItem} onPress={() => { onForward?.(message); onClose(); }}>
+              <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
+                <Forward size={24} color="#10b981" />
+              </View>
+              <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.forward', { defaultValue: 'Chuyển tiếp' })}</Text>
             </TouchableOpacity>
 
 

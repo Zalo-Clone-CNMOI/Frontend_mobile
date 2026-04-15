@@ -31,9 +31,17 @@ export interface TypingUser {
   username: string;
 }
 
+export interface Presence {
+  user_id: string;
+  status: 'online' | 'offline';
+  last_seen_at: number;
+  expires_at: number;
+}
+
 interface ChatState {
   messages: Record<string, Message[]>; // conversation_id -> messages
   typingUsers: Record<string, TypingUser[]>; // conversation_id -> users
+  presence: Record<string, Presence>; // user_id -> presence
 
   addMessage: (payload: SocketChatMessageEvent) => void;
   updateMessage: (payload: SocketChatMessageUpdatedEvent) => void;
@@ -41,12 +49,14 @@ interface ChatState {
   addReaction: (payload: SocketChatReactionAddedEvent) => void;
   removeReaction: (payload: SocketChatReactionRemovedEvent) => void;
   updateTypingUsers: (payload: SocketChatTypingUpdateEvent) => void;
+  updatePresence: (userId: string, status: 'online' | 'offline', lastSeenAt: number, expiresAt: number) => void;
   reset: () => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
   messages: {},
   typingUsers: {},
+  presence: {},
 
   addMessage: (payload) => set((state) => {
     const conversationId = payload.conversation_id || '';
@@ -176,8 +186,21 @@ export const useChatStore = create<ChatState>((set) => ({
     },
   })),
 
+  updatePresence: (userId, status, lastSeenAt, expiresAt) => set((state) => ({
+    presence: {
+      ...state.presence,
+      [userId]: {
+        user_id: userId,
+        status,
+        last_seen_at: lastSeenAt,
+        expires_at: expiresAt,
+      },
+    },
+  })),
+
   reset: () => ({
     messages: {},
     typingUsers: {},
+    presence: {},
   }),
 }));

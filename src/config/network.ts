@@ -44,6 +44,8 @@ const AUTH_REFRESH_URL = trimTrailingSlash(
   readEnv('EXPO_PUBLIC_AUTH_REFRESH_URL', `${AUTH_BASE_URL}/refresh`),
 );
 
+const S3_BUCKET = readEnv('EXPO_PUBLIC_S3_BUCKET', 'onn-bucket-23');
+
 export const NETWORK_CONFIG = {
   API_BASE_URL,
   AUTH_BASE_URL,
@@ -55,4 +57,5 @@ export const NETWORK_CONFIG = {
   MESSAGE_BASE_URL,
   SOCKET_URL,
   SSO_BASE_URL,
+  S3_BUCKET,
 } as const;

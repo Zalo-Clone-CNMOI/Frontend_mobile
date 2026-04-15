@@ -1,21 +1,24 @@
 import { ChatComposer } from '@/src/components/chat/ChatComposer';
 import { ChatOptions } from '@/src/components/chat/ChatOptions';
+import { ForwardModal } from '@/src/components/chat/ForwardModal';
 import { ImageViewer } from '@/src/components/chat/ImageViewer';
 import { MessageActionMenu } from '@/src/components/chat/MessageActionMenu';
 import { MessageBubble } from '@/src/components/chat/MessageBubble';
 import { TypingIndicator } from '@/src/components/chat/TypingIndicator';
 import { VideoViewer } from '@/src/components/chat/VideoViewer';
 import { useChatDetailScreenLogic } from '@/src/hooks/screens/useChatDetailScreen';
+import { useChatStore } from '@/src/store/chatStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { FlashList } from '@shopify/flash-list';
 import { Stack } from 'expo-router';
-import { List, Phone } from 'lucide-react-native';
+import { Circle, List, Phone } from 'lucide-react-native';
 import React from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ChatDetailScreen() {
   const theme = useTheme();
+  const { presence } = useChatStore();
   const {
     chatId,
     currentChat,
@@ -54,9 +57,27 @@ export default function ChatDetailScreen() {
     handleDeleteAction,
     handleReactAction,
     handleUnreactAction,
+    handleForwardAction,
+    handleForward,
     selectedActionMessage,
     isMessageActionMenuVisible,
+    isForwardModalVisible,
+    setIsForwardModalVisible,
   } = useChatDetailScreenLogic();
+
+  // Get presence status for the other user (not for groups)
+  const getPresenceStatus = () => {
+    if (currentChat?.isGroup) return null;
+    const userId = (currentChat as any)?.otherUserId || (currentChat as any)?.userId;
+    if (!userId) return null;
+    const userPresence = presence[userId];
+    if (!userPresence) return null;
+    // Check if presence is still valid (not expired)
+    if (Date.now() > userPresence.expires_at) return null;
+    return userPresence.status;
+  };
+
+  const presenceStatus = getPresenceStatus();
 
   const renderItem = React.useCallback(({ item }: { item: any }) => {
     return (
@@ -90,6 +111,16 @@ export default function ChatDetailScreen() {
             backgroundColor: theme.colors.statusBar,
           },
           headerTintColor: theme.colors.textHeader,
+          headerTitle: () => (
+            <View style={styles.headerTitleContainer}>
+              <Text style={[styles.headerTitle, { color: theme.colors.textHeader }]}>{title}</Text>
+              {presenceStatus === 'online' && (
+                <View style={styles.headerOnlineDot}>
+                  <Circle size={8} fill="#34c759" color="#34c759" />
+                </View>
+              )}
+            </View>
+          ),
           headerRight: () => (
             <View style={styles.headerRightContainer}>
               <TouchableOpacity style={styles.callButton}>
@@ -167,6 +198,14 @@ export default function ChatDetailScreen() {
           onRevoke={handleRevokeAction}
           onDelete={handleDeleteAction}
           onReact={handleReactAction}
+          onForward={handleForwardAction}
+        />
+
+        <ForwardModal
+          visible={isForwardModalVisible}
+          message={selectedActionMessage}
+          onClose={() => setIsForwardModalVisible(false)}
+          onForward={handleForward}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -174,16 +213,28 @@ export default function ChatDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1 },
   headerRightContainer: {
     flexDirection: 'row',
   },
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  headerOnlineDot: {
+    marginTop: 2,
+  },
   body: { flex: 1 },
-  listContent: { paddingHorizontal: 12, paddingVertical: 10 },
+  listContent: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
   callButton: {
-    padding: 10,
+    marginLeft: 12,
   },
 });
-
-
-

@@ -9,6 +9,7 @@ import {
     editMessage as sendSocketEditMessage,
     sendMessage as sendSocketMessage,
     unreactMessage,
+    forwardMessage,
 } from '@/src/services/chatService';
 import { connectSocket } from '@/src/services/socket';
 import { useChatsStore } from '@/src/store/useChatsStore';
@@ -51,6 +52,7 @@ export function useChatDetailScreenLogic() {
   const [typingSocket, setTypingSocket] = useState<Awaited<ReturnType<typeof connectSocket>> | null>(null);
   const [selectedActionMessage, setSelectedActionMessage] = useState<ChatMessage | null>(null);
   const [isMessageActionMenuVisible, setIsMessageActionMenuVisible] = useState(false);
+  const [isForwardModalVisible, setIsForwardModalVisible] = useState(false);
 
   const messages = useMessagesStore((state) => state.messagesByChatId[chatId] || EMPTY_MESSAGES);
   const addMessage = useMessagesStore((state) => state.addMessage);
@@ -301,6 +303,33 @@ export function useChatDetailScreenLogic() {
     if (editingMessage?.id === msg.id) setEditingMessage(null);
   }, [chatId, editingMessage?.id, replyingMessage?.id, revokeMessage]);
 
+  const handleForwardAction = useCallback((msg: ChatMessage) => {
+    console.log('[handleForwardAction] Opening forward modal for message:', msg.id);
+    setSelectedActionMessage(msg);
+    // Use setTimeout to ensure state update is processed before opening modal
+    setTimeout(() => {
+      setIsForwardModalVisible(true);
+    }, 0);
+  }, []);
+
+  const handleForward = useCallback(async (message: ChatMessage, targetConversationId: string) => {
+    console.log('[handleForward] Called with targetConversationId:', targetConversationId);
+    console.log('[handleForward] message:', message);
+    if (!message) {
+      console.error('[handleForward] No message provided');
+      return;
+    }
+    console.log('[handleForward] Forwarding message to conversation:', targetConversationId);
+    try {
+      await forwardMessage(message, targetConversationId);
+      console.log('[handleForward] Forward successful');
+      Alert.alert(t('chat.forward_success', { defaultValue: 'Đã chuyển tiếp tin nhắn' }));
+    } catch (error) {
+      console.error('[handleForward] Forward failed:', error);
+      Alert.alert(t('chat.forward_failed', { defaultValue: 'Chuyển tiếp thất bại' }), String(error));
+    }
+  }, [t]);
+
   const handleDeleteAction = useCallback(async (msg: ChatMessage) => {
     try {
       // Xóa local ngay lập tức trước khi gửi socket request
@@ -456,8 +485,12 @@ export function useChatDetailScreenLogic() {
     handleDeleteAction,
     handleReactAction,
     handleUnreactAction,
+    handleForwardAction,
+    handleForward,
     selectedActionMessage,
     isMessageActionMenuVisible,
+    isForwardModalVisible,
+    setIsForwardModalVisible,
     editingMessage,
     handleCancelEdit,
     handleReuseRevokedMessage,

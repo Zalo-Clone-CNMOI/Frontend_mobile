@@ -50,6 +50,14 @@ const shouldClearAuthOnRefreshError = (error: unknown): boolean => {
 
   if (!message) return false;
   if (message.includes("no refresh token available")) return true;
+
+  // Handle Backend error codes
+  if (message.includes("auth_refresh_token_invalid")) return true;
+  if (message.includes("auth_refresh_token_expired")) return true;
+  if (message.includes("auth_account_inactive")) return true;
+  if (message.includes("auth_account_locked")) return true;
+
+  // Fallback to status codes
   if (message.includes("(401)") || message.includes("(403)")) return true;
 
   return (
@@ -241,14 +249,11 @@ export const refreshAccessToken = async (): Promise<string | null> => {
         return null;
       }
 
+      // Backend chỉ return access token mới, không return refresh token mới
       const newAccessToken =
         tokenPayload?.tokens?.accessToken ||
         tokenPayload?.accessToken ||
         "";
-      const newRefreshToken =
-        tokenPayload?.tokens?.refreshToken ||
-        tokenPayload?.refreshToken ||
-        refreshToken;
       const expiresIn =
         tokenPayload?.tokens?.expiresIn ||
         tokenPayload?.expiresIn ||
@@ -258,17 +263,18 @@ export const refreshAccessToken = async (): Promise<string | null> => {
         throw new Error("Refresh response missing access token");
       }
 
+      // Giữ nguyên refresh token cũ (Backend không rotate refresh token)
       if (currentAuthData) {
         await saveAuthData({
           ...currentAuthData,
           tokens: {
             accessToken: newAccessToken,
-            refreshToken: newRefreshToken,
+            refreshToken: currentAuthData.tokens?.refreshToken || refreshToken,
             expiresIn,
           },
         });
       } else {
-        await saveTokensOnly(newAccessToken, newRefreshToken);
+        await saveTokensOnly(newAccessToken, refreshToken);
       }
 
       return newAccessToken || null;

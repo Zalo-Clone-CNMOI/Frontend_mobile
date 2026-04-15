@@ -63,12 +63,25 @@ export function useAddFriendScreenLogic() {
       const cleaned = phone.replace(/\D/g, '');
       if (cleaned.length < 9) return;
 
+      // Normalize phone number to match database format (+840923232323)
+      let normalizedPhone = cleaned;
+      if (cleaned.startsWith('0')) {
+        // Vietnamese number starting with 0: 0923232323 -> +840923232323
+        normalizedPhone = '+84' + cleaned;
+      } else if (cleaned.startsWith('84')) {
+        // Already has country code without +: 840923232323 -> +840923232323
+        normalizedPhone = '+' + cleaned;
+      } else if (!cleaned.startsWith('+')) {
+        // Assume Vietnamese number: 923232323 -> +84923232323
+        normalizedPhone = '+84' + cleaned;
+      }
+
       setIsSearching(true);
       setSearchError(null);
       setSearchResult(null);
 
       try {
-        const response = await searchUsers(cleaned);
+        const response = await searchUsers(normalizedPhone);
         
         const users: SearchUserDTO[] = response?.data || [];
 
@@ -109,18 +122,18 @@ export function useAddFriendScreenLogic() {
     async (targetUserId: string) => {
       setIsSending(true);
       try {
-        
         await sendRuntimeFriendRequest(targetUserId);
-        
-        setSearchResult((prev) =>
-          prev ? { ...prev, status: 'sent' } : prev,
-        );
+        // Don't auto-update status - let realtime events handle it
+        // setSearchResult((prev) =>
+        //   prev ? { ...prev, status: 'sent' } : prev,
+        // );
       } catch (err: any) {
         const code = err?.code;
         if (code === 'ALREADY_EXISTS') {
-          setSearchResult((prev) =>
-            prev ? { ...prev, status: 'sent' } : prev,
-          );
+          // Already exists - don't update status automatically
+          // setSearchResult((prev) =>
+          //   prev ? { ...prev, status: 'sent' } : prev,
+          // );
         } else if (code === 'SELF_REQUEST') {
           Alert.alert('Lỗi', 'Không thể tự gửi lời mời kết bạn cho chính mình');
         } else {

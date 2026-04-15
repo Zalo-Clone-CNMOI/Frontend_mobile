@@ -2,6 +2,7 @@ import type { ConversationV2 } from '@/src/types/chat';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../theme/themeContext';
+import { useChatStore } from '../../store/chatStore';
 
 export function ChatListItem({
   item,
@@ -11,7 +12,23 @@ export function ChatListItem({
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const { presence } = useChatStore();
   const messageTime = item.lastMessage?.timestamp || item.lastMessageAt;
+
+  // Get presence status for the other user (not for groups)
+  const getPresenceStatus = () => {
+    if (item.isGroup) return null;
+    // Get the other user's ID (for direct conversations)
+    const userId = item.otherUserId || item.userId;
+    if (!userId) return null;
+    const userPresence = presence[userId];
+    if (!userPresence) return null;
+    // Check if presence is still valid (not expired)
+    if (Date.now() > userPresence.expires_at) return null;
+    return userPresence.status;
+  };
+
+  const presenceStatus = getPresenceStatus();
 
   const getAvatarSource = () => {
     if (item.isGroup && item.avatar) {
@@ -31,6 +48,7 @@ export function ChatListItem({
       <View>
         <Image source={getAvatarSource()} style={styles.avatar} />
         {item.unreadCount && item.unreadCount > 0 ? <View style={[styles.redDot, { borderColor: theme.colors.background }]} /> : null}
+        {presenceStatus === 'online' && <View style={[styles.onlineDot, { borderColor: theme.colors.background }]} />}
       </View>
       <View style={styles.chatContent}>
         <View style={styles.chatHeader}>
@@ -61,6 +79,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#ff3b30',
     borderRadius: 6,
     borderWidth: 2,
+  },
+  onlineDot: {
+    position: 'absolute',
+    right: 0,
+    bottom: 2,
+    width: 14,
+    height: 14,
+    backgroundColor: '#34c759',
+    borderRadius: 7,
+    borderWidth: 2.5,
   },
   chatContent: { flex: 1, marginLeft: 15 },
   chatHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },

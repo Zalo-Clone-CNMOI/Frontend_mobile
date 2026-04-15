@@ -18,6 +18,8 @@ export type ConversationV2 = {
   muted?: boolean;
   memberCount?: number;
   createdAt?: number;
+  userId?: string;
+  otherUserId?: string;
 };
 
 export type MessageType = 'text' | 'image' | 'video' | 'file' | 'voice' | 'system';

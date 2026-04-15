@@ -28,12 +28,20 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest: any = error.config;
+    // Handle 401 (token expired) and 403 (account inactive/locked)
     if (
       error.response &&
-      error.response.status === 401 &&
+      (error.response.status === 401 || error.response.status === 403) &&
       !originalRequest?._retry
     ) {
       originalRequest._retry = true;
+      // 403 (account inactive/locked) - không thể refresh, cần logout
+      if (error.response.status === 403) {
+        // Clear auth data và redirect login
+        const { clearAuthData } = await import('./authService');
+        await clearAuthData();
+        return Promise.reject(error);
+      }
       try {
         const newToken = await refreshAccessToken();
         if (newToken) {
