@@ -96,18 +96,39 @@ export const qrStatus = async (qrId: string) => {
   }
 };
 
-export const qrConfirm = async (qrId: string, payload?: any) => {
+export const qrConfirm = async (sessionId: string, payload?: any) => {
   try {
-    return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/confirm/${qrId}`, payload || {});
+    const url = `${NETWORK_CONFIG.AUTH_BASE_URL}/qr/confirm`;
+    const body = { sessionId, ...payload };
+    console.log('[QR Confirm] ========== REQUEST ==========');
+    console.log('[QR Confirm] URL:', url);
+    console.log('[QR Confirm] Method: POST');
+    console.log('[QR Confirm] Body:', JSON.stringify(body));
+    return await api.post(url, body);
   } catch (e: any) {
+    console.error('[QR Confirm] ========== ERROR ==========');
+    console.error('[QR Confirm] Error:', e.message);
+    if (e.response) {
+      console.error('[QR Confirm] Response status:', e.response.status);
+      console.error('[QR Confirm] Response data:', e.response.data);
+    }
     throw e;
   }
 };
 
-export const qrReject = async (qrId: string, payload?: any) => {
+export const qrReject = async (sessionId: string, payload?: any) => {
   try {
-    return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/reject/${qrId}`, payload || {});
+    const url = `${NETWORK_CONFIG.AUTH_BASE_URL}/qr/reject`;
+    const body = { sessionId, ...payload };
+    console.log('[QR Reject] URL:', url);
+    console.log('[QR Reject] Body:', JSON.stringify(body));
+    return await api.post(url, body);
   } catch (e: any) {
+    console.error('[QR Reject] Error:', e.message);
+    if (e.response) {
+      console.error('[QR Reject] Response status:', e.response.status);
+      console.error('[QR Reject] Response data:', e.response.data);
+    }
     throw e;
   }
 };

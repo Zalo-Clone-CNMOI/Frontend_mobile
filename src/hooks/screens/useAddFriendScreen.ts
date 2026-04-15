@@ -60,15 +60,15 @@ export function useAddFriendScreenLogic() {
 
   const searchByPhone = useCallback(
     async (phone: string) => {
-      const trimmed = phone.trim();
-      if (trimmed.length < 2) return;
+      const cleaned = phone.replace(/\D/g, '');
+      if (cleaned.length < 9) return;
 
       setIsSearching(true);
       setSearchError(null);
       setSearchResult(null);
 
       try {
-        const response = await searchUsers(trimmed);
+        const response = await searchUsers(cleaned);
         
         const users: SearchUserDTO[] = response?.data || [];
 

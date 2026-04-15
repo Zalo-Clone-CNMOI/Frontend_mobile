@@ -32,6 +32,10 @@ const MEDIA_BASE_URL = trimTrailingSlash(
   readEnv('EXPO_PUBLIC_MEDIA_BASE_URL', 'http://54.179.206.215:5000'),
 );
 
+const MEDIA_FILE_BASE_URL = trimTrailingSlash(
+  readEnv('EXPO_PUBLIC_MEDIA_FILE_BASE_URL', 'http://54.179.206.215:5000'),
+);
+
 const SSO_BASE_URL = trimTrailingSlash(
   readEnv('EXPO_PUBLIC_SSO_BASE_URL', 'http://54.179.206.215:5001'),
 );
@@ -47,6 +51,7 @@ export const NETWORK_CONFIG = {
   AUTH_REFRESH_URL,
   BFF_BASE_URL,
   MEDIA_BASE_URL,
+  MEDIA_FILE_BASE_URL,
   MESSAGE_BASE_URL,
   SOCKET_URL,
   SSO_BASE_URL,

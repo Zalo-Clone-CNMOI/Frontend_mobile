@@ -38,17 +38,24 @@ export type SocketChatEditPayload = {
   message_id: ID;
   conversation_id: ID;
   new_body: string;
+  created_at?: string | number;
 };
 
 export type SocketChatDeletePayload = {
   message_id: ID;
   conversation_id: ID;
+  created_at?: string | number;
 };
 
 export type SocketChatReactPayload = {
   message_id: ID;
   conversation_id: ID;
   reaction_type: ReactionType;
+};
+
+export type SocketChatUnreactPayload = {
+  message_id: ID;
+  conversation_id: ID;
 };
 
 export type SocketChatAckEvent = {
@@ -71,6 +78,7 @@ export type SocketChatMessageEvent = {
   createdAt?: string | number;
   ts?: string | number;
   timestamp?: string | number;
+  reply_to_message_id?: ID;
 };
 
 export type SocketChatMessageUpdatedEvent = {
@@ -84,6 +92,7 @@ export type SocketChatMessageUpdatedEvent = {
 export type SocketChatMessageDeletedEvent = {
   message_id?: ID;
   conversation_id?: ID;
+  sender_id?: ID;
   deleted_at?: string | number;
 };
 
@@ -101,4 +110,56 @@ export type SocketChatReactionRemovedEvent = {
   user_id?: ID;
   reaction_type?: ReactionType | string;
   removed_at?: string | number;
+};
+
+export type SocketChatTypingUpdateEvent = {
+  conversation_id: ID;
+  users: {
+    user_id: ID;
+    username: string;
+  }[];
+};
+
+export type SocketPresenceUpdateEvent = {
+  user_id: ID;
+  status: string;
+  last_seen_at: number;
+  expires_at: number;
+};
+
+export type SocketErrorEvent = {
+  code: string;
+  message: string;
+  details?: any;
+  timestamp?: number;
+};
+
+// QR Login Events
+export type SocketQrBindRequestPayload = {};
+
+export type SocketQrBindIssuedEvent = {
+  socketId: string;
+  socketBindingToken: string;
+  expiresInSeconds: number;
+};
+
+export type SocketQrConfirmPayload = {
+  socketBindingToken: string;
+};
+
+export type SocketQrRejectPayload = {
+  socketBindingToken: string;
+};
+
+export type SocketQrConfirmedEvent = {
+  socketBindingToken: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  user: any;
+};
+
+export type SocketQrRejectedEvent = {
+  socketBindingToken: string;
+  reason: string;
 };

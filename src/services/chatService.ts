@@ -96,6 +96,20 @@ function toLegacyChatMessage(apiMessage: any): ChatMessage {
   const firstAttachment = Array.isArray(apiMessage?.attachments)
     ? apiMessage.attachments[0]
     : undefined;
+
+  // Log attachment details
+  if (firstAttachment) {
+    console.log('[chatService] Message has attachment:', {
+      key: firstAttachment.key,
+      type: firstAttachment.type,
+      name: firstAttachment.name,
+      size: firstAttachment.size,
+      content_type: firstAttachment.content_type,
+      thumbnail_key: firstAttachment.thumbnail_key,
+      visibility: firstAttachment.visibility,
+    });
+  }
+
   const senderId =
     apiMessage?.senderId ??
     apiMessage?.sender_id ??
@@ -364,6 +378,7 @@ export async function sendMessage(
 
   let attachments: any[] = [];
   if (files && files.length > 0) {
+    console.log('[chatService] Uploading', files.length, 'files');
     let currentUserId = '';
     try {
       const user = await getCurrentUser();
@@ -373,46 +388,39 @@ export async function sendMessage(
     } catch (e) {
     }
 
-    if (!currentUserId) {
-    }
-
     let fileIndex = 0;
     for (const rawFile of files as OutgoingFile[]) {
       const file = normalizeOutgoingFile(rawFile);
       if (!file.uri) continue;
 
+      console.log('[chatService] Uploading file', fileIndex + 1, 'of', files.length, ':', file.name, 'Size:', file.size, 'Type:', file.type);
+      const mediaInput: MediaFileInput = {
+        uri: file.uri,
+        name: file.name,
+        mimeType: file.type,
+        size: file.size,
+      };
+      const uploadResult = await uploadMedia(mediaInput, currentUserId, conversationId);
+
+      console.log('[chatService] Upload result:', uploadResult);
+
       if (__DEV__) {
       }
 
-      try {
-        const mediaInput: MediaFileInput = {
-          uri: file.uri,
-          name: file.name,
-          mimeType: file.type,
-          size: file.size,
-        };
-        const uploadResult = await uploadMedia(mediaInput, currentUserId, conversationId);
-
-        if (__DEV__) {
-        }
-
-        const dto = buildAttachmentDto(uploadResult);
-        attachments.push({
-          key: dto.key,
-          type: dto.type,
-          name: dto.name,
-          size: dto.size,
-          content_type: dto.content_type,
-          thumbnail_key: dto.thumbnail_key,
-          visibility: dto.visibility,
-          uri: file.uri,
-          url: file.uri,
-        });
-      } catch (uploadErr) {
-        throw uploadErr;
-      } finally {
-        fileIndex += 1;
-      }
+      const dto = buildAttachmentDto(uploadResult);
+      console.log('[chatService] Attachment DTO:', dto);
+      attachments.push({
+        key: dto.key,
+        type: dto.type,
+        name: dto.name,
+        size: dto.size,
+        content_type: dto.content_type,
+        thumbnail_key: dto.thumbnail_key,
+        visibility: dto.visibility,
+        uri: file.uri,
+        url: file.uri,
+      });
+      fileIndex += 1;
     }
   }
 
@@ -645,6 +653,8 @@ function registerSocketListeners() {
       messageId: payload?.message_id,
       conversationId: payload?.conversation_id,
       userId: payload?.user_id,
+      reactionType: payload?.reaction_type,
+      removedAt: payload?.removed_at,
     });
   });
 
@@ -666,7 +676,6 @@ export async function editMessage(
     message_id: messageId,
     conversation_id: conversationId,
     new_body: newBody,
-    created_at: Date.now(),
   });
 }
 
@@ -675,23 +684,9 @@ export async function deleteMessage(
   messageId: string,
 ) {
   const socket = await ensureSocket();
-  return new Promise((resolve, reject) => {
-    const ackTimeout = setTimeout(() => {
-      reject({ message_id: messageId, error: 'Delete ACK timeout' });
-    }, 15000);
-
-    socket.emit("chat:delete", {
-      message_id: messageId,
-      conversation_id: conversationId,
-      created_at: Date.now(),
-    }, (ack: any) => {
-      clearTimeout(ackTimeout);
-      if (ack?.status === 'accepted') {
-        resolve(ack);
-      } else {
-        reject(ack || { message_id: messageId, error: 'Delete failed' });
-      }
-    });
+  socket.emit("chat:delete", {
+    message_id: messageId,
+    conversation_id: conversationId,
   });
 }
 
@@ -717,6 +712,7 @@ export async function unreactMessage(
   socket.emit("chat:unreact", {
     message_id: messageId,
     conversation_id: conversationId,
+    reaction_type: reactionType,
   });
 }
 

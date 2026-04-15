@@ -1,5 +1,5 @@
 import { useAuth } from '@/src/contexts/AuthContext';
-import { uploadAvatar } from '@/src/services/mediaService';
+import { uploadAvatar } from '@/src/services/avatarService';
 import { updateProfile } from '@/src/services/usersApi';
 import { useTheme } from '@/src/theme/themeContext';
 import * as ImagePicker from 'expo-image-picker';
@@ -9,17 +9,17 @@ import { Calendar, Camera, ChevronLeft, FileText, Mail, User } from 'lucide-reac
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -83,7 +83,7 @@ export default function EditPersonalInfoScreen() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<any>(null);
 
   const [fullName, setFullName] = useState(authUser?.name || '');
   const [email, setEmail] = useState(authUser?.email || '');
@@ -104,12 +104,33 @@ export default function EditPersonalInfoScreen() {
   }, [fullName, email, bio, dateOfBirth, gender, avatarUrl, authUser]);
 
   const handleAvatarUpload = async () => {
+    Alert.alert(
+      t('edit_personal_info.change_avatar'),
+      '',
+      [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('edit_personal_info.take_photo'),
+          onPress: () => pickImageFromCamera(),
+        },
+        {
+          text: t('edit_personal_info.choose_from_gallery'),
+          onPress: () => pickImageFromGallery(),
+        },
+      ],
+    );
+  };
+
+  const pickImageFromCamera = async () => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.95,
       });
 
       if (result.canceled || !result.assets || result.assets.length === 0) {
@@ -122,39 +143,72 @@ export default function EditPersonalInfoScreen() {
         return;
       }
 
-      setIsUploadingAvatar(true);
-
-      const uploadResult = await uploadAvatar(
-        {
-          uri: asset.uri,
-          name: asset.fileName || `avatar_${Date.now()}.jpg`,
-          mimeType: asset.mimeType || 'image/jpeg',
-          size: asset.fileSize || 0,
-        },
-        authUser?.id || '',
-        authUser?.tokens?.accessToken || '',
-      );
-
-      if (uploadResult.profileUpdated) {
-        setAvatarUrl(uploadResult.key);
-        Alert.alert(
-          t('common.success'),
-          t('edit_personal_info.avatar_upload_success'),
-        );
-      } else {
-        Alert.alert(
-          t('common.error'),
-          t('edit_personal_info.avatar_upload_partial'),
-        );
-        setAvatarUrl(uploadResult.key);
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (asset.fileSize && asset.fileSize > maxSize) {
+        Alert.alert(t('common.error'), 'Kích thước file quá lớn (tối đa 5MB)');
+        return;
       }
+
+      // Store selected file for upload on save
+      setSelectedAvatarFile({
+        uri: asset.uri,
+        name: asset.fileName || `avatar_${Date.now()}.jpg`,
+        mimeType: asset.mimeType || 'image/jpeg',
+        size: asset.fileSize || 0,
+      });
+
+      // Show preview immediately using local URI
+      setAvatarUrl(asset.uri);
     } catch (error: any) {
       Alert.alert(
         t('common.error'),
         error?.message || t('edit_personal_info.avatar_upload_failed'),
       );
-    } finally {
-      setIsUploadingAvatar(false);
+    }
+  };
+
+  const pickImageFromGallery = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.95,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      if (!asset.uri) {
+        Alert.alert(t('common.error'), 'Không thể lấy ảnh');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (asset.fileSize && asset.fileSize > maxSize) {
+        Alert.alert(t('common.error'), 'Kích thước file quá lớn (tối đa 5MB)');
+        return;
+      }
+
+      // Store selected file for upload on save
+      setSelectedAvatarFile({
+        uri: asset.uri,
+        name: asset.fileName || `avatar_${Date.now()}.jpg`,
+        mimeType: asset.mimeType || 'image/jpeg',
+        size: asset.fileSize || 0,
+      });
+
+      // Show preview immediately using local URI
+      setAvatarUrl(asset.uri);
+    } catch (error: any) {
+      Alert.alert(
+        t('common.error'),
+        error?.message || t('edit_personal_info.avatar_upload_failed'),
+      );
     }
   };
 
@@ -171,8 +225,28 @@ export default function EditPersonalInfoScreen() {
 
     setIsLoading(true);
     try {
+      let finalAvatarUrl = avatarUrl;
+
+      // Upload avatar first if there's a new selected file
+      if (selectedAvatarFile) {
+        try {
+          const uploadResult = await uploadAvatar(
+            selectedAvatarFile,
+            authUser?.id || '',
+          );
+
+          finalAvatarUrl = uploadResult.key;
+        } catch (uploadError: any) {
+          Alert.alert(
+            t('common.error'),
+            uploadError?.message || t('edit_personal_info.avatar_upload_failed'),
+          );
+          return;
+        }
+      }
+
       const payload: Record<string, string> = {};
-      
+
       if (fullName.trim() !== (authUser?.name || '')) {
         payload.fullName = fullName.trim();
       }
@@ -188,12 +262,13 @@ export default function EditPersonalInfoScreen() {
       if (gender !== (authUser?.gender || '')) {
         payload.gender = gender;
       }
-      if (avatarUrl.trim() !== (authUser?.avatarUrl || '')) {
-        payload.avatarUrl = avatarUrl.trim();
+      // Only include avatarUrl if it changed (either new upload or different from original)
+      if (finalAvatarUrl.trim() !== (authUser?.avatarUrl || '')) {
+        payload.avatarUrl = finalAvatarUrl.trim();
       }
 
       const response = await updateProfile(payload);
-      
+
       if (response?.status === 200) {
         const contextUpdates: Record<string, string> = {};
         if (payload.fullName) contextUpdates.name = payload.fullName;
@@ -265,22 +340,16 @@ export default function EditPersonalInfoScreen() {
               <TouchableOpacity
                 style={styles.cameraButton}
                 onPress={handleAvatarUpload}
-                disabled={isUploadingAvatar}
               >
-                {isUploadingAvatar ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Camera size={20} color="#fff" />
-                )}
+                <Camera size={20} color="#fff" />
               </TouchableOpacity>
             </View>
             <TouchableOpacity
               style={styles.changeAvatarButton}
               onPress={handleAvatarUpload}
-              disabled={isUploadingAvatar}
             >
               <Text style={[styles.changeAvatarText, { color: theme.colors.primary }]}>
-                {isUploadingAvatar ? t('edit_personal_info.uploading') : t('edit_personal_info.change_avatar')}
+                {t('edit_personal_info.change_avatar')}
               </Text>
             </TouchableOpacity>
           </View>

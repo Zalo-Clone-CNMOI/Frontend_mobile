@@ -57,6 +57,7 @@ export function useChatDetailScreenLogic() {
   const updateMessage = useMessagesStore((state) => state.updateMessage);
   const deleteMessage = useMessagesStore((state) => state.deleteMessage);
   const revokeMessage = useMessagesStore((state) => state.revokeMessage);
+  const updateChat = useChatsStore((state) => state.updateChat);
 
   const currentChat = useChatsStore((state) => state.chats.find((chat) => chat.conversationId === chatId));
   const { emitTyping, isTypingVisible, typingText, typingUsers } = useTypingIndicator({
@@ -163,6 +164,15 @@ export function useChatDetailScreenLogic() {
             });
           } else {
             addMessage(chatId, msg);
+            // Update conversation lastMessage
+            updateChat(chatId, {
+              lastMessage: {
+                content: msg.text || '',
+                type: msg.type || 'text',
+                timestamp: msg.timestamp || Date.now(),
+              },
+              lastMessageAt: msg.timestamp || Date.now(),
+            });
           }
 
           if (typingSocket) typingSocket.emit('chat:read', { conversation_id: chatId });
@@ -210,16 +220,7 @@ export function useChatDetailScreenLogic() {
       },
       onReactionRemoved: (info: any) => {
         if (info.conversationId === chatId) {
-          // Backend doesn't send reaction_type, so remove all reactions for this user on this message
-          const currentMessages = useMessagesStore.getState().messagesByChatId[chatId] || [];
-          const target = currentMessages.find((m) => m.id === info.messageId);
-          if (target && target.reactions) {
-            const updatedReactions = { ...target.reactions };
-            Object.keys(updatedReactions).forEach((reactionType) => {
-              updatedReactions[reactionType] = updatedReactions[reactionType].filter((id: string) => id !== info.userId);
-            });
-            updateMessage(chatId, info.messageId, { reactions: updatedReactions });
-          }
+          upsertReaction(info.messageId, info.reactionType, info.userId, 'remove');
         }
       },
     };
@@ -315,12 +316,10 @@ export function useChatDetailScreenLogic() {
   const handleDeleteAction = useCallback(async (msg: ChatMessage) => {
     try {
       await sendSocketDeleteMessage(chatId, msg.serverMessageId || msg.id);
-      if (replyingMessage?.id === msg.id) setReplyingMessage(null);
-      if (editingMessage?.id === msg.id) setEditingMessage(null);
     } catch (error) {
-      const reason = (error as any)?.error || (error as any)?.reason || 'Không thể xóa tin nhắn';
-      Alert.alert('Lỗi', reason);
     }
+    if (replyingMessage?.id === msg.id) setReplyingMessage(null);
+    if (editingMessage?.id === msg.id) setEditingMessage(null);
   }, [chatId, editingMessage?.id, replyingMessage?.id]);
 
   const handleReactAction = useCallback(async (msg: ChatMessage, reaction: "like" | "love" | "haha" | "wow" | "sad" | "angry") => {
@@ -376,6 +375,15 @@ export function useChatDetailScreenLogic() {
           isEdited: true,
           editedAt: Date.now(),
         });
+        // Update conversation lastMessage when editing
+        updateChat(chatId, {
+          lastMessage: {
+            content: trimmed,
+            type: editingMessage.type || 'text',
+            timestamp: Date.now(),
+          },
+          lastMessageAt: Date.now(),
+        });
         setInput('');
         setEditingMessage(null);
       } catch (error) {
@@ -391,6 +399,15 @@ export function useChatDetailScreenLogic() {
         { replyToMessage: replyingMessage },
       );
       addMessage(chatId, optimisticMessage);
+      // Update conversation lastMessage when sending new message
+      updateChat(chatId, {
+        lastMessage: {
+          content: trimmed,
+          type: optimisticMessage.type || 'text',
+          timestamp: Date.now(),
+        },
+        lastMessageAt: Date.now(),
+      });
       await sendPromise;
       updateMessage(chatId, optimisticMessage.id, { status: 'sent' });
       setInput('');
@@ -403,7 +420,7 @@ export function useChatDetailScreenLogic() {
         updateMessage(chatId, (error as any).message_id, { status: 'failed' });
       }
     }
-  }, [addMessage, chatId, editingMessage, input, replyingMessage, updateMessage]);
+  }, [addMessage, chatId, editingMessage, input, replyingMessage, updateMessage, updateChat]);
 
   const handleTypingStart = useCallback(() => {
     if (!chatId) return;

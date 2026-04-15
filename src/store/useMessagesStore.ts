@@ -99,24 +99,54 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
             );
 
       const index = dedupeIndexBySignature;
+
+      // Log revoked state for debugging
+      if (message.isRevoked) {
+        console.log('[useMessagesStore] Adding revoked message:', {
+          messageId: message.id,
+          isRevoked: message.isRevoked,
+          hasBackup: !!message.revokedBackupText,
+          index: index >= 0 ? 'merging with existing' : 'new message',
+        });
+      }
+
       if (index >= 0) {
         const updated = [...existing];
-        const merged = { ...updated[index], ...message };
-        if (updated[index].fromMe === true && message.fromMe !== true) {
+        const existingMsg = updated[index];
+        const merged = { ...existingMsg, ...message };
+
+        // Preserve revoked state from existing message
+        if (existingMsg.isRevoked && !message.isRevoked) {
+          console.log('[useMessagesStore] Preserving isRevoked from existing message:', message.id);
+          merged.isRevoked = true;
+        }
+        // Preserve backup text from existing message
+        if (existingMsg.revokedBackupText && !message.revokedBackupText) {
+          merged.revokedBackupText = existingMsg.revokedBackupText;
+        }
+
+        if (existingMsg.fromMe === true && message.fromMe !== true) {
           merged.fromMe = true;
         }
-        if (!message.senderId && updated[index].senderId) {
-          merged.senderId = updated[index].senderId;
+        if (!message.senderId && existingMsg.senderId) {
+          merged.senderId = existingMsg.senderId;
         }
-        if (!message.replyTo && updated[index].replyTo) {
-          merged.replyTo = updated[index].replyTo;
+        if (!message.replyTo && existingMsg.replyTo) {
+          merged.replyTo = existingMsg.replyTo;
         }
-        if (!message.fileInfo && updated[index].fileInfo) {
-          merged.fileInfo = updated[index].fileInfo;
+        if (!message.fileInfo && existingMsg.fileInfo) {
+          merged.fileInfo = existingMsg.fileInfo;
         }
-        if (!message.serverMessageId && updated[index].serverMessageId) {
-          merged.serverMessageId = updated[index].serverMessageId;
+        if (!message.serverMessageId && existingMsg.serverMessageId) {
+          merged.serverMessageId = existingMsg.serverMessageId;
         }
+
+        console.log('[useMessagesStore] Merged message state:', {
+          messageId: merged.id,
+          isRevoked: merged.isRevoked,
+          hasBackup: !!merged.revokedBackupText,
+        });
+
         updated[index] = merged;
         return {
           messagesByChatId: {
@@ -135,6 +165,16 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   },
 
   setMessagesForChat: (chatId, messages) => {
+    // Log revoked messages loaded from API
+    const revokedMessages = messages.filter(m => m.isRevoked);
+    if (revokedMessages.length > 0) {
+      console.log('[useMessagesStore] Loading revoked messages from API:', {
+        chatId,
+        count: revokedMessages.length,
+        revokedIds: revokedMessages.map(m => ({ id: m.id, hasBackup: !!m.revokedBackupText })),
+      });
+    }
+
     set((state) => ({
       messagesByChatId: {
         ...state.messagesByChatId,
@@ -152,10 +192,26 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       const hasAnyChange = Object.entries(updates).some(([key, value]) => (target as any)[key] !== value);
       if (!hasAnyChange) return state;
 
+      // Preserve revoked state when updating
+      const safeUpdates = { ...updates };
+      if (target.isRevoked && !updates.isRevoked) {
+        console.log('[useMessagesStore] Preserving isRevoked during update:', messageId);
+        delete (safeUpdates as any).isRevoked;
+      }
+      if (target.revokedBackupText && !updates.revokedBackupText) {
+        delete (safeUpdates as any).revokedBackupText;
+      }
+
+      console.log('[useMessagesStore] Updating message:', {
+        messageId,
+        isRevoked: target.isRevoked,
+        updates: safeUpdates,
+      });
+
       return {
         messagesByChatId: {
           ...state.messagesByChatId,
-          [chatId]: sortMessagesAscending(existing.map((m) => (m.id === messageId ? { ...m, ...updates } : m))),
+          [chatId]: sortMessagesAscending(existing.map((m) => (m.id === messageId ? { ...m, ...safeUpdates } : m))),
         },
       };
     });

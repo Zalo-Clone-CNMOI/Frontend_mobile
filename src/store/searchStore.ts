@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import * as usersApi from '../services/usersApi';
 import { SearchResult } from '../types/search';
 import { getErrorMessage } from '../utils/networkUtils';
+import { normalizeVietnamesePhoneNumber } from '../validators/phoneValidator';
 
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let latestSearchRequestId = 0;
@@ -71,8 +72,11 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
     set({ loading: true, error: null });
 
-    // Use original query without normalization to allow searching with '0' at beginning
-    const searchQuery = trimmed;
+    // Normalize phone number only if it starts with 0 (Vietnamese format)
+    // Don't normalize partial digit searches like "943" - let backend handle partial matching
+    const searchQuery = trimmed.startsWith('0') && trimmed.length >= 2 
+      ? normalizeVietnamesePhoneNumber(trimmed) 
+      : trimmed;
 
     try {
       const res: any = await usersApi.searchUsers(searchQuery, { page, limit });

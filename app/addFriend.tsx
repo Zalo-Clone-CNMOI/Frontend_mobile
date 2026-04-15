@@ -62,7 +62,7 @@ export default function AddFriendScreen() {
     initializeCountries();
   }, [initializeCountries]);
 
-  const isValidPhone = phoneNumber.trim().length >= 2;
+  const isValidPhone = phoneNumber.replace(/\D/g, '').length >= 9;
 
   const handleSearch = () => {
     if (!isValidPhone) return;

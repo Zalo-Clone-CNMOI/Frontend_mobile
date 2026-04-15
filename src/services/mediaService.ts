@@ -1,420 +1,760 @@
 /**
+
  * mediaService.ts
+
  *
+
  * Core media upload / download service.
+
  * Files are uploaded DIRECTLY to S3 via presigned URLs (never through backend).
+
  *
+
  * Upload flow (3 steps):
+
  *   1. Presign  → POST /api/media/presign/upload
+
  *   2. Upload   → PUT binary to S3 uploadUrl
+
  *   3. Confirm  → POST /api/media/upload/confirm
+
  *
+
  * Download:
+
  *   - Public files  → CDN URL directly
+
  *   - Private files → POST /api/media/presign/download → signed GET URL
+
  */
+
+
 
 import { NETWORK_CONFIG } from '../config/network';
+
 import type {
-    AttachmentDto,
-    AttachmentType,
-    FileVisibility,
-    MediaFileInput,
-    PresignDownloadResponse,
-    PresignUploadResponse,
-    UploadConfirmResponse,
-    UploadResult,
+
+  AttachmentDto,
+
+  AttachmentType,
+
+  FileVisibility,
+
+  MediaFileInput,
+
+  PresignDownloadResponse,
+
+  PresignUploadResponse,
+
+  UploadConfirmResponse,
+
+  UploadResult,
+
 } from '../types/media';
+
 import { MediaError } from '../types/media';
+
 import { getCurrentToken } from './authService';
 
-const MEDIA_URL = NETWORK_CONFIG.MEDIA_BASE_URL;
-const SSO_URL = NETWORK_CONFIG.SSO_BASE_URL;
 
-export interface UploadAvatarResult extends UploadResult {
-  /** Whether the SSO profile update succeeded */
-  profileUpdated: boolean;
-}
+
+const MEDIA_URL = NETWORK_CONFIG.MEDIA_BASE_URL;
+const MEDIA_FILE_BASE_URL = NETWORK_CONFIG.MEDIA_FILE_BASE_URL;
+
+
 
 /** Fetch with timeout to prevent hanging */
+
 async function fetchWithTimeout(
+
   url: string,
+
   options: RequestInit,
+
   timeoutMs = 15000,
+
 ): Promise<Response> {
+
   const controller = new AbortController();
+
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
+
     return await fetch(url, { ...options, signal: controller.signal });
+
   } catch (err: any) {
+
     if (err?.name === 'AbortError') {
+
       throw new MediaError(0, `Request timed out after ${timeoutMs}ms: ${url}`);
+
     }
+
     throw err;
+
   } finally {
+
     clearTimeout(timer);
+
   }
+
 }
 
 
+
+
+
 /**
+
  * Maps a MIME type string to the canonical AttachmentType.
+
  *
+
  * - image/*  → 'image'  (public)
+
  * - video/*  → 'video'  (public)
+
  * - audio/*  → 'audio'  (private)
+
  * - anything else → 'document' (private)
+
  */
+
 export function getAttachmentType(mimeType?: string): AttachmentType {
+
   if (!mimeType) return 'document';
+
   const lower = mimeType.toLowerCase();
+
   if (lower.startsWith('image/')) return 'image';
+
   if (lower.startsWith('video/')) return 'video';
+
   if (lower.startsWith('audio/')) return 'audio';
+
   return 'document';
+
 }
 
+
+
 /**
+
  * Determine the visibility for a given attachment type.
+
  * Image/Video = public (CDN). Audio/Document = private (presigned).
+
  */
+
 export function getVisibility(type: AttachmentType): FileVisibility {
+
   return type === 'image' || type === 'video' ? 'public' : 'private';
+
 }
+
+
+
+/**
+
+ * Resolve a media URL from a key or full URL.
+
+ * If the key starts with 'http', return it directly.
+
+ * Otherwise, prepend MEDIA_FILE_BASE_URL.
+
+ *
+
+ * @param key - Media key or full URL
+
+ * @returns Resolved URL
+
+ */
+
+export function resolveMediaUrl(key: string): string {
+
+  if (key.startsWith('http')) {
+
+    return key;
+
+  }
+
+  return `${MEDIA_FILE_BASE_URL}/${key}`;
+
+}
+
+
+
 
 
 async function presignUpload(
+
   fileName: string,
+
   contentType: string,
+
   userId: string,
+
   retryCount = 0,
+
 ): Promise<PresignUploadResponse> {
+
   const url = `${MEDIA_URL}/api/media/presign/upload`;
-  
+
+  console.log('[presignUpload] URL:', url);
+
+  console.log('[presignUpload] FileName:', fileName, 'ContentType:', contentType);
+
+
 
   const token = await getCurrentToken();
+  console.log('[presignUpload] Token length:', token?.length || 0);
+
   try {
+    console.log('[presignUpload] Sending request...');
     const response = await fetchWithTimeout(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
+        'x-user-id': userId,
       },
       body: JSON.stringify({ contentType, fileName }),
     }, 1000);
 
+    console.log('[presignUpload] Response status:', response.status);
+
+
+
     if (!response.ok) {
+
       const text = await response.text();
+
+      console.error('[presignUpload] Error response:', text);
+
       if (response.status === 400) {
+
         throw new MediaError(400, `Presign failed: missing contentType or invalid request. ${text}`);
+
       }
+
       if (response.status === 401) {
+
         throw new MediaError(401, `Presign failed: missing x-user-id header. ${text}`);
+
       }
+
       throw new MediaError(response.status, `Presign upload failed (${response.status}): ${text}`);
+
     }
+
+
 
     const json = await response.json();
+
     const data = json?.data ?? json;
 
+
+
     return {
+
       key: data.key,
+
       uploadUrl: data.uploadUrl,
+
       visibility: data.visibility,
+
       expiresAt: data.expiresAt,
+
     };
-  } catch (err: any) {
-    if (retryCount < 2 && (err?.message?.includes('timed out') || err?.name === 'AbortError' || err?.message?.includes('Network'))) {
-      await new Promise(r => setTimeout(r, 1000 * (retryCount + 1)));
-      return presignUpload(fileName, contentType, userId, retryCount + 1);
+
+  } catch (error) {
+
+    console.error('[presignUpload] Error:', error);
+
+    if (error instanceof MediaError) {
+
+      throw error;
+
     }
-    throw err;
+
+    throw new MediaError(0, `Presign network failed: ${error instanceof Error ? error.message : String(error)}`);
+
   }
+
 }
+
+
+
 
 
 async function uploadToS3(
-  uploadUrl: string,
-  fileUri: string,
-  contentType: string,
-): Promise<void> {
-  const response = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': contentType,
-    },
-    body: await uriToBlob(fileUri),
-  });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new MediaError(response.status, `S3 upload failed (${response.status}): ${text}`);
+  uploadUrl: string,
+
+  fileUri: string,
+
+  contentType: string,
+
+): Promise<void> {
+
+  console.log('[uploadToS3] Upload URL:', uploadUrl);
+
+  console.log('[uploadToS3] File URI:', fileUri);
+
+  console.log('[uploadToS3] Content Type:', contentType);
+
+
+
+  try {
+
+    console.log('[uploadToS3] Uploading to S3...');
+
+    const response = await fetch(uploadUrl, {
+
+      method: 'PUT',
+
+      headers: {
+
+        'Content-Type': contentType,
+
+      },
+
+      body: await uriToBlob(fileUri),
+
+    });
+
+
+
+    console.log('[uploadToS3] Response status:', response.status);
+
+
+
+    if (!response.ok) {
+
+      const text = await response.text();
+
+      console.error('[uploadToS3] Error response:', text);
+
+      throw new MediaError(response.status, `S3 upload failed (${response.status}): ${text}`);
+
+    }
+
+
+
+    console.log('[uploadToS3] Upload successful');
+
+  } catch (error) {
+
+    console.error('[uploadToS3] Error:', error);
+
+    if (error instanceof MediaError) {
+
+      throw error;
+
+    }
+
+    throw new MediaError(0, `S3 network failed: ${error instanceof Error ? error.message : String(error)}`);
+
   }
+
 }
+
+
 
 /**
+
  * Convert a local file URI to a Blob for upload.
+
  * Works on both React Native and Web.
+
  */
+
 async function uriToBlob(uri: string): Promise<Blob> {
+
   const resp = await fetch(uri);
+
   return resp.blob();
+
 }
+
+
+
 
 
 async function confirmUpload(
+
   key: string,
+
   contentType: string,
+
   userId: string,
+
   conversationId?: string,
+
 ): Promise<UploadConfirmResponse> {
+
   const url = `${MEDIA_URL}/api/media/upload/confirm`;
 
+
+
   const body: Record<string, string> = { key, contentType };
+
   if (conversationId) {
+
     body.conversationId = conversationId;
+
   }
+
   const token = await getCurrentToken();
+
   const response = await fetchWithTimeout(url, {
+
     method: 'POST',
+
     headers: {
+
       'Content-Type': 'application/json',
+
       'Authorization': `Bearer ${token}`,
+
     },
+
     body: JSON.stringify(body),
+
   });
 
+
+
   if (!response.ok) {
+
     const text = await response.text();
+
     if (response.status === 400) {
+
       throw new MediaError(400, `Confirm failed: file may not be fully uploaded on S3. ${text}`);
+
     }
+
     if (response.status === 401) {
+
       throw new MediaError(401, `Confirm failed: missing x-user-id header. ${text}`);
+
     }
+
     throw new MediaError(response.status, `Upload confirm failed (${response.status}): ${text}`);
+
   }
 
+
+
   const json = await response.json();
+
   const data = json?.data ?? json;
 
+
+
   return {
+
     ok: Boolean(data.ok ?? true),
+
     thumbnailKey: data.thumbnailKey,
+
   };
+
 }
 
 
+
+
+
 /**
+
  * Full 3-step upload flow:
+
  * 1. Presign → get S3 upload URL + key
+
  * 2. PUT binary to S3
+
  * 3. Confirm → backend validates & generates thumbnail
+
  *
+
  * @param file           File picked from device (uri, name, mimeType, size)
+
  * @param userId         Current user's ID (sent as x-user-id header)
+
  * @param conversationId Optional conversation context (for chat attachments)
+
  * @returns              UploadResult with key, visibility, thumbnailKey, etc.
+
  */
+
 export async function uploadMedia(
+
   file: MediaFileInput,
+
   userId: string,
+
   conversationId?: string,
+
 ): Promise<UploadResult> {
+
+  console.log('[mediaService] Starting uploadMedia');
+
+  console.log('[mediaService] File:', file.name, 'Size:', file.size, 'Type:', file.mimeType);
+
+  console.log('[mediaService] User ID:', userId);
+
+  console.log('[mediaService] Conversation ID:', conversationId);
+
+
+
   try {
+
+    console.log('[mediaService] Step 1: Requesting presigned upload URL');
+
     const presign = await presignUpload(file.name, file.mimeType, userId);
+
+    console.log('[mediaService] Presign successful:', { key: presign.key, visibility: presign.visibility });
+
+
+
+    console.log('[mediaService] Step 2: Uploading to S3');
 
     await uploadToS3(presign.uploadUrl, file.uri, file.mimeType);
 
+    console.log('[mediaService] S3 upload successful');
+
+
+
+    console.log('[mediaService] Step 3: Confirming upload');
+
     const confirm = await confirmUpload(
+
       presign.key,
+
       file.mimeType,
+
       userId,
+
       conversationId,
+
     );
 
+    console.log('[mediaService] Confirm successful:', confirm);
+
+
+
     return {
+
       key: presign.key,
+
       visibility: presign.visibility,
+
       thumbnailKey: confirm.thumbnailKey,
+
       contentType: file.mimeType,
+
       fileName: file.name,
+
       fileSize: file.size,
+
     };
+
   } catch (error) {
+
+    console.error('[mediaService] Upload failed:', error);
+
     if (error instanceof MediaError) {
+
+      console.error('[mediaService] MediaError:', error.status, error.message);
+
       throw error;
+
     }
+
+    console.error('[mediaService] Generic error:', error instanceof Error ? error.message : String(error));
+
     throw new MediaError(0, `Upload failed: ${error instanceof Error ? error.message : String(error)}`);
+
   }
+
 }
 
 
+
+
+
 /**
+
  * Convert an UploadResult into an AttachmentDto ready for chat:send payload.
+
  */
+
 export function buildAttachmentDto(result: UploadResult): AttachmentDto {
+
   return {
+
     key: result.key,
+
     type: getAttachmentType(result.contentType),
+
     name: result.fileName,
+
     size: result.fileSize,
+
     content_type: result.contentType,
+
     thumbnail_key: result.thumbnailKey,
+
     visibility: result.visibility,
+
   };
+
 }
+
+
+
 
 
 /**
+
  * Get a displayable URL for an attachment.
+
  *
+
  * - If the attachment already has a `url` (from REST API response), returns it directly.
+
  * - Public files (image/video): returns the CDN URL.
+
  * - Private files (audio/document): calls presign/download to get a signed URL.
+
  *
+
  * @param attachment  Attachment object (WS or REST format)
+
  * @param userId      Current user's ID
+
  * @param cdnBaseUrl  Optional CDN base URL override
+
  */
+
 export async function getAttachmentUrl(
+
   attachment: Pick<AttachmentDto, 'key' | 'visibility'> & { url?: string | null },
+
   userId: string,
+
   cdnBaseUrl?: string,
+
 ): Promise<string> {
+
   try {
+
     if (attachment.visibility === 'public' && attachment.url) {
+
       return attachment.url;
+
     }
+
     return await presignDownload(attachment.key, userId);
+
   } catch (error) {
+
     if (error instanceof MediaError) {
+
       throw error;
+
     }
+
     throw new MediaError(0, `Get attachment URL failed: ${error instanceof Error ? error.message : String(error)}`);
+
   }
+
 }
+
+
+
 
 
 async function presignDownload(
+
   key: string,
+
   userId: string,
+
 ): Promise<string> {
+
   const url = `${MEDIA_URL}/api/media/presign/download`;
 
+
+
   const token = await getCurrentToken();
+
   const response = await fetchWithTimeout(url, {
+
     method: 'POST',
+
     headers: {
+
       'Content-Type': 'application/json',
+
       'Authorization': `Bearer ${token}`,
+
     },
+
     body: JSON.stringify({ key }),
+
   });
 
+
+
   if (!response.ok) {
+
     const text = await response.text();
+
     if (response.status === 403) {
+
       throw new MediaError(403, `Download forbidden: no permission to access this private file. ${text}`);
+
     }
+
     if (response.status === 401) {
+
       throw new MediaError(401, `Download failed: missing x-user-id header. ${text}`);
+
     }
+
     throw new MediaError(response.status, `Presign download failed (${response.status}): ${text}`);
+
   }
+
+
 
   const json = await response.json();
+
   const data: PresignDownloadResponse = json?.data ?? json;
+
   return data.downloadUrl;
+
 }
 
 
-/**
- * PATCH to SSO service to update the user's avatar URL.
- *
- * Endpoint: PATCH http://<host>:5001/users/me
- * Headers:  Authorization: Bearer <token>
- * Body:     { avatarUrl: "<s3 key>" }
- */
-async function updateSsoAvatar(
-  avatarKey: string,
-  token: string,
-): Promise<boolean> {
-  const url = `${SSO_URL}/users/me`;
-
-  const response = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ avatarUrl: avatarKey }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    if (response.status === 400) {
-      throw new MediaError(400, `SSO profile update failed: MEDIA_PERMISSION_DENIED — avatar key invalid. ${text}`);
-    }
-    if (response.status === 401) {
-      throw new MediaError(401, `SSO profile update failed: unauthorized. ${text}`);
-    }
-    throw new MediaError(
-      response.status,
-      `SSO profile update failed (${response.status}): ${text}`,
-    );
-  }
-
-  return true;
-}
-
-
-/**
- * Upload an avatar image via the 3-step presigned flow, then update the
- * user's profile on the SSO service.
- *
- * @param file    Image file from device picker
- * @param userId  Current user ID (for x-user-id in media APIs)
- * @param token   JWT access token (for Authorization: Bearer in SSO API)
- * @returns       UploadAvatarResult
- *
- * @example
- * ```ts
- * const result = await uploadAvatar(imageFile, userId, accessToken);
- * console.log('Avatar key:', result.key);
- * console.log('Profile updated:', result.profileUpdated);
- * ```
- */
-export async function uploadAvatar(
-  file: MediaFileInput,
-  userId: string,
-  token: string,
-): Promise<UploadAvatarResult> {
-  try {
-    const uploadResult = await uploadMedia(file, userId);
-
-    const profileUpdated = await updateSsoAvatar(uploadResult.key, token);
-
-    return {
-      ...uploadResult,
-      profileUpdated,
-    };
-  } catch (error) {
-    if (error instanceof MediaError) {
-      throw error;
-    }
-    throw new MediaError(
-      0,
-      `Avatar upload failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-}
 
 export default {
+
   uploadMedia,
-  uploadAvatar,
+
   getAttachmentUrl,
+
   getAttachmentType,
+
   getVisibility,
+
+  resolveMediaUrl,
+
   buildAttachmentDto,
+
 };
+

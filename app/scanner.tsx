@@ -24,6 +24,8 @@ export default function ScannerScreen() {
     resetScanSession,
     scanned,
     sessionId,
+    showConfirmModal,
+    setShowConfirmModal,
     setFacing,
     setTorch,
     torch,
@@ -102,35 +104,42 @@ export default function ScannerScreen() {
         </Pressable>
       ) : null}
 
-      {sessionId && qrStatus ? (
+      {showConfirmModal && qrStatus === 'waiting' ? (
         <View style={styles.qrModal}>
           <View style={styles.qrModalContent}>
-            <Text style={styles.qrModalTitle}>Yeu cau QR</Text>
-            <Text style={styles.qrModalStatus}>
-              {qrStatus === 'pending' && 'Dang kiem tra...'}
-              {qrStatus === 'waiting' && 'Cho xac nhan...'}
-              {qrStatus === 'confirmed' && 'Da xac nhan'}
-              {qrStatus === 'rejected' && 'Da tu choi'}
-              {qrStatus === 'expired' && 'Het han'}
-            </Text>
-            {(qrStatus === 'waiting' || qrStatus === 'pending') && (
-              <View style={styles.qrModalActions}>
-                <Pressable style={[styles.qrModalBtn, styles.qrConfirm]} onPress={handleConfirm} disabled={loading}>
-                  <Text style={styles.qrConfirmText}>{loading ? '...' : 'Xac nhan'}</Text>
-                </Pressable>
-                <Pressable style={[styles.qrModalBtn, styles.qrReject]} onPress={handleReject} disabled={loading}>
-                  <Text style={styles.qrRejectText}>{loading ? '...' : 'Tu choi'}</Text>
-                </Pressable>
-              </View>
-            )}
-            {(qrStatus === 'confirmed' || qrStatus === 'rejected' || qrStatus === 'expired') && (
-              <Pressable style={styles.qrModalClose} onPress={resetScanSession}>
-                <Text style={styles.qrModalCloseText}>Dong</Text>
+            <Text style={styles.qrModalTitle}>Xác nhận đăng nhập</Text>
+            <Text style={styles.qrModalStatus}>Bạn có muốn đăng nhập trên thiết bị này không?</Text>
+            <View style={styles.qrModalActions}>
+              <Pressable style={[styles.qrModalBtn, styles.qrConfirm]} onPress={handleConfirm} disabled={loading}>
+                <Text style={styles.qrConfirmText}>{loading ? '...' : 'Xác nhận'}</Text>
               </Pressable>
-            )}
+              <Pressable style={[styles.qrModalBtn, styles.qrReject]} onPress={handleReject} disabled={loading}>
+                <Text style={styles.qrRejectText}>{loading ? '...' : 'Từ chối'}</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       ) : null}
+
+      {(qrStatus === 'confirmed' || qrStatus === 'rejected' || qrStatus === 'expired') && (
+        <View style={styles.qrModal}>
+          <View style={styles.qrModalContent}>
+            <Text style={styles.qrModalTitle}>
+              {qrStatus === 'confirmed' && 'Đã xác nhận'}
+              {qrStatus === 'rejected' && 'Đã từ chối'}
+              {qrStatus === 'expired' && 'Đã hết hạn'}
+            </Text>
+            <Text style={styles.qrModalStatus}>
+              {qrStatus === 'confirmed' && 'Đăng nhập thành công trên thiết bị khác'}
+              {qrStatus === 'rejected' && 'Bạn đã từ chối yêu cầu đăng nhập'}
+              {qrStatus === 'expired' && 'Mã QR đã hết hạn'}
+            </Text>
+            <Pressable style={styles.qrModalClose} onPress={resetScanSession}>
+              <Text style={styles.qrModalCloseText}>Đóng</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </View>
   );
 }

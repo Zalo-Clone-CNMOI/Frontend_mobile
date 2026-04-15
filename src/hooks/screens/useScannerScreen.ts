@@ -1,6 +1,5 @@
 import { useAuth } from '@/src/contexts/AuthContext';
-import { NETWORK_CONFIG } from '@/src/config/network';
-import api from '@/src/services/http';
+import { qrConfirm, qrReject } from '@/src/services/authApi';
 import { BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -20,6 +19,8 @@ export function useScannerScreenLogic() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [qrStatus, setQrStatus] = useState<'pending' | 'waiting' | 'confirmed' | 'rejected' | 'expired' | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   const windowSize = useMemo(() => {
     const size = Math.min(280, Math.max(220, Math.floor(width * 0.66)));
@@ -29,23 +30,13 @@ export function useScannerScreenLogic() {
   const frameLeft = useMemo(() => Math.max(0, (width - windowSize) / 2), [width, windowSize]);
   const frameTop = useMemo(() => Math.max(0, (height - windowSize) / 2), [height, windowSize]);
 
-  const pollQrStatus = useCallback(async (sid: string) => {
-    try {
-      const resp = await api.get(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/status/${sid}`);
-      const data = resp?.data || {};
-      if (data.status === 'waiting') {
-        setQrStatus('waiting');
-        setTimeout(() => pollQrStatus(sid), 2000);
-      } else if (data.status === 'confirmed') {
-        setQrStatus('confirmed');
-      } else if (data.status === 'rejected') {
-        setQrStatus('rejected');
-      } else if (data.status === 'expired') {
-        setQrStatus('expired');
-      }
-    } catch {
-      setQrStatus('expired');
-    }
+  const resetScanSession = useCallback(() => {
+    scannedRef.current = false;
+    setScanned(false);
+    setSessionId(null);
+    setQrStatus(null);
+    setShowConfirmModal(false);
+    isSubmittingRef.current = false;
   }, []);
 
   const onBarcodeScanned = useCallback(
@@ -62,64 +53,126 @@ export function useScannerScreenLogic() {
       }
 
       const raw = String(result.data).trim();
-      setSessionId(raw);
+      console.log('[QR] Scanned QR:', raw);
+
+      // Validate QR token
+      if (!raw || raw.length === 0) {
+        Alert.alert('Lỗi', 'QR không hợp lệ');
+        resetScanSession();
+        return;
+      }
+
+      // Check authentication
+      if (!user) {
+        Alert.alert('Cần đăng nhập', 'Bạn cần đăng nhập để xác thực QR code', [
+          {
+            text: 'Đăng nhập',
+            onPress: () => router.push('/login' as any),
+          },
+          {
+            text: 'Hủy',
+            onPress: () => resetScanSession(),
+          },
+        ]);
+        return;
+      }
+
+      // Parse sessionId from QR (QR may contain JSON or raw string)
+      let parsedSessionId = raw;
+      try {
+        const parsed = JSON.parse(raw);
+        parsedSessionId = parsed.sessionId || raw;
+      } catch {
+        // Raw string - check if it's qrToken format: qr_{sessionId}_{hex}
+        if (raw.startsWith('qr_')) {
+          const parts = raw.split('_');
+          if (parts.length >= 2) {
+            // Extract sessionId from qr_{sessionId}_{hex}
+            parsedSessionId = parts[1];
+            console.log('[QR] Extracted sessionId from qrToken:', parsedSessionId);
+          }
+        }
+        // Otherwise use as is
+      }
+      setSessionId(parsedSessionId);
       setQrStatus('waiting');
-      pollQrStatus(raw);
+      setShowConfirmModal(true);
     },
-    [pollQrStatus],
+    [user, router, resetScanSession],
   );
 
   const handleConfirm = useCallback(async () => {
-    if (!sessionId || !user?.id || !user?.tokens?.accessToken) return;
+    if (!sessionId || isSubmittingRef.current) return;
 
+    isSubmittingRef.current = true;
     setLoading(true);
+    setShowConfirmModal(false);
+
     try {
-      const resp = await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/confirm`, { sessionId }, { headers: { userId: user.id } });
-      const data = resp?.data || {};
-      if (resp.status >= 200 && resp.status < 300) {
-        setQrStatus('confirmed');
-        Alert.alert('Thanh cong', 'Da xac nhan QR thanh cong!', [
+      console.log('[QR] Calling qrConfirm with sessionId:', sessionId);
+      await qrConfirm(sessionId);
+
+      setQrStatus('confirmed');
+      Alert.alert(
+        'Thành công',
+        'Đăng nhập thành công trên thiết bị khác',
+        [
           {
             text: 'OK',
             onPress: () => router.back(),
           },
-        ]);
-      } else {
-        Alert.alert('Loi', data.message || 'Khong the xac nhan QR');
+        ],
+      );
+    } catch (error: any) {
+      console.error('[QR] Confirm error:', error);
+      
+      let errorMessage = 'Lỗi kết nối, thử lại';
+      
+      if (error.response) {
+        const status = error.response.status;
+        const data = error.response.data;
+        
+        if (status === 400 || data?.message?.includes('expired')) {
+          errorMessage = 'QR đã hết hạn';
+          setQrStatus('expired');
+        } else if (status === 404 || data?.message?.includes('invalid')) {
+          errorMessage = 'QR không hợp lệ';
+        } else if (data?.message?.includes('used')) {
+          errorMessage = 'QR đã được sử dụng';
+        } else if (data?.message) {
+          errorMessage = data.message;
+        }
+      } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'Kết nối quá thời gian, thử lại';
       }
-    } catch {
-      Alert.alert('Loi', 'Khong the ket noi may chu');
+      
+      Alert.alert('Lỗi', errorMessage);
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
-  }, [router, sessionId, user?.id, user?.tokens?.accessToken]);
+  }, [sessionId, router]);
 
   const handleReject = useCallback(async () => {
-    if (!sessionId || !user?.id || !user?.tokens?.accessToken) return;
+    if (!sessionId || isSubmittingRef.current) return;
 
+    isSubmittingRef.current = true;
     setLoading(true);
+    setShowConfirmModal(false);
+
     try {
-      const resp = await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/reject`, { sessionId }, { headers: { userId: user.id } });
-      const data = resp?.data || {};
-      if (resp.status >= 200 && resp.status < 300) {
-        setQrStatus('rejected');
-        Alert.alert('Da tu choi', 'Ban da tu choi yeu cau QR');
-      } else {
-        Alert.alert('Loi', data.message || 'Khong the tu choi QR');
-      }
-    } catch {
-      Alert.alert('Loi', 'Khong the ket noi may chu');
+      await qrReject(sessionId, { reason: 'USER_REJECTED' });
+
+      setQrStatus('rejected');
+      Alert.alert('Đã từ chối', 'Bạn đã từ chối yêu cầu đăng nhập');
+    } catch (error: any) {
+      console.error('[QR] Reject error:', error);
+      // Don't show error on reject - user already declined
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
-  }, [sessionId, user?.id, user?.tokens?.accessToken]);
-
-  const resetScanSession = useCallback(() => {
-    scannedRef.current = false;
-    setScanned(false);
-    setSessionId(null);
-    setQrStatus(null);
-  }, []);
+  }, [sessionId]);
 
   return {
     facing,
@@ -134,6 +187,8 @@ export function useScannerScreenLogic() {
     requestPermission,
     resetScanSession,
     scanned,
+    showConfirmModal,
+    setShowConfirmModal,
     sessionId,
     setFacing,
     setTorch,
