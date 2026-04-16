@@ -51,7 +51,7 @@ export function VideoViewer({ visible, uri, onClose }: VideoViewerProps) {
             player={player}
             style={styles.video}
             nativeControls
-            allowsFullscreen
+            fullscreenOptions={{ enable: true }}
             contentFit="contain"
           />
         </View>

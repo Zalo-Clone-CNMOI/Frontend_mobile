@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
   },
   cardAvatarContainer: { position: 'relative' },
-  avatar: { width: 50, height: 50, borderRadius: 25 },
+  avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.1)' },
   statusPill: {
     paddingHorizontal: 8,
     paddingVertical: 5,

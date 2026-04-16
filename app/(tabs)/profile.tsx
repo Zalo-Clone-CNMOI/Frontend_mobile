@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avatar: { width: 54, height: 54, borderRadius: 27, marginRight: 12 },
+  avatar: { width: 54, height: 54, borderRadius: 27, marginRight: 12, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.1)' },
   name: { fontSize: 16.5, fontWeight: '600' },
   subtitle: { fontSize: 13, marginTop: 4 },
   section: {

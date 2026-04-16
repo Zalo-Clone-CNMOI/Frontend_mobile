@@ -91,6 +91,7 @@ export const MessageBubble = React.memo(
               { key: tKey, visibility: attachment.visibility || 'public', url: attachment.thumbnailUrl || attachment.thumbnail_url },
               authUser?.id || ''
             );
+            console.log('[MessageBubble] Thumbnail URL:', tUrl, 'for key:', tKey);
             setThumbnailUrl(tUrl);
           }
         } else {
@@ -456,6 +457,8 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     marginHorizontal: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
 
   bubbleWrapper: {
@@ -480,6 +483,8 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
 
   videoBubble: {
@@ -495,6 +500,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   videoPlay: {
     width: 56,

@@ -10,6 +10,8 @@ export type ConversationV2 = {
     content: string;
     type: MessageType;
     timestamp: number;
+    senderId?: string;
+    senderName?: string;
   };
   lastMessageAt?: number;
   unreadCount?: number;

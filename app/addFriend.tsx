@@ -409,6 +409,8 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   resultInfo: { flex: 1, marginLeft: 14 },
   resultName: { fontSize: 16, fontWeight: '700' },

@@ -1,5 +1,6 @@
 import { ChatListItem } from '@/src/components/chat/ChatListItem';
 import { ChatSearchHeader } from '@/src/components/chat/ChatSearchHeader';
+import { useChatSocket } from '@/src/hooks/useChatSocket';
 import { useHomeScreenLogic } from '@/src/hooks/screens/useHomeScreen';
 import { useTheme } from '@/src/theme/themeContext';
 import { FlashList } from '@shopify/flash-list';
@@ -16,6 +17,7 @@ export default function HomeScreen() {
   const theme = useTheme();
   const { t } = useTranslation();
   const { listData, onRefresh, openChat, refreshing } = useHomeScreenLogic();
+  useChatSocket(); // Initialize socket for real-time updates
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>

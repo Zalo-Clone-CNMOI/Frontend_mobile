@@ -4,12 +4,27 @@ import { createSocket, disconnectSocket, getSocket } from '../services/socket';
 import { deleteMessage, editMessage, sendMessage, unreactMessage } from '../services/chatService';
 import { useChatStore } from '../store/chatStore';
 import { useChatsStore } from '../store/useChatsStore';
+import { useChatsStore as useConversationStore } from '../store/useChatsStore';
 import type {
     SocketChatDeletePayload,
     SocketChatEditPayload,
     SocketChatReactPayload,
     SocketChatSendPayload,
 } from '../types/dto/SocketDTO';
+
+// Helper function to detect message type from content
+const detectMessageType = (content: string): string => {
+  if (!content) return 'text';
+  
+  const lowerContent = content.toLowerCase();
+  
+  if (lowerContent.match(/\.(mp4|mov|avi|mkv|webm)$/)) return 'video';
+  if (lowerContent.match(/\.(jpg|jpeg|png|gif|webp)$/)) return 'image';
+  if (lowerContent.match(/\.(pdf|doc|docx|xls|xlsx|txt|zip)$/)) return 'file';
+  if (lowerContent.match(/\.(mp3|wav|ogg|m4a)$/)) return 'voice';
+  
+  return 'text';
+};
 
 export const useChatSocket = () => {
   const { user: authUser } = useAuth();
@@ -22,7 +37,7 @@ export const useChatSocket = () => {
     updateTypingUsers,
     updatePresence
   } = useChatStore();
-  const { updateLastMessage } = useChatsStore();
+  const { updateLastMessage, chats } = useChatsStore();
 
   useEffect(() => {
     const token = authUser?.tokens?.accessToken;
@@ -48,10 +63,26 @@ export const useChatSocket = () => {
       // Update last message in conversation
       const conversationId = payload.conversation_id || payload.conversationId;
       const content = payload.body || payload.content || '';
-      const type = payload.type || 'text';
+      // Detect type from content if Backend doesn't send type
+      const type = payload.type || detectMessageType(content);
       const timestamp = payload.created_at || payload.timestamp || Date.now();
+      const senderId = payload.sender_id || payload.senderId;
+      
+      // Get sender name from conversation or current user
+      let senderName = payload.sender_name || payload.senderName;
+      if (!senderName) {
+        // If sender is current user, use their name
+        if (senderId === authUser?.id) {
+          senderName = (authUser as any)?.fullName || (authUser as any)?.name || 'Bạn';
+        } else {
+          // Try to get from conversation members
+          const conversation = chats.find(c => c.conversationId === conversationId);
+          // For now, leave as undefined - will be handled by ChatListItem
+        }
+      }
+      
       if (conversationId) {
-        updateLastMessage(conversationId, content, type, timestamp);
+        updateLastMessage(conversationId, content, type, timestamp, senderId, senderName);
       }
     });
 

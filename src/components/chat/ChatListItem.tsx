@@ -1,5 +1,6 @@
 import type { ConversationV2 } from '@/src/types/chat';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
+import { useAuth } from '@/src/contexts/AuthContext';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../theme/themeContext';
@@ -14,6 +15,7 @@ export function ChatListItem({
 }) {
   const theme = useTheme();
   const { presence } = useChatStore();
+  const { user: authUser } = useAuth();
   const messageTime = item.lastMessage?.timestamp || item.lastMessageAt;
 
   // Get presence status for the other user (not for groups)
@@ -30,6 +32,46 @@ export function ChatListItem({
   };
 
   const presenceStatus = getPresenceStatus();
+
+  const formatLastMessage = () => {
+    const type = item.lastMessage?.type || 'text';
+    const content = item.lastMessage?.content;
+    const senderId = (item.lastMessage as any)?.senderId;
+    // Determine fromMe by comparing senderId with current user ID
+    const fromMe = senderId ? senderId === authUser?.id : false;
+    const isGroup = item.isGroup;
+
+    // Determine content based on type
+    let messageContent = '';
+    switch (type) {
+      case 'image':
+        messageContent = 'đã gửi 1 ảnh';
+        break;
+      case 'video':
+        messageContent = 'đã gửi 1 video';
+        break;
+      case 'file':
+        messageContent = 'đã gửi 1 tệp';
+        break;
+      case 'voice':
+        messageContent = 'đã gửi 1 tin nhắn thoại';
+        break;
+      default:
+        messageContent = content || '';
+    }
+
+    // Determine prefix based on sender and chat type
+    let prefix = '';
+    if (fromMe) {
+      prefix = 'Bạn: ';
+    } else {
+      // For both group and direct chats, show sender name
+      const senderName = (item.lastMessage as any)?.senderName || '';
+      prefix = senderName ? `${senderName}: ` : '';
+    }
+
+    return prefix + messageContent;
+  };
 
   const getAvatarSource = () => {
     if (item.avatar) {
@@ -61,7 +103,7 @@ export function ChatListItem({
           </Text>
         </View>
         <Text style={[styles.lastMsg, { color: '#8e8e93' }]} numberOfLines={1}>
-          {item.lastMessage?.content || ''}
+          {formatLastMessage()}
         </Text>
       </View>
     </TouchableOpacity>
@@ -70,7 +112,7 @@ export function ChatListItem({
 
 const styles = StyleSheet.create({
   chatItem: { flexDirection: 'row', paddingHorizontal: 15, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 0.5 },
-  avatar: { width: 55, height: 55, borderRadius: 27.5 },
+  avatar: { width: 55, height: 55, borderRadius: 27.5, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.1)' },
   redDot: {
     position: 'absolute',
     right: 0,

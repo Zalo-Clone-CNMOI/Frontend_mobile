@@ -154,6 +154,7 @@ export const mapSocketMessageEventToChatMessage = (
   );
 };
 
+
 export const mapApiConversationToConversationV2 = (
   dto: ApiConversationDTO,
 ): ConversationV2 => {
@@ -190,6 +191,8 @@ export const mapApiConversationToConversationV2 = (
           content: String(lastMessage.content || lastMessage.body || ""),
           type: mapAttachmentTypeToMessageType(undefined, lastMessage.type),
           timestamp: lastMessageTimestamp,
+          senderId: (lastMessage as any).senderId || (lastMessage as any).sender_id,
+          senderName: (lastMessage as any).senderName || (lastMessage as any).sender_name,
         }
       : undefined,
     lastMessageAt,

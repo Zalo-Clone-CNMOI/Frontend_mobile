@@ -1,3 +1,4 @@
+import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { fetchRuntimeFriendSnapshot } from '@/src/services/realtime/runtimeFriendService';
 import {
   cancelRuntimeFriendRequest,
@@ -176,14 +177,14 @@ export default function FriendRequestsScreen() {
                 key={request.id || `req-${index}`}
                 style={[styles.card, { backgroundColor: theme.colors.card }]}
               >
-                <Image
-                  source={{
-                    uri:
-                      profile?.avatarUrl ||
-                      `https://i.pravatar.cc/120?u=${profile?.id || request.id}`,
-                  }}
-                  style={styles.avatar}
-                />
+                {profile?.avatarUrl ? (
+                  <Image
+                    source={{ uri: profile.avatarUrl }}
+                    style={styles.avatar}
+                  />
+                ) : (
+                  <AvatarWithInitials name={profile?.fullName || 'User'} size={56} style={styles.avatar} />
+                )}
 
                 <View style={styles.cardBody}>
                   <View style={styles.cardTop}>
@@ -313,6 +314,8 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   cardBody: { flex: 1 },
   cardTop: {

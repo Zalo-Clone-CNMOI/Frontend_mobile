@@ -61,6 +61,7 @@ import { getCurrentToken } from './authService';
 const MEDIA_URL = NETWORK_CONFIG.MEDIA_BASE_URL;
 const MEDIA_FILE_BASE_URL = NETWORK_CONFIG.MEDIA_FILE_BASE_URL;
 const S3_BUCKET = NETWORK_CONFIG.S3_BUCKET;
+const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com';
 
 
 
@@ -179,7 +180,8 @@ export function resolveMediaUrl(key: string): string {
   const parts = key.split('/');
   const keyPath = parts.length > 1 && parts[0].includes('-') ? key : `${S3_BUCKET}/${key}`;
 
-  return `${MEDIA_FILE_BASE_URL}/${keyPath}`;
+  // Use direct S3 URL for public files instead of backend proxy
+  return `${S3_BASE_URL}/${keyPath}`;
 
 }
 

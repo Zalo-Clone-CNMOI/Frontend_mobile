@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 13, marginHorizontal: 16, marginBottom: 8 },
   errorText: { color: '#ff6b6b', marginHorizontal: 16, marginBottom: 8 },
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
-  avatar: { width: 44, height: 44, borderRadius: 22 },
+  avatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.1)' },
   rowContent: { flex: 1, marginLeft: 12, borderBottomWidth: 0.5, paddingBottom: 12 },
   name: { fontSize: 16, fontWeight: '500' },
   subtitle: { fontSize: 13, marginTop: 2 },

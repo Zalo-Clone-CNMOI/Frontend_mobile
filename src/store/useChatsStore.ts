@@ -16,7 +16,7 @@ interface ChatsState {
   addChat: (chat: ConversationV2) => void;
   deleteChat: (chatId: string) => void;
   updateChat: (chatId: string, updates: Partial<ConversationV2>) => void;
-  updateLastMessage: (conversationId: string, content: string, type: string, timestamp: number) => void;
+  updateLastMessage: (conversationId: string, content: string, type: string, timestamp: number, senderId?: string, senderName?: string) => void;
   reset: () => void;
 }
 
@@ -85,7 +85,7 @@ export const useChatsStore = create<ChatsState>((set) => ({
     }));
   },
 
-  updateLastMessage: (conversationId: string, content: string, type: string, timestamp: number) => {
+  updateLastMessage: (conversationId: string, content: string, type: string, timestamp: number, senderId?: string, senderName?: string) => {
     set((state) => {
       const updateConversation = (chat: ConversationV2) => {
         if (chat.conversationId === conversationId) {
@@ -95,6 +95,8 @@ export const useChatsStore = create<ChatsState>((set) => ({
               content,
               type: type as any,
               timestamp,
+              senderId,
+              senderName,
             },
             lastMessageAt: timestamp,
           };

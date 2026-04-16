@@ -15,19 +15,19 @@ export function useWelcomeScreenLogic() {
         id: 0,
         title: t('welcome.slide1_title'),
         subtitle: t('welcome.slide1_subtitle'),
-        image: { source: require('../../assets/image/react-logo.png') },
+        image: { source: require('../../assets/image/pic1.webp') },
       },
       {
         id: 1,
         title: t('welcome.slide2_title'),
         subtitle: t('welcome.slide2_subtitle'),
-        image: { source: require('../../assets/image/react-logo.png') },
+        image: { source: require('../../assets/image/pic2.webp') },
       },
       {
         id: 2,
         title: t('welcome.slide3_title'),
         subtitle: t('welcome.slide3_subtitle'),
-        image: { source: require('../../assets/image/react-logo.png') },
+        image: { source: require('../../assets/image/pic3.webp') },
       },
     ],
     [t],
@@ -37,7 +37,7 @@ export function useWelcomeScreenLogic() {
 
   const languages = useMemo(
     () => [
-      { id: 'vi', label: 'Tieng Viet' },
+      { id: 'vi', label: 'Tiếng Việt' },
       { id: 'en', label: 'English' },
     ],
     [],

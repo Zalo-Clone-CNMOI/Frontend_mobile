@@ -65,6 +65,48 @@ export function ForwardModal({
     chat.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const formatLastMessage = (item: any) => {
+    const type = item.lastMessage?.type || 'text';
+    const content = item.lastMessage?.content;
+    const fromMe = (item.lastMessage as any)?.fromMe || false;
+    const isGroup = item.isGroup;
+
+    if (!content && !type) {
+      return t('chat.no_messages', { defaultValue: 'Không có tin nhắn' });
+    }
+
+    // Determine content based on type
+    let messageContent = '';
+    switch (type) {
+      case 'image':
+        messageContent = 'đã gửi 1 ảnh';
+        break;
+      case 'video':
+        messageContent = 'đã gửi 1 video';
+        break;
+      case 'file':
+        messageContent = 'đã gửi 1 tệp';
+        break;
+      case 'voice':
+        messageContent = 'đã gửi 1 tin nhắn thoại';
+        break;
+      default:
+        messageContent = content || '';
+    }
+
+    // Determine prefix based on sender and chat type
+    let prefix = '';
+    if (fromMe) {
+      prefix = 'Bạn: ';
+    } else {
+      // For both group and direct chats, show sender name
+      const senderName = item.lastMessage?.senderName || '';
+      prefix = senderName ? `${senderName}: ` : '';
+    }
+
+    return prefix + messageContent;
+  };
+
   const handleForward = async (conversationId: string) => {
     const messageToForward = localMessage || message;
     if (!messageToForward) {
@@ -135,7 +177,7 @@ export function ForwardModal({
                     {item.name}
                   </Text>
                   <Text style={[styles.chatLastMessage, { color: '#8e8e93' }]} numberOfLines={1}>
-                    {item.lastMessage?.content || t('chat.no_messages', { defaultValue: 'Không có tin nhắn' })}
+                    {formatLastMessage(item)}
                   </Text>
                 </View>
                 <ChevronRight size={20} color="#8e8e93" />
@@ -203,6 +245,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   chatInfo: {
     flex: 1,

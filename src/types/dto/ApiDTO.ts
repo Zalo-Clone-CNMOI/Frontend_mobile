@@ -130,6 +130,10 @@ export type ApiConversationLastMessageDTO = {
   timestamp?: string | number;
   createdAt?: string | number;
   created_at?: string | number;
+  senderId?: string;
+  sender_id?: string;
+  senderName?: string;
+  sender_name?: string;
 };
 
 export type ApiConversationDTO = {
