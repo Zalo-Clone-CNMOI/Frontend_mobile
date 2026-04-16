@@ -53,16 +53,13 @@ export function useScannerScreenLogic() {
       }
 
       const raw = String(result.data).trim();
-      console.log('[QR] Scanned QR:', raw);
 
-      // Validate QR token
       if (!raw || raw.length === 0) {
         Alert.alert('Lỗi', 'QR không hợp lệ');
         resetScanSession();
         return;
       }
 
-      // Check authentication
       if (!user) {
         Alert.alert('Cần đăng nhập', 'Bạn cần đăng nhập để xác thực QR code', [
           {
@@ -77,22 +74,17 @@ export function useScannerScreenLogic() {
         return;
       }
 
-      // Parse sessionId from QR (QR may contain JSON or raw string)
       let parsedSessionId = raw;
       try {
         const parsed = JSON.parse(raw);
         parsedSessionId = parsed.sessionId || raw;
       } catch {
-        // Raw string - check if it's qrToken format: qr_{sessionId}_{hex}
         if (raw.startsWith('qr_')) {
           const parts = raw.split('_');
           if (parts.length >= 2) {
-            // Extract sessionId from qr_{sessionId}_{hex}
             parsedSessionId = parts[1];
-            console.log('[QR] Extracted sessionId from qrToken:', parsedSessionId);
           }
         }
-        // Otherwise use as is
       }
       setSessionId(parsedSessionId);
       setQrStatus('waiting');
@@ -109,7 +101,6 @@ export function useScannerScreenLogic() {
     setShowConfirmModal(false);
 
     try {
-      console.log('[QR] Calling qrConfirm with sessionId:', sessionId);
       await qrConfirm(sessionId);
 
       setQrStatus('confirmed');

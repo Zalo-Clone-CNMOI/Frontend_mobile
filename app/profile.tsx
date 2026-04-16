@@ -1,8 +1,9 @@
 import { useAuth } from '@/src/contexts/AuthContext';
+import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { useTheme } from '@/src/theme/themeContext';
 import { useRouter } from 'expo-router';
 import { Calendar, LogOut, Mail, Phone, User } from 'lucide-react-native';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -11,6 +12,10 @@ export default function ProfileScreen() {
   const { user: authUser, logout } = useAuth();
   const { t } = useTranslation();
   const router = useRouter();
+
+  useEffect(() => {
+    // Avatar URL is normalized in AuthContext
+  }, [authUser?.avatarUrl]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -50,9 +55,7 @@ export default function ProfileScreen() {
           {authUser?.avatarUrl ? (
             <Image source={{ uri: authUser.avatarUrl }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: theme.colors.primary }]}>
-              <User size={40} color="#fff" />
-            </View>
+            <AvatarWithInitials name={authUser?.name || 'User'} size={100} style={styles.avatar} />
           )}
         </View>
         <Text style={[styles.name, { color: theme.colors.text }]}>

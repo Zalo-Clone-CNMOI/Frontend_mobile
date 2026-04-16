@@ -77,7 +77,13 @@ export function useChatDetailScreenLogic() {
     loadInitialMessages(chatId)
       .then((res) => {
         if (!active) return;
-        setMessagesForChat(chatId, res.messages || []);
+        // Add conversation avatar to initial messages
+        const messagesWithAvatar = (res.messages || []).map(msg => ({
+          ...msg,
+          senderAvatar: currentChat?.avatar || null,
+          senderName: currentChat?.name || msg.senderName,
+        }));
+        setMessagesForChat(chatId, messagesWithAvatar);
         setNextCursor(res.nextCursor || undefined);
         setHasMore(Boolean(res.hasMore));
         setTimeout(() => {
@@ -89,17 +95,20 @@ export function useChatDetailScreenLogic() {
     return () => {
       active = false;
     };
-  }, [chatId, setMessagesForChat]);
+  }, [chatId, setMessagesForChat, currentChat]);
 
   const handleLoadMore = useCallback(async () => {
     if (!chatId || !hasMore || !nextCursor || isLoadingMore) return;
     if (loadedCursorRef.current === nextCursor) return;
-    loadedCursorRef.current = nextCursor;
 
     setIsLoadingMore(true);
     try {
       const res = await fetchMoreMessages(chatId, nextCursor, 50);
-      const olderMessages = res.messages || [];
+      const olderMessages = (res.messages || []).map(msg => ({
+        ...msg,
+        senderAvatar: currentChat?.avatar || null,
+        senderName: currentChat?.name || msg.senderName,
+      }));
       const current = useMessagesStore.getState().messagesByChatId[chatId] || [];
       const mergedMap = new Map<string, ChatMessage>();
       [...olderMessages, ...current].forEach((m) => mergedMap.set(m.id, m));
@@ -112,7 +121,7 @@ export function useChatDetailScreenLogic() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [chatId, hasMore, isLoadingMore, nextCursor, setMessagesForChat]);
+  }, [chatId, hasMore, isLoadingMore, nextCursor, setMessagesForChat, currentChat]);
 
   useEffect(() => {
     const handlers = {
@@ -130,6 +139,13 @@ export function useChatDetailScreenLogic() {
                 )
               : undefined);
 
+          // Add conversation avatar to incoming messages
+          const messageWithAvatar = {
+            ...msg,
+            senderAvatar: currentChat?.avatar || null,
+            senderName: currentChat?.name || msg.senderName,
+          };
+
           if (existing) {
             updateMessage(chatId, existing.id, {
               text: msg.text ?? existing.text,
@@ -144,9 +160,11 @@ export function useChatDetailScreenLogic() {
                 existing.serverMessageId ||
                 msg.serverMessageId ||
                 (incomingKey && incomingKey !== existing.id ? incomingKey : undefined),
+              senderAvatar: currentChat?.avatar || null,
+              senderName: currentChat?.name || msg.senderName,
             });
           } else {
-            addMessage(chatId, msg);
+            addMessage(chatId, messageWithAvatar);
             // Update conversation lastMessage
             updateChat(chatId, {
               lastMessage: {
@@ -246,26 +264,28 @@ export function useChatDetailScreenLogic() {
   }, [addMessage, addReaction, chatId, deleteMessage, removeReaction, typingSocket, updateMessage]);
 
   const handleSendFiles = useCallback(async (files: any[]) => {
-    for (const file of files) {
-      const fallbackLabel = file?.name || file?.uri?.split('/')?.pop() || 'File';
+    if (files.length === 0) return;
 
-      try {
-        const { optimisticMessage, sendPromise } = await sendSocketMessage(
-          chatId,
-          fallbackLabel,
-          [file],
-          { replyToMessage: replyingMessage },
-        );
-        addMessage(chatId, optimisticMessage);
-        await sendPromise;
-        updateMessage(chatId, optimisticMessage.id, { status: 'sent' });
-      } catch (error) {
-        if ((error as any)?.message_id) {
-          updateMessage(chatId, (error as any).message_id, { status: 'failed' });
-        }
-        const reason = (error as any)?.reason || (error as any)?.message || 'Kiểm tra lại file đính kèm';
-        Alert.alert('Gửi file thất bại', `Không thể gửi file: ${reason}`);
+    const fallbackLabel = files.length === 1
+      ? (files[0]?.name || files[0]?.uri?.split('/')?.pop() || 'File')
+      : `${files.length} files`;
+
+    try {
+      const { optimisticMessage, sendPromise } = await sendSocketMessage(
+        chatId,
+        fallbackLabel,
+        files,
+        { replyToMessage: replyingMessage },
+      );
+      addMessage(chatId, optimisticMessage);
+      await sendPromise;
+      updateMessage(chatId, optimisticMessage.id, { status: 'sent' });
+    } catch (error) {
+      if ((error as any)?.message_id) {
+        updateMessage(chatId, (error as any).message_id, { status: 'failed' });
       }
+      const reason = (error as any)?.reason || (error as any)?.message || 'Kiểm tra lại file đính kèm';
+      Alert.alert('Gửi file thất bại', `Không thể gửi file: ${reason}`);
     }
 
     setReplyingMessage(null);
@@ -304,7 +324,6 @@ export function useChatDetailScreenLogic() {
   }, [chatId, editingMessage?.id, replyingMessage?.id, revokeMessage]);
 
   const handleForwardAction = useCallback((msg: ChatMessage) => {
-    console.log('[handleForwardAction] Opening forward modal for message:', msg.id);
     setSelectedActionMessage(msg);
     // Use setTimeout to ensure state update is processed before opening modal
     setTimeout(() => {
@@ -313,16 +332,11 @@ export function useChatDetailScreenLogic() {
   }, []);
 
   const handleForward = useCallback(async (message: ChatMessage, targetConversationId: string) => {
-    console.log('[handleForward] Called with targetConversationId:', targetConversationId);
-    console.log('[handleForward] message:', message);
     if (!message) {
-      console.error('[handleForward] No message provided');
       return;
     }
-    console.log('[handleForward] Forwarding message to conversation:', targetConversationId);
     try {
       await forwardMessage(message, targetConversationId);
-      console.log('[handleForward] Forward successful');
       Alert.alert(t('chat.forward_success', { defaultValue: 'Đã chuyển tiếp tin nhắn' }));
     } catch (error) {
       console.error('[handleForward] Forward failed:', error);

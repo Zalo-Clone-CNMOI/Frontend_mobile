@@ -8,7 +8,7 @@ import { useCallback, useMemo, useState } from 'react';
 export type ContactListItem = {
   id: string;
   fullName: string;
-  avatar: string;
+  avatar: string | null;
   status: string;
   phone: string;
   email: string;
@@ -26,10 +26,18 @@ export type ContactListItem = {
   friendRequestMessage?: string;
 };
 
+const normalizeAvatarUrl = (avatar?: string): string | null => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar;
+  }
+  return 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/' + avatar.replace(/^\//, '');
+};
+
 const mapFriend = (friend: any): ContactListItem => ({
   id: friend.id || friend._id,
   fullName: friend.fullName || friend.name || '',
-  avatar: friend.avatarUrl || friend.avatar || `https://i.pravatar.cc/200?u=${friend.id || Math.random()}`,
+  avatar: normalizeAvatarUrl(friend.avatarUrl || friend.avatar),
   status: friend.status || 'offline',
   phone: friend.phone || '',
   email: friend.email || '',

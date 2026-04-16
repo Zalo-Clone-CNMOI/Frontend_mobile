@@ -103,9 +103,6 @@ export default function OptionalProfileScreen() {
       return;
     }
 
-    console.log('firebaseIdToken:', firebaseIdToken ? 'present' : 'missing');
-    console.log('password:', password ? 'present' : 'missing');
-
     setIsSubmitting(true);
     try {
       const payload: Record<string, any> = {
@@ -122,10 +119,6 @@ export default function OptionalProfileScreen() {
       if (gender) {
         payload.gender = gender;
       }
-
-      console.log('Registration payload:', payload);
-      console.log('firebaseIdToken length:', firebaseIdToken?.length);
-      console.log('password length:', password?.length);
 
       const resp = await authApi.register(payload);
       const persistedUserInfo = (resp as any)?.persistedUserInfo as UserInfo | undefined;

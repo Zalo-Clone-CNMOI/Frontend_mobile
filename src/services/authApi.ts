@@ -153,10 +153,6 @@ export const qrConfirm = async (sessionId: string, payload?: any) => {
   try {
     const url = `${NETWORK_CONFIG.AUTH_BASE_URL}/qr/confirm`;
     const body = { sessionId, ...payload };
-    console.log('[QR Confirm] ========== REQUEST ==========');
-    console.log('[QR Confirm] URL:', url);
-    console.log('[QR Confirm] Method: POST');
-    console.log('[QR Confirm] Body:', JSON.stringify(body));
     return await api.post(url, body);
   } catch (e: any) {
     console.error('[QR Confirm] ========== ERROR ==========');
@@ -173,8 +169,6 @@ export const qrReject = async (sessionId: string, payload?: any) => {
   try {
     const url = `${NETWORK_CONFIG.AUTH_BASE_URL}/qr/reject`;
     const body = { sessionId, ...payload };
-    console.log('[QR Reject] URL:', url);
-    console.log('[QR Reject] Body:', JSON.stringify(body));
     return await api.post(url, body);
   } catch (e: any) {
     console.error('[QR Reject] Error:', e.message);

@@ -97,19 +97,6 @@ function toLegacyChatMessage(apiMessage: any): ChatMessage {
     ? apiMessage.attachments[0]
     : undefined;
 
-  // Log attachment details
-  if (firstAttachment) {
-    console.log('[chatService] Message has attachment:', {
-      key: firstAttachment.key,
-      type: firstAttachment.type,
-      name: firstAttachment.name,
-      size: firstAttachment.size,
-      content_type: firstAttachment.content_type,
-      thumbnail_key: firstAttachment.thumbnail_key,
-      visibility: firstAttachment.visibility,
-    });
-  }
-
   const senderId =
     apiMessage?.senderId ??
     apiMessage?.sender_id ??
@@ -382,7 +369,6 @@ export async function sendMessage(
 
   let attachments: any[] = [];
   if (files && files.length > 0) {
-    console.log('[chatService] Uploading', files.length, 'files');
     let currentUserId = '';
     try {
       const user = await getCurrentUser();
@@ -396,8 +382,6 @@ export async function sendMessage(
     for (const rawFile of files as OutgoingFile[]) {
       const file = normalizeOutgoingFile(rawFile);
       if (!file.uri) continue;
-
-      console.log('[chatService] Uploading file', fileIndex + 1, 'of', files.length, ':', file.name, 'Size:', file.size, 'Type:', file.type);
       const mediaInput: MediaFileInput = {
         uri: file.uri,
         name: file.name,
@@ -406,13 +390,7 @@ export async function sendMessage(
       };
       const uploadResult = await uploadMedia(mediaInput, currentUserId, conversationId);
 
-      console.log('[chatService] Upload result:', uploadResult);
-
-      if (__DEV__) {
-      }
-
       const dto = buildAttachmentDto(uploadResult);
-      console.log('[chatService] Attachment DTO:', dto);
       attachments.push({
         key: dto.key,
         type: dto.type,
@@ -732,15 +710,7 @@ export async function forwardMessage(
   const body = originalMessage.text || originalMessage.content || '';
   const attachments = originalMessage.attachments || (originalMessage.attachment ? [originalMessage.attachment] : []);
 
-  console.log('[forwardMessage] Sending forward message:', {
-    messageId,
-    targetConversationId,
-    body,
-    attachmentsCount: attachments.length,
-    rawAttachments: attachments,
-  });
-
-  // Prepare attachments for forward - filter out undefined/null attachments
+  // Prepare attachments for forward - filter out undefined/null attachments without key
   const preparedAttachments = attachments
     .filter((att: any) => att && att.key) // Filter out null/undefined and attachments without key
     .map((att: any) => ({
@@ -761,17 +731,14 @@ export async function forwardMessage(
     attachments: preparedAttachments.length > 0 ? preparedAttachments : undefined,
   };
 
-  console.log('[forwardMessage] Socket emit chat:send with payload:', payload);
   socket.emit("chat:send", payload);
 
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      console.error('[forwardMessage] Timeout waiting for ack');
       reject(new Error("Forward timeout"));
     }, 10000);
 
     socket.once(`chat:ack`, (ack: any) => {
-      console.log('[forwardMessage] Received chat:ack:', ack);
       if (ack.message_id === messageId) {
         clearTimeout(timeout);
         if (ack.status === 'accepted') {
@@ -863,20 +830,6 @@ export async function fetchMessages(
       messages = payload.messages;
     }
 
-    // Log attachment URLs from Backend response
-    messages.forEach((msg: any, index: number) => {
-      if (msg.attachments && Array.isArray(msg.attachments)) {
-        msg.attachments.forEach((att: any, attIndex: number) => {
-          console.log(`[chatService.fetchMessages] Message ${index} Attachment ${attIndex}:`, {
-            key: att.key,
-            url: att.url,
-            thumbnailUrl: att.thumbnailUrl,
-            visibility: att.visibility,
-          });
-        });
-      }
-    });
-
     // Filter out deleted messages
     const activeMessages = messages.filter(m => !m?.isDeleted && !m?.is_deleted);
     return activeMessages.map(toLegacyChatMessage);
@@ -956,6 +909,14 @@ export async function fetchContacts(): Promise<{ users: ContactUser[] }> {
     const users: ContactUser[] = list.map((u: any) => {
       const id = u.id || u._id;
 
+      const normalizeAvatarUrl = (avatar?: string): string | null => {
+        if (!avatar) return null;
+        if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+          return avatar;
+        }
+        return 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/' + avatar.replace(/^\//, '');
+      };
+
       return {
         id,
         fullName:
@@ -964,10 +925,7 @@ export async function fetchContacts(): Promise<{ users: ContactUser[] }> {
           `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
           "Unknown",
 
-        avatar:
-          u.avatarUrl ||
-          u.avatar ||
-          `https://i.pravatar.cc/150?u=${id || "default"}`,
+        avatar: normalizeAvatarUrl(u.avatarUrl || u.avatar),
 
         status: u.status ?? "offline",
 

@@ -8,41 +8,25 @@ const readEnv = (key: string, fallback: string): string => {
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
-const BFF_BASE_URL = trimTrailingSlash(
-  readEnv('EXPO_PUBLIC_BFF_BASE_URL', 'http://54.179.206.215:3000'),
-);
+// Single source of truth for backend host
+const API_HOST = readEnv('EXPO_PUBLIC_API_HOST', '54.179.206.215');
 
-const API_BASE_URL = trimTrailingSlash(
-  readEnv('EXPO_PUBLIC_API_BASE_URL', 'http://54.179.206.215:5000/api'),
-);
+// Service ports
+const BFF_PORT = readEnv('EXPO_PUBLIC_BFF_PORT', '3000');
+const API_PORT = readEnv('EXPO_PUBLIC_API_PORT', '5000');
+const SOCKET_PORT = readEnv('EXPO_PUBLIC_SOCKET_PORT', '3001');
+const SSO_PORT = readEnv('EXPO_PUBLIC_SSO_PORT', '5001');
 
-const AUTH_BASE_URL = trimTrailingSlash(
-  readEnv('EXPO_PUBLIC_AUTH_BASE_URL', 'http://54.179.206.215:5000/api/auth'),
-);
-
-const SOCKET_URL = trimTrailingSlash(
-  readEnv('EXPO_PUBLIC_SOCKET_URL', 'http://54.179.206.215:3001'),
-);
-
-const MESSAGE_BASE_URL = trimTrailingSlash(
-  readEnv('EXPO_PUBLIC_MESSAGE_BASE_URL', 'http://54.179.206.215:5000'),
-);
-
-const MEDIA_BASE_URL = trimTrailingSlash(
-  readEnv('EXPO_PUBLIC_MEDIA_BASE_URL', 'http://54.179.206.215:5000'),
-);
-
-const MEDIA_FILE_BASE_URL = trimTrailingSlash(
-  readEnv('EXPO_PUBLIC_MEDIA_FILE_BASE_URL', 'http://54.179.206.215:5000'),
-);
-
-const SSO_BASE_URL = trimTrailingSlash(
-  readEnv('EXPO_PUBLIC_SSO_BASE_URL', 'http://54.179.206.215:5001'),
-);
-
-const AUTH_REFRESH_URL = trimTrailingSlash(
-  readEnv('EXPO_PUBLIC_AUTH_REFRESH_URL', `${AUTH_BASE_URL}/refresh`),
-);
+// Build URLs from host + port (single source of truth, no duplication)
+const BFF_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${BFF_PORT}`);
+const API_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}/api`);
+const AUTH_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}/api/auth`);
+const SOCKET_URL = trimTrailingSlash(`http://${API_HOST}:${SOCKET_PORT}`);
+const MESSAGE_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}`);
+const MEDIA_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}`);
+const MEDIA_FILE_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}`);
+const SSO_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${SSO_PORT}`);
+const AUTH_REFRESH_URL = trimTrailingSlash(`${AUTH_BASE_URL}/refresh`);
 
 const S3_BUCKET = readEnv('EXPO_PUBLIC_S3_BUCKET', 'onn-bucket-23');
 

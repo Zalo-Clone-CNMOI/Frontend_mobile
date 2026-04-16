@@ -9,7 +9,7 @@ import {
   RealtimeHostConfig,
 } from "../../types/realtimeBff";
 
-const DEFAULT_HOST = "54.179.206.215";
+const DEFAULT_HOST = process.env.EXPO_PUBLIC_API_HOST || "54.179.206.215";
 const DEFAULT_HTTP_PORT = 5000;
 
 export type CreateBffHttpClientOptions = RealtimeHostConfig & {

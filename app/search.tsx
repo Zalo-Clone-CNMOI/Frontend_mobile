@@ -1,4 +1,5 @@
 import { useAuth } from '@/src/contexts/AuthContext';
+import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { useSearchScreenLogic } from '@/src/hooks/screens/useSearchScreen';
 import { createDirect } from '@/src/services/conversationsApi';
 import { sendRuntimeFriendRequest } from '@/src/services/realtime/runtimeFriendActions';
@@ -174,8 +175,12 @@ export default function SearchScreen() {
         renderItem={({ item }: any) => {
           if (item.type === 'user') {
             return (
-              <View style={[styles.row, { backgroundColor: theme.colors.background }]}> 
-                <Image source={{ uri: item.avatarUrl || item.avatar || `https://i.pravatar.cc/150?u=${item.id}` }} style={styles.avatar} />
+              <View style={[styles.row, { backgroundColor: theme.colors.background }]}>
+                {item.avatarUrl || item.avatar ? (
+                  <Image source={{ uri: item.avatarUrl || item.avatar }} style={styles.avatar} />
+                ) : (
+                  <AvatarWithInitials name={item.fullName || 'User'} size={44} style={styles.avatar} />
+                )}
                 <View style={[styles.rowContent, { borderBottomColor: theme.colors.border }]}>
                   <Text style={[styles.name, { color: theme.colors.text }]}>{item.fullName}</Text>
                   <Text style={[styles.subtitle, { color: '#8e8e93' }]} numberOfLines={1}>
@@ -195,7 +200,11 @@ export default function SearchScreen() {
                   router.push({ pathname: '/chat/[id]', params: { id: item.conversationId, name: item.name } })
                 }
               >
-                <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                {item.avatar ? (
+                  <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                ) : (
+                  <AvatarWithInitials name={item.name || 'Group'} size={44} style={styles.avatar} />
+                )}
                 <View style={[styles.rowContent, { borderBottomColor: theme.colors.border }]}>
                   <Text style={[styles.name, { color: theme.colors.text }]}>{item.name}</Text>
                   <Text style={[styles.subtitle, { color: '#8e8e93' }]} numberOfLines={1}>
@@ -211,7 +220,11 @@ export default function SearchScreen() {
               style={[styles.row, { backgroundColor: theme.colors.background }]}
               onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.id, name: item.name } })}
             >
-              <Image source={{ uri: item.avatar }} style={styles.avatar} />
+              {item.avatar ? (
+                <Image source={{ uri: item.avatar }} style={styles.avatar} />
+              ) : (
+                <AvatarWithInitials name={item.name || 'Chat'} size={44} style={styles.avatar} />
+              )}
               <View style={[styles.rowContent, { borderBottomColor: theme.colors.border }]}>
                 <Text style={[styles.name, { color: theme.colors.text }]}>{item.name}</Text>
                 <Text style={[styles.subtitle, { color: '#8e8e93' }]} numberOfLines={1}>

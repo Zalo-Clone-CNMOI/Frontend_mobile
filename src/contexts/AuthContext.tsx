@@ -10,6 +10,14 @@ import { useChatsStore } from '../store/useChatsStore';
 import { useMessagesStore } from '../store/useMessagesStore';
 import { useRealtimeStore } from '../store/useRealtimeStore';
 
+const normalizeAvatarUrl = (avatar?: string): string | undefined => {
+  if (!avatar) return undefined;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar;
+  }
+  return 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/' + avatar.replace(/^\//, '');
+};
+
 interface AuthContextType {
   user: UserInfo | null;
   isLoading: boolean;
@@ -55,7 +63,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 ...authData,
                 name: serverData.fullName || serverData.name || authData.name,
                 email: serverData.email || authData.email,
-                avatarUrl: serverData.avatarUrl || serverData.avatar || authData.avatarUrl,
+                avatarUrl: normalizeAvatarUrl(serverData.avatarUrl || serverData.avatar || authData.avatarUrl),
                 bio: serverData.bio || authData.bio,
                 dateOfBirth: serverData.dateOfBirth || authData.dateOfBirth,
                 gender: serverData.gender || authData.gender,
@@ -97,8 +105,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const login = async (userInfo: UserInfo) => {
     try {
       await resetRuntimeState();
-      await saveAuthData(userInfo);
-      setUser(userInfo);
+      // Normalize avatarUrl to ensure it has S3 base URL
+      const normalizedUserInfo = {
+        ...userInfo,
+        avatarUrl: normalizeAvatarUrl(userInfo.avatarUrl),
+      };
+      await saveAuthData(normalizedUserInfo);
+      setUser(normalizedUserInfo);
     } catch (error) {
       throw error;
     }
@@ -122,7 +135,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const updateUser = async (updates: Partial<UserInfo>) => {
     try {
       if (!user) return;
-      const updatedUser = { ...user, ...updates };
+      // Normalize avatarUrl if it's being updated
+      const normalizedUpdates = {
+        ...updates,
+        avatarUrl: updates.avatarUrl ? normalizeAvatarUrl(updates.avatarUrl) : user.avatarUrl,
+      };
+      const updatedUser = { ...user, ...normalizedUpdates };
       await saveAuthData(updatedUser);
       setUser(updatedUser);
     } catch (error) {

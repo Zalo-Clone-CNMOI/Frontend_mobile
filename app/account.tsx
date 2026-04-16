@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../src/contexts/AuthContext';
+import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { changeLanguage, getCurrentLanguage } from '../src/i18n';
 import { useProfileStore } from '../src/store/useProfileStore';
 import { useTheme } from '../src/theme/themeContext';
@@ -92,10 +93,14 @@ export default function AccountScreen() {
               style={[styles.profileCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
               onPress={() => router.push('/personalInfo')}
             >
-              <Image
-                source={{ uri: authUser?.avatarUrl || 'https://i.pravatar.cc/200?u=user-me' }}
-                style={styles.profileAvatar}
-              />
+              {authUser?.avatarUrl ? (
+                <Image
+                  source={{ uri: authUser.avatarUrl }}
+                  style={styles.profileAvatar}
+                />
+              ) : (
+                <AvatarWithInitials name={authUser?.name || 'User'} size={60} style={styles.profileAvatar} />
+              )}
               <View style={styles.profileInfo}>
                 <Text style={[styles.profileSubtitle, { color: '#8e8e93' }]}>
                   {t('account_security.personal_info') || 'Thông tin cá nhân'}

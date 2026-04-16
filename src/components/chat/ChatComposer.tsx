@@ -111,22 +111,22 @@ export const ChatComposer = React.memo(function ChatComposer({
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['videos' as ImagePicker.MediaType],
         quality: 1,
-        selectionLimit: 1,
+        selectionLimit: 5,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        const fileSize = asset.fileSize || 0;
-
-        // Check if video size exceeds limit
-        if (fileSize > MAX_VIDEO_SIZE) {
-          const sizeInMB = (fileSize / (1024 * 1024)).toFixed(2);
-          Alert.alert(
-            'Video quá lớn',
-            `Video của bạn (${sizeInMB}MB) vượt quá giới hạn cho phép (50MB). Vui lòng chọn video nhỏ hơn.`,
-            [{ text: 'OK' }]
-          );
-          return;
+        // Check if any video exceeds size limit
+        for (const asset of result.assets) {
+          const fileSize = asset.fileSize || 0;
+          if (fileSize > MAX_VIDEO_SIZE) {
+            const sizeInMB = (fileSize / (1024 * 1024)).toFixed(2);
+            Alert.alert(
+              'Video quá lớn',
+              `Video của bạn (${sizeInMB}MB) vượt quá giới hạn cho phép (50MB). Vui lòng chọn video nhỏ hơn.`,
+              [{ text: 'OK' }]
+            );
+            return;
+          }
         }
 
         const videoAssets: DocumentPicker.DocumentPickerAsset[] = result.assets.map(

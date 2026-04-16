@@ -1,4 +1,5 @@
 import { useAddFriendScreenLogic } from '@/src/hooks/screens/useAddFriendScreen';
+import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { useCountriesStore } from '@/src/store/useCountriesStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { useRouter } from 'expo-router';
@@ -63,6 +64,10 @@ export default function AddFriendScreen() {
   }, [initializeCountries]);
 
   const isValidPhone = phoneNumber.replace(/\D/g, '').length >= 9;
+
+  useEffect(() => {
+    // Avatar URL is normalized in searchStore
+  }, [searchResult]);
 
   const handleSearch = () => {
     if (!isValidPhone) return;
@@ -182,14 +187,14 @@ export default function AddFriendScreen() {
 
         {searchResult && (
           <View style={[styles.resultCard, { backgroundColor: theme.colors.card }]}>
-            <Image
-              source={{
-                uri:
-                  searchResult.avatarUrl ||
-                  `https://i.pravatar.cc/120?u=${searchResult.id}`,
-              }}
-              style={styles.resultAvatar}
-            />
+            {searchResult.avatarUrl ? (
+              <Image
+                source={{ uri: searchResult.avatarUrl }}
+                style={styles.resultAvatar}
+              />
+            ) : (
+              <AvatarWithInitials name={searchResult.fullName || 'User'} size={56} style={styles.resultAvatar} />
+            )}
             <View style={styles.resultInfo}>
               <Text style={[styles.resultName, { color: theme.colors.text }]}>
                 {searchResult.fullName}

@@ -5,7 +5,7 @@ export type ConversationV2 = {
   type?: 'direct' | 'group' | 'oa' | string;
   isGroup: boolean;
   name?: string;
-  avatar?: string;
+  avatar?: string | null;
   lastMessage?: {
     content: string;
     type: MessageType;
@@ -65,4 +65,6 @@ export type ChatMessage = {
   revokeRestoreUntil?: number;
 
   attachments?: any[];
+  senderAvatar?: string | null;
+  senderName?: string;
 };

@@ -1,4 +1,5 @@
 import { ContactsSearchHeader } from '@/src/components/contacts/ContactsSearchHeader';
+import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { ContactListItem, useContactsScreenLogic } from '@/src/hooks/screens/useContactsScreen';
 import { useTheme } from '@/src/theme/themeContext';
 import { FlashList } from '@shopify/flash-list';
@@ -31,7 +32,11 @@ function ContactItem({ item, creatingConversation, onPress }: {
       disabled={creatingConversation}
     >
       <View style={styles.cardAvatarContainer}>
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        {item.avatar ? (
+          <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        ) : (
+          <AvatarWithInitials name={title} size={50} style={styles.avatar} />
+        )}
         {isOnline ? <View style={[styles.onlineDot, { borderColor: theme.colors.card }]} /> : null}
       </View>
 

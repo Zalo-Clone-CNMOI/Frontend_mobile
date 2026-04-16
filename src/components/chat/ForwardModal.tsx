@@ -53,12 +53,9 @@ export function ForwardModal({
   const loadConversations = async () => {
     setLoading(true);
     try {
-      console.log('[ForwardModal] Fetching conversations...');
       const conversations = await fetchConversations();
-      console.log('[ForwardModal] Loaded conversations:', conversations.length);
       setAllConversations(conversations);
     } catch (error) {
-      console.error('[ForwardModal] Failed to load conversations:', error);
     } finally {
       setLoading(false);
     }
@@ -68,13 +65,9 @@ export function ForwardModal({
     chat.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleForward = (conversationId: string) => {
-    console.log('[ForwardModal] handleForward called with conversationId:', conversationId);
-    console.log('[ForwardModal] message prop:', message);
-    console.log('[ForwardModal] localMessage:', localMessage);
+  const handleForward = async (conversationId: string) => {
     const messageToForward = localMessage || message;
     if (!messageToForward) {
-      console.error('[ForwardModal] No message to forward - both localMessage and message prop are null');
       return;
     }
     onForward(messageToForward, conversationId);
@@ -133,8 +126,6 @@ export function ForwardModal({
               <TouchableOpacity
                 style={[styles.chatItem, { borderBottomColor: theme.colors.border }]}
                 onPress={() => {
-                  console.log('[ForwardModal] TouchableOpacity pressed, item:', item);
-                  console.log('[ForwardModal] item.conversationId:', item.conversationId);
                   handleForward(item.conversationId);
                 }}
               >

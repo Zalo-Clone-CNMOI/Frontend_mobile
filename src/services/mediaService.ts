@@ -200,17 +200,9 @@ async function presignUpload(
 
   const url = `${MEDIA_URL}/api/media/presign/upload`;
 
-  console.log('[presignUpload] URL:', url);
-
-  console.log('[presignUpload] FileName:', fileName, 'ContentType:', contentType);
-
-
-
   const token = await getCurrentToken();
-  console.log('[presignUpload] Token length:', token?.length || 0);
 
   try {
-    console.log('[presignUpload] Sending request...');
     const response = await fetchWithTimeout(url, {
       method: 'POST',
       headers: {
@@ -220,10 +212,6 @@ async function presignUpload(
       },
       body: JSON.stringify({ contentType, fileName }),
     }, 1000);
-
-    console.log('[presignUpload] Response status:', response.status);
-
-
 
     if (!response.ok) {
 
@@ -297,17 +285,7 @@ async function uploadToS3(
 
 ): Promise<void> {
 
-  console.log('[uploadToS3] Upload URL:', uploadUrl);
-
-  console.log('[uploadToS3] File URI:', fileUri);
-
-  console.log('[uploadToS3] Content Type:', contentType);
-
-
-
   try {
-
-    console.log('[uploadToS3] Uploading to S3...');
 
     const response = await fetch(uploadUrl, {
 
@@ -323,12 +301,6 @@ async function uploadToS3(
 
     });
 
-
-
-    console.log('[uploadToS3] Response status:', response.status);
-
-
-
     if (!response.ok) {
 
       const text = await response.text();
@@ -338,10 +310,6 @@ async function uploadToS3(
       throw new MediaError(response.status, `S3 upload failed (${response.status}): ${text}`);
 
     }
-
-
-
-    console.log('[uploadToS3] Upload successful');
 
   } catch (error) {
 
@@ -499,35 +467,11 @@ export async function uploadMedia(
 
 ): Promise<UploadResult> {
 
-  console.log('[mediaService] Starting uploadMedia');
-
-  console.log('[mediaService] File:', file.name, 'Size:', file.size, 'Type:', file.mimeType);
-
-  console.log('[mediaService] User ID:', userId);
-
-  console.log('[mediaService] Conversation ID:', conversationId);
-
-
-
   try {
-
-    console.log('[mediaService] Step 1: Requesting presigned upload URL');
 
     const presign = await presignUpload(file.name, file.mimeType, userId);
 
-    console.log('[mediaService] Presign successful:', { key: presign.key, visibility: presign.visibility });
-
-
-
-    console.log('[mediaService] Step 2: Uploading to S3');
-
     await uploadToS3(presign.uploadUrl, file.uri, file.mimeType);
-
-    console.log('[mediaService] S3 upload successful');
-
-
-
-    console.log('[mediaService] Step 3: Confirming upload');
 
     const confirm = await confirmUpload(
 
@@ -540,8 +484,6 @@ export async function uploadMedia(
       conversationId,
 
     );
-
-    console.log('[mediaService] Confirm successful:', confirm);
 
 
 

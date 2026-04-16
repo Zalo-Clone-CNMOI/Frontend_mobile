@@ -10,6 +10,16 @@ import type {
 import type { SocketChatMessageEvent } from "../dto/SocketDTO";
 import type { ChatMessage, ConversationV2, MessageType } from "../chat";
 
+const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/';
+
+const normalizeAvatarUrl = (avatar?: string): string | null => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar;
+  }
+  return S3_BASE_URL + avatar.replace(/^\//, '');
+};
+
 const toStringId = (...values: unknown[]): string => {
   for (const value of values) {
     if (value === null || value === undefined) continue;
@@ -174,7 +184,7 @@ export const mapApiConversationToConversationV2 = (
     type,
     isGroup,
     name: dto.name || dto.title,
-    avatar: dto.avatar || dto.avatarUrl || dto.avatar_url,
+    avatar: normalizeAvatarUrl(dto.avatar || dto.avatarUrl || dto.avatar_url),
     lastMessage: lastMessage
       ? {
           content: String(lastMessage.content || lastMessage.body || ""),
@@ -204,11 +214,7 @@ export const mapApiUserToContactUser = (dto: ApiUserDTO): ContactUser => {
   return {
     id,
     fullName,
-    avatar:
-      dto.avatar ||
-      dto.avatarUrl ||
-      dto.avatar_url ||
-      `https://i.pravatar.cc/150?u=${id || "default"}`,
+    avatar: normalizeAvatarUrl(dto.avatar || dto.avatarUrl || dto.avatar_url),
     status: toPresenceStatus(dto.status),
     lastSeen: toOptionalTimestamp(dto.lastSeen, dto.last_seen) ?? null,
   };

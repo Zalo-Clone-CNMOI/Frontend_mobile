@@ -9,8 +9,9 @@
 
 /** Base URL của backend thật – dùng khi chuyển sang production */
 import { getCurrentToken } from './authService';
+import { NETWORK_CONFIG } from '../config/network';
 
-export const BASE_URL = "http://54.179.206.215:5000/api";
+export const BASE_URL = NETWORK_CONFIG.API_BASE_URL;
 
 export async function apiFetch<T>(
   path: string,

@@ -11,10 +11,8 @@ api.interceptors.request.use(
   async (config) => {
     try {
       const token = await getCurrentToken();
-      console.log('[HTTP] Token retrieved:', token ? 'Yes (length: ' + token.length + ')' : 'No token');
       if (token && config && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log('[HTTP] Authorization header set:', config.headers.Authorization.substring(0, 30) + '...');
       }
     } catch (err) {
       console.error('[HTTP] Error getting token:', err);

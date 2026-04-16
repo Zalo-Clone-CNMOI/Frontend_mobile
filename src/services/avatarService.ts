@@ -116,7 +116,6 @@ export interface UploadAvatarResult extends UploadResult {
 
  * const result = await uploadAvatar(imageFile, userId);
 
- * console.log('Avatar key:', result.key);
 
  * // Then call updateProfile with the key
 
@@ -134,11 +133,6 @@ export async function uploadAvatar(
 
 ): Promise<UploadAvatarResult> {
 
-  console.log('[avatarService] Starting avatar upload');
-
-  console.log('[avatarService] File:', file.name, 'Size:', file.size, 'Type:', file.mimeType);
-
-  console.log('[avatarService] User ID:', userId);
 
 
 
@@ -151,23 +145,12 @@ export async function uploadAvatar(
     console.error('[avatarService] Validation failed:', validation.error);
 
     throw new MediaError(400, validation.error || 'Invalid avatar file');
-
   }
 
-
-
-  console.log('[avatarService] Validation passed, starting media upload');
-
   try {
-
     const uploadResult = await uploadMedia(file, userId);
 
-    console.log('[avatarService] Media upload successful:', uploadResult);
-
-
-
     return uploadResult;
-
   } catch (error) {
 
     console.error('[avatarService] Upload failed:', error);
@@ -222,11 +205,6 @@ async function updateSsoAvatar(
 
   const url = `${SSO_URL}/users/me`;
 
-  console.log('[updateSsoAvatar] SSO URL:', url);
-
-  console.log('[updateSsoAvatar] Avatar key:', avatarKey);
-
-  console.log('[updateSsoAvatar] Token length:', token.length);
 
 
 
@@ -248,7 +226,6 @@ async function updateSsoAvatar(
 
 
 
-  console.log('[updateSsoAvatar] Response status:', response.status);
 
 
 
@@ -320,7 +297,6 @@ async function updateSsoAvatar(
 
 
 
-  console.log('[updateSsoAvatar] Profile update successful');
 
   return true;
 

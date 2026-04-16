@@ -1,4 +1,5 @@
 import { useAuth } from '@/src/contexts/AuthContext';
+import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { useProfileStore } from '@/src/store/useProfileStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -66,10 +67,14 @@ export default function PersonalInfoScreen() {
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
           
           <View style={styles.profilePictureContainer}>
-            <Image
-              source={{ uri: authUser?.avatarUrl }}
-              style={styles.profilePicture}
-            />
+            {authUser?.avatarUrl ? (
+              <Image
+                source={{ uri: authUser.avatarUrl }}
+                style={styles.profilePicture}
+              />
+            ) : (
+              <AvatarWithInitials name={authUser?.name || 'User'} size={120} />
+            )}
           </View>
 
           

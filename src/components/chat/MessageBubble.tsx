@@ -1,4 +1,5 @@
 import { useAuth } from '@/src/contexts/AuthContext';
+import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import * as mediaService from '@/src/services/mediaService';
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
@@ -44,11 +45,13 @@ export const MessageBubble = React.memo(
 
   const avatar = useMemo(() => {
     if (item.fromMe) return undefined;
-    if (item.senderId) {
-      return `https://i.pravatar.cc/150?u=${encodeURIComponent(item.senderId)}`;
-    }
-    return 'https://i.pravatar.cc/150?u=unknown';
-  }, [item.fromMe, item.senderId]);
+    const avatarUrl = item.senderAvatar || (item as any).sender?.avatarUrl || (item as any).sender?.avatar;
+    return avatarUrl;
+  }, [item.fromMe, item.senderId, item.senderAvatar]);
+
+  const senderName = useMemo(() => {
+    return item.senderName || (item as any).senderName || (item as any).sender?.name || (item as any).sender?.fullName || 'User';
+  }, [item.senderName, item]);
 
   const formatTime = (dateProp: any) => {
     const d = dateProp ? new Date(dateProp) : new Date();
@@ -141,8 +144,12 @@ export const MessageBubble = React.memo(
       ]}
     >
       
-      {!isMe && avatar && avatar.trim() !== '' && (
-        <Image source={{ uri: avatar }} style={styles.avatar} />
+      {!isMe && (
+        avatar && avatar.trim() !== '' ? (
+          <Image source={{ uri: avatar }} style={styles.avatar} />
+        ) : (
+          <AvatarWithInitials name={senderName} size={36} style={styles.avatar} />
+        )
       )}
 
       <View

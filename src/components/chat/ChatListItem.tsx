@@ -1,4 +1,5 @@
 import type { ConversationV2 } from '@/src/types/chat';
+import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../theme/themeContext';
@@ -31,22 +32,22 @@ export function ChatListItem({
   const presenceStatus = getPresenceStatus();
 
   const getAvatarSource = () => {
-    if (item.isGroup && item.avatar) {
+    if (item.avatar) {
       return { uri: item.avatar };
-    } else if (!item.isGroup && item.avatar) {
-      return { uri: item.avatar };
-    } else if (item.isGroup) {
-      return { uri: 'https://ui-avatars.com/api/?name=Group&background=random&color=7F9CFB' };
-    } else {
-      const userName = item.name || 'User';
-      return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random&color=7F9CFB` };
     }
+    return null;
   };
+
+  const avatarSource = getAvatarSource();
 
   return (
     <TouchableOpacity style={[styles.chatItem, { borderBottomColor: theme.colors.border }]} onPress={onPress}>
       <View>
-        <Image source={getAvatarSource()} style={styles.avatar} />
+        {avatarSource ? (
+          <Image source={avatarSource} style={styles.avatar} />
+        ) : (
+          <AvatarWithInitials name={item.name || 'User'} size={55} style={styles.avatar} />
+        )}
         {item.unreadCount && item.unreadCount > 0 ? <View style={[styles.redDot, { borderColor: theme.colors.background }]} /> : null}
         {presenceStatus === 'online' && <View style={[styles.onlineDot, { borderColor: theme.colors.background }]} />}
       </View>

@@ -73,7 +73,6 @@ export interface SendWithAttachmentsResult {
  * });
  * try {
  *   const ack = await ackPromise;
- *   console.log('Message accepted:', ack);
  * } catch (err) {
  *   console.error('Message rejected:', err);
  * }

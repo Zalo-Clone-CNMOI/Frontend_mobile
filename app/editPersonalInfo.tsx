@@ -1,4 +1,5 @@
 import { useAuth } from '@/src/contexts/AuthContext';
+import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { uploadAvatar } from '@/src/services/avatarService';
 import { updateProfile } from '@/src/services/usersApi';
 import { useTheme } from '@/src/theme/themeContext';
@@ -333,10 +334,14 @@ export default function EditPersonalInfoScreen() {
           
           <View style={styles.avatarSection}>
             <View style={styles.avatarContainer}>
-              <Image
-                source={{ uri: avatarUrl || 'https://i.pravatar.cc/150?u=default' }}
-                style={styles.avatar}
-              />
+              {avatarUrl ? (
+                <Image
+                  source={{ uri: avatarUrl }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <AvatarWithInitials name={authUser?.name || 'User'} size={100} style={styles.avatar} />
+              )}
               <TouchableOpacity
                 style={styles.cameraButton}
                 onPress={handleAvatarUpload}

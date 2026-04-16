@@ -4,6 +4,14 @@ import { SearchResult } from '../types/search';
 import { getErrorMessage } from '../utils/networkUtils';
 import { normalizeVietnamesePhoneNumber } from '../validators/phoneValidator';
 
+const normalizeAvatarUrl = (avatar?: string): string | null => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar;
+  }
+  return 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/' + avatar.replace(/^\//, '');
+};
+
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let latestSearchRequestId = 0;
 
@@ -95,7 +103,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
         type: 'user',
         id: u.id || u._id,
         fullName: u.fullName || u.name || '',
-        avatarUrl: u.avatarUrl || (u.avatar && u.avatar.url) || null,
+        avatarUrl: normalizeAvatarUrl(u.avatarUrl || (u.avatar && u.avatar.url)),
         phone: u.phone,
         friendshipStatus: u.friendshipStatus || 'none',
       }));

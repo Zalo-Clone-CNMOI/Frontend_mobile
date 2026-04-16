@@ -3,8 +3,9 @@ import { Socket } from "socket.io-client";
 import { getCurrentToken, refreshAccessToken } from "../authService";
 import { createBffHttpClient } from "./createBffHttpClient";
 import { createSocketGateway } from "./createSocketGateway";
+import { NETWORK_CONFIG } from "../../config/network";
 
-const DEFAULT_HOST = "54.179.206.215";
+const DEFAULT_HOST = process.env.EXPO_PUBLIC_API_HOST || "54.179.206.215";
 
 let httpClientInstance: AxiosInstance | null = null;
 let socketInstance: Socket | null = null;
