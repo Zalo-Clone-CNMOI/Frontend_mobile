@@ -32,17 +32,17 @@ export function useHomeScreenLogic() {
       if (!conversationId) return;
 
       const chatName = item?.name || 'Chat';
-      try {
-        router.push({
-          pathname: '/chat/[id]',
-          params: {
-            id: conversationId,
-            name: chatName,
-          },
-        });
-      } catch {
-        router.push(`/chat/${conversationId}?name=${encodeURIComponent(chatName)}`);
-      }
+      const isGroup = item?.type === 'group' || item?.isGroup === true;
+
+      const pathname = isGroup ? '/group/[id]' : '/chat/[id]';
+
+      router.push({
+        pathname,
+        params: {
+          id: conversationId,
+          name: chatName,
+        },
+      } as any);
     },
     [router],
   );

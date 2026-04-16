@@ -5,8 +5,10 @@ import { StatusBar } from 'expo-status-bar';
 import { ArrowRight, Camera, Check, ChevronLeft, Search, X } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { createGroup } from '@/src/services/conversationsApi';
+import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 
 export default function CreateGroupScreen() {
   const router = useRouter();
@@ -16,6 +18,8 @@ export default function CreateGroupScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [nameFocused, setNameFocused] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
   const friends = useContactsStore((state) => state.friends);
   const initializeContacts = useContactsStore((state) => state.initializeContacts);
 
@@ -30,6 +34,44 @@ export default function CreateGroupScreen() {
 
   const handleSelect = (id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+  };
+
+  const handleCreateGroup = async () => {
+    if (!groupName.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập tên nhóm');
+      return;
+    }
+
+    if (selectedIds.length === 0) {
+      Alert.alert('Lỗi', 'Vui lòng chọn ít nhất một thành viên');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        name: groupName.trim(),
+        memberIds: selectedIds,
+        avatarUrl: avatarUrl,
+      };
+      console.log('[Create Group] Payload:', payload);
+      
+      const response = await createGroup(payload);
+      console.log('[Create Group] Response:', response);
+
+      if (response?.data?.data?.id) {
+        Alert.alert('Thành công', 'Đã tạo nhóm thành công', [
+          { text: 'OK', onPress: () => router.push(`/group/${response.data.data.id}` as any) }
+        ]);
+      } else {
+        Alert.alert('Lỗi', 'Không nhận được ID nhóm từ server');
+      }
+    } catch (error: any) {
+      console.error('[Create Group] Error:', error);
+      Alert.alert('Lỗi', error?.message || 'Không thể tạo nhóm');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -77,7 +119,7 @@ export default function CreateGroupScreen() {
           <View style={[styles.searchBox, { backgroundColor: colors.card }]}>
             <Search size={18} color={colors.text} />
             <TextInput
-              placeholder="T�m t�n ho?c s? di?n tho?i"
+              placeholder={t('create_group.search_placeholder')}
               placeholderTextColor={colors.text}
               style={[styles.searchInput, { color: colors.text }]}
               value={searchQuery}
@@ -86,7 +128,7 @@ export default function CreateGroupScreen() {
           </View>
 
           <View style={[styles.tabHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.tabActive, { color: colors.text, borderBottomColor: colors.text }]}>B?n b�</Text>
+            <Text style={[styles.tabActive, { color: colors.text, borderBottomColor: colors.text }]}>Bạn bè</Text>
           </View>
         </View>
 
@@ -98,11 +140,15 @@ export default function CreateGroupScreen() {
             return (
               <TouchableOpacity style={styles.friendRow} onPress={() => handleSelect(item.id)}>
                 <View style={styles.avatarWrapper}>
-                  <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                  {item.avatar ? (
+                    <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                  ) : (
+                    <AvatarWithInitials name={item.name} size={44} style={styles.avatar} />
+                  )}
                 </View>
                 <View style={styles.friendInfo}>
                   <Text style={[styles.fName, { color: colors.text }]}>{item.name}</Text>
-                  <Text style={[styles.fTime, { color: colors.text }]}>{item.subtitle || 'B?n b�'}</Text>
+                  <Text style={[styles.fTime, { color: colors.text }]}>{item.subtitle || 'Bạn bè'}</Text>
                 </View>
                 <View
                   style={[
@@ -128,7 +174,11 @@ export default function CreateGroupScreen() {
                 if (!friend) return null;
                 return (
                   <View key={id} style={styles.selectedItem}>
-                    <Image source={{ uri: friend.avatar }} style={styles.selectedAvatar} />
+                    {friend.avatar ? (
+                      <Image source={{ uri: friend.avatar }} style={styles.selectedAvatar} />
+                    ) : (
+                      <AvatarWithInitials name={friend.name} size={44} style={styles.selectedAvatar} />
+                    )}
                     <TouchableOpacity style={[styles.removeX, { backgroundColor: colors.border }]} onPress={() => handleSelect(id)}>
                       <X size={12} color="#fff" />
                     </TouchableOpacity>
@@ -136,7 +186,11 @@ export default function CreateGroupScreen() {
                 );
               })}
             </ScrollView>
-            <TouchableOpacity style={[styles.fabBtn, { backgroundColor: colors.primary }]}>
+            <TouchableOpacity 
+              style={[styles.fabBtn, { backgroundColor: colors.primary, opacity: loading ? 0.5 : 1 }]}
+              onPress={handleCreateGroup}
+              disabled={loading}
+            >
               <ArrowRight size={26} color="#fff" />
             </TouchableOpacity>
           </View>

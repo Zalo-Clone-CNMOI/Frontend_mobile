@@ -17,6 +17,7 @@ import {
 
 type MessageBubbleProps = {
   item: ChatMessage;
+  isGroup?: boolean;
   onLongPress?: (item: ChatMessage) => void;
   onImagePress?: (uri: string) => void;
   onVideoPress?: (uri: string) => void;
@@ -30,6 +31,7 @@ type MessageBubbleProps = {
 export const MessageBubble = React.memo(
   function MessageBubble({
     item,
+    isGroup = false,
     onLongPress,
     onImagePress,
     onVideoPress,
@@ -46,10 +48,11 @@ export const MessageBubble = React.memo(
   const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
 
   const avatar = useMemo(() => {
+    // Don't show avatar for current user's messages (in both group and direct chat)
     if (item.fromMe) return undefined;
     const avatarUrl = item.senderAvatar || (item as any).sender?.avatarUrl || (item as any).sender?.avatar;
     return avatarUrl;
-  }, [item.fromMe, item.senderId, item.senderAvatar]);
+  }, [isGroup, item.fromMe, item.senderId, item.senderAvatar]);
 
   const senderName = useMemo(() => {
     return item.senderName || (item as any).senderName || (item as any).sender?.name || (item as any).sender?.fullName || 'User';
@@ -163,6 +166,11 @@ export const MessageBubble = React.memo(
           },
         ]}
       >
+        {isGroup && !isMe && (
+          <Text style={[styles.senderName, { color: theme.colors.text }]}>
+            {senderName}
+          </Text>
+        )}
         <TouchableOpacity
           onLongPress={() => onLongPress?.(item)}
           style={[
@@ -418,10 +426,6 @@ export const MessageBubble = React.memo(
         )}
       </View>
 
-      
-      {isMe && avatar && avatar.trim() !== '' && (
-        <Image source={{ uri: avatar }} style={styles.avatar} />
-      )}
     </View>
   );
 });
@@ -447,24 +451,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  rowLeft: { 
+  rowLeft: {
     justifyContent: 'flex-start',
-    alignItems: 'flex-start'
+    alignItems: 'flex-start',
   },
-  rowRight: { 
+  rowRight: {
     justifyContent: 'flex-end',
-    alignItems: 'flex-end'
+    alignItems: 'flex-end',
   },
-
   avatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    marginHorizontal: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
+    marginRight: 8,
   },
-
+  senderName: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
   bubbleWrapper: {
     maxWidth: '75%',
     flexDirection: 'column',

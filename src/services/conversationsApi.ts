@@ -64,6 +64,10 @@ export const getConversationMembers = async (conversationId: string) =>
 export const addMember = (conversationId: string, payload: any) =>
   request('POST', `/conversations/${encodeURIComponent(conversationId)}/members`, payload);
 
+export const addMembers = async (conversationId: string, memberIds: string[]) => {
+  return request('POST', `/conversations/${encodeURIComponent(conversationId)}/members`, { memberIds });
+};
+
 export const updateMember = (
   conversationId: string,
   memberId: string,
@@ -93,6 +97,7 @@ export default {
   createGroup,
   createDirect,
   addMember,
+  addMembers,
   updateMember,
   removeMember,
   leaveConversation,

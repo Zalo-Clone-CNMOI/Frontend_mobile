@@ -193,7 +193,9 @@
   "create_group": {
     "title": "Create Group",
     "selected_count": "Selected: {{count}}",
-    "name_placeholder": "Enter group name"
+    "name_placeholder": "Enter group name",
+    "search_placeholder": "Search",
+    "create": "Create"
   },
 
   "scanner": {
