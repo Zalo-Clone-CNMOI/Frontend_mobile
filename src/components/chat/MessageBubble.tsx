@@ -93,7 +93,6 @@ export const MessageBubble = React.memo(
               { key: tKey, visibility: attachment.visibility || 'public', url: attachment.thumbnailUrl || attachment.thumbnail_url },
               authUser?.id || ''
             );
-            console.log('[MessageBubble] Thumbnail URL:', tUrl, 'for key:', tKey);
             setThumbnailUrl(tUrl);
           }
         } else {
@@ -349,9 +348,9 @@ export const MessageBubble = React.memo(
               style={[
                 styles.text,
                 {
-                  color: isMe
-                    ? theme.colors.textMessage
-                    : theme.colors.text,
+                  color: item.reactions && Object.keys(item.reactions).length > 0
+                    ? (isMe ? '#FFFFFF' : '#000000')
+                    : (isMe ? theme.colors.textMessage : theme.colors.text),
                 },
               ]}
             >

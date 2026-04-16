@@ -359,19 +359,41 @@ export function useChatDetailScreenLogic() {
   }, [chatId, editingMessage?.id, replyingMessage?.id, deleteMessage]);
 
   const handleReactAction = useCallback(async (msg: ChatMessage, reaction: "like" | "love" | "haha" | "wow" | "sad" | "angry") => {
+    console.log('[handleReactAction] Adding reaction:', { messageId: msg.serverMessageId || msg.id, reaction });
     try {
+      // Emit socket event to backend
       await reactMessage(chatId, msg.serverMessageId || msg.id, reaction);
+      console.log('[handleReactAction] Socket event emitted successfully');
+      // Update local store immediately for UI
+      const userId = user?.id || (user as any)?._id || (user as any)?.userId;
+      console.log('[handleReactAction] User ID:', userId);
+      if (userId) {
+        addReaction(chatId, msg.serverMessageId || msg.id, userId, reaction);
+        console.log('[handleReactAction] Local store updated');
+      }
     } catch (error) {
+      console.error('[handleReactAction] Error:', error);
     }
     closeMessageActions();
-  }, [chatId, closeMessageActions]);
+  }, [chatId, closeMessageActions, user, addReaction]);
 
   const handleUnreactAction = useCallback(async (messageId: string, reactionType: string) => {
+    console.log('[handleUnreactAction] Removing reaction:', { messageId, reactionType });
     try {
+      // Emit socket event to backend
       await unreactMessage(chatId, messageId);
+      console.log('[handleUnreactAction] Socket event emitted successfully');
+      // Update local store immediately for UI
+      const userId = user?.id || (user as any)?._id || (user as any)?.userId;
+      console.log('[handleUnreactAction] User ID:', userId);
+      if (userId) {
+        removeReaction(chatId, messageId, userId);
+        console.log('[handleUnreactAction] Local store updated');
+      }
     } catch (error) {
+      console.error('[handleUnreactAction] Error:', error);
     }
-  }, [chatId]);
+  }, [chatId, user, removeReaction]);
 
   const handleReuseRevokedMessage = useCallback((msg: ChatMessage) => {
     const restoredText = String(msg.revokedBackupText || msg.text || '').trim();

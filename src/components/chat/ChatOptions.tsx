@@ -24,6 +24,13 @@ interface ChatOptionsProps {
   chatId: string;
   chatName: string;
   chatAvatar?: string;
+  currentUserId?: string;
+  otherUserId?: string;
+  onSearchMessages?: () => void;
+  onViewProfile?: () => void;
+  onChangeWallpaper?: () => void;
+  onToggleNotifications?: (enabled: boolean) => void;
+  onDeleteHistory?: () => void;
 }
 
 const MOCK_MEDIA = [
@@ -33,7 +40,20 @@ const MOCK_MEDIA = [
   { id: '4', type: 'video', uri: 'https://i.pravatar.cc/200?u=video2', thumbnail: 'https://i.pravatar.cc/200?u=video2' },
 ];
 
-export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: ChatOptionsProps) {
+export function ChatOptions({ 
+  visible, 
+  onClose, 
+  chatId, 
+  chatName, 
+  chatAvatar,
+  currentUserId,
+  otherUserId,
+  onSearchMessages,
+  onViewProfile,
+  onChangeWallpaper,
+  onToggleNotifications,
+  onDeleteHistory,
+}: ChatOptionsProps) {
   const theme = useTheme();
   const { t } = useTranslation();
   
@@ -148,21 +168,21 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
               
               
               <View style={styles.quickActions}>
-                <TouchableOpacity style={styles.quickActionItem} onPress={() => {}}>
+                <TouchableOpacity style={styles.quickActionItem} onPress={onSearchMessages}>
                   <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
                     <Search size={24} color={theme.colors.primary} />
                   </View>
                   <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.search_messages')}</Text>
                 </TouchableOpacity>
                 
-                <TouchableOpacity style={styles.quickActionItem} onPress={() => {}}>
+                <TouchableOpacity style={styles.quickActionItem} onPress={onViewProfile}>
                   <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
                     <User size={24} color={theme.colors.primary} />
                   </View>
                   <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.profile')}</Text>
                 </TouchableOpacity>
                 
-                <TouchableOpacity style={styles.quickActionItem} onPress={() => {}}>
+                <TouchableOpacity style={styles.quickActionItem} onPress={onChangeWallpaper}>
                   <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
                     <PaintRoller size={24} color={theme.colors.primary} />
                   </View>
@@ -171,7 +191,10 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
                 
                 <TouchableOpacity 
                   style={styles.quickActionItem} 
-                  onPress={() => setNotificationsEnabled(!notificationsEnabled)}
+                  onPress={() => {
+                    setNotificationsEnabled(!notificationsEnabled);
+                    onToggleNotifications?.(!notificationsEnabled);
+                  }}
                 >
                   <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
                     {notificationsEnabled ? (
@@ -295,7 +318,7 @@ export function ChatOptions({ visible, onClose, chatId, chatName, chatAvatar }: 
               <OptionItem
                 icon={Trash2}
                 title={t('chat_options.delete_history')}
-                onPress={() => {}}
+                onPress={onDeleteHistory}
               />
             </View>
           </ScrollView>

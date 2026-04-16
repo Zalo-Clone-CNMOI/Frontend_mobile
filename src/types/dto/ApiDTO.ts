@@ -84,6 +84,24 @@ export type ApiAttachmentDTO = {
   thumbnail_key?: string;
 };
 
+export type MessageReactionDto = {
+  userId: string;
+  reactionType: ReactionType;
+  createdAt: number;
+};
+
+export type ReactionSummaryDto = {
+  type: ReactionType;
+  count: number;
+  userIds: string[];
+};
+
+export type MessageReactionsResponseDto = {
+  messageId: string;
+  reactions: MessageReactionDto[];
+  summary: ReactionSummaryDto[];
+};
+
 export type ApiMessageDTO = {
   id?: ID;
   messageId?: ID;

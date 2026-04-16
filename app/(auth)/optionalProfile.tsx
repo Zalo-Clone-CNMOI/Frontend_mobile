@@ -186,10 +186,6 @@ export default function OptionalProfileScreen() {
       reset();
       router.replace('/(tabs)/home');
     } catch (e: any) {
-      console.error('Registration error:', e);
-      console.error('Error response:', e?.response);
-      console.error('Error data:', e?.response?.data);
-
       const status = e?.response?.status;
 
       if (status === 409) {

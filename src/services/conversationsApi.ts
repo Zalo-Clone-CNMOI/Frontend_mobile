@@ -47,6 +47,9 @@ export const getConversations = async (params?: { page?: number; limit?: number 
   return request('GET', path);
 };
 
+export const getConversationDetail = async (conversationId: string) =>
+  request('GET', `/conversations/${encodeURIComponent(conversationId)}`);
+
 export const createGroup = async (payload: any) => {
   return request('POST', '/conversations/group', payload);
 };
@@ -54,6 +57,9 @@ export const createGroup = async (payload: any) => {
 export const createDirect = async (participantId: string) => {
   return request('POST', '/conversations/direct', { participantId });
 };
+
+export const getConversationMembers = async (conversationId: string) =>
+  request('GET', `/conversations/${encodeURIComponent(conversationId)}/members`);
 
 export const addMember = (conversationId: string, payload: any) =>
   request('POST', `/conversations/${encodeURIComponent(conversationId)}/members`, payload);
@@ -83,6 +89,7 @@ export const markAsRead = (conversationId: string, payload?: any) =>
 
 export default {
   getConversations,
+  getConversationMembers,
   createGroup,
   createDirect,
   addMember,

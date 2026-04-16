@@ -9,10 +9,14 @@ import { VideoViewer } from '@/src/components/chat/VideoViewer';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useChatDetailScreenLogic } from '@/src/hooks/screens/useChatDetailScreen';
 import { useChatStore } from '@/src/store/chatStore';
+import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useTheme } from '@/src/theme/themeContext';
 import * as mediaService from '@/src/services/mediaService';
+import { getMessageReactions, reactMessage, unreactMessage } from '@/src/services/chatService';
+import { getConversationDetail } from '@/src/services/conversationsApi';
+import { searchUsers } from '@/src/services/usersApi';
 import { FlashList } from '@shopify/flash-list';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { Circle, List, Phone } from 'lucide-react-native';
 import React from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -21,8 +25,10 @@ import * as WebBrowser from 'expo-web-browser';
 
 export default function ChatDetailScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const { presence } = useChatStore();
   const { user: authUser } = useAuth();
+  const setMessageReactions = useMessagesStore((state) => state.setMessageReactions);
   const {
     chatId,
     currentChat,
@@ -99,9 +105,7 @@ export default function ChatDetailScreen() {
       // Open file in browser for download
       try {
         await WebBrowser.openBrowserAsync(downloadUrl);
-      } catch (error: any) {
-        console.error('[handleFilePress] WebBrowser error:', error);
-        
+      } catch (error) {
         // Fallback to Linking.openURL if WebBrowser fails
         try {
           await Linking.openURL(downloadUrl);
@@ -109,10 +113,119 @@ export default function ChatDetailScreen() {
           Alert.alert('Lỗi', 'Không thể mở file: ' + e.message);
         }
       }
-    } catch (error: any) {
-      console.error('[handleFilePress] Error:', error);
-      Alert.alert('Lỗi', 'Không thể tải file: ' + (error?.message || 'Unknown error'));
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể tải tệp');
     }
+  };
+
+  const handleLoadReactions = async (messageId: string) => {
+    try {
+      const reactions = await getMessageReactions(messageId);
+      if (reactions) {
+        // Convert backend format to UI format
+        const reactionsMap: Record<string, string[]> = {};
+        reactions.summary.forEach((summary) => {
+          reactionsMap[summary.type] = summary.userIds;
+        });
+        
+        // Update message in store with reactions
+        setMessageReactions(chatId, messageId, reactionsMap);
+      }
+    } catch (error) {
+      // Error loading reactions
+    }
+  };
+
+  const handleVoiceCall = () => {
+    if (!currentChat) {
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin cuộc trò chuyện');
+      return;
+    }
+    
+    // For now, just show an alert - implement actual call functionality later
+    const otherUserId = (currentChat as any)?.otherUserId || (currentChat as any)?.userId;
+    const otherUserName = title;
+    
+    Alert.alert(
+      'Cuộc gọi thoại',
+      `Gọi cho ${otherUserName}?\n\nTính năng này sẽ được triển khai sau.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { text: 'OK', onPress: () => { /* TODO: Implement voice call */ } }
+      ]
+    );
+  };
+
+  const handleSearchMessages = () => {
+    Alert.alert('Tìm kiếm tin nhắn', 'Tính năng tìm kiếm sẽ được triển khai sau');
+  };
+
+  const handleViewProfile = async () => {
+    // Try multiple possible property names
+    let otherUserId = 
+      (currentChat as any)?.otherUserId ||
+      (currentChat as any)?.userId ||
+      (currentChat as any)?.recipientId ||
+      (currentChat as any)?.partnerId ||
+      (currentChat as any)?.other_user_id;
+    
+    // If not found in chat object, try to get from messages
+    if (!otherUserId && messages && messages.length > 0) {
+      const otherUserMessage = messages.find(msg => msg.senderId !== authUser?.id);
+      if (otherUserMessage) {
+        otherUserId = otherUserMessage.senderId;
+      }
+    }
+    
+    // If still not found, try to search user by name from currentChat
+    if (!otherUserId && (currentChat as any)?.name) {
+      try {
+        const response = await searchUsers((currentChat as any).name);
+        
+        if (response?.data && Array.isArray(response.data)) {
+          const foundUser = response.data.find((user: any) => user.id !== authUser?.id);
+          if (foundUser) {
+            otherUserId = foundUser.id || foundUser.userId;
+          }
+        }
+      } catch (error: any) {
+        // Error searching user by name
+      }
+    }
+    
+    if (!otherUserId) {
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
+      return;
+    }
+    
+    // Navigate to user profile page
+    router.push({ pathname: '/profile/[userId]', params: { userId: otherUserId } } as any);
+  };
+
+  const handleChangeWallpaper = () => {
+    Alert.alert('Đổi hình nền', 'Tính năng đổi hình nền sẽ được triển khai sau');
+  };
+
+  const handleToggleNotifications = (enabled: boolean) => {
+    Alert.alert(
+      'Thông báo',
+      enabled ? 'Bật thông báo' : 'Tắt thông báo',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { text: 'OK', onPress: () => { /* TODO: Implement toggle notifications */ } }
+      ]
+    );
+  };
+
+  const handleDeleteHistory = () => {
+    Alert.alert(
+      'Xóa lịch sử',
+      'Bạn có chắc muốn xóa lịch sử chat này không?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { text: 'Xóa', style: 'destructive', onPress: () => { /* TODO: Implement delete history */ } }
+      ]
+    );
   };
 
   // Get presence status for the other user (not for groups)
@@ -137,7 +250,12 @@ export default function ChatDetailScreen() {
         onReuseRevoked={handleReuseRevokedMessage}
         onRevokeRestoreExpired={handleRevokedRestoreExpired}
         onPressReply={handleJumpToReplySource}
-        onReactionPress={handleUnreactAction}
+        onReactionPress={(messageId, reactionType) => {
+          // Load reactions when user taps on a reaction
+          handleLoadReactions(messageId);
+          // Then handle the unreact action
+          handleUnreactAction(messageId, reactionType);
+        }}
         onImagePress={setSelectedImage}
         onVideoPress={setSelectedVideo}
         onFilePress={handleFilePress}
@@ -148,9 +266,11 @@ export default function ChatDetailScreen() {
     handleReuseRevokedMessage, 
     handleRevokedRestoreExpired,
     handleJumpToReplySource, 
+    handleUnreactAction,
     setSelectedImage, 
     setSelectedVideo,
-    handleFilePress
+    handleFilePress,
+    handleLoadReactions
   ]);
 
   return (
@@ -175,7 +295,10 @@ export default function ChatDetailScreen() {
           ),
           headerRight: () => (
             <View style={styles.headerRightContainer}>
-              <TouchableOpacity style={styles.callButton}>
+              <TouchableOpacity 
+                style={styles.callButton} 
+                onPress={handleVoiceCall}
+              >
                 <Phone size={20} color={theme.colors.iconHeader} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.callButton} onPress={() => setShowChatOptions(true)}>
@@ -239,6 +362,13 @@ export default function ChatDetailScreen() {
           chatId={chatId}
           chatName={title}
           chatAvatar={currentChat?.avatar || undefined}
+          currentUserId={authUser?.id}
+          otherUserId={(currentChat as any)?.otherUserId || (currentChat as any)?.userId}
+          onSearchMessages={handleSearchMessages}
+          onViewProfile={handleViewProfile}
+          onChangeWallpaper={handleChangeWallpaper}
+          onToggleNotifications={handleToggleNotifications}
+          onDeleteHistory={handleDeleteHistory}
         />
         
         <MessageActionMenu

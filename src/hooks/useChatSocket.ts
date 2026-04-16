@@ -98,11 +98,13 @@ export const useChatSocket = () => {
 
     // Reaction added
     socket.on('chat:reaction:added', (payload: any) => {
+      console.log('[Socket] chat:reaction:added received:', payload);
       addReaction(payload);
     });
 
     // Reaction removed
     socket.on('chat:reaction:removed', (payload: any) => {
+      console.log('[Socket] chat:reaction:removed received:', payload);
       removeReactionFromStore(payload);
     });
 

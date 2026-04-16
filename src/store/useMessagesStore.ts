@@ -17,6 +17,7 @@ interface MessagesState {
   revokeMessage: (chatId: string, messageId: string) => void;
   addReaction: (chatId: string, messageId: string, userId: string, reactionType: string) => void;
   removeReaction: (chatId: string, messageId: string, userId: string) => void;
+  setMessageReactions: (chatId: string, messageId: string, reactions: Record<string, string[]>) => void;
   reset: () => void;
 }
 
@@ -291,6 +292,24 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
             return {
               ...m,
               reactions: newReactions,
+            };
+          }),
+        },
+      };
+    });
+  },
+
+  setMessageReactions: (chatId, messageId, reactions) => {
+    set((state) => {
+      const existing = state.messagesByChatId[chatId] || [];
+      return {
+        messagesByChatId: {
+          ...state.messagesByChatId,
+          [chatId]: existing.map((m) => {
+            if (m.id !== messageId) return m;
+            return {
+              ...m,
+              reactions,
             };
           }),
         },

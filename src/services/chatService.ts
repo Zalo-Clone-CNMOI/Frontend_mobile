@@ -2,6 +2,7 @@ import { Socket } from "socket.io-client";
 import { ContactUser } from "../types/ContactUser";
 import type { ChatMessage, ConversationV2 } from "../types/chat";
 import type { SocketChatJoinPayload } from "../types/dto/SocketDTO";
+import type { MessageReactionsResponseDto } from "../types/dto/ApiDTO";
 import { mapConversationsListFromApi } from "../types/mappers/DTOMappers";
 import type { MediaFileInput } from "../types/media";
 import { getCurrentUser } from "./authService";
@@ -936,6 +937,18 @@ export async function fetchContacts(): Promise<{ users: ContactUser[] }> {
     return { users };
   } catch (e) {
     return { users: [] };
+  }
+}
+
+export async function getMessageReactions(
+  messageId: string,
+): Promise<MessageReactionsResponseDto | null> {
+  try {
+    const response = await messagesApi.getMessageReactions(messageId);
+    return response?.data as MessageReactionsResponseDto;
+  } catch (error) {
+    console.error('[chatService] getMessageReactions error:', error);
+    return null;
   }
 }
 

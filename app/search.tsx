@@ -118,9 +118,9 @@ export default function SearchScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Tim kiem',
-          headerStyle: { backgroundColor: theme.colors.card },
-          headerTintColor: theme.colors.text,
+          title: 'Tìm kiếm',
+          headerStyle: { backgroundColor: theme.colors.header },
+          headerTintColor: theme.colors.textHeader,
         }}
       />
 

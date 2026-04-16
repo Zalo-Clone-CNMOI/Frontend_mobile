@@ -4,6 +4,31 @@ import api from './http';
 
 export const getProfile = () => api.get('/api/users/me');
 
+export const getUserProfile = async (userId: string) => {
+  try {
+    const url = `${NETWORK_CONFIG.API_BASE_URL}/users/${userId}`;
+    const response = await apiCallWithRefresh(url, {
+      method: 'GET',
+    });
+    const text = await response.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
+    
+    if (!response.ok) {
+      throw new Error(data?.message || `Get profile failed (${response.status})`);
+    }
+    
+    // Extract data field from wrapped response
+    return data?.data || data;
+  } catch (error: any) {
+    throw error;
+  }
+};
+
 export const updateProfile = async (payload: any) => {
   try {
     const url = `${NETWORK_CONFIG.API_BASE_URL}/users/me`;
@@ -108,4 +133,5 @@ export default {
   getProfile,
   updateProfile,
   searchUsers,
+  getUserProfile,
 };

@@ -74,6 +74,13 @@ export const getMessageDetails = async (
   return request('GET', path);
 };
 
+export const getMessageReactions = async (
+  messageId: string,
+) => {
+  const path = `/messages/${encodeURIComponent(messageId)}/reactions`;
+  return request('GET', path);
+};
+
 export const uploadMedia = async (formData: FormData) => {
   const response = await apiCallWithRefresh(`${API_BASE_URL}/media/upload`, {
     method: 'POST',
@@ -101,5 +108,6 @@ export const uploadMedia = async (formData: FormData) => {
 export default {
   getMessages,
   getMessageDetails,
+  getMessageReactions,
   uploadMedia,
 };
