@@ -6,19 +6,23 @@ import { MessageActionMenu } from '@/src/components/chat/MessageActionMenu';
 import { MessageBubble } from '@/src/components/chat/MessageBubble';
 import { TypingIndicator } from '@/src/components/chat/TypingIndicator';
 import { VideoViewer } from '@/src/components/chat/VideoViewer';
+import { useAuth } from '@/src/contexts/AuthContext';
 import { useChatDetailScreenLogic } from '@/src/hooks/screens/useChatDetailScreen';
 import { useChatStore } from '@/src/store/chatStore';
 import { useTheme } from '@/src/theme/themeContext';
+import * as mediaService from '@/src/services/mediaService';
 import { FlashList } from '@shopify/flash-list';
 import { Stack } from 'expo-router';
 import { Circle, List, Phone } from 'lucide-react-native';
 import React from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 
 export default function ChatDetailScreen() {
   const theme = useTheme();
   const { presence } = useChatStore();
+  const { user: authUser } = useAuth();
   const {
     chatId,
     currentChat,
@@ -65,6 +69,52 @@ export default function ChatDetailScreen() {
     setIsForwardModalVisible,
   } = useChatDetailScreenLogic();
 
+  const handleFilePress = async (item: any) => {
+    try {
+      if (!authUser?.id) {
+        Alert.alert('Lỗi', 'Bạn cần đăng nhập để tải file');
+        return;
+      }
+
+      if (!item.fileInfo?.uri && !item.attachments?.[0]?.key) {
+        Alert.alert('Lỗi', 'Không tìm thấy file để tải');
+        return;
+      }
+
+      const key = item.fileInfo?.uri || item.attachments?.[0]?.key;
+      const visibility = item.attachments?.[0]?.visibility || 'private';
+      const fileName = item.fileInfo?.name || item.attachments?.[0]?.name || 'file';
+      
+      let downloadUrl: string;
+      
+      if (visibility === 'public') {
+        downloadUrl = mediaService.resolveMediaUrl(key);
+      } else {
+        downloadUrl = await mediaService.getAttachmentUrl(
+          { key, visibility },
+          authUser.id
+        );
+      }
+
+      // Open file in browser for download
+      try {
+        await WebBrowser.openBrowserAsync(downloadUrl);
+      } catch (error: any) {
+        console.error('[handleFilePress] WebBrowser error:', error);
+        
+        // Fallback to Linking.openURL if WebBrowser fails
+        try {
+          await Linking.openURL(downloadUrl);
+        } catch (e: any) {
+          Alert.alert('Lỗi', 'Không thể mở file: ' + e.message);
+        }
+      }
+    } catch (error: any) {
+      console.error('[handleFilePress] Error:', error);
+      Alert.alert('Lỗi', 'Không thể tải file: ' + (error?.message || 'Unknown error'));
+    }
+  };
+
   // Get presence status for the other user (not for groups)
   const getPresenceStatus = () => {
     if (currentChat?.isGroup) return null;
@@ -90,6 +140,7 @@ export default function ChatDetailScreen() {
         onReactionPress={handleUnreactAction}
         onImagePress={setSelectedImage}
         onVideoPress={setSelectedVideo}
+        onFilePress={handleFilePress}
       />
     );
   }, [
@@ -98,7 +149,8 @@ export default function ChatDetailScreen() {
     handleRevokedRestoreExpired,
     handleJumpToReplySource, 
     setSelectedImage, 
-    setSelectedVideo
+    setSelectedVideo,
+    handleFilePress
   ]);
 
   return (
@@ -186,7 +238,7 @@ export default function ChatDetailScreen() {
           onClose={() => setShowChatOptions(false)}
           chatId={chatId}
           chatName={title}
-          chatAvatar={currentChat?.avatar}
+          chatAvatar={currentChat?.avatar || undefined}
         />
         
         <MessageActionMenu

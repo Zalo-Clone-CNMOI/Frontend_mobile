@@ -20,6 +20,7 @@ type MessageBubbleProps = {
   onLongPress?: (item: ChatMessage) => void;
   onImagePress?: (uri: string) => void;
   onVideoPress?: (uri: string) => void;
+  onFilePress?: (item: ChatMessage) => void;
   onReuseRevoked?: (item: ChatMessage) => void;
   onRevokeRestoreExpired?: (messageId: string) => void;
   onPressReply?: (item: ChatMessage) => void;
@@ -32,6 +33,7 @@ export const MessageBubble = React.memo(
     onLongPress,
     onImagePress,
     onVideoPress,
+    onFilePress,
     onReuseRevoked,
     onRevokeRestoreExpired,
     onPressReply,
@@ -295,7 +297,10 @@ export const MessageBubble = React.memo(
               </View>
             </Pressable>
           ) : isFile ? (
-            <View style={styles.fileContainer}>
+            <Pressable
+              style={styles.fileContainer}
+              onPress={() => onFilePress?.(item)}
+            >
               <View
                 style={[
                   styles.fileIconBox,
@@ -338,7 +343,7 @@ export const MessageBubble = React.memo(
                   {item.fileInfo?.size || 'N/A'}
                 </Text>
               </View>
-            </View>
+            </Pressable>
           ) : (
             <Text
               style={[

@@ -657,6 +657,8 @@ async function presignDownload(
 
       'Authorization': `Bearer ${token}`,
 
+      'x-user-id': userId,
+
     },
 
     body: JSON.stringify({ key }),
