@@ -13,6 +13,59 @@ const formatPhonePayload = (payload: any) => {
   }
 };
 
+const toE164Phone = (phone: string): string => {
+  const phoneStr = String(phone || '').trim();
+  if (!phoneStr) return '';
+  if (phoneStr.startsWith('+')) return phoneStr;
+  if (phoneStr.startsWith('0')) return `+84${phoneStr.slice(1)}`;
+  return `+84${phoneStr}`;
+};
+
+const parsePhoneExistsResponse = (raw: any): boolean | null => {
+  const payload = raw?.data ?? raw;
+
+  if (typeof payload === 'boolean') return payload;
+  if (typeof payload?.exists === 'boolean') return payload.exists;
+  if (typeof payload?.isRegistered === 'boolean') return payload.isRegistered;
+  if (typeof payload?.registered === 'boolean') return payload.registered;
+  if (payload?.user || payload?.account) return true;
+
+  return null;
+};
+
+export const checkPhoneExists = async (phone: string): Promise<boolean | null> => {
+  const normalizedPhone = toE164Phone(phone);
+  if (!normalizedPhone) return null;
+
+  const candidateEndpoints = [
+    `${NETWORK_CONFIG.AUTH_BASE_URL}/check-phone`,
+    `${NETWORK_CONFIG.AUTH_BASE_URL}/phone-exists`,
+    `${NETWORK_CONFIG.AUTH_BASE_URL}/exists`,
+  ];
+
+  for (const endpoint of candidateEndpoints) {
+    try {
+      const response = await api.get(endpoint, { params: { phone: normalizedPhone } });
+      const parsed = parsePhoneExistsResponse(response?.data);
+      if (parsed !== null) return parsed;
+    } catch (e: any) {
+      const status = Number(e?.response?.status || 0);
+
+      if (status === 404 || status === 405) {
+        continue;
+      }
+
+      if (status === 409) {
+        return true;
+      }
+
+      throw e;
+    }
+  }
+
+  return null;
+};
+
 export const register = async (payload: any) => {
   try {
     formatPhonePayload(payload);
@@ -134,6 +187,7 @@ export const qrReject = async (sessionId: string, payload?: any) => {
 };
 
 export default {
+  checkPhoneExists,
   login,
   logout,
   qrConfirm,

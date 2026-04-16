@@ -1,6 +1,7 @@
 import { useOtpRegistration } from '@/src/contexts/OtpRegistrationContext';
 import { confirmOtp, getFirebaseIdToken, sendOtp, setRecaptchaVerifier } from '@/src/services/auth/firebaseAuth.service';
 import { FIREBASE_CONFIG, getFirebaseApp } from '@/src/services/firebase';
+import * as authApi from '@/src/services/authApi';
 import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import { router } from 'expo-router';
 import { ChevronLeft, XCircle } from 'lucide-react-native';
@@ -23,7 +24,7 @@ const mapFirebaseOtpError = (err: any): string => {
 export default function OtpVerifyScreen() {
   getFirebaseApp();
 
-  const { phoneE164, setConfirmationResult, setFirebaseIdToken } = useOtpRegistration();
+  const { phoneE164, setConfirmationResult, setFirebaseIdToken, reset } = useOtpRegistration();
   const [code, setCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -38,6 +39,25 @@ export default function OtpVerifyScreen() {
     try {
       await confirmOtp(code.trim());
       const token = await getFirebaseIdToken();
+
+      const isExistingAccount = await authApi.checkPhoneExists(phoneE164);
+      if (isExistingAccount) {
+        Alert.alert(
+          'Số điện thoại đã được đăng ký',
+          'Số điện thoại này đã có tài khoản. Vui lòng đăng nhập.',
+          [
+            {
+              text: 'Đăng nhập',
+              onPress: () => {
+                reset();
+                router.replace('/(auth)/loginStep1');
+              },
+            },
+          ],
+        );
+        return;
+      }
+
       setFirebaseIdToken(token);
       router.push('/(auth)/createPassword');
     } catch (e: any) {

@@ -67,9 +67,9 @@ export function useAddFriendScreenLogic() {
       let normalizedPhone = cleaned;
       if (cleaned.startsWith('0')) {
         // Vietnamese number starting with 0: 0923232323 -> +840923232323
-        normalizedPhone = '+84' + cleaned;
+        normalizedPhone = '+84' + cleaned.slice(1);
       } else if (cleaned.startsWith('84')) {
-        // Already has country code without +: 840923232323 -> +840923232323
+        // Already has country code without +: 840923232323 -> +84923232323
         normalizedPhone = '+' + cleaned;
       } else if (!cleaned.startsWith('+')) {
         // Assume Vietnamese number: 923232323 -> +84923232323
