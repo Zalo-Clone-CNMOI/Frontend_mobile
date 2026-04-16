@@ -24,11 +24,60 @@ const toE164Phone = (phone: string): string => {
 const parsePhoneExistsResponse = (raw: any): boolean | null => {
   const payload = raw?.data ?? raw;
 
+  const deep = (obj: any, path: string[]): any => {
+    let cur = obj;
+    for (const key of path) {
+      if (!cur || typeof cur !== 'object') return undefined;
+      cur = cur[key];
+    }
+    return cur;
+  };
+
+  const asBool = (v: any): boolean | undefined => (typeof v === 'boolean' ? v : undefined);
+
+  const containsAny = (text: string, tokens: string[]) => {
+    const t = text.toLowerCase();
+    return tokens.some((x) => t.includes(x));
+  };
+
+  // Direct boolean payloads
   if (typeof payload === 'boolean') return payload;
-  if (typeof payload?.exists === 'boolean') return payload.exists;
-  if (typeof payload?.isRegistered === 'boolean') return payload.isRegistered;
-  if (typeof payload?.registered === 'boolean') return payload.registered;
-  if (payload?.user || payload?.account) return true;
+
+  // Common shapes: { exists: true } / { data: { exists: true } } / etc.
+  const candidates = [
+    payload?.exists,
+    payload?.isRegistered,
+    payload?.registered,
+    deep(payload, ['data', 'exists']),
+    deep(payload, ['data', 'isRegistered']),
+    deep(payload, ['data', 'registered']),
+    deep(payload, ['result', 'exists']),
+    deep(payload, ['result', 'registered']),
+    deep(payload, ['meta', 'exists']),
+  ];
+  for (const c of candidates) {
+    const b = asBool(c);
+    if (b !== undefined) return b;
+  }
+
+  // Some APIs return a user/account object when registered
+  if (payload?.user || payload?.account || deep(payload, ['data', 'user']) || deep(payload, ['data', 'account'])) {
+    return true;
+  }
+
+  // Error shapes: { success:false, error:{ code, message, details } }
+  const errorCode = String(deep(payload, ['error', 'code']) || payload?.code || '').toLowerCase();
+  const errorMsg = String(deep(payload, ['error', 'message']) || payload?.message || payload?.error || '').toLowerCase();
+  const details = deep(payload, ['error', 'details']) || payload?.details;
+  const detailsText = Array.isArray(details) ? JSON.stringify(details).toLowerCase() : String(details || '').toLowerCase();
+
+  if (
+    containsAny(errorCode, ['exists', 'registered', 'already', 'duplicate', 'conflict']) ||
+    containsAny(errorMsg, ['exists', 'registered', 'already', 'duplicate', 'conflict', 'đã được', 'đã tồn tại']) ||
+    containsAny(detailsText, ['exists', 'registered', 'already', 'duplicate', 'conflict', 'đã được', 'đã tồn tại'])
+  ) {
+    return true;
+  }
 
   return null;
 };
@@ -50,6 +99,7 @@ export const checkPhoneExists = async (phone: string): Promise<boolean | null> =
       if (parsed !== null) return parsed;
     } catch (e: any) {
       const status = Number(e?.response?.status || 0);
+      const data = e?.response?.data;
 
       if (status === 404 || status === 405) {
         continue;
@@ -57,6 +107,12 @@ export const checkPhoneExists = async (phone: string): Promise<boolean | null> =
 
       if (status === 409) {
         return true;
+      }
+
+      // Some backends use 400/422 with a validation payload indicating the phone already exists.
+      if (status === 400 || status === 422) {
+        const parsed = parsePhoneExistsResponse(data);
+        if (parsed !== null) return parsed;
       }
 
       throw e;

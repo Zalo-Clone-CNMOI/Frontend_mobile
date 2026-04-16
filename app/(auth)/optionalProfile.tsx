@@ -2,10 +2,11 @@ import { useAuth } from '@/src/contexts/AuthContext';
 import { useOtpRegistration, type Gender } from '@/src/contexts/OtpRegistrationContext';
 import * as authApi from '@/src/services/authApi';
 import type { UserInfo } from '@/src/services/authService';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const friendlyRegisterError = (err: any): string => {
@@ -38,6 +39,19 @@ const isValidDate = (date: string): boolean => {
   return true;
 };
 
+const toDateInputValue = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const toDisplayDate = (date: string): string => {
+  if (!isValidDate(date)) return date;
+  const [year, month, day] = date.split('-');
+  return `${day}/${month}/${year}`;
+};
+
 const isValidFullName = (name: string): boolean => {
   // Allow only letters, spaces, and Vietnamese characters
   // Vietnamese characters: àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ
@@ -48,13 +62,20 @@ const isValidFullName = (name: string): boolean => {
 
 export default function OptionalProfileScreen() {
   const { login } = useAuth();
-  const { firebaseIdToken, password, profile, setProfile, reset, phoneE164 } = useOtpRegistration();
+  const { firebaseIdToken, password, profile, setProfile, reset } = useOtpRegistration();
 
   const [fullName, setFullName] = useState(profile.fullName || '');
   const [email, setEmail] = useState(profile.email || '');
   const [dateOfBirth, setDateOfBirth] = useState(profile.dateOfBirth || '');
   const [gender, setGender] = useState<Gender | ''>(profile.gender || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerDate, setPickerDate] = useState<Date>(() => {
+    if (profile.dateOfBirth && isValidDate(profile.dateOfBirth)) {
+      return new Date(profile.dateOfBirth);
+    }
+    return new Date(2000, 0, 1);
+  });
 
   // Real-time validation states
   const [fullNameError, setFullNameError] = useState('');
@@ -66,7 +87,8 @@ export default function OptionalProfileScreen() {
   }, [fullName]);
 
   const isEmailValid = useMemo(() => {
-    return email.trim() !== '' && isValidEmail(email.trim());
+    if (!email.trim()) return true; // Optional field
+    return isValidEmail(email.trim());
   }, [email]);
 
   const isDateValid = useMemo(() => {
@@ -94,23 +116,23 @@ export default function OptionalProfileScreen() {
       Alert.alert('Lỗi', 'Họ tên không được chứa ký tự đặc biệt.');
       return;
     }
-    if (!email.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập email.');
-      return;
-    }
-    if (!isValidEmail(email.trim())) {
+    if (email.trim() && !isValidEmail(email.trim())) {
       Alert.alert('Lỗi', 'Email không hợp lệ.');
       return;
     }
 
     setIsSubmitting(true);
     try {
+      const trimmedEmail = email.trim();
       const payload: Record<string, any> = {
         firebaseIdToken,
         password,
         fullName: fullName.trim(),
-        email: email.trim(),
       };
+      // Email is optional: only send when user actually entered one.
+      if (trimmedEmail) {
+        payload.email = trimmedEmail;
+      }
 
       // Optional fields
       if (dateOfBirth.trim() && isValidDate(dateOfBirth.trim())) {
@@ -131,7 +153,7 @@ export default function OptionalProfileScreen() {
         ({
           phone: String(rawUser?.phone || '').trim(),
           name: rawUser?.fullName || rawUser?.name || fullName.trim() || '',
-          email: rawUser?.email || email.trim() || '',
+          email: rawUser?.email || trimmedEmail || '',
           avatarUrl: rawUser?.avatarUrl || rawUser?.avatar || '',
           bio: rawUser?.bio || '',
           dateOfBirth: rawUser?.dateOfBirth || dateOfBirth.trim() || '',
@@ -155,7 +177,7 @@ export default function OptionalProfileScreen() {
 
       setProfile({
         fullName: fullName.trim(),
-        email: email.trim(),
+        email: trimmedEmail,
         dateOfBirth: dateOfBirth.trim(),
         gender: (gender || undefined) as Gender | undefined,
       });
@@ -196,6 +218,27 @@ export default function OptionalProfileScreen() {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const openDatePicker = () => {
+    if (dateOfBirth && isValidDate(dateOfBirth)) {
+      setPickerDate(new Date(dateOfBirth));
+    }
+    setShowDatePicker(true);
+  };
+
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (event.type === 'dismissed') {
+      setShowDatePicker(false);
+      return;
+    }
+    if (!selectedDate) return;
+    setPickerDate(selectedDate);
+    setDateOfBirth(toDateInputValue(selectedDate));
+    setDateError('');
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
     }
   };
 
@@ -254,39 +297,15 @@ export default function OptionalProfileScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Ngày sinh</Text>
-              <TextInput
-                style={[styles.input, dateOfBirth.trim() && !isDateValid && styles.inputError]}
-                value={dateOfBirth}
-                onChangeText={(text) => {
-                  const cleaned = text.replace(/\D/g, '');
-                  let formatted = cleaned;
-                  if (cleaned.length >= 5) {
-                    formatted = `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}`;
-                  }
-                  if (cleaned.length >= 7) {
-                    formatted = `${formatted.slice(0, 7)}-${cleaned.slice(6, 8)}`;
-                  }
-                  setDateOfBirth(formatted);
-
-                  // Validate date in real-time
-                  if (formatted.length === 10 && !isValidDate(formatted)) {
-                    const dateObj = new Date(formatted);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    if (dateObj > today) {
-                      setDateError('Ngày sinh không được lớn hơn ngày hiện tại');
-                    } else {
-                      setDateError('Ngày sinh không hợp lệ. Định dạng: YYYY-MM-DD');
-                    }
-                  } else {
-                    setDateError('');
-                  }
-                }}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#8e8e93"
-                keyboardType="numeric"
-                maxLength={10}
-              />
+              <TouchableOpacity
+                style={[styles.input, styles.datePickerTrigger, dateOfBirth.trim() && !isDateValid && styles.inputError]}
+                onPress={openDatePicker}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.dateText, !dateOfBirth && styles.datePlaceholder]}>
+                  {dateOfBirth ? toDisplayDate(dateOfBirth) : 'Chọn ngày sinh'}
+                </Text>
+              </TouchableOpacity>
               {dateError && <Text style={styles.errorText}>{dateError}</Text>}
             </View>
 
@@ -318,6 +337,37 @@ export default function OptionalProfileScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal visible={showDatePicker} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.dateModal}>
+            <View style={styles.dateModalHeader}>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <Text style={styles.dateModalAction}>Hủy</Text>
+              </TouchableOpacity>
+              <Text style={styles.dateModalTitle}>Chọn ngày sinh</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setDateOfBirth(toDateInputValue(pickerDate));
+                  setDateError('');
+                  setShowDatePicker(false);
+                }}
+              >
+                <Text style={styles.dateModalAction}>Xong</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={pickerDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'spinner'}
+              maximumDate={new Date()}
+              onChange={handleDateChange}
+              style={styles.datePicker}
+              themeVariant="dark"
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -345,6 +395,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
   },
+  datePickerTrigger: {
+    justifyContent: 'center',
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#000',
+  },
+  datePlaceholder: {
+    color: '#8e8e93',
+  },
   inputError: {
     borderColor: '#ff3b30',
   },
@@ -369,5 +429,38 @@ const styles = StyleSheet.create({
   primaryBtn: { backgroundColor: '#0091ff', paddingVertical: 14, borderRadius: 30, alignItems: 'center', marginTop: 10 },
   btnDisabled: { backgroundColor: '#99d1ff' },
   btnText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  dateModal: {
+    backgroundColor: '#1c1c1e',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 20,
+  },
+  dateModalHeader: {
+    height: 52,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#3a3a3c',
+  },
+  dateModalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  dateModalAction: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0091ff',
+  },
+  datePicker: {
+    backgroundColor: '#1c1c1e',
+  },
 });
 

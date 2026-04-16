@@ -209,7 +209,8 @@
     "enter_phone": "Enter phone number",
     "phone_placeholder": "Enter phone number",
     "select_country": "Select Country",
-    "search_country": "Search Country"
+    "search_country": "Search Country",
+    "no_account":"no account"
   },
 
   "loginstep2": {

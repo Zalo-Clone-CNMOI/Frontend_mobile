@@ -44,8 +44,16 @@ export default function OtpVerifyScreen() {
       if (isExistingAccount) {
         Alert.alert(
           'Số điện thoại đã được đăng ký',
-          'Số điện thoại này đã có tài khoản. Vui lòng đăng nhập.',
+          'SĐT này đã được đăng ký. Bạn muốn chuyển sang đăng nhập hay quay lại để đăng ký SĐT mới?',
           [
+            {
+              text: 'Đăng ký số mới',
+              style: 'cancel',
+              onPress: () => {
+                reset();
+                router.replace('/(auth)/register');
+              },
+            },
             {
               text: 'Đăng nhập',
               onPress: () => {

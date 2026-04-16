@@ -209,7 +209,8 @@
     "enter_phone": "Nhập số điện thoại",
     "phone_placeholder": "Nhập số điện thoại",
     "select_country": "Chọn quốc gia",
-    "search_country": "Tìm quốc gia"
+    "search_country": "Tìm quốc gia",
+    "no_account":"Chưa có tài khoản"
   },
 
   "loginstep2": {
