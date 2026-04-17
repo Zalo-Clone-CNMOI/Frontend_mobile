@@ -1,3 +1,4 @@
+import type { ChatMessage, ConversationV2, MessageType } from "../chat";
 import type { ContactUser } from "../ContactUser";
 import type {
   ApiAttachmentDTO,
@@ -8,7 +9,6 @@ import type {
   ID,
 } from "../dto/ApiDTO";
 import type { SocketChatMessageEvent } from "../dto/SocketDTO";
-import type { ChatMessage, ConversationV2, MessageType } from "../chat";
 
 const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/';
 

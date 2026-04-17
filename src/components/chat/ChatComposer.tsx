@@ -21,12 +21,11 @@ import {
     Image,
     Keyboard,
     Pressable,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { EmojiKeyboard, EmojiType } from 'rn-emoji-keyboard';
 
@@ -156,7 +155,7 @@ export const ChatComposer = React.memo(function ChatComposer({
         mediaTypes: ['images' as ImagePicker.MediaType],
         allowsEditing: false,
         quality: 0.8,
-        selectionLimit: 5,
+        selectionLimit: 9,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -250,12 +249,12 @@ export const ChatComposer = React.memo(function ChatComposer({
             },
           ]}
         >
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagePreviewScroll}>
+          <View style={styles.imageGrid}>
             {selectedImages.map((image, index) => (
-              <View key={index} style={styles.imagePreviewItem}>
+              <View key={index} style={styles.imageGridItem}>
                 <Image
                   source={{ uri: image.uri }}
-                  style={styles.imagePreviewThumbnail}
+                  style={styles.imageGridThumbnail}
                 />
                 <TouchableOpacity
                   style={styles.removeImageButton}
@@ -265,13 +264,15 @@ export const ChatComposer = React.memo(function ChatComposer({
                 </TouchableOpacity>
               </View>
             ))}
-          </ScrollView>
-          <TouchableOpacity
-            style={styles.addMoreImageButton}
-            onPress={handlePickImage}
-          >
-            <ImageIcon size={20} color={theme.colors.primary} />
-          </TouchableOpacity>
+            {selectedImages.length < 9 && (
+              <TouchableOpacity
+                style={styles.addMoreImageButton}
+                onPress={handlePickImage}
+              >
+                <ImageIcon size={24} color={theme.colors.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
 
@@ -502,8 +503,6 @@ const styles = StyleSheet.create({
   },
 
   imagePreviewContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 8,
     margin: 10,
@@ -511,19 +510,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
-  imagePreviewScroll: {
-    flex: 1,
-    marginRight: 8,
+  imageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
 
-  imagePreviewItem: {
+  imageGridItem: {
     position: 'relative',
-    marginRight: 8,
+    width: '31%',
+    aspectRatio: 1,
   },
 
-  imagePreviewThumbnail: {
-    width: 60,
-    height: 60,
+  imageGridThumbnail: {
+    width: '100%',
+    height: '100%',
     borderRadius: 8,
   },
 
@@ -540,8 +541,8 @@ const styles = StyleSheet.create({
   },
 
   addMoreImageButton: {
-    width: 60,
-    height: 60,
+    width: '31%',
+    aspectRatio: 1,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e5e5e5',

@@ -83,16 +83,19 @@ export function ForwardModal({
     const content = item.lastMessage?.content;
     const fromMe = (item.lastMessage as any)?.fromMe || false;
     const isGroup = item.isGroup;
-
-    if (!content && !type) {
-      return t('chat.no_messages', { defaultValue: 'Không có tin nhắn' });
-    }
+    const attachments = (item.lastMessage as any)?.attachments || [];
 
     // Determine content based on type
     let messageContent = '';
     switch (type) {
       case 'image':
-        messageContent = 'đã gửi 1 ảnh';
+        // Check if multiple images
+        const imageCount = attachments.filter((a: any) => a.type === 'image' || a.content_type?.startsWith('image/')).length;
+        if (imageCount > 1) {
+          messageContent = 'đã gửi nhiều ảnh';
+        } else {
+          messageContent = 'đã gửi 1 ảnh';
+        }
         break;
       case 'video':
         messageContent = 'đã gửi 1 video';
@@ -112,7 +115,6 @@ export function ForwardModal({
     if (fromMe) {
       prefix = 'Bạn: ';
     } else {
-      // For both group and direct chats, show sender name
       const senderName = item.lastMessage?.senderName || '';
       prefix = senderName ? `${senderName}: ` : '';
     }

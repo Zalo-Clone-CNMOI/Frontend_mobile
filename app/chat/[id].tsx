@@ -8,20 +8,19 @@ import { TypingIndicator } from '@/src/components/chat/TypingIndicator';
 import { VideoViewer } from '@/src/components/chat/VideoViewer';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useChatDetailScreenLogic } from '@/src/hooks/screens/useChatDetailScreen';
+import { getMessageReactions } from '@/src/services/chatService';
+import * as mediaService from '@/src/services/mediaService';
+import { searchUsers } from '@/src/services/usersApi';
 import { useChatStore } from '@/src/store/chatStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useTheme } from '@/src/theme/themeContext';
-import * as mediaService from '@/src/services/mediaService';
-import { getMessageReactions, reactMessage, unreactMessage } from '@/src/services/chatService';
-import { getConversationDetail } from '@/src/services/conversationsApi';
-import { searchUsers } from '@/src/services/usersApi';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { Circle, List, Phone } from 'lucide-react-native';
 import React from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as WebBrowser from 'expo-web-browser';
 
 export default function ChatDetailScreen() {
   const theme = useTheme();
@@ -250,6 +249,7 @@ export default function ChatDetailScreen() {
     return (
       <MessageBubble
         item={item}
+        isGroup={currentChat?.isGroup}
         onLongPress={openMessageActions}
         onReuseRevoked={handleReuseRevokedMessage}
         onRevokeRestoreExpired={handleRevokedRestoreExpired}
@@ -272,20 +272,23 @@ export default function ChatDetailScreen() {
         }}
         onVideoPress={setSelectedVideo}
         onFilePress={handleFilePress}
+        onForwardPress={handleForwardAction}
       />
     );
   }, [
-    openMessageActions, 
-    handleReuseRevokedMessage, 
+    openMessageActions,
+    handleReuseRevokedMessage,
     handleRevokedRestoreExpired,
-    handleJumpToReplySource, 
+    handleJumpToReplySource,
     handleUnreactAction,
     setSelectedImage,
     setSelectedImageUrls,
     setSelectedImageIndex,
     setSelectedVideo,
     handleFilePress,
-    handleLoadReactions
+    handleLoadReactions,
+    handleForwardAction,
+    currentChat
   ]);
 
   return (
