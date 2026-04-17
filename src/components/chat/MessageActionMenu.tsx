@@ -66,7 +66,8 @@ export function MessageActionMenu({
 
   const isMe = Boolean(message.fromMe);
   const canRevoke = isMe && !message.isRevoked;
-  const canEdit = isMe && !message.isRevoked;
+  const hasImageAttachment = message.attachments?.some((a: any) => a.type === 'image') || message.type === 'image';
+  const canEdit = isMe && !message.isRevoked && !hasImageAttachment;
 
   return (
     <Modal

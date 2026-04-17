@@ -1,6 +1,6 @@
 import { Socket } from "socket.io-client";
 import { ContactUser } from "../types/ContactUser";
-import type { ChatMessage, ConversationV2 } from "../types/chat";
+import type { ChatMessage, ConversationV2, ReplyInfo } from "../types/chat";
 import type { SocketChatJoinPayload } from "../types/dto/SocketDTO";
 import type { MessageReactionsResponseDto } from "../types/dto/ApiDTO";
 import { mapConversationsListFromApi } from "../types/mappers/DTOMappers";
@@ -128,6 +128,7 @@ function toLegacyChatMessage(apiMessage: any): ChatMessage {
     replyTo: apiMessage?.replyToMessageId
       ? { id: apiMessage.replyToMessageId }
       : undefined,
+    forwardedFrom: apiMessage?.forwarded_from,
     reactions: apiMessage?.reactions,
     status: apiMessage?.status,
     isEdited: Boolean(editedAtRaw),
@@ -136,6 +137,108 @@ function toLegacyChatMessage(apiMessage: any): ChatMessage {
     attachments: Array.isArray(apiMessage?.attachments) ? apiMessage.attachments : undefined,
   };
 }
+
+// Fetch reply message details to get text and sender name
+export async function enrichReplyToDetails(message: ChatMessage): Promise<ChatMessage> {
+  if (!message.replyTo?.id || message.replyTo.text) {
+    return message;
+  }
+
+  try {
+    const replyMessageDetails = await messagesApi.getMessageDetails(
+      message.conversationId || '',
+      message.timestamp,
+      message.replyTo.id
+    );
+    if (replyMessageDetails?.data) {
+      const replyMsg = replyMessageDetails.data;
+      return {
+        ...message,
+        replyTo: {
+          id: message.replyTo.id,
+          senderId: replyMsg.senderId,
+          senderName: replyMsg.senderName || replyMsg.sender?.name || 'User',
+          text: replyMsg.body || replyMsg.text || '',
+        },
+      };
+    }
+  } catch (error) {
+    console.error('[enrichReplyToDetails] Failed to fetch reply message details:', error);
+  }
+
+  return message;
+}
+
+// Get reply preview text similar to Frontend_web's getReplyPreview
+export const getReplyPreview = (replyTo?: ReplyInfo, attachments?: any[]) => {
+  if (!replyTo) {
+    return {
+      text: "",
+      imageAttachment: null,
+      videoAttachment: null,
+    };
+  }
+
+  const imageAttachment =
+    attachments?.find((att: any) => att.type === "image") ?? null;
+
+  const videoAttachment =
+    attachments?.find((att: any) => att.type === "video") ?? null;
+
+  const text = (replyTo.text ?? "").replace(/\u200B/g, "").trim();
+
+  if (text) {
+    return {
+      text,
+      imageAttachment,
+      videoAttachment,
+    };
+  }
+
+  if (imageAttachment) {
+    return {
+      text: "Ảnh",
+      imageAttachment,
+      videoAttachment: null,
+    };
+  }
+
+  if (videoAttachment) {
+    return {
+      text: "Video",
+      imageAttachment: null,
+      videoAttachment,
+    };
+  }
+
+  return {
+    text: attachments?.length ? "Tệp đính kèm" : "Tin nhắn",
+    imageAttachment: null,
+    videoAttachment: null,
+  };
+};
+
+// Hydrate reply messages from current message list (similar to Frontend_web)
+export const hydrateReplyMessages = (messages: ChatMessage[]): ChatMessage[] => {
+  const messageMap = new Map(messages.map((msg) => [msg.id, msg]));
+
+  return messages.map((msg) => {
+    if (msg.replyTo?.text || !msg.replyTo?.id) return msg;
+
+    const repliedMessage = messageMap.get(msg.replyTo.id);
+    if (!repliedMessage) return msg;
+
+    return {
+      ...msg,
+      replyTo: {
+        id: repliedMessage.id,
+        senderId: repliedMessage.senderId,
+        senderName: repliedMessage.senderName || 'User',
+        text: repliedMessage.text || '',
+      },
+    };
+  });
+};
 
 // Track open conversations for socket room management
 const openConversations = new Set<string>();
@@ -261,16 +364,19 @@ export async function loadInitialMessages(conversationId: string) {
   // Filter out deleted messages
   const activeMessages = messages.filter(m => !m?.isDeleted);
   const uiMessages = sortMessagesAscending(activeMessages.map(toLegacyChatMessage));
+  // Hydrate reply messages from current message list (similar to Frontend_web)
+  const hydratedMessages = hydrateReplyMessages(uiMessages);
 
   openConversations.add(normalizedConversationId);
   const s = await ensureSocket();
   try {
     s.emit("chat:join", buildChatJoinPayload(normalizedConversationId));
   } catch (e) {
+    console.error('[loadInitialMessages] Failed to emit chat:join', e);
   }
 
   return {
-    messages: uiMessages,
+    messages: hydratedMessages,
     nextCursor: payload?.nextCursor ?? null,
     hasMore: Boolean(payload?.hasMore),
   };
@@ -297,10 +403,12 @@ export async function fetchMoreMessages(
           : [];
 
   // Filter out deleted messages
-  const activeMessages = messages.filter(m => !m?.isDeleted);
+  const activeMessages = messages.filter((m : any) => !m?.isDeleted);
   const uiMessages = sortMessagesAscending(activeMessages.map(toLegacyChatMessage));
+  // Hydrate reply messages from current message list (similar to Frontend_web)
+  const hydratedMessages = hydrateReplyMessages(uiMessages);
   return {
-    messages: uiMessages,
+    messages: hydratedMessages,
     nextCursor: payload?.nextCursor ?? null,
     hasMore: Boolean(payload?.hasMore),
   };
@@ -526,7 +634,8 @@ function registerSocketListeners() {
 
     if (!requiresDetails) {
       const uiMessage = toLegacyChatMessage(payload);
-      _handlers.onMessage?.(uiMessage);
+      const enrichedMessage = await enrichReplyToDetails(uiMessage);
+      _handlers.onMessage?.(enrichedMessage);
       return;
     }
 
@@ -538,14 +647,16 @@ function registerSocketListeners() {
       );
       const fullMessage = detailsResp?.data || payload;
       const uiMessage = toLegacyChatMessage(fullMessage);
-      _handlers.onMessage?.(uiMessage);
+      const enrichedMessage = await enrichReplyToDetails(uiMessage);
+      _handlers.onMessage?.(enrichedMessage);
     } catch (e) {
       const uiMessage = toLegacyChatMessage(payload);
-      _handlers.onMessage?.(uiMessage);
+      const enrichedMessage = await enrichReplyToDetails(uiMessage);
+      _handlers.onMessage?.(enrichedMessage);
     }
   });
 
-  s.on("chat:message:updated", (payload: any) => {
+  s.on("chat:message:updated", async (payload: any) => {
     const uiMessage = toLegacyChatMessage({
       id: payload?.message_id,
       conversationId: payload?.conversation_id,
@@ -555,7 +666,8 @@ function registerSocketListeners() {
       createdAt: payload?.created_at,
       timestamp: payload?.timestamp,
     });
-    _handlers.onMessageUpdated?.(uiMessage);
+    const enrichedMessage = await enrichReplyToDetails(uiMessage);
+    _handlers.onMessageUpdated?.(enrichedMessage);
   });
 
   s.on("chat:message:deleted", (payload: any) => {
@@ -654,59 +766,69 @@ export async function unreactMessage(
   });
 }
 
-// Forward a message to another conversation
-// Extracts content and attachments from original message, sends to target conversation via socket
+// Forward a message to one or more conversations
+// Uses Backend's /messages/forward API with proper payload structure
+// Backend will handle cloning attachments, creating forwarded_from metadata, and emitting Kafka event
 export async function forwardMessage(
   originalMessage: any,
-  targetConversationId: string,
+  targetConversationIds: string | string[],
 ) {
-  const socket = await ensureSocket();
-  const messageId = generateUUID();
-  const sentAt = Date.now();
+  // Support single string or array of conversation IDs
+  const targets = Array.isArray(targetConversationIds) ? targetConversationIds : [targetConversationId];
 
-  // Extract message content and attachments
-  const body = originalMessage.text || originalMessage.content || '';
-  const attachments = originalMessage.attachments || (originalMessage.attachment ? [originalMessage.attachment] : []);
+  // Generate idempotency key for forward operation
+  const forwardId = generateUUID();
 
-  // Prepare attachments for forward - filter out undefined/null attachments without key
-  const preparedAttachments = attachments
-    .filter((att: any) => att && att.key) // Filter out null/undefined and attachments without key
-    .map((att: any) => ({
-      key: att.key,
-      type: att.type,
-      name: att.name,
-      size: att.size,
-      content_type: att.content_type || att.contentType,
-      thumbnail_key: att.thumbnail_key || att.thumbnailKey,
-      visibility: att.visibility || 'public',
-    }));
+  // Get source message ID from serverMessageId or id
+  const sourceMessageId = originalMessage.serverMessageId || originalMessage.id;
+
+  if (!sourceMessageId) {
+    throw new Error("Source message ID is required for forwarding");
+  }
+
+  console.log('[chatService] forwardMessage:', {
+    sourceMessageId,
+    hasServerMessageId: !!originalMessage.serverMessageId,
+    hasId: !!originalMessage.id,
+    targetsCount: targets.length,
+    conversationId: originalMessage.conversationId,
+    createdAt: originalMessage.timestamp,
+  });
+
+  // Try to fetch message details first to verify it exists
+  if (originalMessage.conversationId && originalMessage.timestamp) {
+    try {
+      const messageDetails = await messagesApi.getMessageDetails(
+        originalMessage.conversationId,
+        originalMessage.timestamp,
+        sourceMessageId
+      );
+      console.log('[chatService] Message details fetched:', messageDetails?.data ? 'success' : 'not found');
+    } catch (error) {
+      console.error('[chatService] Failed to fetch message details:', error);
+      throw new Error('SOURCE_NOT_FOUND');
+    }
+  }
+
+  // Build targets array with generated message IDs
+  const targetPayloads = targets.map((conversationId) => ({
+    message_id: generateUUID(),
+    conversation_id: conversationId,
+  }));
 
   const payload = {
-    message_id: messageId,
-    conversation_id: targetConversationId,
-    body,
-    sent_at: sentAt,
-    attachments: preparedAttachments.length > 0 ? preparedAttachments : undefined,
+    forward_id: forwardId,
+    source_message_id: sourceMessageId,
+    targets: targetPayloads,
   };
 
-  socket.emit("chat:send", payload);
-
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error("Forward timeout"));
-    }, 10000);
-
-    socket.once(`chat:ack`, (ack: any) => {
-      if (ack.message_id === messageId) {
-        clearTimeout(timeout);
-        if (ack.status === 'accepted') {
-          resolve(ack);
-        } else {
-          reject(new Error(ack.reason || 'Forward failed'));
-        }
-      }
-    });
-  });
+  try {
+    const response = await messagesApi.forwardMessage(payload);
+    return response?.data || response;
+  } catch (error) {
+    console.error('[chatService] forwardMessage error:', error);
+    throw error;
+  }
 }
 
 // Reset chat runtime state

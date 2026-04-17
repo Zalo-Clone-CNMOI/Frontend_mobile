@@ -1,9 +1,9 @@
-import { useAuth } from '@/src/contexts/AuthContext';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
+import { useAuth } from '@/src/contexts/AuthContext';
 import * as mediaService from '@/src/services/mediaService';
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
-import { Check, CheckCheck, FileText, Play, RotateCcw } from 'lucide-react-native';
+import { Check, CheckCheck, FileText, Play, RotateCcw, Share } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -18,13 +18,14 @@ import {
 type MessageBubbleProps = {
   item: ChatMessage;
   onLongPress?: (item: ChatMessage) => void;
-  onImagePress?: (uri: string) => void;
+  onImagePress?: (uri: string, urls?: string[], index?: number) => void;
   onVideoPress?: (uri: string) => void;
   onFilePress?: (item: ChatMessage) => void;
   onReuseRevoked?: (item: ChatMessage) => void;
   onRevokeRestoreExpired?: (messageId: string) => void;
   onPressReply?: (item: ChatMessage) => void;
   onReactionPress?: (messageId: string, reactionType: string) => void;
+  onForwardPress?: (item: ChatMessage) => void;
 };
 
 export const MessageBubble = React.memo(
@@ -38,12 +39,19 @@ export const MessageBubble = React.memo(
     onRevokeRestoreExpired,
     onPressReply,
     onReactionPress,
+    onForwardPress,
   }: MessageBubbleProps) {
   const theme = useTheme();
   const { t } = useTranslation();
   const { user: authUser } = useAuth();
   const [attachmentUrl, setAttachmentUrl] = useState<string>('');
   const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
+  const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
+
+  const attachments = (item as any).attachments || [];
+  const imageAttachments = attachments.filter((a: any) => a.type === 'image' || a.content_type?.startsWith('image/'));
+  const hasMultipleImages = imageAttachments.length > 1;
+  const previewImages = attachmentUrls.slice(0, 6);
 
   const avatar = useMemo(() => {
     if (item.fromMe) return undefined;
@@ -77,35 +85,53 @@ export const MessageBubble = React.memo(
   useEffect(() => {
     if (!isImage && !isVideo) return;
 
-    const fetchUrl = async () => {
+    const fetchUrls = async () => {
       try {
-        const attachment = (item as any).attachment || (item as any).attachments?.[0];
-        if (attachment?.key) {
-          const url = await mediaService.getAttachmentUrl(
-            { key: attachment.key, visibility: attachment.visibility || 'public', url: attachment.url },
-            authUser?.id || ''
+        if (hasMultipleImages) {
+          // Fetch all image URLs for grouped display
+          const urls = await Promise.all(
+            imageAttachments.map(async (attachment: any) => {
+              if (attachment?.key) {
+                return await mediaService.getAttachmentUrl(
+                  { key: attachment.key, visibility: attachment.visibility || 'public', url: attachment.url },
+                  authUser?.id || ''
+                );
+              }
+              return attachment.url || '';
+            })
           );
-          setAttachmentUrl(url);
-
-          const tKey = attachment.thumbnailKey || attachment.thumbnail_key;
-          if (tKey) {
-            const tUrl = await mediaService.getAttachmentUrl(
-              { key: tKey, visibility: attachment.visibility || 'public', url: attachment.thumbnailUrl || attachment.thumbnail_url },
+          setAttachmentUrls(urls);
+          setAttachmentUrl(urls[0] || '');
+        } else {
+          // Single image - use existing logic
+          const attachment = (item as any).attachment || (item as any).attachments?.[0];
+          if (attachment?.key) {
+            const url = await mediaService.getAttachmentUrl(
+              { key: attachment.key, visibility: attachment.visibility || 'public', url: attachment.url },
               authUser?.id || ''
             );
-            setThumbnailUrl(tUrl);
+            setAttachmentUrl(url);
+
+            const tKey = attachment.thumbnailKey || attachment.thumbnail_key;
+            if (tKey) {
+              const tUrl = await mediaService.getAttachmentUrl(
+                { key: tKey, visibility: attachment.visibility || 'public', url: attachment.thumbnailUrl || attachment.thumbnail_url },
+                authUser?.id || ''
+              );
+              setThumbnailUrl(tUrl);
+            }
+          } else {
+            const fallbackUri = (item as any).fileInfo?.uri || '';
+            setAttachmentUrl(fallbackUri);
           }
-        } else {
-          const fallbackUri = (item as any).fileInfo?.uri || '';
-          setAttachmentUrl(fallbackUri);
         }
       } catch (error) {
         setAttachmentUrl((item as any).fileInfo?.uri || '');
       }
     };
 
-    fetchUrl();
-  }, [item, isImage, isVideo, authUser?.id]);
+    fetchUrls();
+  }, [item, isImage, isVideo, authUser?.id, hasMultipleImages, imageAttachments]);
 
   const messageText = (item as any).text || (item as any).content || '';
   const isMe = (item as any).fromMe || ((item as any).sender && (item as any).sender.me === true);
@@ -168,15 +194,21 @@ export const MessageBubble = React.memo(
           style={[
             styles.bubble,
             {
-              backgroundColor: isMe ? '#0084FF' : '#FFFFFF',
+              backgroundColor: item.forwardedFrom && !isMe ? '#E8F3FF' : (isMe ? '#0084FF' : '#FFFFFF'),
               borderColor: isMe ? '#0084FF' : '#E5E5E5',
               borderTopRightRadius: isMe ? 4 : 16,
               borderTopLeftRadius: isMe ? 16 : 4,
               borderBottomRightRadius: isMe ? 16 : 4,
               borderBottomLeftRadius: isMe ? 4 : 16,
+              shadowColor: item.forwardedFrom && !isMe ? '#000' : 'transparent',
+              shadowOffset: item.forwardedFrom && !isMe ? { width: 0, height: 1 } : { width: 0, height: 0 },
+              shadowOpacity: item.forwardedFrom && !isMe ? 0.1 : 0,
+              shadowRadius: item.forwardedFrom && !isMe ? 2 : 0,
+              elevation: item.forwardedFrom && !isMe ? 2 : 0,
             },
             isImage && styles.imageBubble,
             item.replyTo && styles.bubbleWithReply,
+            item.forwardedFrom && styles.bubbleWithForwarded,
             isFile && { minWidth: 220 },
             isVideo && styles.videoBubble,
           ]}
@@ -224,6 +256,42 @@ export const MessageBubble = React.memo(
             </Pressable>
           )}
 
+          {item.forwardedFrom && (
+            <TouchableOpacity
+              style={[
+                styles.forwardedHeader,
+                {
+                  backgroundColor: isMe
+                    ? 'rgba(223, 218, 218, 0.1)'
+                    : 'rgba(107, 114, 128, 0.05)',
+                }
+              ]}
+              onPress={() => {
+                // Navigate to original sender profile
+                console.log('Navigate to sender profile:', item.forwardedFrom?.source_sender_id);
+              }}
+            >
+              <View
+                style={[
+                  styles.forwardedAvatarContainer,
+                  { backgroundColor: theme.colors.primary + '20' }
+                ]}
+              >
+                <Text style={[styles.forwardedAvatarText, { color: theme.colors.primary }]}>
+                  {item.forwardedFrom.source_sender_name_snapshot.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.forwardedHeaderText,
+                  { color: '#6B7280' },
+                ]}
+              >
+                {t('chat.forwarded_from', { defaultValue: 'Từ' })} {item.forwardedFrom.source_sender_name_snapshot} {'>'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
           
           {item.isRevoked ? (
             <View style={styles.revokedRow}>
@@ -247,18 +315,180 @@ export const MessageBubble = React.memo(
           ) : isImage ? (
             <Pressable
               onPress={() =>
-                onImagePress?.(attachmentUrl || '')
+                hasMultipleImages ? onImagePress?.(attachmentUrls[0] || '', attachmentUrls, 0) : onImagePress?.(attachmentUrl || '', undefined, 0)
               }
+              onLongPress={() => onLongPress?.(item)}
             >
-              {attachmentUrl && attachmentUrl.trim() !== '' ? (
-                <Image
-                  source={{ uri: attachmentUrl }}
-                  style={styles.sentImage}
-                />
-              ) : (
-                <View style={[styles.sentImage, { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' }]}>
-                  <Text style={{ color: '#999', fontSize: 12 }}>Image not available</Text>
+              {hasMultipleImages ? (
+                // Grouped images display like Zalo
+                <View style={styles.messageWrapper}>
+                  {/* Khung chứa lưới ảnh */}
+                  <View style={[styles.gridContainer, imageAttachments.length === 1 && styles.gridSingle, imageAttachments.length > 4 && styles.gridExpanded]}>
+                    {previewImages.map((url, index) => {
+                      const total = imageAttachments.length;
+                      let itemStyle = styles.itemSquare; // Mặc định là ô vuông nhỏ
+
+                      // Xử lý layout cho từng trường hợp số lượng ảnh
+                      if (total === 1) {
+                        itemStyle = styles.itemSingle;
+                      } else if (total === 2) {
+                        itemStyle = styles.itemSquare;
+                      } else if (total === 3 && index === 0) {
+                        itemStyle = styles.itemFullWidth; // Ảnh đầu tiên của bộ 3 sẽ nằm ngang hết dòng
+                      }
+
+                      // Xử lý khoảng cách (gap) giữa các ảnh
+                      if (total >= 5 && index === 0) {
+                        itemStyle = styles.itemFullWidth;
+                      } else if (total === 5) {
+                        itemStyle = styles.itemHalfTall;
+                      } else if (total >= 6) {
+                        itemStyle = index <= 2 ? styles.itemHalfTall : styles.itemThird;
+                      }
+
+                      const isRightEdge = total === 2
+                        ? index === 1
+                        : total === 3
+                          ? index === 2
+                          : total === 5
+                            ? index === 2 || index === 4
+                          : total >= 6
+                              ? index === 0 || index === 2 || index === 5
+                              : index % 2 !== 0;
+                      const marginStyle = isRightEdge ? {} : { marginRight: 2 };
+                      const bottomMarginStyle =
+                        total === 3
+                          ? index === 0 ? { marginBottom: 2 } : {}
+                          : total === 4
+                            ? index === 0 ? { marginBottom: 2 } : {}
+                            : total === 5
+                              ? index === 0 || index === 1 || index === 2 ? { marginBottom: 2 } : {}
+                              : total >= 6
+                                ? index <= 2 ? { marginBottom: 2 } : {}
+                                : (total >= 3 && index === 0) || (total >= 4 && index < 2) ? { marginBottom: 2 } : {};
+
+                      return (
+                        <Pressable
+                          key={index}
+                          style={[itemStyle, marginStyle, bottomMarginStyle]}
+                          onPress={() => onImagePress?.(url, attachmentUrls, index)}
+                        >
+                          <Image source={{ uri: url }} style={styles.image} />
+                          
+                          {/* Overlay hiển thị số ảnh còn lại (+N) */}
+                          {index === 5 && total > 6 && (
+                            <View style={styles.moreImagesOverlay}>
+                              <Text style={styles.moreImagesText}>+{total - 6}</Text>
+                            </View>
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
                 </View>
+              ) : item.forwardedFrom ? (
+                // Link preview card style for forwarded images
+                <View
+                  style={[
+                    styles.linkPreviewCard,
+                    {
+                      backgroundColor: '#FFFFFF',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 2,
+                      elevation: 2,
+                    },
+                  ]}
+                >
+                  <Image
+                    source={{ uri: attachmentUrl || '' }}
+                    style={styles.linkPreviewImageLarge}
+                  />
+                  <View style={styles.linkPreviewContent}>
+                    <Text
+                      style={[styles.linkPreviewDomain, { color: '#6B7280' }]}
+                      numberOfLines={1}
+                    >
+                      image
+                    </Text>
+                    <Text
+                      style={[
+                        styles.linkPreviewFileName,
+                        { color: '#000000' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.fileInfo?.name || 'Hình ảnh'}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                // Regular image display with forward button
+                <View style={[styles.imageWithForwardContainer, isMe && styles.imageWithForwardContainerReverse]}>
+                  {/* Forward Button */}
+                  {onForwardPress && (
+                    <TouchableOpacity
+                      style={[styles.forwardButton, isMe ? styles.forwardButtonMarginRight : styles.forwardButtonMarginLeft]}
+                      onPress={() => onForwardPress(item)}
+                      activeOpacity={0.7}
+                    >
+                      <Share size={18} color="#000000" />
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Image Container */}
+                  <View style={styles.imageContainer}>
+                    {attachmentUrl && attachmentUrl.trim() !== '' ? (
+                      <Image
+                        source={{ uri: attachmentUrl }}
+                        style={styles.sentImage}
+                      />
+                    ) : (
+                      <View style={[styles.sentImage, { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' }]}>
+                        <Text style={{ color: '#999', fontSize: 12 }}>Image not available</Text>
+                      </View>
+                    )}
+
+                    {/* Reaction Button (Absolute positioning) */}
+                    {item.reactions && Object.keys(item.reactions).length > 0 && (
+                      <View style={[styles.reactionButtonAbsolute, isMe ? styles.reactionButtonRight : styles.reactionButtonLeft]}>
+                        {Object.entries(item.reactions).map(([reactionType, userIds]) => {
+                          const hasMyReaction = userIds.includes(authUser?.id || '');
+                          const emoji = getReactionEmoji(reactionType);
+                          return (
+                            <TouchableOpacity
+                              key={reactionType}
+                              style={[
+                                styles.reactionPill,
+                                hasMyReaction && styles.reactionPillActive,
+                              ]}
+                              onPress={() => hasMyReaction && onReactionPress?.(item.serverMessageId || item.id, reactionType)}
+                            >
+                              <Text style={styles.reactionPillEmoji}>{emoji}</Text>
+                              {userIds.length > 1 && (
+                                <Text style={styles.reactionPillCount}>{userIds.length}</Text>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+              {/* Caption for image */}
+              {item.caption && (
+                <Text
+                  style={[
+                    styles.caption,
+                    {
+                      color: isMe ? theme.colors.textMessage : theme.colors.text,
+                    },
+                  ]}
+                >
+                  {item.caption}
+                </Text>
               )}
             </Pressable>
           ) : isVideo ? (
@@ -266,82 +496,202 @@ export const MessageBubble = React.memo(
               onPress={() =>
                 onVideoPress?.(attachmentUrl || '')
               }
-              style={styles.videoThumb}
+              onLongPress={() => onLongPress?.(item)}
+              style={item.forwardedFrom ? undefined : styles.videoThumb}
             >
-              {(thumbnailUrl || attachmentUrl) ? (
-                <Image
-                  source={{ uri: thumbnailUrl || attachmentUrl }}
-                  style={styles.videoThumb}
-                />
-              ) : (
-                <View style={[styles.videoThumb, { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' }]}>
-                  <Text style={{ color: '#999', fontSize: 12 }}>Video not available</Text>
+              {item.forwardedFrom ? (
+                // Link preview card style for forwarded videos
+                <View
+                  style={[
+                    styles.linkPreviewCard,
+                    {
+                      backgroundColor: '#FFFFFF',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 2,
+                      elevation: 2,
+                    },
+                  ]}
+                >
+                  <Image
+                    source={{ uri: thumbnailUrl || attachmentUrl || '' }}
+                    style={styles.linkPreviewImageLarge}
+                  />
+                  <View style={styles.linkPreviewContent}>
+                    <Text
+                      style={[styles.linkPreviewDomain, { color: '#6B7280' }]}
+                      numberOfLines={1}
+                    >
+                      video
+                    </Text>
+                    <Text
+                      style={[
+                        styles.linkPreviewFileName,
+                        { color: '#000000' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.fileInfo?.name || 'Video'}
+                    </Text>
+                  </View>
                 </View>
+              ) : (
+                // Regular video display
+                <>
+                  {(thumbnailUrl || attachmentUrl) ? (
+                    <Image
+                      source={{ uri: thumbnailUrl || attachmentUrl }}
+                      style={styles.videoThumb}
+                    />
+                  ) : (
+                    <View style={[styles.videoThumb, { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' }]}>
+                      <Text style={{ color: '#999', fontSize: 12 }}>Video not available</Text>
+                    </View>
+                  )}
+                  <View
+                    style={[
+                      styles.videoPlay,
+                      {
+                        backgroundColor: isMe
+                          ? 'rgba(255,255,255,0.25)'
+                          : 'rgba(0,0,0,0.25)',
+                      },
+                    ]}
+                  >
+                    <Play
+                      size={22}
+                      color={isMe ? theme.colors.icon : theme.colors.text}
+                      fill={isMe ? theme.colors.icon : theme.colors.text}
+                    />
+                  </View>
+                </>
               )}
-              <View
-                style={[
-                  styles.videoPlay,
-                  {
-                    backgroundColor: isMe
-                      ? 'rgba(255,255,255,0.25)'
-                      : 'rgba(0,0,0,0.25)',
-                  },
-                ]}
-              >
-                <Play
-                  size={22}
-                  color={isMe ? theme.colors.icon : theme.colors.text}
-                  fill={isMe ? theme.colors.icon : theme.colors.text}
-                />
-              </View>
+
+              {/* Caption for video */}
+              {item.caption && (
+                <Text
+                  style={[
+                    styles.caption,
+                    {
+                      color: isMe ? theme.colors.textMessage : theme.colors.text,
+                    },
+                  ]}
+                >
+                  {item.caption}
+                </Text>
+              )}
             </Pressable>
           ) : isFile ? (
             <Pressable
               style={styles.fileContainer}
               onPress={() => onFilePress?.(item)}
             >
-              <View
-                style={[
-                  styles.fileIconBox,
-                  {
-                    backgroundColor: isMe
-                      ? 'rgba(255,255,255,0.25)'
-                      : `${theme.colors.primary}22`,
-                  },
-                ]}
-              >
-                <FileText
-                  size={22}
-                  color={
-                    isMe
-                      ? theme.colors.icon
-                      : theme.colors.primary
-                  }
-                />
-              </View>
-              <View style={styles.fileInfo}>
-                <Text
+              {item.forwardedFrom ? (
+                // Link preview card style for forwarded files
+                <View
                   style={[
-                    styles.fileName,
+                    styles.linkPreviewCard,
                     {
-                      color: isMe
-                        ? theme.colors.icon
-                        : theme.colors.text,
+                      backgroundColor: '#FFFFFF',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 2,
+                      elevation: 2,
                     },
                   ]}
-                  numberOfLines={1}
                 >
-                  {item.fileInfo?.name || 'Tài liệu'}
-                </Text>
+                  <View
+                    style={[
+                      styles.linkPreviewImage,
+                      { backgroundColor: theme.colors.primary + '15' }
+                    ]}
+                  >
+                    <FileText
+                      size={32}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                  <View style={styles.linkPreviewContent}>
+                    <Text
+                      style={[styles.linkPreviewDomain, { color: '#6B7280' }]}
+                      numberOfLines={1}
+                    >
+                      {item.fileInfo?.uri ? new URL(item.fileInfo.uri).hostname : 'file'}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.linkPreviewFileName,
+                        { color: '#000000' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.fileInfo?.name || 'Tài liệu'}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                // Regular file display
+                <>
+                  <View
+                    style={[
+                      styles.fileIconBox,
+                      {
+                        backgroundColor: isMe
+                          ? 'rgba(255,255,255,0.25)'
+                          : `${theme.colors.primary}22`,
+                      },
+                    ]}
+                  >
+                    <FileText
+                      size={22}
+                      color={
+                        isMe
+                          ? theme.colors.icon
+                          : theme.colors.primary
+                      }
+                    />
+                  </View>
+                  <View style={styles.fileInfo}>
+                    <Text
+                      style={[
+                        styles.fileName,
+                        {
+                          color: isMe
+                            ? theme.colors.icon
+                            : theme.colors.text,
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.fileInfo?.name || 'Tài liệu'}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.fileSize,
+                        { color: theme.colors.text, opacity: 0.6 },
+                      ]}
+                    >
+                      {item.fileInfo?.size || 'N/A'}
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              {/* Caption for file */}
+              {item.caption && (
                 <Text
                   style={[
-                    styles.fileSize,
-                    { color: theme.colors.text, opacity: 0.6 },
+                    styles.caption,
+                    {
+                      color: isMe ? theme.colors.textMessage : theme.colors.text,
+                    },
                   ]}
                 >
-                  {item.fileInfo?.size || 'N/A'}
+                  {item.caption}
                 </Text>
-              </View>
+              )}
             </Pressable>
           ) : (
             <Text
@@ -471,9 +821,9 @@ const styles = StyleSheet.create({
   },
 
   bubble: {
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
     borderWidth: 0.5,
   },
 
@@ -534,6 +884,62 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 15,
     lineHeight: 20,
+  },
+
+  caption: {
+    fontSize: 14,
+    lineHeight: 18,
+    marginTop: 8,
+  },
+
+  imageWithForwardContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+
+  imageWithForwardContainerReverse: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'flex-end',
+  },
+
+  forwardButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+
+  forwardButtonMarginRight: {
+    marginRight: 10,
+  },
+
+  forwardButtonMarginLeft: {
+    marginLeft: 10,
+  },
+
+  imageContainer: {
+    position: 'relative',
+  },
+
+  reactionButtonAbsolute: {
+    position: 'absolute',
+    bottom: -10,
+  },
+
+  reactionButtonRight: {
+    right: -10,
+  },
+
+  reactionButtonLeft: {
+    left: -10,
   },
 
   revoked: {
@@ -600,6 +1006,162 @@ const styles = StyleSheet.create({
   bubbleWithReply: {
     paddingTop: 6,
     minWidth: 220,
+  },
+
+  bubbleWithForwarded: {
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+
+  forwardedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginBottom: 6,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  forwardedAvatarContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  forwardedAvatarText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  forwardedHeaderText: {
+    fontSize: 12,
+    fontWeight: '400',
+  },
+
+  linkPreviewCard: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    overflow: 'hidden',
+    padding: 8,
+    marginBottom: 4,
+  },
+  linkPreviewImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  linkPreviewImageLarge: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  linkPreviewContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  linkPreviewDomain: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  linkPreviewFileName: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  forwardedBanner: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    marginBottom: 6,
+    overflow: 'hidden',
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  forwardedText: {
+    fontSize: 12,
+    fontWeight: '600',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flex: 1,
+  },
+
+  messageWrapper: {
+    marginVertical: 4,
+    overflow: 'hidden',
+  },
+
+  imageGroupHeader: {
+    fontSize: 13,
+    marginBottom: 2,
+    fontWeight: '500',
+    paddingHorizontal: 4,
+  },
+
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: 242,
+    height: 242,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#EAEAEA',
+  },
+
+  gridSingle: {
+    width: 'auto',
+    maxWidth: 242,
+  },
+
+  gridExpanded: {
+    height: 366,
+  },
+
+  itemSingle: {
+    width: 242,
+    height: 242,
+  },
+
+  itemSquare: {
+    width: 120,
+    height: 120,
+  },
+
+  itemFullWidth: {
+    width: 242,
+    height: 120,
+  },
+
+  itemHalfTall: {
+    width: 120,
+    height: 120,
+  },
+
+  itemThird: {
+    width: 79.33,
+    height: 120,
+  },
+
+  image: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+
+  moreImagesOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  moreImagesText: {
+    color: '#FFFFFF',
+    fontSize: 26,
+    fontWeight: '400',
   },
 
   reactionsRow: {

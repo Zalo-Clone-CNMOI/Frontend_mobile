@@ -84,7 +84,62 @@ export const getMessageReactions = async (
 // Upload media file (image, video, audio, document)
 // Returns uploaded file info with key, URL, etc.
 export const uploadMedia = async (formData: FormData) => {
-  return request('POST', '/media/upload', formData);
+  return request('POST', '/api/media/upload', formData);
+};
+
+// Forward a message to one or more conversations
+// Uses Backend's /messages/forward endpoint with proper payload structure
+export const forwardMessage = async (payload: {
+  forward_id: string;
+  source_message_id: string;
+  targets: Array<{
+    message_id: string;
+    conversation_id: string;
+  }>;
+}) => {
+  console.log('[messagesApi] forwardMessage payload:', payload);
+  const response = await apiCallWithRefresh(`${API_BASE_URL}/messages/forward`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const text = await response.text();
+  console.log('[messagesApi] forwardMessage response status:', response.status);
+  console.log('[messagesApi] forwardMessage response text:', text);
+
+  let rawData: any = null;
+  try {
+    rawData = text ? JSON.parse(text) : null;
+  } catch {
+    rawData = text || null;
+  }
+
+  // Handle specific status codes according to integration guide
+  if (response.status === 401) {
+    throw new Error('UNAUTHORIZED');
+  }
+  if (response.status === 403) {
+    throw new Error('FORBIDDEN');
+  }
+  if (response.status === 404) {
+    throw new Error('SOURCE_NOT_FOUND');
+  }
+  if (response.status === 429) {
+    throw new Error('RATE_LIMITED');
+  }
+
+  if (!response.ok) {
+    const errorMessage =
+      rawData?.message || rawData?.error || `Request failed (${response.status})`;
+    console.error('[messagesApi] forwardMessage error:', errorMessage, rawData);
+    throw new Error(errorMessage);
+  }
+
+  const data = rawData?.data ?? rawData;
+  return { data, status: response.status };
 };
 
 export default {
@@ -92,4 +147,6 @@ export default {
   getMessageDetails,
   getMessageReactions,
   uploadMedia,
+  forwardMessage,
 };
+

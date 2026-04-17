@@ -44,6 +44,8 @@ export function useChatDetailScreenLogic() {
   const flashListRef = useRef<any>(null);
   const loadedCursorRef = useRef<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImageUrls, setSelectedImageUrls] = useState<string[]>([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
@@ -331,16 +333,49 @@ export function useChatDetailScreenLogic() {
     }, 0);
   }, []);
 
-  const handleForward = useCallback(async (message: ChatMessage, targetConversationId: string) => {
-    if (!message) {
+  const handleForward = useCallback(async (message: ChatMessage, targetConversationIds: string[]) => {
+    if (!message || !targetConversationIds || targetConversationIds.length === 0) {
       return;
     }
     try {
-      await forwardMessage(message, targetConversationId);
-      Alert.alert(t('chat.forward_success', { defaultValue: 'Đã chuyển tiếp tin nhắn' }));
-    } catch (error) {
-      console.error('[handleForward] Forward failed:', error);
-      Alert.alert(t('chat.forward_failed', { defaultValue: 'Chuyển tiếp thất bại' }), String(error));
+      const result = await forwardMessage(message, targetConversationIds);
+      const acceptedCount = result?.results?.filter((r: any) => r.status === 'accepted').length || 0;
+      const totalCount = targetConversationIds.length;
+      Alert.alert(
+        t('chat.forward_success', { defaultValue: 'Đã chuyển tiếp tin nhắn' }),
+        `${acceptedCount}/${totalCount} cuộc trò chuyện`
+      );
+    } catch (error: any) {
+      console.error('[handleForward] Forward failed:', error?.message || error);
+      const errorMessage = error?.message || String(error);
+
+      // Handle specific error codes according to integration guide
+      if (errorMessage === 'UNAUTHORIZED') {
+        Alert.alert(
+          t('auth.session_expired', { defaultValue: 'Phiên đăng nhập hết hạn' }),
+          t('auth.please_login_again', { defaultValue: 'Vui lòng đăng nhập lại' })
+        );
+      } else if (errorMessage === 'FORBIDDEN') {
+        Alert.alert(
+          t('chat.forward_no_permission', { defaultValue: 'Không có quyền' }),
+          t('chat.forward_no_permission_desc', { defaultValue: 'Bạn không có quyền forward tin nhắn này' })
+        );
+      } else if (errorMessage === 'SOURCE_NOT_FOUND') {
+        Alert.alert(
+          t('chat.forward_source_not_found', { defaultValue: 'Tin nhắn không tồn tại' }),
+          t('chat.forward_source_not_found_desc', { defaultValue: 'Tin nhắn gốc không còn tồn tại' })
+        );
+      } else if (errorMessage === 'RATE_LIMITED') {
+        Alert.alert(
+          t('chat.rate_limited', { defaultValue: 'Quá nhiều yêu cầu' }),
+          t('chat.rate_limited_desc', { defaultValue: 'Vui lòng thử lại sau' })
+        );
+      } else {
+        Alert.alert(
+          t('chat.forward_failed', { defaultValue: 'Chuyển tiếp thất bại' }),
+          errorMessage
+        );
+      }
     }
   }, [t]);
 
@@ -534,10 +569,14 @@ export function useChatDetailScreenLogic() {
     handleJumpToReplySource,
     replyingMessage,
     selectedImage,
+    selectedImageUrls,
+    selectedImageIndex,
     selectedVideo,
     setInput,
     setReplyingMessage,
     setSelectedImage,
+    setSelectedImageUrls,
+    setSelectedImageIndex,
     setSelectedVideo,
     setShowChatOptions,
     showChatOptions,

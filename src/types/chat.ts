@@ -40,6 +40,15 @@ export type ReplyInfo = {
   text?: string;
 };
 
+export type ForwardedFrom = {
+  source_message_id: string;
+  source_conversation_id: string;
+  source_sender_id: string;
+  source_sender_name_snapshot: string;
+  source_created_at: number;
+  source_type: 'text' | 'image' | 'file' | 'mixed';
+};
+
 export type ChatMessage = {
   id: string;
   serverMessageId?: string;
@@ -50,10 +59,12 @@ export type ChatMessage = {
   type: MessageType;
   text?: string;
   fileInfo?: FileInfo;
+  caption?: string;
 
   timestamp: number;
 
   replyTo?: ReplyInfo;
+  forwardedFrom?: ForwardedFrom;
 
   reactions?: Record<string, string[]>;
 

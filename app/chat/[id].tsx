@@ -50,10 +50,14 @@ export default function ChatDetailScreen() {
     openMessageActions,
     replyingMessage,
     selectedImage,
+    selectedImageUrls,
+    selectedImageIndex,
     selectedVideo,
     setInput,
     setReplyingMessage,
     setSelectedImage,
+    setSelectedImageUrls,
+    setSelectedImageIndex,
     setSelectedVideo,
     setShowChatOptions,
     showChatOptions,
@@ -256,7 +260,16 @@ export default function ChatDetailScreen() {
           // Then handle the unreact action
           handleUnreactAction(messageId, reactionType);
         }}
-        onImagePress={setSelectedImage}
+        onImagePress={(uri, urls, index = 0) => {
+          setSelectedImage(uri);
+          if (urls && urls.length > 1) {
+            setSelectedImageUrls(urls);
+            setSelectedImageIndex(index);
+          } else {
+            setSelectedImageUrls([]);
+            setSelectedImageIndex(0);
+          }
+        }}
         onVideoPress={setSelectedVideo}
         onFilePress={handleFilePress}
       />
@@ -267,7 +280,9 @@ export default function ChatDetailScreen() {
     handleRevokedRestoreExpired,
     handleJumpToReplySource, 
     handleUnreactAction,
-    setSelectedImage, 
+    setSelectedImage,
+    setSelectedImageUrls,
+    setSelectedImageIndex,
     setSelectedVideo,
     handleFilePress,
     handleLoadReactions
@@ -354,7 +369,17 @@ export default function ChatDetailScreen() {
           />
         </View>
 
-        <ImageViewer visible={!!selectedImage} uri={selectedImage} onClose={() => setSelectedImage(null)} />
+        <ImageViewer
+          visible={!!selectedImage}
+          uri={selectedImage}
+          uris={selectedImageUrls}
+          initialIndex={selectedImageIndex}
+          onClose={() => {
+            setSelectedImage(null);
+            setSelectedImageUrls([]);
+            setSelectedImageIndex(0);
+          }}
+        />
         <VideoViewer visible={!!selectedVideo} uri={selectedVideo} onClose={() => setSelectedVideo(null)} />
         <ChatOptions
           visible={showChatOptions}

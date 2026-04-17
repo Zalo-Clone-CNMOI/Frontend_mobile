@@ -18,8 +18,10 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Alert,
+    Image,
     Keyboard,
     Pressable,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -64,13 +66,14 @@ export const ChatComposer = React.memo(function ChatComposer({
   const theme = useTheme();
   const [showEmoji, setShowEmoji] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<DocumentPicker.DocumentPickerAsset[]>([]);
   const typingTimeoutRef = useRef<any>(null);
 
   const { t } = useTranslation();
 
 
 
-  const canSend = useMemo(() => value.trim().length > 0, [value]);
+  const canSend = useMemo(() => value.trim().length > 0 || selectedImages.length > 0, [value, selectedImages]);
 
   const handleTextChange = (text: string) => {
     onChangeText(text);
@@ -151,13 +154,13 @@ export const ChatComposer = React.memo(function ChatComposer({
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images' as ImagePicker.MediaType],
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.8,
         selectionLimit: 5,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const imageAssets: DocumentPicker.DocumentPickerAsset[] = result.assets.map((asset: ImagePicker.ImagePickerAsset) => ({
+        const newImages: DocumentPicker.DocumentPickerAsset[] = result.assets.map((asset: ImagePicker.ImagePickerAsset) => ({
           uri: asset.uri,
           name: asset.fileName || `image_${Date.now()}.jpg`,
           mimeType: asset.mimeType || 'image/jpeg',
@@ -165,11 +168,22 @@ export const ChatComposer = React.memo(function ChatComposer({
           lastModified: Date.now(),
         }));
         
-        onSendFiles(imageAssets);
+        setSelectedImages(prev => [...prev, ...newImages]);
         setShowMore(false);
       }
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể mở thư viện ảnh. Vui lòng thử lại.');
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSendImages = () => {
+    if (selectedImages.length > 0) {
+      onSendFiles(selectedImages);
+      setSelectedImages([]);
     }
   };
 
@@ -223,6 +237,41 @@ export const ChatComposer = React.memo(function ChatComposer({
           <Pressable style={styles.replyingClose} onPress={onCancelEdit}>
             <X size={18} color={theme.colors.text} />
           </Pressable>
+        </View>
+      )}
+
+      {selectedImages.length > 0 && (
+        <View
+          style={[
+            styles.imagePreviewContainer,
+            {
+              backgroundColor: theme.colors.background,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagePreviewScroll}>
+            {selectedImages.map((image, index) => (
+              <View key={index} style={styles.imagePreviewItem}>
+                <Image
+                  source={{ uri: image.uri }}
+                  style={styles.imagePreviewThumbnail}
+                />
+                <TouchableOpacity
+                  style={styles.removeImageButton}
+                  onPress={() => handleRemoveImage(index)}
+                >
+                  <X size={16} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+          <TouchableOpacity
+            style={styles.addMoreImageButton}
+            onPress={handlePickImage}
+          >
+            <ImageIcon size={20} color={theme.colors.primary} />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -327,7 +376,11 @@ export const ChatComposer = React.memo(function ChatComposer({
             onPress={() => {
               if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
               if (onTypingStop) onTypingStop();
-              onSend();
+              if (selectedImages.length > 0) {
+                handleSendImages();
+              } else {
+                onSend();
+              }
             }}
           >
             <Send size={18} color={theme.colors.icon} />
@@ -446,6 +499,55 @@ const styles = StyleSheet.create({
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  imagePreviewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    margin: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+
+  imagePreviewScroll: {
+    flex: 1,
+    marginRight: 8,
+  },
+
+  imagePreviewItem: {
+    position: 'relative',
+    marginRight: 8,
+  },
+
+  imagePreviewThumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+
+  removeImageButton: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  addMoreImageButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
 
   composer: {
