@@ -2,6 +2,7 @@ import { NETWORK_CONFIG } from '../config/network';
 import { saveAuthData, type UserInfo } from './authService';
 import api from './http';
 
+// Format phone number to E.164 format (+84) in payload
 const formatPhonePayload = (payload: any) => {
   if (payload && typeof payload.phone === 'string') {
     const phoneStr = payload.phone.trim();
@@ -13,6 +14,7 @@ const formatPhonePayload = (payload: any) => {
   }
 };
 
+// Convert phone number to E.164 format (+84)
 const toE164Phone = (phone: string): string => {
   const phoneStr = String(phone || '').trim();
   if (!phoneStr) return '';
@@ -21,6 +23,8 @@ const toE164Phone = (phone: string): string => {
   return `+84${phoneStr}`;
 };
 
+// Parse phone exists check response from various API formats
+// Handles direct boolean, nested objects, error codes, and Vietnamese messages
 const parsePhoneExistsResponse = (raw: any): boolean | null => {
   const payload = raw?.data ?? raw;
 
@@ -82,6 +86,8 @@ const parsePhoneExistsResponse = (raw: any): boolean | null => {
   return null;
 };
 
+// Check if phone number is already registered
+// Tries multiple endpoints, handles various response formats
 export const checkPhoneExists = async (phone: string): Promise<boolean | null> => {
   const normalizedPhone = toE164Phone(phone);
   if (!normalizedPhone) return null;
@@ -122,118 +128,85 @@ export const checkPhoneExists = async (phone: string): Promise<boolean | null> =
   return null;
 };
 
+// Register new user account
+// Formats phone to E.164, calls register API
 export const register = async (payload: any) => {
-  try {
-    formatPhonePayload(payload);
-    return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/register`, payload);
-  } catch (e: any) {
-    throw e;
-  }
+  formatPhonePayload(payload);
+  return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/register`, payload);
 };
 
+// Login with phone and password
+// Formats phone, extracts user info and tokens, saves to storage
 export const login = async (payload: any) => {
-  try {
-    formatPhonePayload(payload);
-    const response = await api.post(NETWORK_CONFIG.AUTH_LOGIN_URL, payload);
+  formatPhonePayload(payload);
+  const response = await api.post(NETWORK_CONFIG.AUTH_LOGIN_URL, payload);
 
-    const raw = response?.data || {};
-    const data = raw?.data || raw;
-    const user = data?.user || data?.profile || {};
-    const tokens = data?.tokens || raw?.tokens || {};
-    const accessToken = String(tokens?.accessToken || '').trim();
+  const raw = response?.data || {};
+  const data = raw?.data || raw;
+  const user = data?.user || data?.profile || {};
+  const tokens = data?.tokens || raw?.tokens || {};
+  const accessToken = String(tokens?.accessToken || '').trim();
 
-    if (accessToken) {
-      const refreshToken = String(tokens?.refreshToken || '').trim();
-      const userInfo: UserInfo = {
-        phone: String(user?.phone || payload?.phone || '').trim(),
-        name: user?.fullName || user?.name || '',
-        email: user?.email || '',
-        avatarUrl: user?.avatarUrl || user?.avatar || '',
-        bio: user?.bio || '',
-        dateOfBirth: user?.dateOfBirth || '',
-        gender: user?.gender || '',
-        id: user?.id || user?._id || '',
-        status: user?.status || '',
-        createdAt: user?.createdAt || '',
-        tokens: {
-          accessToken,
-          refreshToken,
-          expiresIn: Number(tokens?.expiresIn || 0),
-        },
-        loginTime: Date.now(),
-      };
-      await saveAuthData(userInfo);
-      (response as any).persistedUserInfo = userInfo;
-    }
-
-    return response;
-  } catch (e: any) {
-    throw e;
+  if (accessToken) {
+    const refreshToken = String(tokens?.refreshToken || '').trim();
+    const userInfo: UserInfo = {
+      phone: String(user?.phone || payload?.phone || '').trim(),
+      name: user?.fullName || user?.name || '',
+      email: user?.email || '',
+      avatarUrl: user?.avatarUrl || user?.avatar || '',
+      bio: user?.bio || '',
+      dateOfBirth: user?.dateOfBirth || '',
+      gender: user?.gender || '',
+      id: user?.id || user?._id || '',
+      status: user?.status || '',
+      createdAt: user?.createdAt || '',
+      tokens: {
+        accessToken,
+        refreshToken,
+        expiresIn: Number(tokens?.expiresIn || 0),
+      },
+      loginTime: Date.now(),
+    };
+    await saveAuthData(userInfo);
+    (response as any).persistedUserInfo = userInfo;
   }
+
+  return response;
 };
 
+// Logout current user
 export const logout = async () => {
-  try {
-    return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/logout`);
-  } catch (e: any) {
-    throw e;
-  }
+  return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/logout`);
 };
 
+// Reset password with phone
 export const resetPassword = async (payload: any) => {
-  try {
-    formatPhonePayload(payload);
-    return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/reset-password`, payload);
-  } catch (e: any) {
-    throw e;
-  }
+  formatPhonePayload(payload);
+  return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/reset-password`, payload);
 };
 
+// Generate QR code for login
 export const qrGenerate = async (payload?: any) => {
-  try {
-    return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/generate`, payload || {});
-  } catch (e: any) {
-    throw e;
-  }
+  return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/generate`, payload || {});
 };
 
+// Check QR code login status
 export const qrStatus = async (qrId: string) => {
-  try {
-    return await api.get(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/status/${qrId}`);
-  } catch (e: any) {
-    throw e;
-  }
+  return await api.get(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/status/${qrId}`);
 };
 
+// Confirm QR code login from another device
 export const qrConfirm = async (sessionId: string, payload?: any) => {
-  try {
-    const url = `${NETWORK_CONFIG.AUTH_BASE_URL}/qr/confirm`;
-    const body = { sessionId, ...payload };
-    return await api.post(url, body);
-  } catch (e: any) {
-    console.error('[QR Confirm] ========== ERROR ==========');
-    console.error('[QR Confirm] Error:', e.message);
-    if (e.response) {
-      console.error('[QR Confirm] Response status:', e.response.status);
-      console.error('[QR Confirm] Response data:', e.response.data);
-    }
-    throw e;
-  }
+  const url = `${NETWORK_CONFIG.AUTH_BASE_URL}/qr/confirm`;
+  const body = { sessionId, ...payload };
+  return await api.post(url, body);
 };
 
+// Reject QR code login from another device
 export const qrReject = async (sessionId: string, payload?: any) => {
-  try {
-    const url = `${NETWORK_CONFIG.AUTH_BASE_URL}/qr/reject`;
-    const body = { sessionId, ...payload };
-    return await api.post(url, body);
-  } catch (e: any) {
-    console.error('[QR Reject] Error:', e.message);
-    if (e.response) {
-      console.error('[QR Reject] Response status:', e.response.status);
-      console.error('[QR Reject] Response data:', e.response.data);
-    }
-    throw e;
-  }
+  const url = `${NETWORK_CONFIG.AUTH_BASE_URL}/qr/reject`;
+  const body = { sessionId, ...payload };
+  return await api.post(url, body);
 };
 
 export default {

@@ -12,19 +12,7 @@ import type {
     SocketChatSendPayload,
 } from '../types/dto/SocketDTO';
 
-// Helper function to detect message type from content
-const detectMessageType = (content: string): string => {
-  if (!content) return 'text';
-  
-  const lowerContent = content.toLowerCase();
-  
-  if (lowerContent.match(/\.(mp4|mov|avi|mkv|webm)$/)) return 'video';
-  if (lowerContent.match(/\.(jpg|jpeg|png|gif|webp)$/)) return 'image';
-  if (lowerContent.match(/\.(pdf|doc|docx|xls|xlsx|txt|zip)$/)) return 'file';
-  if (lowerContent.match(/\.(mp3|wav|ogg|m4a)$/)) return 'voice';
-  
-  return 'text';
-};
+
 
 export const useChatSocket = () => {
   const { user: authUser } = useAuth();
@@ -64,7 +52,7 @@ export const useChatSocket = () => {
       const conversationId = payload.conversation_id || payload.conversationId;
       const content = payload.body || payload.content || '';
       // Detect type from content if Backend doesn't send type
-      const type = payload.type || detectMessageType(content);
+      const type = payload.type;
       const timestamp = payload.created_at || payload.timestamp || Date.now();
       const senderId = payload.sender_id || payload.senderId;
       

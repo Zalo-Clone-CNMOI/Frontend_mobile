@@ -12,10 +12,15 @@ import { buildAttachmentDto, uploadMedia } from "./mediaService";
 import * as messagesApi from "./messagesApi";
 import { connectSocket, getSocket } from "./socket";
 
+// Normalize ID to string, handles null/undefined values
 const normalizeId = (value: unknown): string => String(value ?? "").trim();
+
+// Cache of current user's IDs (id, phone, userId, _id, etc.) for message ownership check
 const currentActorIds = new Set<string>(["user-me"]);
 let actorIdsHydrated = false;
 
+// Hydrate current actor IDs from user data
+// Called once to populate cache with user's various ID formats
 const hydrateCurrentActorIds = async () => {
   if (actorIdsHydrated) return;
 
@@ -39,35 +44,22 @@ const hydrateCurrentActorIds = async () => {
   }
 };
 
+// Check if sender is current user by comparing IDs
 const isCurrentActor = (senderId: unknown): boolean => {
   const normalized = normalizeId(senderId);
   return normalized.length > 0 && currentActorIds.has(normalized);
 };
 
+// Build stable message ID from backend message
+// Uses messageId if available, otherwise creates composite ID from conversationId, senderId, createdAt, body, attachment
 const buildStableMessageId = (apiMessage: any): string => {
-  const directId = normalizeId(
-    apiMessage?.messageId ?? apiMessage?.message_id ?? apiMessage?.id,
-  );
+  const directId = normalizeId(apiMessage?.messageId);
   if (directId) return directId;
 
-  const conversationId = normalizeId(
-    apiMessage?.conversationId ?? apiMessage?.conversation_id,
-  );
-  const senderId = normalizeId(
-    apiMessage?.senderId ??
-      apiMessage?.sender_id ??
-      apiMessage?.sender?.id ??
-      apiMessage?.sender?.userId ??
-      apiMessage?.user_id ??
-      apiMessage?.author_id,
-  );
-  const createdAt = normalizeId(
-    apiMessage?.createdAt ??
-      apiMessage?.created_at ??
-      apiMessage?.sent_at ??
-      apiMessage?.timestamp,
-  );
-  const body = normalizeId(apiMessage?.body ?? apiMessage?.text ?? apiMessage?.content);
+  const conversationId = normalizeId(apiMessage?.conversationId);
+  const senderId = normalizeId(apiMessage?.senderId);
+  const createdAt = normalizeId(apiMessage?.createdAt);
+  const body = normalizeId(apiMessage?.body);
   const attachmentKey = normalizeId(
     Array.isArray(apiMessage?.attachments) ? apiMessage?.attachments?.[0]?.key : "",
   );
@@ -80,6 +72,8 @@ const buildStableMessageId = (apiMessage: any): string => {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 };
 
+// Convert timestamp to milliseconds
+// Handles number (ms), string (numeric or ISO date), returns current time if invalid
 const toTimestampMs = (value: unknown): number => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -93,120 +87,80 @@ const toTimestampMs = (value: unknown): number => {
   return Date.now();
 };
 
+// Convert backend MessageResponseDto to frontend ChatMessage type
+// Maps backend fields (messageId, conversationId, senderId, body, createdAt, etc.) to frontend format
+// Handles attachment mapping, reply-to messages, and message type detection
 function toLegacyChatMessage(apiMessage: any): ChatMessage {
   const firstAttachment = Array.isArray(apiMessage?.attachments)
     ? apiMessage.attachments[0]
     : undefined;
 
-  const senderId =
-    apiMessage?.senderId ??
-    apiMessage?.sender_id ??
-    apiMessage?.sender?.id ??
-    apiMessage?.sender?.userId ??
-    apiMessage?.user_id ??
-    apiMessage?.author_id;
-  const body = apiMessage?.body ?? apiMessage?.text ?? apiMessage?.content ?? "";
-  const createdAtRaw =
-    apiMessage?.createdAt ??
-    apiMessage?.created_at ??
-    apiMessage?.sent_at ??
-    apiMessage?.timestamp ??
-    Date.now();
-  const editedAtRaw =
-    apiMessage?.editedAt ??
-    apiMessage?.edited_at ??
-    null;
+  const senderId = apiMessage?.senderId;
+  const body = apiMessage?.body ?? "";
+  const createdAtRaw = apiMessage?.createdAt ?? Date.now();
+  const editedAtRaw = apiMessage?.editedAt ?? null;
   const attachmentType = firstAttachment?.type;
-  const serverMessageId = normalizeId(
-    apiMessage?.messageId ?? apiMessage?.message_id ?? apiMessage?.id,
-  );
+  const serverMessageId = normalizeId(apiMessage?.messageId);
   const messageType =
     attachmentType === "document"
       ? "file"
       : attachmentType === "audio"
         ? "voice"
-      : attachmentType || apiMessage?.type || "text";
+      : attachmentType || "text";
 
   return {
     id: buildStableMessageId(apiMessage),
     serverMessageId: serverMessageId || undefined,
-    conversationId: apiMessage?.conversationId ?? apiMessage?.conversation_id,
-    fromMe:
-      apiMessage?.fromMe === true ||
-      apiMessage?.sender?.me === true ||
-      isCurrentActor(senderId),
+    conversationId: apiMessage?.conversationId,
+    fromMe: isCurrentActor(senderId),
     senderId: senderId,
     type: messageType,
     text: body,
     timestamp: toTimestampMs(createdAtRaw),
     fileInfo: firstAttachment
       ? {
-          uri:
-            firstAttachment.url ||
-            firstAttachment.uri ||
-            firstAttachment.thumbnail_url ||
-            firstAttachment.thumbnail_key ||
-            firstAttachment.key ||
-            "",
+          uri: firstAttachment.url || firstAttachment.key || "",
           name: firstAttachment.name || "File",
           size: firstAttachment.size || 0,
-          mimeType:
-            firstAttachment.contentType ||
-            firstAttachment.content_type ||
-            firstAttachment.mimeType ||
-            firstAttachment.type ||
-            "",
+          mimeType: firstAttachment.contentType || firstAttachment.type || "",
         }
       : undefined,
-    replyTo:
-      apiMessage?.replyTo ||
-      (apiMessage?.reply_to
-        ? {
-            id: apiMessage.reply_to?.id || apiMessage.reply_to?.message_id,
-            senderId: apiMessage.reply_to?.sender_id || apiMessage.reply_to?.senderId,
-            senderName: apiMessage.reply_to?.sender_name || apiMessage.reply_to?.senderName,
-            text: apiMessage.reply_to?.body || apiMessage.reply_to?.text,
-          }
-        : apiMessage?.replyToMessage
-          ? {
-              id: apiMessage.replyToMessage?.id || apiMessage.replyToMessage?.message_id,
-              senderId:
-                apiMessage.replyToMessage?.sender_id || apiMessage.replyToMessage?.senderId,
-              senderName:
-                apiMessage.replyToMessage?.sender_name || apiMessage.replyToMessage?.senderName,
-              text: apiMessage.replyToMessage?.body || apiMessage.replyToMessage?.text,
-            }
-          : apiMessage?.reply_to_message_id || apiMessage?.replyToMessageId
-            ? {
-                id: apiMessage?.reply_to_message_id || apiMessage?.replyToMessageId,
-              }
-            : undefined),
+    replyTo: apiMessage?.replyToMessageId
+      ? { id: apiMessage.replyToMessageId }
+      : undefined,
     reactions: apiMessage?.reactions,
     status: apiMessage?.status,
-    isEdited: Boolean(apiMessage?.isEdited || apiMessage?.is_edited || editedAtRaw),
+    isEdited: Boolean(editedAtRaw),
     editedAt: editedAtRaw ? toTimestampMs(editedAtRaw) : undefined,
-    deletedFor: apiMessage?.deletedFor,
-    isRevoked: Boolean(apiMessage?.isDeleted || apiMessage?.is_deleted || apiMessage?.isRevoked),
+    isRevoked: Boolean(apiMessage?.isDeleted),
     attachments: Array.isArray(apiMessage?.attachments) ? apiMessage.attachments : undefined,
   };
 }
 
+// Track open conversations for socket room management
 const openConversations = new Set<string>();
+
+// Map of pending ACK callbacks (resolve/reject) for sent messages
 const pendingAcks = new Map<
   string,
   { resolve: (msg: any) => void; reject: (err: any) => void }
 >();
 
+// Global socket instance
 let socketInstance: Socket | null = null;
 let listenersRegistered = false;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+// Cache of recent message IDs to prevent duplicate processing
 const recentMessageIds: string[] = [];
 const RECENT_MESSAGE_CACHE_SIZE = 200;
 
+// Build chat join payload for socket event
 const buildChatJoinPayload = (conversationId: string): SocketChatJoinPayload => ({
   conversation_id: String(conversationId || "").trim(),
 });
 
+// Type for outgoing file attachments
 type OutgoingFile = {
   uri?: string;
   name?: string;
@@ -216,6 +170,7 @@ type OutgoingFile = {
   fileSize?: number;
 };
 
+// Infer attachment type from MIME type (image, video, audio, document)
 const inferAttachmentType = (mimeType?: string) => {
   if (!mimeType) return "document";
   if (mimeType.startsWith("image/")) return "image";
@@ -224,6 +179,8 @@ const inferAttachmentType = (mimeType?: string) => {
   return "document";
 };
 
+// Normalize outgoing file for upload
+// Extracts URI, name, MIME type, and size from various possible formats
 const normalizeOutgoingFile = (file: OutgoingFile) => {
   const uri = String(file?.uri || "").trim();
   const mimeType = String(file?.mimeType || file?.type || "").trim();
@@ -245,25 +202,8 @@ const normalizeOutgoingFile = (file: OutgoingFile) => {
   };
 };
 
-const buildFallbackAttachment = (
-  file: ReturnType<typeof normalizeOutgoingFile>,
-  conversationId: string,
-  index: number,
-) => {
-  const safeName = String(file.name || `file_${Date.now()}`).replace(/\s+/g, "_");
-  const fallbackKey = `uploads/${conversationId}/${Date.now()}_${index}_${safeName}`;
-  return {
-    key: fallbackKey,
-    type: file.attachmentType,
-    name: file.name || "File",
-    size: Number(file.size || 0),
-    content_type: file.type || "application/octet-stream",
-    uri: file.uri,
-    url: file.uri,
-    thumbnail_key: fallbackKey,
-  };
-};
 
+// Sort messages by timestamp (ascending), use ID as tiebreaker
 const sortMessagesAscending = (messages: ChatMessage[]): ChatMessage[] => {
   return [...messages].sort((a, b) => {
     const timeDiff = Number(a.timestamp || 0) - Number(b.timestamp || 0);
@@ -272,6 +212,8 @@ const sortMessagesAscending = (messages: ChatMessage[]): ChatMessage[] => {
   });
 };
 
+// Generate UUID v4 for local message IDs
+// Uses crypto.randomUUID if available, falls back to manual generation
 function generateUUID(): string {
   try {
     if (typeof globalThis?.crypto?.randomUUID === "function")
@@ -285,6 +227,8 @@ function generateUUID(): string {
   });
 }
 
+// Ensure socket is connected and listeners are registered
+// Hydrates current actor IDs, connects socket if needed, registers event listeners
 async function ensureSocket() {
   await hydrateCurrentActorIds();
   if (!socketInstance) {
@@ -294,6 +238,8 @@ async function ensureSocket() {
   return socketInstance;
 }
 
+// Load initial messages for a conversation
+// Fetches first 50 messages from API, converts to ChatMessage format
 export async function loadInitialMessages(conversationId: string) {
   await hydrateCurrentActorIds();
   const normalizedConversationId = String(conversationId || "").trim();
@@ -313,7 +259,7 @@ export async function loadInitialMessages(conversationId: string) {
           ? payload
           : [];
   // Filter out deleted messages
-  const activeMessages = messages.filter(m => !m?.isDeleted && !m?.is_deleted);
+  const activeMessages = messages.filter(m => !m?.isDeleted);
   const uiMessages = sortMessagesAscending(activeMessages.map(toLegacyChatMessage));
 
   openConversations.add(normalizedConversationId);
@@ -330,6 +276,8 @@ export async function loadInitialMessages(conversationId: string) {
   };
 }
 
+// Fetch more messages for a conversation (pagination)
+// Uses cursor for pagination, filters deleted messages, converts to ChatMessage format
 export async function fetchMoreMessages(
   conversationId: string,
   cursor?: string,
@@ -349,7 +297,7 @@ export async function fetchMoreMessages(
           : [];
 
   // Filter out deleted messages
-  const activeMessages = messages.filter(m => !m?.isDeleted && !m?.is_deleted);
+  const activeMessages = messages.filter(m => !m?.isDeleted);
   const uiMessages = sortMessagesAscending(activeMessages.map(toLegacyChatMessage));
   return {
     messages: uiMessages,
@@ -358,6 +306,8 @@ export async function fetchMoreMessages(
   };
 }
 
+// Send a message via socket
+// Uploads attachments if provided, emits chat:send event, waits for ACK (15s timeout)
 export async function sendMessage(
   conversationId: string,
   content: any,
@@ -374,8 +324,6 @@ export async function sendMessage(
     try {
       const user = await getCurrentUser();
       currentUserId = user?.id || (user as any)?._id || (user as any)?.userId || user?.phone || '';
-      if (__DEV__) {
-      }
     } catch (e) {
     }
 
@@ -476,11 +424,7 @@ export async function sendMessage(
 
     pendingAcks.set(localId, { resolve: safeResolve, reject: safeReject });
     try {
-      if (__DEV__) {
-      }
       socket.emit("chat:send", payload, (ack: any) => {
-        if (__DEV__) {
-        }
         if (ack && ack.status === "accepted") {
           const p = pendingAcks.get(localId);
           p?.resolve(ack);
@@ -501,6 +445,8 @@ export async function sendMessage(
   return { optimisticMessage: uiOptimisticMessage, sendPromise };
 }
 
+// Register socket event handlers for chat events
+// Sets up callbacks for message, update, delete, and reaction events
 export function registerHandlers(handlers: {
   onMessage?: (msg: ChatMessage) => void;
   onMessageUpdated?: (msg: ChatMessage) => void;
@@ -514,8 +460,11 @@ export function registerHandlers(handlers: {
   }
 }
 
+// Global handlers for socket events
 let _handlers: any = {};
 
+// Register socket event listeners for chat events
+// Sets up handlers for connect, chat:ack, chat:message, chat:edit, chat:delete, chat:react, presence:heartbeat
 function registerSocketListeners() {
   const s = getSocket() || socketInstance;
   if (!s) return;
@@ -537,8 +486,6 @@ function registerSocketListeners() {
   });
 
   s.on("chat:ack", (payload: any) => {
-    if (__DEV__) {
-    }
     const clientId = payload?.message_id;
     if (clientId) {
       const p = pendingAcks.get(clientId);
@@ -551,8 +498,6 @@ function registerSocketListeners() {
   });
 
   s.on("chat:message", async (payload: any) => {
-    if (__DEV__) {
-    }
     const conversationId = payload?.conversation_id || payload?.conversationId;
     const messageId = payload?.id || payload?.message_id;
     const createdAt =
@@ -642,11 +587,15 @@ function registerSocketListeners() {
   listenersRegistered = true;
 }
 
+// Leave a conversation via API
+// Removes from open conversations cache, calls backend API
 export async function leaveConversation(conversationId: string) {
   openConversations.delete(conversationId);
   return conversationsApi.leaveConversation(conversationId);
 }
 
+// Edit a message via socket
+// Emits chat:edit event with message ID, conversation ID, new body, and created timestamp
 export async function editMessage(
   conversationId: string,
   messageId: string,
@@ -662,6 +611,8 @@ export async function editMessage(
   });
 }
 
+// Delete a message via socket
+// Emits chat:delete event with message ID, conversation ID, and created timestamp
 export async function deleteMessage(
   conversationId: string,
   messageId: string,
@@ -675,6 +626,8 @@ export async function deleteMessage(
   });
 }
 
+// Add reaction to a message via socket
+// Emits chat:react event with message ID, conversation ID, and reaction type
 export async function reactMessage(
   conversationId: string,
   messageId: string,
@@ -688,6 +641,8 @@ export async function reactMessage(
   });
 }
 
+// Remove reaction from a message via socket
+// Emits chat:unreact event with message ID and conversation ID
 export async function unreactMessage(
   conversationId: string,
   messageId: string,
@@ -699,6 +654,8 @@ export async function unreactMessage(
   });
 }
 
+// Forward a message to another conversation
+// Extracts content and attachments from original message, sends to target conversation via socket
 export async function forwardMessage(
   originalMessage: any,
   targetConversationId: string,
@@ -752,6 +709,8 @@ export async function forwardMessage(
   });
 }
 
+// Reset chat runtime state
+// Clears all caches, resets socket, clears pending ACKs, and reinitializes actor IDs
 export function resetChatRuntime() {
   openConversations.clear();
   recentMessageIds.splice(0, recentMessageIds.length);

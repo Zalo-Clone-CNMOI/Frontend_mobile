@@ -32,7 +32,13 @@ export const useChatsStore = create<ChatsState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const conversations = await fetchConversations();
-      set({ chats: conversations, filteredChats: conversations, isLoading: false });
+      // Sort by lastMessageAt descending (newest first)
+      const sortedConversations = [...conversations].sort((a, b) => {
+        const timeA = a.lastMessageAt || 0;
+        const timeB = b.lastMessageAt || 0;
+        return timeB - timeA;
+      });
+      set({ chats: sortedConversations, filteredChats: sortedConversations, isLoading: false });
     } catch (err) {
       set({ error: String(err), isLoading: false });
     }
@@ -104,9 +110,22 @@ export const useChatsStore = create<ChatsState>((set) => ({
         return chat;
       };
 
+      const updatedChats = state.chats.map(updateConversation);
+      // Move updated conversation to top (if found)
+      const updatedChat = updatedChats.find(c => c.conversationId === conversationId);
+      const sortedChats = updatedChat
+        ? [updatedChat, ...updatedChats.filter(c => c.conversationId !== conversationId)]
+        : updatedChats;
+
+      const updatedFiltered = state.filteredChats.map(updateConversation);
+      const updatedFilteredChat = updatedFiltered.find(c => c.conversationId === conversationId);
+      const sortedFiltered = updatedFilteredChat
+        ? [updatedFilteredChat, ...updatedFiltered.filter(c => c.conversationId !== conversationId)]
+        : updatedFiltered;
+
       return {
-        chats: state.chats.map(updateConversation),
-        filteredChats: state.filteredChats.map(updateConversation),
+        chats: sortedChats,
+        filteredChats: sortedFiltered,
       };
     });
   },

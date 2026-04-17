@@ -2,59 +2,55 @@ import { NETWORK_CONFIG } from '../config/network';
 import { apiCallWithRefresh } from './authService';
 import api from './http';
 
+// Get current user profile
 export const getProfile = () => api.get('/api/users/me');
 
+// Get user profile by ID
+// Fetches user info from backend API, extracts data field from response
 export const getUserProfile = async (userId: string) => {
+  const url = `${NETWORK_CONFIG.API_BASE_URL}/users/${userId}`;
+  const response = await apiCallWithRefresh(url, {
+    method: 'GET',
+  });
+  const text = await response.text();
+  let data = null;
   try {
-    const url = `${NETWORK_CONFIG.API_BASE_URL}/users/${userId}`;
-    const response = await apiCallWithRefresh(url, {
-      method: 'GET',
-    });
-    const text = await response.text();
-    let data = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = text;
-    }
-    
-    if (!response.ok) {
-      throw new Error(data?.message || `Get profile failed (${response.status})`);
-    }
-    
-    // Extract data field from wrapped response
-    return data?.data || data;
-  } catch (error: any) {
-    throw error;
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
   }
+
+  if (!response.ok) {
+    throw new Error(data?.message || `Get profile failed (${response.status})`);
+  }
+
+  return data?.data || data;
 };
 
+// Update current user profile
+// Sends PATCH request with updated profile data
 export const updateProfile = async (payload: any) => {
+  const url = `${NETWORK_CONFIG.API_BASE_URL}/users/me`;
+  const response = await apiCallWithRefresh(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  const text = await response.text();
+  let data = null;
   try {
-    const url = `${NETWORK_CONFIG.API_BASE_URL}/users/me`;
-    const response = await apiCallWithRefresh(url, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-    const text = await response.text();
-    let data = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = text;
-    }
-    
-    if (!response.ok) {
-      throw new Error(data?.message || `Update failed (${response.status})`);
-    }
-    
-    return { data, status: response.status };
-  } catch (error: any) {
-    throw error;
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
   }
+
+  if (!response.ok) {
+    throw new Error(data?.message || `Update failed (${response.status})`);
+  }
+
+  return { data, status: response.status };
 };
 
 export type SearchUserDTO = {
@@ -101,32 +97,28 @@ export const searchUsers = async (query: string, params?: any) => {
     return { data: [], message: 'Search query must not exceed 50 characters', error: 'Bad Request' };
   }
 
+  const searchParams = new URLSearchParams();
+  searchParams.set('q', trimmedQuery);
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v === undefined || v === null || v === '') return;
+    searchParams.set(k, String(v));
+  });
+  const url = `${NETWORK_CONFIG.API_BASE_URL}/users/search?${searchParams.toString()}`;
+  const response = await apiCallWithRefresh(url, { method: 'GET' });
+  const text = await response.text();
+  let payload: any = null;
   try {
-    const searchParams = new URLSearchParams();
-    searchParams.set('q', trimmedQuery);
-    Object.entries(params || {}).forEach(([k, v]) => {
-      if (v === undefined || v === null || v === '') return;
-      searchParams.set(k, String(v));
-    });
-    const url = `${NETWORK_CONFIG.API_BASE_URL}/users/search?${searchParams.toString()}`;
-    const response = await apiCallWithRefresh(url, { method: 'GET' });
-    const text = await response.text();
-    let payload: any = null;
-    try {
-      payload = text ? JSON.parse(text) : null;
-    } catch {
-      payload = text || null;
-    }
-
-    if (!response.ok) {
-      const message = payload?.message || payload?.error || `Request failed (${response.status})`;
-      throw new Error(message);
-    }
-
-    return payload;
-  } catch (e: any) {
-    throw e;
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = text || null;
   }
+
+  if (!response.ok) {
+    const message = payload?.message || payload?.error || `Request failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  return payload;
 };
 
 export default {

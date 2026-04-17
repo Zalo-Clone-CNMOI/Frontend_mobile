@@ -3,6 +3,7 @@ import { apiCallWithRefresh } from './authService';
 
 const API_BASE_URL = NETWORK_CONFIG.API_BASE_URL;
 
+// Convert params object to query string
 const toQueryString = (params: Record<string, string | number | boolean | undefined>) => {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -13,6 +14,8 @@ const toQueryString = (params: Record<string, string | number | boolean | undefi
   return queryString ? `?${queryString}` : '';
 };
 
+// Make HTTP request with auth refresh
+// Handles GET, POST, PATCH, DELETE methods, parses JSON response
 const request = async (
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
   path: string,
@@ -40,6 +43,7 @@ const request = async (
   return { data, status: response.status };
 };
 
+// Get conversations list with pagination
 export const getConversations = async (params?: { page?: number; limit?: number }) => {
   const page = Number(params?.page || 1);
   const limit = Number(params?.limit || 50);
@@ -47,23 +51,29 @@ export const getConversations = async (params?: { page?: number; limit?: number 
   return request('GET', path);
 };
 
+// Get conversation detail by ID
 export const getConversationDetail = async (conversationId: string) =>
   request('GET', `/conversations/${encodeURIComponent(conversationId)}`);
 
+// Create new group conversation
 export const createGroup = async (payload: any) => {
   return request('POST', '/conversations/group', payload);
 };
 
+// Create direct conversation with user
 export const createDirect = async (participantId: string) => {
   return request('POST', '/conversations/direct', { participantId });
 };
 
+// Get members of a conversation
 export const getConversationMembers = async (conversationId: string) =>
   request('GET', `/conversations/${encodeURIComponent(conversationId)}/members`);
 
+// Add members to a group conversation
 export const addMember = (conversationId: string, payload: any) =>
   request('POST', `/conversations/${encodeURIComponent(conversationId)}/members`, payload);
 
+// Update member role/permissions in conversation
 export const updateMember = (
   conversationId: string,
   memberId: string,
@@ -75,15 +85,18 @@ export const updateMember = (
     payload,
   );
 
+// Remove member from conversation
 export const removeMember = (conversationId: string, memberId: string) =>
   request(
     'DELETE',
     `/conversations/${encodeURIComponent(conversationId)}/members/${encodeURIComponent(memberId)}`,
   );
 
+// Leave a conversation
 export const leaveConversation = (conversationId: string) =>
   request('POST', `/conversations/${encodeURIComponent(conversationId)}/leave`);
 
+// Mark conversation as read
 export const markAsRead = (conversationId: string, payload?: any) =>
   request('POST', `/conversations/${encodeURIComponent(conversationId)}/read`, payload || {});
 
