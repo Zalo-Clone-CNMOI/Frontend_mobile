@@ -20,6 +20,14 @@ import {
   View,
 } from 'react-native';
 
+const normalizeAvatarUrl = (avatar?: string): string | undefined => {
+  if (!avatar) return undefined;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar;
+  }
+  return 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/' + avatar.replace(/^\//, '');
+};
+
 export default function FriendRequestsScreen() {
   const theme = useTheme();
   const receivedRequests = useRealtimeStore((s) => s.receivedRequests);
@@ -172,14 +180,15 @@ export default function FriendRequestsScreen() {
             const profile = (request as any).user
               || (activeTab === 'received' ? request.requester : request.target);
             const isBusy = processingId === request.id;
+            const avatarUrl = normalizeAvatarUrl(profile?.avatarUrl);
             return (
               <View
                 key={request.id || `req-${index}`}
                 style={[styles.card, { backgroundColor: theme.colors.card }]}
               >
-                {profile?.avatarUrl ? (
+                {avatarUrl ? (
                   <Image
-                    source={{ uri: profile.avatarUrl }}
+                    source={{ uri: avatarUrl }}
                     style={styles.avatar}
                   />
                 ) : (

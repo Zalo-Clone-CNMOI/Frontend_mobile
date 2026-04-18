@@ -108,6 +108,14 @@ function toLegacyChatMessage(apiMessage: any): ChatMessage {
         ? "voice"
       : attachmentType || "text";
 
+  // Debug: Log if forwarded_from exists in API response
+  if (apiMessage?.forwarded_from) {
+    console.log('[toLegacyChatMessage] ✅ forwarded_from found in API response:', {
+      messageId: apiMessage.messageId || apiMessage.id,
+      forwarded_from: apiMessage.forwarded_from,
+    });
+  }
+
   return {
     id: buildStableMessageId(apiMessage),
     serverMessageId: serverMessageId || undefined,
@@ -335,9 +343,17 @@ function generateUUID(): string {
 async function ensureSocket() {
   await hydrateCurrentActorIds();
   if (!socketInstance) {
+    console.log('[ensureSocket] 🔌 No socket instance, connecting...');
     socketInstance = await connectSocket();
+    console.log('[ensureSocket] 🔌 Socket instance created');
+  } else {
+    console.log('[ensureSocket] 🔌 Socket instance exists, connected:', socketInstance.connected);
   }
-  if (!listenersRegistered) registerSocketListeners();
+  if (!listenersRegistered) {
+    console.log('[ensureSocket] 🔌 Registering socket listeners...');
+    registerSocketListeners();
+  }
+  console.log('[ensureSocket] 🔌 Returning socket, connected:', socketInstance?.connected, 'ID:', socketInstance?.id);
   return socketInstance;
 }
 
@@ -370,7 +386,10 @@ export async function loadInitialMessages(conversationId: string) {
   openConversations.add(normalizedConversationId);
   const s = await ensureSocket();
   try {
-    s.emit("chat:join", buildChatJoinPayload(normalizedConversationId));
+    const joinPayload = buildChatJoinPayload(normalizedConversationId);
+    console.log('[loadInitialMessages] 🚪 Emitting chat:join for conversation:', normalizedConversationId);
+    console.log('[loadInitialMessages] 🚪 Join payload:', joinPayload);
+    s.emit("chat:join", joinPayload);
   } catch (e) {
     console.error('[loadInitialMessages] Failed to emit chat:join', e);
   }
@@ -422,6 +441,7 @@ export async function sendMessage(
   files?: any[],
   options?: {
     replyToMessage?: ChatMessage | null;
+    forwardedFrom?: any;
   },
 ) {
   const socket = await ensureSocket();
@@ -504,6 +524,7 @@ export async function sendMessage(
     body: content || (files && files.length > 0 ? files[0].name : ""),
     sent_at: Date.now(),
     ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
+    ...(options?.forwardedFrom ? { forwarded_from: options.forwardedFrom } : {}),
     attachments: attachments.map((a) => ({
       key: a.key,
       type: a.type || "document",
@@ -769,10 +790,16 @@ export async function unreactMessage(
 // Forward a message to one or more conversations
 // Uses Backend's /messages/forward API with proper payload structure
 // Backend will handle cloning attachments, creating forwarded_from metadata, and emitting Kafka event
+
+// Debug counter for forward operations
+let forwardCallCount = 0;
+
 export async function forwardMessage(
   originalMessage: any,
   targetConversationIds: string | string[],
 ) {
+  forwardCallCount++;
+  console.log(`[chatService] 📊 Forward call count: ${forwardCallCount}`);
   // Support single string or array of conversation IDs
   const targets = Array.isArray(targetConversationIds) ? targetConversationIds : [targetConversationId];
 
@@ -823,10 +850,12 @@ export async function forwardMessage(
   };
 
   try {
+    console.log('[chatService] 🚀 Sending forward request to backend:', payload);
     const response = await messagesApi.forwardMessage(payload);
+    console.log('[chatService] 📥 Backend forward response:', response);
     return response?.data || response;
   } catch (error) {
-    console.error('[chatService] forwardMessage error:', error);
+    console.error('[chatService] ❌ forwardMessage error:', error);
     throw error;
   }
 }

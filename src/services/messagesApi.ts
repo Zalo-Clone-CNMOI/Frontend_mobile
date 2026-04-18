@@ -81,6 +81,38 @@ export const getMessageReactions = async (
   return request('GET', path);
 };
 
+// Lookup message by ID only (no conversation needed)
+// Used for finding message location when only messageId is known
+export const lookupMessage = async (messageId: string) => {
+  const path = `/messages/lookup/${encodeURIComponent(messageId)}`;
+  return request('GET', path);
+};
+
+// Search messages in a conversation
+// Supports keyword search, sender filter, and time range filter
+export const searchMessages = async (
+  conversationId: string,
+  params?: {
+    q?: string;
+    senderId?: string;
+    from?: number;
+    to?: number;
+  },
+) => {
+  const normalizedConversationId = String(conversationId || '').trim();
+  if (!normalizedConversationId) {
+    return { data: { items: [], total: 0 }, status: 200 };
+  }
+
+  const path = `/messages/${encodeURIComponent(normalizedConversationId)}/search${toQueryString({
+    q: params?.q,
+    senderId: params?.senderId,
+    from: params?.from,
+    to: params?.to,
+  })}`;
+  return request('GET', path);
+};
+
 // Upload media file (image, video, audio, document)
 // Returns uploaded file info with key, URL, etc.
 export const uploadMedia = async (formData: FormData) => {
@@ -146,6 +178,8 @@ export default {
   getMessages,
   getMessageDetails,
   getMessageReactions,
+  lookupMessage,
+  searchMessages,
   uploadMedia,
   forwardMessage,
 };

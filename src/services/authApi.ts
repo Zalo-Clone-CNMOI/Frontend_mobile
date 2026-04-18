@@ -175,13 +175,13 @@ export const login = async (payload: any) => {
 };
 
 // Logout current user
-export const logout = async () => {
-  return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/logout`);
+export const logout = async (deviceId?: string) => {
+  const payload = deviceId ? { deviceId } : {};
+  return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/logout`, payload);
 };
 
-// Reset password with phone
+// Reset password with Firebase token
 export const resetPassword = async (payload: any) => {
-  formatPhonePayload(payload);
   return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/reset-password`, payload);
 };
 
@@ -209,6 +209,14 @@ export const qrReject = async (sessionId: string, payload?: any) => {
   return await api.post(url, body);
 };
 
+// Refresh access token using refresh token
+export const refreshToken = async (refreshToken: string) => {
+  const response = await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/refresh`, {
+    refreshToken,
+  });
+  return response;
+};
+
 export default {
   checkPhoneExists,
   login,
@@ -219,4 +227,5 @@ export default {
   qrStatus,
   register,
   resetPassword,
+  refreshToken,
 };

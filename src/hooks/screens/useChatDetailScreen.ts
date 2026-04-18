@@ -11,6 +11,7 @@ import {
     unreactMessage,
     forwardMessage,
 } from '@/src/services/chatService';
+import { searchMessages as searchMessagesApi } from '@/src/services/messagesApi';
 import { connectSocket } from '@/src/services/socket';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
@@ -24,8 +25,9 @@ import { Alert } from 'react-native';
 const EMPTY_MESSAGES: ChatMessage[] = [];
 
 export function useChatDetailScreenLogic() {
-  const params = useLocalSearchParams<{ id?: string; name?: string }>();
+  const params = useLocalSearchParams<{ id?: string; name?: string; jumpToMessageId?: string }>();
   const chatId = params?.id || '';
+  const jumpToMessageId = params?.jumpToMessageId;
   const { t } = useTranslation();
   const { user } = useAuth();
   const headerHeight = useHeaderHeight();
@@ -56,6 +58,14 @@ export function useChatDetailScreenLogic() {
   const [isMessageActionMenuVisible, setIsMessageActionMenuVisible] = useState(false);
   const [isForwardModalVisible, setIsForwardModalVisible] = useState(false);
 
+  // Search messages state
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<ChatMessage[]>([]);
+  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+
   const messages = useMessagesStore((state) => state.messagesByChatId[chatId] || EMPTY_MESSAGES);
   const addMessage = useMessagesStore((state) => state.addMessage);
   const setMessagesForChat = useMessagesStore((state) => state.setMessagesForChat);
@@ -79,6 +89,18 @@ export function useChatDetailScreenLogic() {
     loadInitialMessages(chatId)
       .then((res) => {
         if (!active) return;
+        // Debug: Check if any messages have forwardedFrom
+        const messagesWithForwarded = (res.messages || []).filter((m: any) => m.forwardedFrom);
+        console.log('[loadInitialMessages] Total messages loaded:', (res.messages || []).length);
+        console.log('[loadInitialMessages] Messages with forwarded:', messagesWithForwarded.length);
+
+        if (messagesWithForwarded.length > 0) {
+          console.log('[loadInitialMessages] ✅ Found forwarded messages:', messagesWithForwarded.map((m: any) => ({
+            id: m.id || m.message_id,
+            text: (m.text || m.body || '').substring(0, 30),
+            forwardedFrom: m.forwardedFrom
+          })));
+        }
         // Add conversation avatar to initial messages
         const messagesWithAvatar = (res.messages || []).map(msg => ({
           ...msg,
@@ -88,16 +110,44 @@ export function useChatDetailScreenLogic() {
         setMessagesForChat(chatId, messagesWithAvatar);
         setNextCursor(res.nextCursor || undefined);
         setHasMore(Boolean(res.hasMore));
-        setTimeout(() => {
-          flashListRef.current?.scrollToEnd({ animated: false });
-        }, 50);
+
+        // Handle jumpToMessageId - scroll to specific message
+        if (jumpToMessageId && messagesWithAvatar.length > 0) {
+          const messageIndex = messagesWithAvatar.findIndex(m =>
+            m.serverMessageId === jumpToMessageId || m.id === jumpToMessageId
+          );
+
+          if (messageIndex >= 0) {
+            // Found message in current list, scroll to it
+            setTimeout(() => {
+              flashListRef.current?.scrollToIndex({
+                index: messageIndex,
+                animated: true,
+                viewPosition: 0.5,
+              });
+              setHighlightedMessageId(jumpToMessageId);
+              setTimeout(() => setHighlightedMessageId(null), 2000);
+            }, 100);
+          } else {
+            // Message not in current list (might need to load more)
+            // For now, just scroll to end
+            setTimeout(() => {
+              flashListRef.current?.scrollToEnd({ animated: false });
+            }, 50);
+          }
+        } else {
+          // Normal case - scroll to end
+          setTimeout(() => {
+            flashListRef.current?.scrollToEnd({ animated: false });
+          }, 50);
+        }
       })
       .catch((err) => {
       });
     return () => {
       active = false;
     };
-  }, [chatId, setMessagesForChat, currentChat]);
+  }, [chatId, setMessagesForChat, currentChat, jumpToMessageId]);
 
   const handleLoadMore = useCallback(async () => {
     if (!chatId || !hasMore || !nextCursor || isLoadingMore) return;
@@ -338,7 +388,15 @@ export function useChatDetailScreenLogic() {
       return;
     }
     try {
+      console.log('[handleForward] 🎯 Starting forward:', {
+        messageId: message.id,
+        serverMessageId: message.serverMessageId,
+        conversationId: message.conversationId,
+        targetCount: targetConversationIds.length,
+        targets: targetConversationIds,
+      });
       const result = await forwardMessage(message, targetConversationIds);
+      console.log('[handleForward] ✅ Forward result:', result);
       const acceptedCount = result?.results?.filter((r: any) => r.status === 'accepted').length || 0;
       const totalCount = targetConversationIds.length;
       Alert.alert(
@@ -531,6 +589,140 @@ export function useChatDetailScreenLogic() {
 
   const handleTypingStop = useCallback(() => undefined, []);
 
+  // Search messages function
+  const handleSearchMessages = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await searchMessagesApi(chatId, { q: query.trim() });
+      const items = response?.data?.items || [];
+
+      // Convert backend messages to frontend format
+      const convertedMessages: ChatMessage[] = items.map((apiMsg: any) => {
+        // Debug: Log forwardedFrom if exists
+        if (apiMsg.forwardedFrom) {
+          console.log('[handleSearchMessages] forwardedFrom:', apiMsg.forwardedFrom);
+        }
+
+        return {
+          id: apiMsg.messageId || apiMsg.id,
+          serverMessageId: apiMsg.messageId || apiMsg.id,
+          conversationId: apiMsg.conversationId,
+          senderId: apiMsg.senderId,
+          fromMe: apiMsg.senderId === user?.id || apiMsg.senderId === (user as any)?._id,
+          type: apiMsg.attachments?.[0]?.type === 'document' ? 'file' :
+                apiMsg.attachments?.[0]?.type === 'audio' ? 'voice' :
+                apiMsg.attachments?.[0]?.type || 'text',
+          text: apiMsg.body || '',
+          timestamp: typeof apiMsg.createdAt === 'number' ? apiMsg.createdAt : Date.now(),
+          fileInfo: apiMsg.attachments?.[0] ? {
+            uri: apiMsg.attachments[0].url || apiMsg.attachments[0].key || '',
+            name: apiMsg.attachments[0].name || 'File',
+            size: apiMsg.attachments[0].size || 0,
+            mimeType: apiMsg.attachments[0].contentType || apiMsg.attachments[0].type || '',
+          } : undefined,
+          replyTo: apiMsg.replyToMessageId ? { id: apiMsg.replyToMessageId } : undefined,
+          forwardedFrom: apiMsg.forwardedFrom,
+          reactions: apiMsg.reactions,
+          isEdited: Boolean(apiMsg.editedAt),
+          editedAt: apiMsg.editedAt,
+          isRevoked: Boolean(apiMsg.isDeleted || apiMsg.deletedAt),
+          attachments: apiMsg.attachments,
+          senderAvatar: currentChat?.avatar || null,
+          senderName: currentChat?.name || '',
+        };
+      });
+
+      // Sort search results from oldest to newest (like Zalo)
+      const sortedResults = convertedMessages.sort((a, b) => a.timestamp - b.timestamp);
+      setSearchResults(sortedResults);
+      // Reset index when new search
+      setCurrentSearchIndex(0);
+    } catch (error) {
+      console.error('[handleSearchMessages] Error:', error);
+      Alert.alert('Lỗi', 'Không thể tìm kiếm tin nhắn. Vui lòng thử lại.');
+    } finally {
+      setIsSearching(false);
+    }
+  }, [chatId, currentChat?.avatar, currentChat?.name, user]);
+
+  // Toggle search mode
+  const toggleSearchMode = useCallback(() => {
+    setIsSearchMode(prev => !prev);
+    if (isSearchMode) {
+      // Exiting search mode
+      setSearchQuery('');
+      setSearchResults([]);
+    }
+  }, [isSearchMode]);
+
+  // Clear search
+  const clearSearch = useCallback(() => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setCurrentSearchIndex(0);
+    setHighlightedMessageId(null);
+  }, []);
+
+  // Navigate to next/previous search result
+  const navigateSearchResult = useCallback((direction: 'next' | 'prev') => {
+    if (searchResults.length === 0) return;
+
+    const newIndex = direction === 'next'
+      ? (currentSearchIndex + 1) % searchResults.length
+      : (currentSearchIndex - 1 + searchResults.length) % searchResults.length;
+
+    setCurrentSearchIndex(newIndex);
+    const targetMessage = searchResults[newIndex];
+    setHighlightedMessageId(targetMessage.id);
+
+    // Scroll to the message in FlashList
+    const currentMessages = useMessagesStore.getState().messagesByChatId[chatId] || [];
+    const messageIndex = currentMessages.findIndex(m =>
+      m.id === targetMessage.id || m.serverMessageId === targetMessage.serverMessageId
+    );
+
+    if (messageIndex >= 0 && flashListRef.current) {
+      flashListRef.current.scrollToIndex({
+        index: messageIndex,
+        animated: true,
+        viewPosition: 0.5,
+      });
+    }
+  }, [searchResults, currentSearchIndex, chatId]);
+
+  // Jump to message and exit search mode
+  const jumpToMessage = useCallback((message: ChatMessage) => {
+    // Exit search mode
+    setIsSearchMode(false);
+    setHighlightedMessageId(message.id);
+
+    // Scroll to the message in all messages list
+    const currentMessages = useMessagesStore.getState().messagesByChatId[chatId] || [];
+    const messageIndex = currentMessages.findIndex(m =>
+      m.id === message.id || m.serverMessageId === message.serverMessageId
+    );
+
+    if (messageIndex >= 0 && flashListRef.current) {
+      setTimeout(() => {
+        flashListRef.current.scrollToIndex({
+          index: messageIndex,
+          animated: true,
+          viewPosition: 0.5,
+        });
+      }, 100);
+    }
+
+    // Clear highlight after 2 seconds
+    setTimeout(() => {
+      setHighlightedMessageId(null);
+    }, 2000);
+  }, [chatId]);
+
   const bottomComposerPadding = 0;
   const listBottomPadding = 12 + 64;
 
@@ -585,6 +777,20 @@ export function useChatDetailScreenLogic() {
     typingUsers,
     isTypingVisible,
     bottomComposerPadding,
+    // Search exports
+    isSearchMode,
+    toggleSearchMode,
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    isSearching,
+    handleSearchMessages,
+    clearSearch,
+    currentSearchIndex,
+    navigateSearchResult,
+    highlightedMessageId,
+    setHighlightedMessageId,
+    jumpToMessage,
   };
 }
 

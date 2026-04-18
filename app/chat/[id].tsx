@@ -10,6 +10,7 @@ import { useAuth } from '@/src/contexts/AuthContext';
 import { useChatDetailScreenLogic } from '@/src/hooks/screens/useChatDetailScreen';
 import { getMessageReactions } from '@/src/services/chatService';
 import * as mediaService from '@/src/services/mediaService';
+import { lookupMessage } from '@/src/services/messagesApi';
 import { searchUsers } from '@/src/services/usersApi';
 import { useChatStore } from '@/src/store/chatStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
@@ -17,9 +18,9 @@ import { useTheme } from '@/src/theme/themeContext';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Circle, List, Phone } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Circle, List, Phone, Search, X } from 'lucide-react-native';
 import React from 'react';
-import { Alert, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ChatDetailScreen() {
@@ -76,7 +77,73 @@ export default function ChatDetailScreen() {
     isMessageActionMenuVisible,
     isForwardModalVisible,
     setIsForwardModalVisible,
+    // Search
+    isSearchMode,
+    toggleSearchMode,
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    isSearching,
+    handleSearchMessages,
+    clearSearch,
+    currentSearchIndex,
+    navigateSearchResult,
+    highlightedMessageId,
+    setHighlightedMessageId,
+    jumpToMessage,
   } = useChatDetailScreenLogic();
+
+  // Navigate to original conversation when clicking on forwarded message header
+  const handleNavigateToForwarded = async (forwardedFrom: any) => {
+    try {
+      if (!forwardedFrom?.source_conversation_id) {
+        Alert.alert('Lỗi', 'Không tìm thấy cuộc trò chuyện gốc');
+        return;
+      }
+
+      // If already in the same conversation, try to scroll to original message
+      if (forwardedFrom.source_conversation_id === chatId) {
+        // Use lookup API to find message details
+        const response = await lookupMessage(forwardedFrom.source_message_id);
+        const messageData = response?.data;
+
+        if (messageData) {
+          // Jump to the original message in current list
+          const currentMessages = useMessagesStore.getState().messagesByChatId[chatId] || [];
+          const messageIndex = currentMessages.findIndex(m =>
+            m.serverMessageId === forwardedFrom.source_message_id ||
+            m.id === forwardedFrom.source_message_id
+          );
+
+          if (messageIndex >= 0 && flashListRef.current) {
+            flashListRef.current.scrollToIndex({
+              index: messageIndex,
+              animated: true,
+              viewPosition: 0.5,
+            });
+            // Highlight the message briefly
+            setHighlightedMessageId(forwardedFrom.source_message_id);
+            setTimeout(() => setHighlightedMessageId(null), 2000);
+          } else {
+            Alert.alert('Thông báo', 'Tin nhắn gốc không có trong danh sách hiện tại');
+          }
+        }
+      } else {
+        // Navigate to different conversation
+        router.push({
+          pathname: '/chat/[id]',
+          params: {
+            id: forwardedFrom.source_conversation_id,
+            name: forwardedFrom.source_sender_name_snapshot,
+            jumpToMessageId: forwardedFrom.source_message_id,
+          }
+        });
+      }
+    } catch (error) {
+      console.error('[handleNavigateToForwarded] Error:', error);
+      Alert.alert('Lỗi', 'Không thể chuyển đến cuộc trò chuyện gốc');
+    }
+  };
 
   const handleFilePress = async (item: any) => {
     try {
@@ -159,8 +226,22 @@ export default function ChatDetailScreen() {
     );
   };
 
-  const handleSearchMessages = () => {
-    Alert.alert('Tìm kiếm tin nhắn', 'Tính năng tìm kiếm sẽ được triển khai sau');
+  const handleOpenSearch = () => {
+    toggleSearchMode();
+  };
+
+  // Handle search input change with debounce
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    if (text.trim()) {
+      // Debounce search
+      const timeoutId = setTimeout(() => {
+        handleSearchMessages(text);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      clearSearch();
+    }
   };
 
   const handleViewProfile = async () => {
@@ -250,6 +331,7 @@ export default function ChatDetailScreen() {
       <MessageBubble
         item={item}
         isGroup={currentChat?.isGroup}
+        highlightText={isSearchMode ? searchQuery : undefined}
         onLongPress={openMessageActions}
         onReuseRevoked={handleReuseRevokedMessage}
         onRevokeRestoreExpired={handleRevokedRestoreExpired}
@@ -273,6 +355,7 @@ export default function ChatDetailScreen() {
         onVideoPress={setSelectedVideo}
         onFilePress={handleFilePress}
         onForwardPress={handleForwardAction}
+        onNavigateToForwarded={handleNavigateToForwarded}
       />
     );
   }, [
@@ -288,7 +371,10 @@ export default function ChatDetailScreen() {
     handleFilePress,
     handleLoadReactions,
     handleForwardAction,
-    currentChat
+    handleNavigateToForwarded,
+    currentChat,
+    isSearchMode,
+    searchQuery,
   ]);
 
   return (
@@ -313,15 +399,22 @@ export default function ChatDetailScreen() {
           ),
           headerRight: () => (
             <View style={styles.headerRightContainer}>
-              <TouchableOpacity 
-                style={styles.callButton} 
-                onPress={handleVoiceCall}
-              >
-                <Phone size={20} color={theme.colors.iconHeader} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.callButton} onPress={() => setShowChatOptions(true)}>
-                <List size={20} color={theme.colors.iconHeader} />
-              </TouchableOpacity>
+              {!isSearchMode && (
+                <>
+                  <TouchableOpacity 
+                    style={styles.callButton} 
+                    onPress={handleVoiceCall}
+                  >
+                    <Phone size={20} color={theme.colors.iconHeader} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.callButton} onPress={handleOpenSearch}>
+                    <Search size={20} color={theme.colors.iconHeader} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.callButton} onPress={() => setShowChatOptions(true)}>
+                    <List size={20} color={theme.colors.iconHeader} />
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           ),
         }}
@@ -332,15 +425,87 @@ export default function ChatDetailScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? keyboardOffset : 0}
       >
+        {/* Search UI - Zalo Style */}
+        {isSearchMode && (
+          <View style={[styles.searchContainer, { backgroundColor: theme.colors.background }]}>
+            <View style={[styles.searchInputContainer, { backgroundColor: theme.colors.card }]}>
+              <Search size={18} color={theme.colors.icon} style={styles.searchIcon} />
+              <TextInput
+                style={[styles.searchInput, { color: theme.colors.text }]}
+                placeholder="Tìm kiếm tin nhắn..."
+                placeholderTextColor={theme.colors.icon}
+                value={searchQuery}
+                onChangeText={handleSearchChange}
+                autoFocus
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+                  <X size={18} color={theme.colors.icon} />
+                </TouchableOpacity>
+              )}
+
+              {/* Navigation counter */}
+              {searchResults.length > 0 && (
+                <Text style={[styles.searchCounter, { color: theme.colors.text }]}>
+                  {currentSearchIndex + 1}/{searchResults.length}
+                </Text>
+              )}
+
+              {/* Navigation buttons */}
+              {searchResults.length > 0 && (
+                <View style={styles.searchNavButtons}>
+                  <TouchableOpacity
+                    onPress={() => navigateSearchResult('prev')}
+                    style={styles.searchNavButton}
+                  >
+                    <ChevronUp size={20} color={theme.colors.icon} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => navigateSearchResult('next')}
+                    style={styles.searchNavButton}
+                  >
+                    <ChevronDown size={20} color={theme.colors.icon} />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <TouchableOpacity onPress={toggleSearchMode} style={styles.closeSearchButton}>
+                <Text style={[styles.closeSearchText, { color: theme.colors.primary }]}>Đóng</Text>
+              </TouchableOpacity>
+            </View>
+            {isSearching && (
+              <View style={styles.searchLoading}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <Text style={[styles.searchLoadingText, { color: theme.colors.icon }]}>
+                  Đang tìm kiếm...
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
         <FlashList
           ref={flashListRef}
-          data={messages}
+          data={isSearchMode ? searchResults : messages}
           keyExtractor={(item, index) => String(item.id || `${item.conversationId || 'chat'}:${item.senderId || ''}:${item.timestamp || 0}:${item.text || ''}:${index}`)}
           contentContainerStyle={[styles.listContent, { paddingBottom: listBottomPadding }]}
           keyboardShouldPersistTaps="handled"
-          onStartReached={handleLoadMore}
+          onStartReached={!isSearchMode ? handleLoadMore : undefined}
           onStartReachedThreshold={0.2}
-          renderItem={renderItem}
+          renderItem={({ item }: { item: any }) => (
+            <View style={[
+              highlightedMessageId === item.id && styles.highlightedMessage
+            ]}>
+              {renderItem({ item })}
+            </View>
+          )}
+          ListEmptyComponent={isSearchMode && searchQuery.length > 0 && !isSearching ? (
+            <View style={styles.emptySearchContainer}>
+              <Text style={[styles.emptySearchText, { color: theme.colors.icon }]}>
+                Không tìm thấy tin nhắn nào cho "{searchQuery}"
+              </Text>
+            </View>
+          ) : null}
         />
 
         <View>
@@ -392,7 +557,7 @@ export default function ChatDetailScreen() {
           chatAvatar={currentChat?.avatar || undefined}
           currentUserId={authUser?.id}
           otherUserId={(currentChat as any)?.otherUserId || (currentChat as any)?.userId}
-          onSearchMessages={handleSearchMessages}
+          onSearchMessages={handleOpenSearch}
           onViewProfile={handleViewProfile}
           onChangeWallpaper={handleChangeWallpaper}
           onToggleNotifications={handleToggleNotifications}
@@ -446,5 +611,82 @@ const styles = StyleSheet.create({
   },
   callButton: {
     marginLeft: 12,
+  },
+  // Search styles
+  searchContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  clearButton: {
+    padding: 4,
+  },
+  closeSearchButton: {
+    marginLeft: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  closeSearchText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  searchLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  searchLoadingText: {
+    marginLeft: 8,
+    fontSize: 13,
+  },
+  searchResultText: {
+    fontSize: 12,
+    paddingHorizontal: 4,
+    paddingTop: 4,
+  },
+  emptySearchContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  emptySearchText: {
+    fontSize: 14,
+  },
+  // Zalo-style search navigation
+  searchCounter: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginHorizontal: 8,
+    minWidth: 40,
+    textAlign: 'center',
+  },
+  searchNavButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  searchNavButton: {
+    padding: 4,
+    marginHorizontal: 2,
+  },
+  highlightedMessage: {
+    backgroundColor: 'rgba(255, 193, 7, 0.3)', // Yellow highlight like Zalo
+    borderRadius: 8,
   },
 });

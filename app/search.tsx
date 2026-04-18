@@ -2,13 +2,17 @@ import { useAuth } from '@/src/contexts/AuthContext';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { useSearchScreenLogic } from '@/src/hooks/screens/useSearchScreen';
 import { createDirect } from '@/src/services/conversationsApi';
-import { sendRuntimeFriendRequest } from '@/src/services/realtime/runtimeFriendActions';
+import {
+  cancelRuntimeFriendRequest,
+  respondRuntimeFriendRequest,
+  sendRuntimeFriendRequest,
+} from '@/src/services/realtime/runtimeFriendActions';
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { mapFriendshipStatus } from '@/src/utils/friendshipStatus';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter } from 'expo-router';
-import { Search, X } from 'lucide-react-native';
+import { Check, Search, X } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -23,6 +27,7 @@ export default function SearchScreen() {
   const receivedRequests = useRealtimeStore((state) => state.receivedRequests);
   const sentRequests = useRealtimeStore((state) => state.sentRequests);
   const [processingUserId, setProcessingUserId] = useState<string | null>(null);
+  const [localOutgoingIds, setLocalOutgoingIds] = useState<Set<string>>(new Set());
 
   const friendIds = useMemo(() => new Set(friends.map((item) => item.id)), [friends]);
   const sentTargetIds = useMemo(() => new Set(sentRequests.map((item) => item.targetUserId)), [sentRequests]);
@@ -48,6 +53,35 @@ export default function SearchScreen() {
     setProcessingUserId(targetUserId);
     try {
       await sendRuntimeFriendRequest(targetUserId);
+      // Update local state immediately for UI feedback
+      setLocalOutgoingIds(prev => new Set([...prev, targetUserId]));
+    } finally {
+      setProcessingUserId(null);
+    }
+  };
+
+  const handleCancelRequest = async (requestId: string) => {
+    setProcessingUserId(requestId);
+    try {
+      await cancelRuntimeFriendRequest(requestId);
+    } finally {
+      setProcessingUserId(null);
+    }
+  };
+
+  const handleAcceptRequest = async (requestId: string) => {
+    setProcessingUserId(requestId);
+    try {
+      await respondRuntimeFriendRequest(requestId, 'accept');
+    } finally {
+      setProcessingUserId(null);
+    }
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    setProcessingUserId(requestId);
+    try {
+      await respondRuntimeFriendRequest(requestId, 'reject');
     } finally {
       setProcessingUserId(null);
     }
@@ -56,8 +90,8 @@ export default function SearchScreen() {
   const renderUserAction = (item: any) => {
     const isSelf = item.id === user?.id;
     const isFriend = friendIds.has(item.id);
-    const isSent = sentTargetIds.has(item.id);
-    const isReceived = receivedRequesterIds.has(item.id);
+    const isOutgoing = sentTargetIds.has(item.id) || localOutgoingIds.has(item.id);
+    const isIncoming = receivedRequesterIds.has(item.id);
     const isProcessing = processingUserId === item.id;
 
     if (isSelf) {
@@ -83,22 +117,38 @@ export default function SearchScreen() {
       );
     }
 
-    if (isReceived) {
+    if (isIncoming) {
       return (
-        <TouchableOpacity
-          style={[styles.statusBadge, { backgroundColor: '#FF9F0A', borderColor: '#FF9F0A' }]}
-          onPress={() => router.push('/friends/requests' as any)}
-        >
-          <Text style={[styles.statusText, { color: '#000' }]}>Respond</Text>
-        </TouchableOpacity>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: '#4caf50' }]}
+            onPress={() => handleAcceptRequest(item.id)}
+            disabled={isProcessing}
+          >
+            <Check size={14} color="#fff" />
+            <Text style={styles.actionBtnText}>Chấp nhận</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: '#f44336' }]}
+            onPress={() => handleRejectRequest(item.id)}
+            disabled={isProcessing}
+          >
+            <X size={14} color="#fff" />
+            <Text style={styles.actionBtnText}>Từ chối</Text>
+          </TouchableOpacity>
+        </View>
       );
     }
 
-    if (isSent) {
+    if (isOutgoing) {
       return (
-        <View style={[styles.statusBadge, { backgroundColor: '#FF9F0A', borderColor: '#FF9F0A' }]}>
-          <Text style={[styles.statusText, { color: '#000' }]}>Requested</Text>
-        </View>
+        <TouchableOpacity
+          style={[styles.statusBadge, { backgroundColor: '#fff3e0', borderColor: '#fb8c00' }]}
+          onPress={() => handleCancelRequest(item.id)}
+          disabled={isProcessing}
+        >
+          <Text style={[styles.statusText, { color: '#fb8c00' }]}>Đã gửi</Text>
+        </TouchableOpacity>
       );
     }
 
@@ -269,5 +319,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statusText: { fontSize: 12, fontWeight: '700' },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  actionBtnText: { color: '#fff', fontSize: 11, fontWeight: '600' },
 });
-

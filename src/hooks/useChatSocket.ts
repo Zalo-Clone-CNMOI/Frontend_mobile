@@ -5,6 +5,8 @@ import { deleteMessage, editMessage, sendMessage, unreactMessage } from '../serv
 import { useChatStore } from '../store/chatStore';
 import { useChatsStore } from '../store/useChatsStore';
 import { useChatsStore as useConversationStore } from '../store/useChatsStore';
+import { useMessagesStore } from '../store/useMessagesStore';
+import { mapSocketMessageEventToChatMessage } from '../types/mappers/DTOMappers';
 import type {
     SocketChatDeletePayload,
     SocketChatEditPayload,
@@ -45,30 +47,88 @@ export const useChatSocket = () => {
   }, [authUser?.tokens?.accessToken, authUser?.id]);
 
   const setupEventListeners = (socket: any) => {
+    // Debug: Log socket connection status
+    console.log('[useChatSocket] 🔌 Setting up socket event listeners');
+    console.log('[useChatSocket] 🔌 Socket connected:', socket.connected);
+    console.log('[useChatSocket] 🔌 Socket ID:', socket.id);
+
+    // Debug: Log when socket connects/disconnects
+    socket.on('connect', () => {
+      console.log('[useChatSocket] ✅ Socket connected');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('[useChatSocket] ❌ Socket disconnected');
+    });
+
+    socket.on('connect_error', (error: any) => {
+      console.error('[useChatSocket] ❌ Socket connect error:', error);
+    });
+
+    // Debug: Log chat:join acknowledgment
+    socket.on('chat:join:ack', (payload: any) => {
+      console.log('[useChatSocket] ✅ chat:join acknowledged:', payload);
+    });
+
     // New message
     socket.on('chat:message', (payload: any) => {
+      // Debug: Log full socket payload
+      console.log('[useChatSocket] 📨 Received socket payload:', {
+        message_id: payload.message_id || payload.id,
+        conversation_id: payload.conversation_id || payload.conversationId,
+        sender_id: payload.sender_id || payload.senderId,
+        body: payload.body,
+        type: payload.type,
+        has_forwarded_from: !!payload.forwarded_from,
+        forwarded_from: payload.forwarded_from,
+        created_at: payload.created_at,
+        timestamp: payload.timestamp,
+      });
+
+      // Debug: Log forwarded message from socket
+      if (payload.forwarded_from) {
+        console.log('[useChatSocket] ✅✅✅ FORWARDED MESSAGE RECEIVED FROM SOCKET:', payload.forwarded_from);
+        console.log('[useChatSocket] ✅✅✅ Full forwarded payload:', payload);
+      }
+
+      // Convert socket payload to ChatMessage (handles forwarded_from -> forwardedFrom)
+      const chatMessage = mapSocketMessageEventToChatMessage(payload, authUser?.id);
+
+      // Debug: Log converted ChatMessage
+      console.log('[useChatSocket] 🔄 Converted ChatMessage:', {
+        id: chatMessage.id,
+        conversationId: chatMessage.conversationId,
+        senderId: chatMessage.senderId,
+        text: chatMessage.text,
+        type: chatMessage.type,
+        has_forwardedFrom: !!chatMessage.forwardedFrom,
+        forwardedFrom: chatMessage.forwardedFrom,
+        timestamp: chatMessage.timestamp,
+      });
+
+      // Add to chatStore (for backward compatibility)
       addMessage(payload);
-      // Update last message in conversation
+
+      // Add to useMessagesStore (main store used by UI)
       const conversationId = payload.conversation_id || payload.conversationId;
+      if (conversationId) {
+        useMessagesStore.getState().addMessage(conversationId, chatMessage);
+      }
+
+      // Update last message in conversation
       const content = payload.body || payload.content || '';
-      // Detect type from content if Backend doesn't send type
       const type = payload.type;
       const timestamp = payload.created_at || payload.timestamp || Date.now();
       const senderId = payload.sender_id || payload.senderId;
-      
+
       // Get sender name from conversation or current user
       let senderName = payload.sender_name || payload.senderName;
       if (!senderName) {
-        // If sender is current user, use their name
         if (senderId === authUser?.id) {
           senderName = (authUser as any)?.fullName || (authUser as any)?.name || 'Bạn';
-        } else {
-          // Try to get from conversation members
-          const conversation = chats.find(c => c.conversationId === conversationId);
-          // For now, leave as undefined - will be handled by ChatListItem
         }
       }
-      
+
       if (conversationId) {
         updateLastMessage(conversationId, content, type, timestamp, senderId, senderName);
       }
@@ -128,7 +188,11 @@ export const useChatSocket = () => {
   }, []);
 
   const handleSendMessage = useCallback((payload: SocketChatSendPayload) => {
-    sendMessage(payload);
+    sendMessage(
+      payload.conversation_id,
+      payload.body || '',
+      payload.attachments
+    );
   }, []);
 
   const handleEditMessage = useCallback((payload: SocketChatEditPayload) => {

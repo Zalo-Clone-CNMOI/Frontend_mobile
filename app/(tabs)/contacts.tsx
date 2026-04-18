@@ -11,9 +11,8 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-function ContactItem({ item, creatingConversation, onPress }: {
+function ContactItem({ item, onPress }: {
   item: ContactListItem;
-  creatingConversation: boolean;
   onPress: () => void;
 }) {
   const theme = useTheme();
@@ -29,7 +28,6 @@ function ContactItem({ item, creatingConversation, onPress }: {
       style={[styles.cardRow, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
       activeOpacity={0.75}
       onPress={onPress}
-      disabled={creatingConversation}
     >
       <View style={styles.cardAvatarContainer}>
         {item.avatar ? (
@@ -67,9 +65,6 @@ function ContactItem({ item, creatingConversation, onPress }: {
       </Text>
       {isOnline && <View style={styles.onlineDot} />}
     </View>
-    {creatingConversation && (
-      <ActivityIndicator size="small" color="#006AF5" style={{ marginTop: 4 }} />
-    )}
   </View>
 </View>
     </TouchableOpacity>
@@ -128,12 +123,11 @@ export default function ContactsScreen() {
   const { t } = useTranslation();
   const {
     activeTab,
-    creatingConversation,
     error,
     filteredFriends,
     friends,
     handleRetry,
-    handleStartConversation,
+    handleViewProfile,
     loading,
     onRefresh,
     receivedRequests,
@@ -253,8 +247,7 @@ export default function ContactsScreen() {
           renderItem={({ item }) => (
             <ContactItem
               item={item}
-              creatingConversation={creatingConversation}
-              onPress={() => handleStartConversation(item.id, item.fullName)}
+              onPress={() => handleViewProfile(item.id)}
             />
           )}
         />

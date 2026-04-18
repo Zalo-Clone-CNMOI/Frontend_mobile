@@ -8,6 +8,15 @@ import type {
     SocketChatTypingUpdateEvent,
 } from '../types/dto/SocketDTO';
 
+export interface ForwardedFrom {
+  source_message_id: string;
+  source_conversation_id: string;
+  source_sender_id: string;
+  source_sender_name_snapshot: string;
+  source_created_at: number;
+  source_type: 'text' | 'image' | 'file' | 'mixed';
+}
+
 export interface Message {
   message_id: string;
   conversation_id: string;
@@ -16,6 +25,7 @@ export interface Message {
   created_at: number;
   attachments?: any[];
   reply_to_message_id?: string;
+  forwarded_from?: ForwardedFrom;  // ✅ Thêm forwarded_from
   edited_at?: number;
   deleted_at?: number;
   reactions?: Reaction[];
@@ -69,13 +79,19 @@ export const useChatStore = create<ChatState>((set) => ({
       conversation_id: conversationId,
       sender_id: payload.sender_id || '',
       body: payload.body || '',
-      created_at: typeof payload.created_at === 'number' ? payload.created_at : 
+      created_at: typeof payload.created_at === 'number' ? payload.created_at :
                      typeof payload.createdAt === 'number' ? payload.createdAt :
                      typeof payload.ts === 'number' ? payload.ts :
                      typeof payload.timestamp === 'number' ? payload.timestamp : Date.now(),
       attachments: payload.attachments,
       reply_to_message_id: payload.reply_to_message_id,
+      forwarded_from: payload.forwarded_from,  // ✅ Lưu forwarded_from từ socket
     };
+
+    // Debug: Log if forwarded message
+    if (payload.forwarded_from) {
+      console.log('[chatStore] Received forwarded message:', payload.forwarded_from);
+    }
 
     const existingMessages = state.messages[conversationId] || [];
     

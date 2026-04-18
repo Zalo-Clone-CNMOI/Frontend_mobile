@@ -67,52 +67,23 @@ export function useContactsScreenLogic() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(0);
   const [usersFilterType, setUsersFilterType] = useState<'all' | 'recent'>('all');
-  const [creatingConversation, setCreatingConversation] = useState(false);
 
   const friends = useMemo(() => realtimeFriends.map(mapFriend), [realtimeFriends]);
 
-  const navigateToChat = useCallback(
-    (conversationId: string, friendName: string) => {
+  const handleViewProfile = useCallback(
+    (friendId: string) => {
       try {
         router.push({
-          pathname: '/chat/[id]',
+          pathname: '/profile/[userId]',
           params: {
-            id: conversationId,
-            name: friendName,
+            userId: friendId,
           },
         });
       } catch {
-        router.push(`/chat/${conversationId}?name=${encodeURIComponent(friendName)}`);
+        router.push(`/profile/${friendId}`);
       }
     },
     [router],
-  );
-
-  const handleStartConversation = useCallback(
-    async (friendId: string, friendName: string) => {
-      if (creatingConversation) return;
-
-      setCreatingConversation(true);
-      try {
-        const response = await createDirect(friendId);
-        const conversation = response?.data;
-        const conversationId =
-          conversation?.data?.id ||
-          conversation?.data?._id ||
-          conversation?.data?.conversationId ||
-          conversation?.id ||
-          conversation?._id ||
-          conversation?.conversationId;
-
-        if (conversationId) {
-          navigateToChat(String(conversationId), friendName);
-        }
-      } catch (startErr) {
-      } finally {
-        setCreatingConversation(false);
-      }
-    },
-    [creatingConversation, navigateToChat],
   );
 
   const refreshFriends = useCallback(async () => {
@@ -149,12 +120,11 @@ export function useContactsScreenLogic() {
 
   return {
     activeTab,
-    creatingConversation,
     error,
     filteredFriends,
     friends,
     handleRetry,
-    handleStartConversation,
+    handleViewProfile,
     hasNext: false,
     loading: loading || isHydrating,
     loadMore: () => undefined,

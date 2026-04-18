@@ -1,15 +1,28 @@
 import { useAuth } from '@/src/contexts/AuthContext';
-import { sendRuntimeFriendRequest } from '@/src/services/realtime/runtimeFriendActions';
+import {
+  cancelRuntimeFriendRequest,
+  removeRuntimeFriend,
+  respondRuntimeFriendRequest,
+  sendRuntimeFriendRequest,
+} from '@/src/services/realtime/runtimeFriendActions';
 import { searchUsers, type SearchUserDTO } from '@/src/services/usersApi';
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 
+const normalizeAvatarUrl = (avatar?: string): string | undefined => {
+  if (!avatar) return undefined;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar;
+  }
+  return 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/' + avatar.replace(/^\//, '');
+};
+
 export type SearchResultStatus =
-  | 'none'       
-  | 'friend'     
-  | 'sent'       
-  | 'received'   
+  | 'none'
+  | 'friend'
+  | 'outgoing'    // Đã gửi lời mời (pending_sent)
+  | 'incoming'    // Đã nhận lời mời (pending_received)
   | 'self';      
 
 export type SearchResult = {
@@ -45,13 +58,13 @@ export function useAddFriendScreenLogic() {
     (userId: string, dto?: SearchUserDTO): SearchResultStatus => {
       if (userId === user?.id) return 'self';
       if (friendIds.has(userId)) return 'friend';
-      if (sentTargetIds.has(userId)) return 'sent';
-      if (receivedRequesterIds.has(userId)) return 'received';
+      if (sentTargetIds.has(userId)) return 'outgoing';
+      if (receivedRequesterIds.has(userId)) return 'incoming';
 
       const fs = dto?.friendshipStatus?.toLowerCase();
       if (fs === 'friend' || fs === 'friends') return 'friend';
-      if (fs === 'pending' || fs === 'sent') return 'sent';
-      if (fs === 'received') return 'received';
+      if (fs === 'pending' || fs === 'sent' || fs === 'outgoing') return 'outgoing';
+      if (fs === 'received' || fs === 'incoming') return 'incoming';
 
       return 'none';
     },
@@ -93,13 +106,14 @@ export function useAddFriendScreenLogic() {
         const dto = users[0];
         const userId = dto.id || dto._id || '';
         const avatarRaw = dto.avatar;
-        const avatarUrl =
+        const avatarUrl = normalizeAvatarUrl(
           dto.avatarUrl ||
           (typeof avatarRaw === 'string' ? avatarRaw : avatarRaw?.url) ||
-          undefined;
+          undefined
+        );
 
         const status = resolveStatus(userId, dto);
-        
+
 
         setSearchResult({
           id: userId,
@@ -123,22 +137,77 @@ export function useAddFriendScreenLogic() {
       setIsSending(true);
       try {
         await sendRuntimeFriendRequest(targetUserId);
-        // Don't auto-update status - let realtime events handle it
-        // setSearchResult((prev) =>
-        //   prev ? { ...prev, status: 'sent' } : prev,
-        // );
+        // Update status immediately after successful send
+        setSearchResult((prev) =>
+          prev ? { ...prev, status: 'outgoing' } : prev,
+        );
       } catch (err: any) {
+        console.error('[sendRequest] Error:', err);
         const code = err?.code;
         if (code === 'ALREADY_EXISTS') {
-          // Already exists - don't update status automatically
-          // setSearchResult((prev) =>
-          //   prev ? { ...prev, status: 'sent' } : prev,
-          // );
+          // Already exists - update status to outgoing
+          setSearchResult((prev) =>
+            prev ? { ...prev, status: 'outgoing' } : prev,
+          );
         } else if (code === 'SELF_REQUEST') {
           Alert.alert('Lỗi', 'Không thể tự gửi lời mời kết bạn cho chính mình');
         } else {
           Alert.alert('Lỗi', err?.message || 'Gửi lời mời thất bại');
         }
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [],
+  );
+
+  const cancelRequest = useCallback(
+    async (requestId: string) => {
+      setIsSending(true);
+      try {
+        await cancelRuntimeFriendRequest(requestId);
+        setSearchResult((prev) =>
+          prev ? { ...prev, status: 'none' } : prev,
+        );
+      } catch (err: any) {
+        console.error('[cancelRequest] Error:', err);
+        Alert.alert('Lỗi', err?.message || 'Hủy lời mời thất bại');
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [],
+  );
+
+  const acceptRequest = useCallback(
+    async (requestId: string) => {
+      setIsSending(true);
+      try {
+        await respondRuntimeFriendRequest(requestId, 'accept');
+        setSearchResult((prev) =>
+          prev ? { ...prev, status: 'friend' } : prev,
+        );
+      } catch (err: any) {
+        console.error('[acceptRequest] Error:', err);
+        Alert.alert('Lỗi', err?.message || 'Chấp nhận lời mời thất bại');
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [],
+  );
+
+  const rejectRequest = useCallback(
+    async (requestId: string) => {
+      setIsSending(true);
+      try {
+        await respondRuntimeFriendRequest(requestId, 'reject');
+        setSearchResult((prev) =>
+          prev ? { ...prev, status: 'none' } : prev,
+        );
+      } catch (err: any) {
+        console.error('[rejectRequest] Error:', err);
+        Alert.alert('Lỗi', err?.message || 'Từ chối lời mời thất bại');
       } finally {
         setIsSending(false);
       }
@@ -158,6 +227,9 @@ export function useAddFriendScreenLogic() {
     isSending,
     searchByPhone,
     sendRequest,
+    cancelRequest,
+    acceptRequest,
+    rejectRequest,
     clearSearch,
   };
 }

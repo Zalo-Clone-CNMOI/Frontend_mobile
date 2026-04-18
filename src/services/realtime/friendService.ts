@@ -72,6 +72,18 @@ const toFriendServiceError = (error: unknown): FriendServiceError => {
   }
 
   if (error instanceof AxiosError) {
+    console.error('[toFriendServiceError] AxiosError details:', {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      config: {
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        method: error.config?.method,
+      },
+    });
     const payload = error.response?.data as FriendApiErrorResponse | undefined;
     const status = error.response?.status;
     const code = inferFriendErrorCode(status, payload);
@@ -84,9 +96,11 @@ const toFriendServiceError = (error: unknown): FriendServiceError => {
   }
 
   if (error instanceof Error) {
+    console.error('[toFriendServiceError] Error:', error.message);
     return new FriendServiceError(error.message, "UNKNOWN");
   }
 
+  console.error('[toFriendServiceError] Unknown error:', error);
   return new FriendServiceError("Unknown friend service error", "UNKNOWN");
 };
 
@@ -168,10 +182,15 @@ export const createFriendService = ({
   const sendFriendRequest = (payload: CreateFriendRequestPayload) =>
     withErrorMapping(async () => {
       rateLimiter.consume("mutation");
+      const url = endpoint("/friends/requests");
+      console.log('[FriendService] httpClient baseURL:', (httpClient as any).defaults?.baseURL);
+      console.log('[FriendService] sendFriendRequest endpoint path:', url);
+      console.log('[FriendService] sendFriendRequest payload:', payload);
       const response = await httpClient.post<ApiEnvelope<FriendRequestRecord>>(
-        endpoint("/friends/requests"),
+        url,
         payload,
       );
+      console.log('[FriendService] sendFriendRequest response:', response.data);
       return response.data;
     });
 

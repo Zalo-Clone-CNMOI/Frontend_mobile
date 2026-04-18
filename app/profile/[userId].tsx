@@ -1,8 +1,10 @@
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { useTheme } from '@/src/theme/themeContext';
 import { getUserProfile } from '@/src/services/usersApi';
+import * as friendsApi from '@/src/services/friendsApi';
+import { useAuth } from '@/src/contexts/AuthContext';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Circle } from 'lucide-react-native';
+import { ArrowLeft, Circle, UserMinus } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Stack } from 'expo-router';
@@ -21,8 +23,10 @@ export default function UserProfileScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { userId } = useLocalSearchParams<{ userId?: string }>();
+  const { user: currentUser } = useAuth();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     if (!userId) {
@@ -44,6 +48,34 @@ export default function UserProfileScreen() {
 
     fetchUserData();
   }, [userId]);
+
+  const handleRemoveFriend = () => {
+    Alert.alert(
+      'Xóa bạn',
+      `Bạn có chắc chắn muốn xóa ${userData?.fullName || 'người dùng'} khỏi danh sách bạn bè?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            if (!userId) return;
+            setRemoving(true);
+            try {
+              await friendsApi.removeFriend(userId);
+              Alert.alert('Thành công', 'Đã xóa bạn bè thành công', [
+                { text: 'OK', onPress: () => router.back() }
+              ]);
+            } catch (error: any) {
+              Alert.alert('Lỗi', error?.message || 'Không thể xóa bạn bè');
+            } finally {
+              setRemoving(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
 
   if (loading) {
@@ -139,6 +171,19 @@ export default function UserProfileScreen() {
             {userData.bio}
           </Text>
         </View>
+      )}
+
+      {currentUser?.id !== userId && (
+        <TouchableOpacity
+          style={[styles.removeFriendButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+          onPress={handleRemoveFriend}
+          disabled={removing}
+        >
+          <UserMinus size={20} color="#ef4444" />
+          <Text style={[styles.removeFriendText, { color: '#ef4444' }]}>
+            {removing ? 'Đang xóa...' : 'Xóa bạn'}
+          </Text>
+        </TouchableOpacity>
       )}
     </ScrollView>
   );
@@ -243,5 +288,20 @@ const styles = StyleSheet.create({
   bioText: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  removeFriendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    marginTop: 20,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+  removeFriendText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

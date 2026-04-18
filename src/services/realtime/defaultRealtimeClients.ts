@@ -6,6 +6,8 @@ import { createSocketGateway } from "./createSocketGateway";
 import { NETWORK_CONFIG } from "../../config/network";
 
 const DEFAULT_HOST = process.env.EXPO_PUBLIC_API_HOST || "54.179.206.215";
+const DEFAULT_BFF_PORT = process.env.EXPO_PUBLIC_BFF_PORT || "3000";
+const DEFAULT_API_PORT = process.env.EXPO_PUBLIC_API_PORT || "5000";
 
 let httpClientInstance: AxiosInstance | null = null;
 let socketInstance: Socket | null = null;
@@ -15,7 +17,7 @@ export const getRealtimeHttpClient = () => {
   if (!httpClientInstance) {
     httpClientInstance = createBffHttpClient({
       host: DEFAULT_HOST,
-      httpPort: 5000,
+      httpPort: Number(DEFAULT_API_PORT),
       getAccessToken: getCurrentToken,
       refreshAccessToken,
     });

@@ -93,6 +93,7 @@ export type GetFriendRequestsParams = GetFriendsParams;
 
 export type CreateFriendRequestPayload = {
   userId: EntityId;
+  message?: string;
 };
 
 export type RespondToFriendRequestPayload = {

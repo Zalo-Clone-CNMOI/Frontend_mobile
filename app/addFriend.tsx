@@ -49,6 +49,9 @@ export default function AddFriendScreen() {
     isSending,
     searchByPhone,
     sendRequest,
+    cancelRequest,
+    acceptRequest,
+    rejectRequest,
     clearSearch,
   } = useAddFriendScreenLogic();
 
@@ -206,7 +209,7 @@ export default function AddFriendScreen() {
               )}
             </View>
 
-            
+
             {searchResult.status === 'self' && (
               <View style={[styles.statusBadge, { backgroundColor: theme.colors.border }]}>
                 <Text style={[styles.statusText, { color: theme.colors.icon }]}>Tài khoản của bạn</Text>
@@ -218,18 +221,34 @@ export default function AddFriendScreen() {
                 <Text style={[styles.statusText, { color: '#4caf50' }]}>Bạn bè</Text>
               </View>
             )}
-            {searchResult.status === 'sent' && (
-              <View style={[styles.statusBadge, { backgroundColor: '#fff3e0' }]}>
+            {searchResult.status === 'outgoing' && (
+              <TouchableOpacity
+                style={[styles.statusBadge, { backgroundColor: '#fff3e0' }]}
+                onPress={() => cancelRequest(searchResult.id)}
+                disabled={isSending}
+              >
                 <Clock size={14} color="#fb8c00" />
                 <Text style={[styles.statusText, { color: '#fb8c00' }]}>Đã gửi lời mời</Text>
-              </View>
+              </TouchableOpacity>
             )}
-            {searchResult.status === 'received' && (
-              <View style={[styles.statusBadge, { backgroundColor: '#e3f2fd' }]}>
-                <Clock size={14} color={theme.colors.primary} />
-                <Text style={[styles.statusText, { color: theme.colors.primary }]}>
-                  Đã nhận lời mời
-                </Text>
+            {searchResult.status === 'incoming' && (
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: '#4caf50' }]}
+                  onPress={() => acceptRequest(searchResult.id)}
+                  disabled={isSending}
+                >
+                  <Check size={16} color="#fff" />
+                  <Text style={styles.actionBtnText}>Chấp nhận</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: '#f44336' }]}
+                  onPress={() => rejectRequest(searchResult.id)}
+                  disabled={isSending}
+                >
+                  <X size={16} color="#fff" />
+                  <Text style={styles.actionBtnText}>Từ chối</Text>
+                </TouchableOpacity>
               </View>
             )}
             {searchResult.status === 'none' && (
@@ -435,6 +454,22 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   addBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  actionBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
   
   menuSection: { paddingHorizontal: 16, marginTop: 20, gap: 2 },

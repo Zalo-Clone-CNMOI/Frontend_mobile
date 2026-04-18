@@ -119,6 +119,10 @@ export const updateFriendRequest = (requestId: string, payload: any) =>
 export const deleteFriendRequest = (requestId: string) =>
   request('DELETE', `/friends/requests/${encodeURIComponent(requestId)}`);
 
+// Remove friend (unfriend)
+export const removeFriend = (friendId: string) =>
+  request('DELETE', `/friends/${encodeURIComponent(friendId)}`);
+
 // Block a user
 export const blockUser = (payload: any) =>
   request('POST', '/friends/block', payload);
@@ -131,5 +135,6 @@ export default {
   sendFriendRequest,
   updateFriendRequest,
   deleteFriendRequest,
+  removeFriend,
   blockUser,
 };

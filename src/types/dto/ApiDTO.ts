@@ -139,6 +139,14 @@ export type ApiMessageDTO = {
   created_at?: string | number;
   timestamp?: string | number;
   sent_at?: string | number;
+  forwarded_from?: {
+    source_message_id: string;
+    source_conversation_id: string;
+    source_sender_id: string;
+    source_sender_name_snapshot: string;
+    source_created_at: number;
+    source_type: 'text' | 'image' | 'file' | 'mixed';
+  };
 };
 
 export type ApiConversationLastMessageDTO = {

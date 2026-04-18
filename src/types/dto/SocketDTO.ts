@@ -24,6 +24,7 @@ export type SocketChatSendPayload = {
   body?: string;
   sent_at?: string | number;
   reply_to_message_id?: ID;
+  forwarded_from?: SocketForwardedFrom;
   attachments?: {
     key?: string;
     type?: string;
@@ -65,6 +66,15 @@ export type SocketChatAckEvent = {
   error?: string;
 };
 
+export type SocketForwardedFrom = {
+  source_message_id: string;
+  source_conversation_id: string;
+  source_sender_id: string;
+  source_sender_name_snapshot: string;
+  source_created_at: number;
+  source_type: 'text' | 'image' | 'file' | 'mixed';
+};
+
 export type SocketChatMessageEvent = {
   id?: ID;
   message_id?: ID;
@@ -79,6 +89,7 @@ export type SocketChatMessageEvent = {
   ts?: string | number;
   timestamp?: string | number;
   reply_to_message_id?: ID;
+  forwarded_from?: SocketForwardedFrom;  // ✅ Thêm forwarded_from
 };
 
 export type SocketChatMessageUpdatedEvent = {

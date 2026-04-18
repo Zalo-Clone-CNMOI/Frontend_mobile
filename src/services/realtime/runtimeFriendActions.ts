@@ -19,9 +19,16 @@ const deriveFriendFromRequest = (request: any, currentUserId?: string) => {
   return null;
 };
 
-export const sendRuntimeFriendRequest = async (targetUserId: string) => {
+export const sendRuntimeFriendRequest = async (targetUserId: string, message?: string) => {
+  console.log('[sendRuntimeFriendRequest] Sending request to:', targetUserId);
   const service = await getRuntimeFriendService();
-  const response = await service.sendFriendRequest({ userId: targetUserId });
+  const payload = {
+    userId: targetUserId,
+    message: message?.trim() || "Hi, I would like to add you as a friend!",
+  };
+  console.log('[sendRuntimeFriendRequest] Payload:', payload);
+  const response = await service.sendFriendRequest(payload);
+  console.log('[sendRuntimeFriendRequest] Response:', response);
   if (response.data) {
     useRealtimeStore.getState().upsertSentRequest(response.data);
   }

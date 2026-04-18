@@ -119,6 +119,16 @@ export const mapApiMessageToChatMessage = (
     replyTo:
       dto.replyTo ||
       (dto.reply_to_message_id ? { id: String(dto.reply_to_message_id) } : undefined),
+    forwardedFrom: dto.forwarded_from
+      ? {
+          source_message_id: dto.forwarded_from.source_message_id,
+          source_conversation_id: dto.forwarded_from.source_conversation_id,
+          source_sender_id: dto.forwarded_from.source_sender_id,
+          source_sender_name_snapshot: dto.forwarded_from.source_sender_name_snapshot,
+          source_created_at: dto.forwarded_from.source_created_at,
+          source_type: dto.forwarded_from.source_type,
+        }
+      : undefined,
     reactions: dto.reactions,
     status:
       dto.status === "sending" ||
@@ -149,6 +159,7 @@ export const mapSocketMessageEventToChatMessage = (
       created_at: event.created_at,
       createdAt: event.createdAt,
       timestamp: event.timestamp ?? event.ts,
+      forwarded_from: event.forwarded_from,
     },
     currentUserId,
   );

@@ -3,7 +3,7 @@ import { useAuth } from '@/src/contexts/AuthContext';
 import * as mediaService from '@/src/services/mediaService';
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
-import { Check, CheckCheck, Download, FileArchive, FileAudio, FileText, FileVideo, Forward, Play, RotateCcw } from 'lucide-react-native';
+import { Check, CheckCheck, FileArchive, FileAudio, FileText, FileVideo, Forward, Play, RotateCcw } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -15,6 +15,50 @@ import {
   View,
 } from 'react-native';
 import { useUserProfiles } from '../../hooks/useUserProfiles';
+
+// ─── Helper: HighlightText Component ─────────────────────────────────────────
+// Highlights search terms in message text like Zalo
+
+interface HighlightTextProps {
+  text: string;
+  highlight?: string;
+  textColor: string;
+  highlightColor: string;
+}
+
+function HighlightText({ text, highlight, textColor, highlightColor }: HighlightTextProps) {
+  if (!highlight || highlight.trim().length === 0) {
+    return (
+      <Text style={[styles.text, { color: textColor }]}>
+        {text}
+      </Text>
+    );
+  }
+
+  const regex = new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+
+  return (
+    <Text style={[styles.text, { color: textColor }]}>
+      {parts.map((part, index) => {
+        const isMatch = part.toLowerCase() === highlight.toLowerCase();
+        return (
+          <Text
+            key={index}
+            style={[
+              isMatch && {
+                backgroundColor: highlightColor,
+                borderRadius: 2,
+              },
+            ]}
+          >
+            {part}
+          </Text>
+        );
+      })}
+    </Text>
+  );
+}
 
 type MessageBubbleProps = {
   item: ChatMessage;
@@ -28,6 +72,8 @@ type MessageBubbleProps = {
   onPressReply?: (item: ChatMessage) => void;
   onReactionPress?: (messageId: string, reactionType: string) => void;
   onForwardPress?: (item: ChatMessage) => void;
+  onNavigateToForwarded?: (forwardedFrom: ChatMessage['forwardedFrom']) => void; // Navigate to original conversation
+  highlightText?: string; // For search highlighting
 };
 
 export const MessageBubble = React.memo(
@@ -43,6 +89,8 @@ export const MessageBubble = React.memo(
     onPressReply,
     onReactionPress,
     onForwardPress,
+    onNavigateToForwarded,
+    highlightText,
   }: MessageBubbleProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -222,6 +270,13 @@ export const MessageBubble = React.memo(
 
   const messageText = (item as any).text || (item as any).content || '';
   const isMe = (item as any).fromMe || ((item as any).sender && (item as any).sender.me === true);
+
+  // Debug: Log forwardedFrom data
+  useEffect(() => {
+    if (item.forwardedFrom) {
+      console.log('[MessageBubble] ✓ forwardedFrom exists:', item.forwardedFrom);
+    }
+  }, [item.forwardedFrom]);
   const replySenderName = item.replyTo?.senderName || t('messages.replying_to');
   const replyText =
     String(item.replyTo?.text || '').trim() ||
@@ -253,7 +308,7 @@ export const MessageBubble = React.memo(
 
   // ─── Computed bubble background ─────────────────────────────────────────────
   const getBubbleBg = () => {
-    if (isImage || isVideo) return 'transparent';
+    if (isImage || isVideo || isFile) return 'transparent';
     if (isMe) return myBubbleBg;
     if (item.forwardedFrom) return forwardedTheirBubbleBg;
     return theirBubbleBg;
@@ -297,16 +352,15 @@ export const MessageBubble = React.memo(
             styles.bubble,
             {
               backgroundColor: getBubbleBg(),
-              borderColor: isMe ? myBubbleBorder : theirBubbleBorder,
+              borderColor: isMe ? theme.colors.border : theirBubbleBorder,
               borderTopRightRadius: isMe ? 4 : 18,
               borderTopLeftRadius: isMe ? 18 : 4,
               borderBottomRightRadius: 18,
               borderBottomLeftRadius: 18,
             },
-            (isImage || isVideo) && styles.mediaBubble,
+            (isImage || isVideo || isFile) && styles.mediaBubble,
             item.replyTo && styles.bubbleWithReply,
             item.forwardedFrom && styles.bubbleWithForwarded,
-            isFile && { minWidth: 220 },
           ]}
         >
           {/* ── Reply preview ──────────────────────────────────────────────── */}
@@ -356,31 +410,61 @@ export const MessageBubble = React.memo(
               style={[
                 styles.forwardedHeader,
                 {
-                  backgroundColor: isMe ? myForwardedHeaderBg : theirForwardedHeaderBg,
+                  // Use more prominent background colors
+                  backgroundColor: isMe
+                    ? 'rgba(255,255,255,0.2)'  // Brighter for my messages
+                    : theme.colors.primary + '20',  // Primary color tint for their messages
+                  borderWidth: 1.5,
+                  borderColor: isMe
+                    ? 'rgba(255,255,255,0.4)'
+                    : theme.colors.primary,
+                  minHeight: 44, // Make it taller
+                  paddingVertical: 8,
+                  paddingHorizontal: 10,
                 },
               ]}
               onPress={() => {
-                console.log('Navigate to sender profile:', item.forwardedFrom?.source_sender_id);
+                console.log('[MessageBubble] Forwarded header pressed:', item.forwardedFrom);
+                // Navigate to original conversation to view the original message
+                onNavigateToForwarded?.(item.forwardedFrom);
               }}
+              activeOpacity={0.6}
             >
               <View
                 style={[
                   styles.forwardedAvatarContainer,
-                  { backgroundColor: theme.colors.primary + '25' },
+                  {
+                    backgroundColor: theme.colors.primary + '30',
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                  },
                 ]}
               >
-                <Text style={[styles.forwardedAvatarText, { color: theme.colors.primary }]}>
-                  {item.forwardedFrom.source_sender_name_snapshot.charAt(0).toUpperCase()}
+                <Text style={[styles.forwardedAvatarText, { color: theme.colors.primary, fontSize: 13 }]}>
+                  {item.forwardedFrom.source_sender_name_snapshot?.charAt(0).toUpperCase() || 'U'}
                 </Text>
               </View>
-              <Text
-                style={[
-                  styles.forwardedHeaderText,
-                  { color: isMe ? myMetaColor : linkPreviewDomainColor },
-                ]}
-              >
-                {t('chat.forwarded_from', { defaultValue: 'Từ' })} {item.forwardedFrom.source_sender_name_snapshot} {'>'}
-              </Text>
+              <View style={styles.forwardedContent}>
+                <Text
+                  style={[
+                    styles.forwardedHeaderText,
+                    { color: isMe ? myMetaColor : linkPreviewDomainColor, fontWeight: '600' },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {t('chat.forwarded_from', { defaultValue: 'Từ' })} {item.forwardedFrom.source_sender_name_snapshot || 'Unknown'}
+                </Text>
+                <Text
+                  style={[
+                    styles.forwardedSubText,
+                    { color: isMe ? myMetaColor : theirMetaColor, fontSize: 11 },
+                  ]}
+                  numberOfLines={1}
+                >
+                  Nhấn để xem tin nhắn gốc ›
+                </Text>
+              </View>
             </TouchableOpacity>
           )}
 
@@ -405,7 +489,7 @@ export const MessageBubble = React.memo(
               </Text>
             </View>
           ) : isImage ? (
-            <Pressable
+            <TouchableOpacity
               onPress={() =>
                 hasMultipleImages
                   ? onImagePress?.(attachmentUrls[0] || '', attachmentUrls, 0)
@@ -588,10 +672,10 @@ export const MessageBubble = React.memo(
                   {item.caption}
                 </Text>
               )}
-            </Pressable>
+            </TouchableOpacity>
           ) : isVideo ? (
             // ── VIDEO BUBBLE ─────────────────────────────────────────────────
-            <Pressable
+            <TouchableOpacity
               onPress={() => onVideoPress?.(attachmentUrl || '')}
               onLongPress={() => onLongPress?.(item)}
             >
@@ -622,43 +706,49 @@ export const MessageBubble = React.memo(
                   </View>
                 </View>
               ) : (
-                // Regular video card
-                <View style={[styles.videoCard, { borderColor: imageBorderColor }]}>
-                  {/* Thumbnail */}
-                  {(thumbnailUrl || attachmentUrl) ? (
-                    <Image
-                      source={{ uri: thumbnailUrl || attachmentUrl }}
-                      style={styles.videoCardThumb}
-                    />
-                  ) : (
-                    <View style={[styles.videoCardThumb, { backgroundColor: isDark ? '#2C2C2E' : '#E0E0E5', justifyContent: 'center', alignItems: 'center' }]}>
-                      <FileVideo size={40} color={isDark ? 'rgba(255,255,255,0.3)' : '#BBBBBB'} />
-                    </View>
+                // Regular video card with forward button
+                <View style={[styles.imageWithForwardContainer, !isMe && styles.imageWithForwardContainerReverse]}>
+                  {onForwardPress && (
+                    <TouchableOpacity
+                      style={[
+                        styles.forwardButton,
+                        { backgroundColor: isDark ? '#2C2C2E' : '#FFFFFF' },
+                        isMe ? styles.forwardButtonMarginLeft : styles.forwardButtonMarginRight,
+                      ]}
+                      onPress={() => onForwardPress(item)}
+                      activeOpacity={0.7}
+                    >
+                      <Forward size={18} color={theme.colors.icon} />
+                    </TouchableOpacity>
                   )}
-
-                  {/* Dark gradient overlay at bottom */}
-                  <View style={styles.videoCardOverlay} />
-
-                  {/* Play button centered */}
-                  <View style={styles.videoPlayCircle}>
-                    <Play size={22} color="#FFFFFF" fill="#FFFFFF" />
-                  </View>
-
-                  {/* Bottom bar: duration left, forward right */}
-                  <View style={styles.videoCardBottomBar}>
-                    <View style={styles.videoDurationBadge}>
-                      <Play size={9} color="#FFFFFF" fill="#FFFFFF" />
-                      <Text style={styles.videoDurationText}>Video</Text>
-                    </View>
-                    {onForwardPress && (
-                      <TouchableOpacity
-                        style={styles.videoForwardBtnInCard}
-                        onPress={() => onForwardPress(item)}
-                        activeOpacity={0.7}
-                      >
-                        <Forward size={14} color="#FFFFFF" />
-                      </TouchableOpacity>
+                  <View style={[styles.videoCard, { borderColor: imageBorderColor }]}>
+                    {/* Thumbnail */}
+                    {(thumbnailUrl || attachmentUrl) ? (
+                      <Image
+                        source={{ uri: thumbnailUrl || attachmentUrl }}
+                        style={styles.videoCardThumb}
+                      />
+                    ) : (
+                      <View style={[styles.videoCardThumb, { backgroundColor: isDark ? '#2C2C2E' : '#E0E0E5', justifyContent: 'center', alignItems: 'center' }]}>
+                        <FileVideo size={40} color={isDark ? 'rgba(255,255,255,0.3)' : '#BBBBBB'} />
+                      </View>
                     )}
+
+                    {/* Dark gradient overlay at bottom */}
+                    <View style={styles.videoCardOverlay} />
+
+                    {/* Play button centered */}
+                    <View style={styles.videoPlayCircle}>
+                      <Play size={22} color="#FFFFFF" fill="#FFFFFF" />
+                    </View>
+
+                    {/* Bottom bar: duration badge only */}
+                    <View style={styles.videoCardBottomBar}>
+                      <View style={styles.videoDurationBadge}>
+                        <Play size={9} color="#FFFFFF" fill="#FFFFFF" />
+                        <Text style={styles.videoDurationText}>Video</Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
               )}
@@ -669,84 +759,63 @@ export const MessageBubble = React.memo(
                   {item.caption}
                 </Text>
               )}
-            </Pressable>
+            </TouchableOpacity>
           ) : isFile ? (
             // ── FILE BUBBLE ──────────────────────────────────────────────────
-            <Pressable
+            <TouchableOpacity
               onPress={() => onFilePress?.(item)}
               onLongPress={() => onLongPress?.(item)}
             >
-              <View style={[styles.fileCard, {
-                backgroundColor: isMe
-                  ? 'rgba(255,255,255,0.10)'
-                  : isDark ? theme.colors.card : '#F5F6F8',
-                borderColor: isMe ? 'rgba(255,255,255,0.18)' : theirBubbleBorder,
-              }]}>
-                {/* Left: icon */}
-                <View style={[
-                  styles.fileCardIconBox,
-                  { backgroundColor: getFileIconBg(item.fileInfo?.name, isMe, theme.colors.primary, isDark) },
-                ]}>
-                  {getFileIcon(item.fileInfo?.name, isMe ? '#FFFFFF' : theme.colors.primary)}
-                </View>
-
-                {/* Center: name + size + type badge */}
-                <View style={styles.fileCardBody}>
-                  <Text
-                    style={[styles.fileCardName, { color: isMe ? myTextColor : theirTextColor }]}
-                    numberOfLines={2}
+              <View style={[styles.imageWithForwardContainer, !isMe && styles.imageWithForwardContainerReverse]}>
+                {onForwardPress && (
+                  <TouchableOpacity
+                    style={[
+                      styles.forwardButton,
+                      { backgroundColor: isDark ? '#2C2C2E' : '#FFFFFF' },
+                      isMe ? styles.forwardButtonMarginLeft : styles.forwardButtonMarginRight,
+                    ]}
+                    onPress={() => onForwardPress(item)}
+                    activeOpacity={0.7}
                   >
-                    {item.fileInfo?.name || 'Tài liệu'}
-                  </Text>
-                  <View style={styles.fileCardMeta}>
-                    <Text style={[styles.fileCardSize, { color: isMe ? myFileSizeColor : theirFileSizeColor }]}>
-                      {item.fileInfo?.size || ''}
-                    </Text>
-                    {item.fileInfo?.size && <Text style={[styles.fileCardDot, { color: isMe ? myFileSizeColor : theirFileSizeColor }]}>·</Text>}
-                    <Text style={[styles.fileCardExt, { color: isMe ? myFileSizeColor : theirFileSizeColor }]}>
-                      {getFileExt(item.fileInfo?.name)}
-                    </Text>
+                    <Forward size={18} color={theme.colors.icon} />
+                  </TouchableOpacity>
+                )}
+                {/* File card matching video card style */}
+                <View style={styles.videoCard}>
+                  {/* File icon background area (like video thumbnail) */}
+                  <View style={[styles.videoCardThumb, { backgroundColor: isDark ? '#2C2C2E' : '#E8E8ED', justifyContent: 'center', alignItems: 'center' }]}>
+                    <View style={styles.fileIconLarge}>
+                      {getFileIcon(item.fileInfo?.name, isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.4)')}
+                    </View>
+                  </View>
+
+                  {/* Dark gradient overlay at bottom */}
+                  <View style={styles.videoCardOverlay} />
+
+                  {/* Bottom bar with file type badge */}
+                  <View style={styles.videoCardBottomBar}>
+                    <View style={styles.videoDurationBadge}>
+                      <FileText size={9} color="#FFFFFF" />
+                      <Text style={styles.videoDurationText}>{getFileExt(item.fileInfo?.name) || 'FILE'}</Text>
+                    </View>
                   </View>
                 </View>
-
-                {/* Right: download icon */}
-                <View style={[styles.fileCardAction, { borderLeftColor: isMe ? 'rgba(255,255,255,0.15)' : (isDark ? theme.colors.border : '#E5E5EA') }]}>
-                  <Download size={18} color={isMe ? 'rgba(255,255,255,0.8)' : theme.colors.primary} />
-                </View>
               </View>
-
-              {/* Forward button below card */}
-              {onForwardPress && (
-                <TouchableOpacity
-                  style={[styles.fileForwardBtn, {
-                    backgroundColor: isMe ? 'rgba(255,255,255,0.13)' : (isDark ? '#2C2C2E' : '#EFEFEF'),
-                  }]}
-                  onPress={() => onForwardPress(item)}
-                  activeOpacity={0.7}
-                >
-                  <Forward size={13} color={isMe ? 'rgba(255,255,255,0.75)' : theme.colors.text} />
-                  <Text style={[styles.fileForwardLabel, { color: isMe ? 'rgba(255,255,255,0.7)' : theirMetaColor }]}>
-                    Chuyển tiếp
-                  </Text>
-                </TouchableOpacity>
-              )}
 
               {item.caption && (
                 <Text style={[styles.caption, { color: isMe ? myTextColor : theirTextColor }]}>
                   {item.caption}
                 </Text>
               )}
-            </Pressable>
+            </TouchableOpacity>
           ) : (
-            // ── Plain text ────────────────────────────────────────────────────
-            <Text
-              style={[
-                styles.text,
-                { color: isMe ? myTextColor : theirTextColor },
-              ]}
-            >
-              {messageText}
-            </Text>
+            // ── Plain text with optional highlight ────────────────────────────────────
+            <HighlightText
+              text={messageText}
+              highlight={highlightText}
+              textColor={isMe ? myTextColor : theirTextColor}
+              highlightColor={isMe ? 'rgba(255,255,255,0.4)' : 'rgba(255,193,7,0.8)'}
+            />
           )}
         </TouchableOpacity>
 
@@ -973,6 +1042,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  // File card (reuses video card structure)
+  fileIconLarge: {
+    transform: [{ scale: 1.8 }],
+  },
   videoForwardBtnInCard: {
     width: 28,
     height: 28,
@@ -1137,15 +1210,15 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
 
-  // Forwarded header
+  // Forwarded header - Made more prominent
   forwardedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    marginBottom: 6,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
+    borderRadius: 10,
+    alignSelf: 'stretch', // Take full width of bubble
+    marginHorizontal: 4,
+    marginTop: 4,
+    marginBottom: 8,
   },
   forwardedAvatarContainer: {
     width: 22,
@@ -1157,6 +1230,22 @@ const styles = StyleSheet.create({
   },
   forwardedAvatarText: { fontSize: 11, fontWeight: '600' },
   forwardedHeaderText: { fontSize: 12, fontWeight: '400' },
+  forwardedContent: {
+    flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
+  forwardedSubText: {
+    fontSize: 10,
+    marginTop: 2,
+    opacity: 0.8,
+  },
+  forwardedArrow: {
+    fontSize: 20,
+    fontWeight: '400',
+    marginLeft: 4,
+  },
 
   // Link preview card
   linkPreviewCard: {
