@@ -35,8 +35,22 @@ const request = async (
   }
 
   if (!response.ok) {
-    const errorMessage =
-      data?.message || data?.error || `Request failed (${response.status})`;
+    // Handle error message - could be string or object
+    let errorMessage = data?.message || data?.error || `Request failed (${response.status})`;
+
+    // If message is an object, stringify it
+    if (typeof errorMessage === 'object') {
+      errorMessage = JSON.stringify(errorMessage);
+    }
+
+    // Log error details for debugging
+    console.error('[conversationsApi] Request failed:', {
+      status: response.status,
+      statusText: response.statusText,
+      data: data,
+      path: path,
+    });
+
     throw new Error(errorMessage);
   }
 
@@ -57,7 +71,16 @@ export const getConversationDetail = async (conversationId: string) =>
 
 // Create new group conversation
 export const createGroup = async (payload: any) => {
-  return request('POST', '/conversations/group', payload);
+  console.log('[conversationsApi] Creating group with payload:', JSON.stringify(payload, null, 2));
+  try {
+    const result = await request('POST', '/conversations/group', payload);
+    console.log('[conversationsApi] Create group success:', JSON.stringify(result, null, 2));
+    return result;
+  } catch (error: any) {
+    console.error('[conversationsApi] Create group error:', error);
+    // Re-throw with better error info
+    throw error;
+  }
 };
 
 // Create direct conversation with user
@@ -77,11 +100,11 @@ export const addMember = (conversationId: string, payload: any) =>
 export const updateMember = (
   conversationId: string,
   memberId: string,
-  payload: any,
+  payload: { role: 'owner' | 'admin' | 'member' },
 ) =>
   request(
     'PATCH',
-    `/conversations/${encodeURIComponent(conversationId)}/members/${encodeURIComponent(memberId)}`,
+    `/conversations/${encodeURIComponent(conversationId)}/members/${encodeURIComponent(memberId)}/role`,
     payload,
   );
 
@@ -100,6 +123,17 @@ export const leaveConversation = (conversationId: string) =>
 export const markAsRead = (conversationId: string, payload?: any) =>
   request('POST', `/conversations/${encodeURIComponent(conversationId)}/read`, payload || {});
 
+// Update conversation (group name, avatar)
+export const updateConversation = (
+  conversationId: string,
+  payload: { name?: string; avatarUrl?: string },
+) =>
+  request(
+    'PATCH',
+    `/conversations/${encodeURIComponent(conversationId)}`,
+    payload,
+  );
+
 export default {
   getConversations,
   getConversationMembers,
@@ -110,4 +144,5 @@ export default {
   removeMember,
   leaveConversation,
   markAsRead,
+  updateConversation,
 };

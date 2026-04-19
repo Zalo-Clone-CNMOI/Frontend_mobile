@@ -118,6 +118,42 @@
     "delete_history": "Delete Chat History"
   },
 
+  "chat_options": {
+    "title": "Chat Options",
+    "search_messages": "Search Messages",
+    "profile": "Profile",
+    "change_wallpaper": "Change Wallpaper",
+    "disable_notifications": "Notifications",
+    "media_files_links": "Media, Files & Links",
+    "no_media": "No media yet",
+    "edit_group_info": "Edit Group Info",
+    "group_members": "Group Members",
+    "members": "members",
+    "add_member": "Add Member",
+    "group_notifications": "Group Notifications",
+    "leave_group": "Leave Group",
+    "delete_group": "Delete Group",
+    "change_nickname": "Change Nickname",
+    "mark_best_friend": "Mark as Best Friend",
+    "shared_timeline": "Shared Timeline",
+    "language": "Language",
+    "view_all": "View All",
+    "media_error": "Failed to load media",
+    "create_group_with": "Create group with {{name}}",
+    "add_to_group": "Add {{name}} to group",
+    "view_shared_groups": "{{count}} shared groups",
+    "pin_conversation": "Pin Conversation",
+    "hide_conversation": "Hide Conversation",
+    "report_calls": "Report Calls",
+    "personal_settings": "Personal Settings",
+    "auto_delete_messages": "Auto-delete Messages",
+    "no_auto_delete": "Off",
+    "report": "Report",
+    "manage_block": "Manage Block",
+    "conversation_storage": "Storage Usage",
+    "delete_history": "Delete Chat History"
+  },
+
   "contacts": {
     "search_placeholder": "Search",
     "add_friend": "Add Friend",
@@ -194,6 +230,34 @@
     "title": "Create Group",
     "selected_count": "Selected: {{count}}",
     "name_placeholder": "Enter group name"
+  },
+
+  "media_gallery": {
+    "title": "Gallery",
+    "all": "All",
+    "images": "Images",
+    "videos": "Videos",
+    "files": "Files",
+    "links": "Links",
+    "search_placeholder": "Search...",
+    "fetch_error": "Failed to load content",
+    "no_media": "No media yet",
+    "no_links": "No links yet"
+  },
+
+  "media_viewer": {
+    "downloaded": "Downloaded",
+    "download_failed": "Download failed",
+    "download_title": "Download",
+    "download_not_implemented": "Feature coming soon",
+    "share_title": "Share",
+    "share_message": "Copy link to share",
+    "link_copied": "Link copied",
+    "delete_title": "Delete Media",
+    "delete_confirm": "Are you sure you want to delete?",
+    "load_error": "Failed to load media",
+    "tap_to_play": "Tap to play video",
+    "cannot_open_video": "Cannot open video"
   },
 
   "scanner": {

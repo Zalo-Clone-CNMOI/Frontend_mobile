@@ -404,8 +404,10 @@ export const MessageBubble = React.memo(
             </Pressable>
           )}
 
+          
+          
           {/* ── Forwarded header ───────────────────────────────────────────── */}
-          {item.forwardedFrom && (
+          {item.forwardedFrom && (                              
             <TouchableOpacity
               style={[
                 styles.forwardedHeader,

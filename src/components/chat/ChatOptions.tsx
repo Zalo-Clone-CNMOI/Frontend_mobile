@@ -1,10 +1,12 @@
 import { changeLanguage, getCurrentLanguage } from '@/src/i18n';
 import { useTheme } from '@/src/theme/themeContext';
 import { StatusBar } from 'expo-status-bar';
-import { AlertTriangle, Bell, BellOff, Check, ChevronLeft, ChevronRight, Clock, EyeOff, Languages, PaintRoller, Phone, PieChart, Pin, Search, Settings, Trash2, User, UserPlus, Users, UserX } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import { AlertTriangle, Bell, BellOff, Check, ChevronLeft, ChevronRight, Clock, EyeOff, FileText, Image as ImageIcon, Languages, PaintRoller, Phone, PieChart, Pin, Play, Search, Settings, Trash2, User, UserPlus, Users, UserX } from 'lucide-react-native';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   Modal,
@@ -17,6 +19,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getMessages } from '@/src/services/messagesApi';
+import { getAttachmentUrl } from '@/src/services/mediaService';
+import { MediaViewerModal } from './MediaViewerModal';
+import { useRouter } from 'expo-router';
 
 interface ChatOptionsProps {
   visible: boolean;
@@ -26,37 +32,56 @@ interface ChatOptionsProps {
   chatAvatar?: string;
   currentUserId?: string;
   otherUserId?: string;
+  isGroup?: boolean;
+  isOwner?: boolean;
+  memberCount?: number;
   onSearchMessages?: () => void;
   onViewProfile?: () => void;
   onChangeWallpaper?: () => void;
   onToggleNotifications?: (enabled: boolean) => void;
   onDeleteHistory?: () => void;
+  onEditGroupInfo?: () => void;
+  onAddMember?: () => void;
+  onLeaveGroup?: () => void;
+  onViewMembers?: () => void;
 }
 
-const MOCK_MEDIA = [
-  { id: '1', type: 'image', uri: 'https://i.pravatar.cc/200?u=chat1', thumbnail: 'https://i.pravatar.cc/200?u=chat1' },
-  { id: '2', type: 'image', uri: 'https://i.pravatar.cc/200?u=chat2', thumbnail: 'https://i.pravatar.cc/200?u=chat2' },
-  { id: '3', type: 'video', uri: 'https://i.pravatar.cc/200?u=video1', thumbnail: 'https://i.pravatar.cc/200?u=video1' },
-  { id: '4', type: 'video', uri: 'https://i.pravatar.cc/200?u=video2', thumbnail: 'https://i.pravatar.cc/200?u=video2' },
-];
+interface MediaItem {
+  id: string;
+  type: 'image' | 'video' | 'audio' | 'document';
+  uri: string;
+  thumbnail?: string;
+  name: string;
+  size: number;
+  createdAt: string;
+}
 
-export function ChatOptions({ 
-  visible, 
-  onClose, 
-  chatId, 
-  chatName, 
+const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com';
+
+export function ChatOptions({
+  visible,
+  onClose,
+  chatId,
+  chatName,
   chatAvatar,
   currentUserId,
   otherUserId,
+  isGroup,
+  isOwner,
+  memberCount: memberCountProp = 0,
   onSearchMessages,
   onViewProfile,
   onChangeWallpaper,
   onToggleNotifications,
   onDeleteHistory,
+  onEditGroupInfo,
+  onAddMember,
+  onLeaveGroup,
+  onViewMembers,
 }: ChatOptionsProps) {
   const theme = useTheme();
   const { t } = useTranslation();
-  
+
   const [pinned, setPinned] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [reportCalls, setReportCalls] = useState(true);
@@ -64,13 +89,27 @@ export function ChatOptions({
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('vi');
+  const memberCount = memberCountProp;
+  
+  // Media states
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+
+  // Media viewer state
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  
+  const router = useRouter();
 
   useEffect(() => {
     if (visible) {
       const lang = getCurrentLanguage();
       setCurrentLanguage(lang);
+      // Fetch media when modal opens
+      fetchConversationMedia();
     }
-  }, [visible]);
+  }, [visible, chatId]);
 
   const handleLanguageChange = async (language: string) => {
     try {
@@ -81,15 +120,105 @@ export function ChatOptions({
     }
   };
 
-  const renderMediaItem = ({ item }: any) => (
-    <View style={styles.mediaItem}>
+  // Fetch media from conversation messages
+  const fetchConversationMedia = useCallback(async () => {
+    if (!chatId || !currentUserId) return;
+    
+    setMediaLoading(true);
+    setMediaError(null);
+    
+    try {
+      // Fetch recent messages (limit 100 to find media)
+      const response = await getMessages(chatId, 100);
+      const messages = response.data?.items || [];
+      
+      // Extract attachments from messages
+      const attachments: MediaItem[] = [];
+      
+      messages.forEach((msg: any) => {
+        const msgAttachments = msg.attachments || msg.metadata?.attachments || [];
+        
+        msgAttachments.forEach((att: any, index: number) => {
+          // Only include images and videos for the preview
+          const type = att.type || getMediaTypeFromMime(att.content_type || att.mimeType);
+          if (type === 'image' || type === 'video' || type === 'document') {
+            attachments.push({
+              id: `${msg.id || msg.messageId}-${index}`,
+              type,
+              uri: att.url || `${S3_BASE_URL}/${att.key}`,
+              thumbnail: att.thumbnail_url || att.thumbnailUrl || att.url || `${S3_BASE_URL}/${att.key}`,
+              name: att.name || 'file',
+              size: att.size || 0,
+              createdAt: msg.createdAt || msg.timestamp,
+            });
+          }
+        });
+      });
+      
+      // Sort by newest first
+      attachments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      // Limit to first 20 for preview
+      setMediaItems(attachments.slice(0, 20));
+    } catch (error: any) {
+      console.error('[ChatOptions] Failed to fetch media:', error);
+      setMediaError(t('chat_options.media_error'));
+    } finally {
+      setMediaLoading(false);
+    }
+  }, [chatId, currentUserId, t]);
+  
+  // Helper to determine media type from MIME type
+  const getMediaTypeFromMime = (mimeType?: string): MediaItem['type'] => {
+    if (!mimeType) return 'document';
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.startsWith('audio/')) return 'audio';
+    return 'document';
+  };
+  
+  // Handle media item press
+  const handleMediaPress = (item: MediaItem) => {
+    const index = mediaItems.findIndex(m => m.id === item.id);
+    setViewerInitialIndex(index >= 0 ? index : 0);
+    setViewerVisible(true);
+  };
+  
+  // Handle view all media
+  const handleViewAllMedia = () => {
+    router.push({
+      pathname: '/media-gallery',
+      params: {
+        conversationId: chatId,
+        chatName: chatName,
+      },
+    });
+  };
+
+  const renderMediaItem = ({ item }: { item: MediaItem }) => (
+    <TouchableOpacity 
+      style={styles.mediaItem}
+      onPress={() => handleMediaPress(item)}
+      activeOpacity={0.8}
+    >
       {item.type === 'video' && (
         <View style={styles.playIconContainer}>
-          <View style={styles.playIcon} />
+          <Play size={24} color="#fff" fill="#fff" />
         </View>
       )}
-      <Image source={{ uri: item.thumbnail }} style={styles.mediaThumbnail} />
-    </View>
+      {item.type === 'document' && (
+        <View style={[styles.documentIconContainer, { backgroundColor: theme.colors.primary + '20' }]}>
+          <FileText size={32} color={theme.colors.primary} />
+        </View>
+      )}
+      {item.type !== 'document' && (
+        <Image 
+          source={{ uri: item.thumbnail || item.uri }} 
+          style={styles.mediaThumbnail}
+          resizeMode="cover"
+        />
+      )}
+    </TouchableOpacity>
   );
 
   const OptionItem = ({ 
@@ -209,46 +338,115 @@ export function ChatOptions({
             </View>
 
             
-            <View style={[styles.additionalOptions, { backgroundColor: theme.colors.background }]}>
-              <OptionItem
-                icon={Settings}
-                title={t('chat_options.change_nickname')}
-                onPress={() => {}}
-              />
-              <OptionItem
-                icon={Pin}
-                title={t('chat_options.mark_best_friend')}
-                showToggle
-                toggleValue={bestFriend}
-                onToggleChange={setBestFriend}
-              />
-              <OptionItem
-                icon={Clock}
-                title={t('chat_options.shared_timeline')}
-                onPress={() => {}}
-              />
-              <OptionItem
-                icon={Languages}
-                title={t('chat_options.language')}
-                subtitle={currentLanguage === 'vi' ? t('appearance.vietnamese') : t('appearance.english')}
-                onPress={() => setShowLanguageModal(true)}
-              />
-            </View>
-
-            
+            {/* Group Options - Only show for group conversations */}
+            {isGroup ? (
+              <View style={[styles.additionalOptions, { backgroundColor: theme.colors.background }]}>
+                {/* Group Info - Owner only */}
+                {isOwner && (
+                  <OptionItem
+                    icon={Settings}
+                    title={t('chat_options.edit_group_info')}
+                    onPress={onEditGroupInfo}
+                  />
+                )}
+                
+                {/* Group Members */}
+                <OptionItem
+                  icon={Users}
+                  title={t('chat_options.group_members')}
+                  subtitle={`${memberCount} ${t('chat_options.members')}`}
+                  onPress={onViewMembers}
+                />
+                
+                {/* Add Member - Owner only */}
+                {isOwner && (
+                  <OptionItem
+                    icon={UserPlus}
+                    title={t('chat_options.add_member')}
+                    onPress={onAddMember}
+                  />
+                )}
+                
+                {/* Group Notifications */}
+                <OptionItem
+                  icon={notificationsEnabled ? Bell : BellOff}
+                  title={t('chat_options.group_notifications')}
+                  showToggle
+                  toggleValue={notificationsEnabled}
+                  onToggleChange={(value) => {
+                    setNotificationsEnabled(value);
+                    onToggleNotifications?.(value);
+                  }}
+                />
+                
+                {/* Leave Group */}
+                <OptionItem
+                  icon={UserX}
+                  title={isOwner ? t('chat_options.delete_group') : t('chat_options.leave_group')}
+                  onPress={onLeaveGroup}
+                />
+              </View>
+            ) : (
+              /* Individual Chat Options */
+              <View style={[styles.additionalOptions, { backgroundColor: theme.colors.background }]}>
+                <OptionItem
+                  icon={Settings}
+                  title={t('chat_options.change_nickname')}
+                  onPress={() => {}}
+                />
+                <OptionItem
+                  icon={Pin}
+                  title={t('chat_options.mark_best_friend')}
+                  showToggle
+                  toggleValue={bestFriend}
+                  onToggleChange={setBestFriend}
+                />
+                <OptionItem
+                  icon={Clock}
+                  title={t('chat_options.shared_timeline')}
+                  onPress={() => {}}
+                />
+                <OptionItem
+                  icon={Languages}
+                  title={t('chat_options.language')}
+                  subtitle={currentLanguage === 'vi' ? t('appearance.vietnamese') : t('appearance.english')}
+                  onPress={() => setShowLanguageModal(true)}
+                />
+              </View>
+            )}
             <View style={[styles.mediaSectionHeader, { borderTopColor: theme.colors.border }]}>
-              <Text style={[styles.mediaSectionTitle, { color: theme.colors.text }]}>{t('chat_options.media_files_links')}</Text>
-              <ChevronRight size={18} color="#8e8e93" />
+              <Text style={[styles.mediaSectionTitle, { color: theme.colors.text }]}>
+                {t('chat_options.media_files_links')}
+              </Text>
+              {mediaItems.length > 0 && (
+                <TouchableOpacity onPress={handleViewAllMedia}>
+                  <Text style={[styles.viewAllText, { color: theme.colors.primary }]}>
+                    {t('common.view_all')}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
             <View style={styles.mediaSection}>
-              <FlatList
-                data={MOCK_MEDIA}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(item) => item.id}
-                renderItem={renderMediaItem}
-                contentContainerStyle={styles.mediaList}
-              />
+              {mediaLoading ? (
+                <ActivityIndicator size="small" color={theme.colors.primary} style={styles.mediaLoader} />
+              ) : mediaError ? (
+                <Text style={[styles.mediaErrorText, { color: theme.colors.icon }]}>
+                  {mediaError}
+                </Text>
+              ) : mediaItems.length === 0 ? (
+                <Text style={[styles.noMediaText, { color: theme.colors.icon }]}>
+                  {t('chat_options.no_media')}
+                </Text>
+              ) : (
+                <FlatList
+                  data={mediaItems}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderMediaItem}
+                  contentContainerStyle={styles.mediaList}
+                />
+              )}
             </View>
 
             
@@ -322,6 +520,15 @@ export function ChatOptions({
               />
             </View>
           </ScrollView>
+
+          {/* Media Viewer Modal */}
+          <MediaViewerModal
+            visible={viewerVisible}
+            onClose={() => setViewerVisible(false)}
+            items={mediaItems}
+            initialIndex={viewerInitialIndex}
+            conversationId={chatId}
+          />
 
           
           <Modal
@@ -512,6 +719,30 @@ const styles = StyleSheet.create({
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',
     marginLeft: 4,
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  mediaLoader: {
+    paddingVertical: 20,
+  },
+  mediaErrorText: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  noMediaText: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  documentIconContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
   },
   optionsSection: {
     marginTop: 8,

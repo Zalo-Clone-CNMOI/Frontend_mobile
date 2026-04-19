@@ -557,6 +557,9 @@ export default function ChatDetailScreen() {
           chatAvatar={currentChat?.avatar || undefined}
           currentUserId={authUser?.id}
           otherUserId={(currentChat as any)?.otherUserId || (currentChat as any)?.userId}
+          isGroup={currentChat?.isGroup ?? false}
+          isOwner={(currentChat as any)?.isOwner ?? false}
+          memberCount={currentChat?.memberCount ?? 0}
           onSearchMessages={handleOpenSearch}
           onViewProfile={handleViewProfile}
           onChangeWallpaper={handleChangeWallpaper}

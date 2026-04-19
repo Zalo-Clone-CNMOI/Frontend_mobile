@@ -49,7 +49,25 @@
     "vietnamese": "Tiếng Việt",
     "english": "Tiếng Anh"
   },
-
+  "create_group": {
+    "title": "Tạo nhóm",
+    "set_info": "Thông tin nhóm",
+    "search_friends": "Tìm kiếm bạn bè",
+    "selected_count": "Đã chọn {{count}}",
+    "add_avatar": "Thêm ảnh đại diện",
+    "group_name": "Tên nhóm",
+    "name_placeholder": "Nhập tên nhóm",
+    "members": "Thành viên ({{count}})",
+    "you": "Bạn",
+    "create": "Tạo nhóm",
+    "success": "Tạo nhóm thành công",
+    "error": "Không thể tạo nhóm",
+    "min_members_error": "Vui lòng chọn ít nhất 1 thành viên",
+    "name_required": "Vui lòng nhập tên nhóm",
+    "avatar_error": "Không thể chọn ảnh",
+    "no_results": "Không tìm thấy",
+    "no_friends": "Không có bạn bè"
+  },
   "auth": {
     "login": "Đăng nhập",
     "register": "Đăng ký",
@@ -61,7 +79,32 @@
     "login_error": "Đăng nhập thất bại",
     "register_error": "Đăng ký thất bại"
   },
-
+  "media_gallery": {
+    "title": "Thư viện",
+    "all": "Tất cả",
+    "images": "Ảnh",
+    "videos": "Video",
+    "files": "File",
+    "links": "Link",
+    "search_placeholder": "Tìm kiếm...",
+    "fetch_error": "Không thể tải nội dung",
+    "no_media": "Chưa có media",
+    "no_links": "Chưa có link"
+  },
+  "media_viewer": {
+    "downloaded": "Đã tải xuống",
+    "download_failed": "Tải xuống thất bại",
+    "download_title": "Tải xuống",
+    "download_not_implemented": "Tính năng đang phát triển",
+    "share_title": "Chia sẻ",
+    "share_message": "Copy link để chia sẻ",
+    "link_copied": "Đã copy link",
+    "delete_title": "Xóa media",
+    "delete_confirm": "Bạn có chắc muốn xóa?",
+    "load_error": "Không thể tải media",
+    "tap_to_play": "Nhấn để phát video",
+    "cannot_open_video": "Không thể mở video"
+  },
   "welcome": {
     "select_language": "Chọn ngôn ngữ",
     "slide1_title": "Gọi video ổn định",
@@ -70,6 +113,42 @@
     "slide2_subtitle": "Gửi tin nhắn tức thì, hỗ trợ tệp dung lượng lớn",
     "slide3_title": "Dòng thời gian bạn bè",
     "slide3_subtitle": "Lưu giữ khoảnh khắc đẹp cùng gia đình và bạn bè"
+  },
+
+  "chat_options": {
+    "title": "Tùy chọn chat",
+    "search_messages": "Tìm kiếm tin nhắn",
+    "profile": "Trang cá nhân",
+    "change_wallpaper": "Đổi hình nền",
+    "disable_notifications": "Thông báo",
+    "media_files_links": "Ảnh, file & link",
+    "no_media": "Chưa có media",
+    "edit_group_info": "Chỉnh sửa thông tin nhóm",
+    "group_members": "Thành viên nhóm",
+    "members": "thành viên",
+    "add_member": "Thêm thành viên",
+    "group_notifications": "Thông báo nhóm",
+    "leave_group": "Rời nhóm",
+    "delete_group": "Xóa nhóm",
+    "change_nickname": "Đổi biệt danh",
+    "mark_best_friend": "Đánh dấu bạn thân",
+    "shared_timeline": "Nhật ký chung",
+    "language": "Ngôn ngữ",
+    "view_all": "Xem tất cả",
+    "media_error": "Không thể tải media",
+    "create_group_with": "Tạo nhóm với {{name}}",
+    "add_to_group": "Thêm {{name}} vào nhóm",
+    "view_shared_groups": "{{count}} nhóm chung",
+    "pin_conversation": "Ghim trò chuyện",
+    "hide_conversation": "Ẩn trò chuyện",
+    "report_calls": "Báo cáo cuộc gọi",
+    "personal_settings": "Cài đặt cá nhân",
+    "auto_delete_messages": "Tự động xóa tin nhắn",
+    "no_auto_delete": "Tắt",
+    "report": "Báo cáo",
+    "manage_block": "Quản lý chặn",
+    "conversation_storage": "Dung lượng trò chuyện",
+    "delete_history": "Xóa lịch sử chat"
   },
 
   "chat": {
