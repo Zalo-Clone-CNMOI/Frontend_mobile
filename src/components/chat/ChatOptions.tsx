@@ -1,7 +1,6 @@
-import { changeLanguage, getCurrentLanguage } from '@/src/i18n';
 import { useTheme } from '@/src/theme/themeContext';
 import { StatusBar } from 'expo-status-bar';
-import { AlertTriangle, Bell, BellOff, Check, ChevronLeft, ChevronRight, Clock, EyeOff, FileText, Image as ImageIcon, Languages, PaintRoller, Phone, PieChart, Pin, Play, Search, Settings, Trash2, User, UserPlus, Users, UserX } from 'lucide-react-native';
+import { Bell, BellOff, ChevronLeft, ChevronRight, Crown, FileText, Play, Search, Settings, Trash2, User, UserPlus, Users, UserX } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -15,13 +14,13 @@ import {
   Switch,
   Text,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getMessages } from '@/src/services/messagesApi';
-import { getAttachmentUrl } from '@/src/services/mediaService';
+import { getConversationDetail, leaveConversation, updateMember } from '@/src/services/conversationsApi';
 import { MediaViewerModal } from './MediaViewerModal';
+import { MemberRoleModal } from './MemberRoleModal';
 import { useRouter } from 'expo-router';
 
 interface ChatOptionsProps {
@@ -43,6 +42,7 @@ interface ChatOptionsProps {
   onEditGroupInfo?: () => void;
   onAddMember?: () => void;
   onLeaveGroup?: () => void;
+  onLeaveSuccess?: () => void;
   onViewMembers?: () => void;
 }
 
@@ -77,18 +77,13 @@ export function ChatOptions({
   onEditGroupInfo,
   onAddMember,
   onLeaveGroup,
+  onLeaveSuccess,
   onViewMembers,
 }: ChatOptionsProps) {
   const theme = useTheme();
   const { t } = useTranslation();
 
-  const [pinned, setPinned] = useState(false);
-  const [hidden, setHidden] = useState(false);
-  const [reportCalls, setReportCalls] = useState(true);
-  const [bestFriend, setBestFriend] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [showLanguageModal, setShowLanguageModal] = useState(false);
-  const [currentLanguage, setCurrentLanguage] = useState('vi');
   const memberCount = memberCountProp;
   
   // Media states
@@ -99,26 +94,26 @@ export function ChatOptions({
   // Media viewer state
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
-  
+
+  // Members modal state
+  const [membersModalVisible, setMembersModalVisible] = useState(false);
+  const [members, setMembers] = useState<any[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [myRole, setMyRole] = useState<string>('member');
+  const [roleModalVisible, setRoleModalVisible] = useState(false);
+
   const router = useRouter();
 
   useEffect(() => {
     if (visible) {
-      const lang = getCurrentLanguage();
-      setCurrentLanguage(lang);
       // Fetch media when modal opens
       fetchConversationMedia();
+      // Fetch conversation details to get my role
+      if (isGroup) {
+        fetchConversationDetails();
+      }
     }
-  }, [visible, chatId]);
-
-  const handleLanguageChange = async (language: string) => {
-    try {
-      await changeLanguage(language);
-      setCurrentLanguage(language);
-      setShowLanguageModal(false);
-    } catch (error) {
-    }
-  };
+  }, [visible, chatId, isGroup]);
 
   // Fetch media from conversation messages
   const fetchConversationMedia = useCallback(async () => {
@@ -193,6 +188,141 @@ export function ChatOptions({
         chatName: chatName,
       },
     });
+  };
+
+  // Fetch conversation details (members)
+  const fetchConversationDetails = useCallback(async () => {
+    if (!chatId) return;
+
+    setMembersLoading(true);
+    try {
+      console.log('[ChatOptions] Fetching conversation details for chatId:', chatId);
+      const response = await getConversationDetail(chatId);
+      console.log('[ChatOptions] API response:', response);
+      const data = response.data?.data;
+      if (data) {
+        console.log('[ChatOptions] Members data:', data.members);
+        console.log('[ChatOptions] mySettings:', data.mySettings);
+        console.log('[ChatOptions] mySettings.role:', data.mySettings?.role);
+        setMembers(data.members || []);
+        setMyRole(data.mySettings?.role || 'member');
+        console.log('[ChatOptions] Set myRole to:', data.mySettings?.role || 'member');
+      } else {
+        console.log('[ChatOptions] No data in response');
+      }
+    } catch (error: any) {
+      console.error('[ChatOptions] Failed to fetch conversation details:', error);
+    } finally {
+      setMembersLoading(false);
+    }
+  }, [chatId]);
+
+  // Handle view members - open modal and fetch data
+  const handleViewMembers = () => {
+    setMembersModalVisible(true);
+    fetchConversationDetails();
+  };
+
+  // Handle leave group with direct API call
+  const handleLeaveGroup = async () => {
+    Alert.alert(
+      isOwner ? t('chat_options.delete_group') : t('chat_options.leave_group'),
+      isOwner
+        ? t('chat_options.delete_group_confirm')
+        : t('chat_options.leave_group_confirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: isOwner ? t('chat_options.delete') : t('chat_options.leave'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await leaveConversation(chatId);
+              onClose();
+              onLeaveSuccess?.();
+              router.back();
+            } catch (error: any) {
+              Alert.alert(t('common.error'), error.message || t('chat_options.leave_group_failed'));
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Handle add member - navigate to createGroup screen with addMember mode
+  const handleAddMember = () => {
+    router.push({
+      pathname: '/createGroup',
+      params: {
+        conversationId: chatId,
+        mode: 'addMember',
+      }
+    } as any);
+  };
+
+  // Handle role modal close and refresh members
+  const handleRoleModalClose = () => {
+    setRoleModalVisible(false);
+    fetchConversationDetails();
+  };
+
+  // Helper to get full avatar URL
+  const getAvatarUrl = (avatarUrl: string | null) => {
+    if (!avatarUrl) return 'https://i.pravatar.cc/150?u=default';
+    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+      return avatarUrl;
+    }
+    return `${S3_BASE_URL}/${avatarUrl}`;
+  };
+
+  // Render member item
+  const renderMemberItem = ({ item }: { item: any }) => {
+    // Owner or admin can change roles (following Zalo logic)
+    const canChangeRole = (isOwner || myRole === 'admin') && 
+                          item.userId !== currentUserId && 
+                          item.role !== 'owner' &&
+                          (isOwner || item.role !== 'admin');
+    
+    return (
+      <TouchableOpacity
+        style={[styles.memberItem, { borderBottomColor: theme.colors.border }]}
+        onPress={() => canChangeRole && setRoleModalVisible(true)}
+        disabled={!canChangeRole}
+        activeOpacity={canChangeRole ? 0.7 : 1}
+      >
+        <Image
+          source={{ uri: getAvatarUrl(item.avatarUrl) }}
+          style={styles.memberAvatar}
+        />
+        <View style={styles.memberInfo}>
+          <Text style={[styles.memberName, { color: theme.colors.text }]}>
+            {item.fullName}
+          </Text>
+          <View style={styles.memberRoleContainer}>
+            {item.role === 'owner' && (
+              <View style={[styles.roleBadge, { backgroundColor: theme.colors.primary + '20' }]}>
+                <Crown size={12} color={theme.colors.primary} />
+                <Text style={[styles.roleText, { color: theme.colors.primary }]}>Owner</Text>
+              </View>
+            )}
+            {item.role === 'admin' && (
+              <Text style={[styles.adminText, { color: '#FF9500' }]}>Admin</Text>
+            )}
+            {item.nickname && (
+              <Text style={[styles.memberNickname, { color: '#8e8e93' }]}>
+                @{item.nickname}
+              </Text>
+            )}
+          </View>
+        </View>
+        {canChangeRole && (
+          <Text style={[styles.changeRoleText, { color: theme.colors.primary }]}>
+            Change
+          </Text>
+        )}
+      </TouchableOpacity>
+    );
   };
 
   const renderMediaItem = ({ item }: { item: MediaItem }) => (
@@ -304,27 +434,19 @@ export function ChatOptions({
                   <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.search_messages')}</Text>
                 </TouchableOpacity>
                 
-                <TouchableOpacity style={styles.quickActionItem} onPress={onViewProfile}>
-                  <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                    <User size={24} color={theme.colors.primary} />
-                  </View>
-                  <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.profile')}</Text>
-                </TouchableOpacity>
+                {!isGroup && (
+                  <TouchableOpacity style={styles.quickActionItem} onPress={onViewProfile}>
+                    <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                      <User size={24} color={theme.colors.primary} />
+                    </View>
+                    <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.profile')}</Text>
+                  </TouchableOpacity>
+                )}
                 
-                <TouchableOpacity style={styles.quickActionItem} onPress={onChangeWallpaper}>
-                  <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                    <PaintRoller size={24} color={theme.colors.primary} />
-                  </View>
-                  <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.change_wallpaper')}</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.quickActionItem} 
-                  onPress={() => {
-                    setNotificationsEnabled(!notificationsEnabled);
-                    onToggleNotifications?.(!notificationsEnabled);
-                  }}
-                >
+                <TouchableOpacity style={styles.quickActionItem} onPress={() => {
+                  setNotificationsEnabled(!notificationsEnabled);
+                  onToggleNotifications?.(!notificationsEnabled);
+                }}>
                   <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
                     {notificationsEnabled ? (
                       <Bell size={24} color={theme.colors.primary} />
@@ -355,15 +477,15 @@ export function ChatOptions({
                   icon={Users}
                   title={t('chat_options.group_members')}
                   subtitle={`${memberCount} ${t('chat_options.members')}`}
-                  onPress={onViewMembers}
+                  onPress={handleViewMembers}
                 />
                 
-                {/* Add Member - Owner only */}
-                {isOwner && (
+                {/* Add Member - Owner and Admin only */}
+                {(isOwner || myRole === 'admin') && (
                   <OptionItem
                     icon={UserPlus}
                     title={t('chat_options.add_member')}
-                    onPress={onAddMember}
+                    onPress={handleAddMember}
                   />
                 )}
                 
@@ -383,38 +505,12 @@ export function ChatOptions({
                 <OptionItem
                   icon={UserX}
                   title={isOwner ? t('chat_options.delete_group') : t('chat_options.leave_group')}
-                  onPress={onLeaveGroup}
+                  onPress={handleLeaveGroup}
                 />
               </View>
-            ) : (
-              /* Individual Chat Options */
-              <View style={[styles.additionalOptions, { backgroundColor: theme.colors.background }]}>
-                <OptionItem
-                  icon={Settings}
-                  title={t('chat_options.change_nickname')}
-                  onPress={() => {}}
-                />
-                <OptionItem
-                  icon={Pin}
-                  title={t('chat_options.mark_best_friend')}
-                  showToggle
-                  toggleValue={bestFriend}
-                  onToggleChange={setBestFriend}
-                />
-                <OptionItem
-                  icon={Clock}
-                  title={t('chat_options.shared_timeline')}
-                  onPress={() => {}}
-                />
-                <OptionItem
-                  icon={Languages}
-                  title={t('chat_options.language')}
-                  subtitle={currentLanguage === 'vi' ? t('appearance.vietnamese') : t('appearance.english')}
-                  onPress={() => setShowLanguageModal(true)}
-                />
-              </View>
-            )}
+            ) : null}
             <View style={[styles.mediaSectionHeader, { borderTopColor: theme.colors.border }]}>
+
               <Text style={[styles.mediaSectionTitle, { color: theme.colors.text }]}>
                 {t('chat_options.media_files_links')}
               </Text>
@@ -452,144 +548,73 @@ export function ChatOptions({
             
             <View style={[styles.optionsSection, { backgroundColor: theme.colors.background }]}>
               <OptionItem
-                icon={Users}
-                title={t('chat_options.create_group_with', { name: chatName })}
-                onPress={() => {}}
-              />
-              <OptionItem
-                icon={UserPlus}
-                title={t('chat_options.add_to_group', { name: chatName })}
-                onPress={() => {}}
-              />
-              <OptionItem
-                icon={Users}
-                title={t('chat_options.view_shared_groups', { count: 2 })}
-                onPress={() => {}}
-              />
-              <OptionItem
-                icon={Pin}
-                title={t('chat_options.pin_conversation')}
-                showToggle
-                toggleValue={pinned}
-                onToggleChange={setPinned}
-              />
-              <OptionItem
-                icon={EyeOff}
-                title={t('chat_options.hide_conversation')}
-                showToggle
-                toggleValue={hidden}
-                onToggleChange={setHidden}
-              />
-              <OptionItem
-                icon={Phone}
-                title={t('chat_options.report_calls')}
-                showToggle
-                toggleValue={reportCalls}
-                onToggleChange={setReportCalls}
-              />
-              <OptionItem
-                icon={Settings}
-                title={t('chat_options.personal_settings')}
-                onPress={() => {}}
-              />
-              <OptionItem
-                icon={Clock}
-                title={t('chat_options.auto_delete_messages')}
-                subtitle={t('chat_options.no_auto_delete')}
-                onPress={() => {}}
-              />
-              <OptionItem
-                icon={AlertTriangle}
-                title={t('chat_options.report')}
-                onPress={() => {}}
-              />
-              <OptionItem
-                icon={UserX}
-                title={t('chat_options.manage_block')}
-                onPress={() => {}}
-              />
-              <OptionItem
-                icon={PieChart}
-                title={t('chat_options.conversation_storage')}
-                onPress={() => {}}
-              />
-              <OptionItem
                 icon={Trash2}
                 title={t('chat_options.delete_history')}
                 onPress={onDeleteHistory}
               />
             </View>
           </ScrollView>
-
-          {/* Media Viewer Modal */}
-          <MediaViewerModal
-            visible={viewerVisible}
-            onClose={() => setViewerVisible(false)}
-            items={mediaItems}
-            initialIndex={viewerInitialIndex}
-            conversationId={chatId}
-          />
-
-          
-          <Modal
-            visible={showLanguageModal}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setShowLanguageModal(false)}
-          >
-            <TouchableWithoutFeedback onPress={() => setShowLanguageModal(false)}>
-              <View style={styles.modalOverlay}>
-                <TouchableWithoutFeedback onPress={() => {}}>
-                  <View style={[styles.modalContent, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                    <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                      {t('appearance.change_language')}
-                    </Text>
-                    
-                    <TouchableOpacity
-                      style={[
-                        styles.languageOption,
-                        currentLanguage === 'vi' && [styles.languageOptionActive, { backgroundColor: theme.colors.primary + '20', borderColor: theme.colors.primary }],
-                        { borderColor: theme.colors.border }
-                      ]}
-                      onPress={() => handleLanguageChange('vi')}
-                    >
-                      <Image
-                        source={{ uri: 'https://flagcdn.com/w80/vn.png' }}
-                        style={styles.flagImage}
-                      />
-                      <Text style={[styles.languageText, { color: theme.colors.text }]}>
-                        {t('appearance.vietnamese')}
-                      </Text>
-                      {currentLanguage === 'vi' && (
-                        <Check size={20} color={theme.colors.primary} />
-                      )}
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.languageOption,
-                        currentLanguage === 'en' && [styles.languageOptionActive, { backgroundColor: theme.colors.primary + '20', borderColor: theme.colors.primary }],
-                        { borderColor: theme.colors.border }
-                      ]}
-                      onPress={() => handleLanguageChange('en')}
-                    >
-                      <Image
-                        source={{ uri: 'https://flagcdn.com/w80/us.png' }}
-                        style={styles.flagImage}
-                      />
-                      <Text style={[styles.languageText, { color: theme.colors.text }]}>
-                        {t('appearance.english')}
-                      </Text>
-                      {currentLanguage === 'en' && (
-                        <Check size={20} color={theme.colors.primary} />
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                </TouchableWithoutFeedback>
-              </View>
-            </TouchableWithoutFeedback>
-          </Modal>
         </View>
+
+        {/* Media Viewer Modal */}
+        <MediaViewerModal
+          visible={viewerVisible}
+          onClose={() => setViewerVisible(false)}
+          items={mediaItems}
+          initialIndex={viewerInitialIndex}
+          conversationId={chatId}
+        />
+
+        {/* Members Modal */}
+        <Modal
+          visible={membersModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setMembersModalVisible(false)}
+        >
+          <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
+            <StatusBar style="light" />
+            <View style={[styles.header, { borderBottomColor: theme.colors.border, backgroundColor: theme.colors.statusBar }]}>
+              <View style={styles.headerLeft}>
+                <TouchableOpacity onPress={() => setMembersModalVisible(false)}>
+                  <ChevronLeft size={28} color={theme.colors.iconHeader} />
+                </TouchableOpacity>
+                <Text style={[styles.headerTitle, { color: theme.colors.iconHeader }]}>{t('chat_options.group_members')}</Text>
+              </View>
+            </View>
+            <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+              {membersLoading ? (
+                <View style={styles.membersLoadingContainer}>
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                </View>
+              ) : members.length === 0 ? (
+                <View style={styles.membersLoadingContainer}>
+                  <Text style={[styles.noMembersText, { color: theme.colors.icon }]}>
+                    {t('chat_options.no_members')}
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={members}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderMemberItem}
+                  contentContainerStyle={styles.membersList}
+                />
+              )}
+            </View>
+          </SafeAreaView>
+        </Modal>
+
+        {/* Member Role Modal */}
+        <MemberRoleModal
+          visible={roleModalVisible}
+          onClose={handleRoleModalClose}
+          conversationId={chatId}
+          members={members}
+          currentUserId={currentUserId || ''}
+          isOwner={isOwner || false}
+          myRole={myRole as 'owner' | 'admin' | 'member'}
+        />
       </SafeAreaView>
     </Modal>
   );
@@ -606,16 +631,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 15 },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  backIcon: {
-    fontSize: 28,
-    fontWeight: '400',
-  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
@@ -708,18 +723,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     zIndex: 1,
   },
-  playIcon: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 12,
-    borderRightWidth: 0,
-    borderTopWidth: 8,
-    borderBottomWidth: 8,
-    borderLeftColor: '#fff',
-    borderTopColor: 'transparent',
-    borderBottomColor: 'transparent',
-    marginLeft: 4,
-  },
   viewAllText: {
     fontSize: 14,
     fontWeight: '500',
@@ -772,44 +775,66 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-  modalOverlay: {
+  membersLoadingContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContent: {
-    width: '85%',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 20,
+  noMembersText: {
+    fontSize: 14,
     textAlign: 'center',
   },
-  languageOption: {
+  membersList: {
+    paddingVertical: 8,
+  },
+  memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
   },
-  languageOptionActive: {
-    borderWidth: 2,
-  },
-  flagImage: {
-    width: 32,
-    height: 24,
-    borderRadius: 4,
+  memberAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     marginRight: 12,
   },
-  languageText: {
+  memberInfo: {
     flex: 1,
+  },
+  memberName: {
     fontSize: 16,
+    fontWeight: '500',
+  },
+  memberRoleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  roleText: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  memberNickname: {
+    fontSize: 13,
+    color: '#8e8e93',
+  },
+  adminText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  changeRoleText: {
+    fontSize: 14,
     fontWeight: '500',
   },
 });

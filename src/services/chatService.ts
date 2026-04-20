@@ -909,14 +909,18 @@ export async function fetchConversations(): Promise<ConversationV2[]> {
     });
 
     const payload = resp?.data;
+    console.log('[fetchConversations] API response:', JSON.stringify(payload, null, 2)?.substring(0, 2000));
 
     if (!payload) return [];
 
     if (Array.isArray(payload.data) || Array.isArray(payload.conversations)) {
-      return mapConversationsListFromApi(payload);
+      const conversations = mapConversationsListFromApi(payload);
+      console.log('[fetchConversations] Mapped conversations with unreadCount:', conversations.map(c => ({ id: c.conversationId, name: c.name, unreadCount: c.unreadCount })));
+      return conversations;
     }
     return [];
   } catch (e) {
+    console.error('[fetchConversations] Error:', e);
     return [];
   }
 }

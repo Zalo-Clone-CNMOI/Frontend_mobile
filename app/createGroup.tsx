@@ -1,8 +1,8 @@
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useTheme } from '@/src/theme/themeContext';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Camera, Check, ChevronLeft, Search, X } from 'lucide-react-native';
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -19,7 +19,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { FlashList } from '@shopify/flash-list';
-import { createGroup } from '@/src/services/conversationsApi';
+import { createGroup, addMember, getConversationDetail } from '@/src/services/conversationsApi';
 import { uploadMedia } from '@/src/services/mediaService';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
@@ -41,6 +41,10 @@ export default function CreateGroupScreen() {
   const router = useRouter();
   const { user: authUser } = useAuth();
   const friends = useRealtimeStore((state) => state.friends);
+  const params = useLocalSearchParams<{ conversationId?: string; mode?: string }>();
+  
+  const mode = params.mode === 'addMember' ? 'addMember' : 'create';
+  const conversationId = params.conversationId;
 
   const [currentStep, setCurrentStep] = useState<Step>('select_friends');
   const [selectedFriends, setSelectedFriends] = useState<SelectedFriend[]>([]);
@@ -49,15 +53,48 @@ export default function CreateGroupScreen() {
   const [groupAvatar, setGroupAvatar] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<MediaFileInput | null>(null);
   const [loading, setLoading] = useState(false);
+  const [existingMembers, setExistingMembers] = useState<any[]>([]);
 
-  // Filter friends by search query
+  // Fetch existing group members when in addMember mode
+  useEffect(() => {
+    if (mode === 'addMember' && conversationId) {
+      fetchExistingMembers();
+    }
+  }, [mode, conversationId]);
+
+  const fetchExistingMembers = async () => {
+    if (!conversationId) return;
+    try {
+      const response = await getConversationDetail(conversationId);
+      const data = response.data?.data;
+      if (data && data.members) {
+        setExistingMembers(data.members);
+      }
+    } catch (error) {
+      console.error('[CreateGroup] Failed to fetch existing members:', error);
+    }
+  };
+
+  // Filter friends by search query and exclude existing members in addMember mode
   const filteredFriends = useMemo(() => {
-    if (!searchQuery.trim()) return friends;
-    return friends.filter((friend: FriendRecord) =>
-      (friend.fullName || '')?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      friend.phone?.includes(searchQuery)
-    );
-  }, [friends, searchQuery]);
+    let filtered = friends;
+    
+    // Filter out friends who are already in the group when in addMember mode
+    if (mode === 'addMember' && existingMembers.length > 0) {
+      const existingMemberIds = existingMembers.map((m: any) => m.userId);
+      filtered = filtered.filter((friend: FriendRecord) => !existingMemberIds.includes(friend.id));
+    }
+    
+    // Apply search query filter
+    if (searchQuery.trim()) {
+      filtered = filtered.filter((friend: FriendRecord) =>
+        (friend.fullName || '')?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        friend.phone?.includes(searchQuery)
+      );
+    }
+    
+    return filtered;
+  }, [friends, searchQuery, mode, existingMembers]);
 
   // Toggle friend selection
   const toggleFriendSelection = useCallback((friend: FriendRecord) => {
@@ -112,66 +149,80 @@ export default function CreateGroupScreen() {
     }
   };
 
-  // Create group
+  // Create group or add members to existing group
   const handleCreateGroup = async () => {
     if (selectedFriends.length < 1) {
       Alert.alert(t('common.error'), t('create_group.min_members_error'));
       return;
     }
 
-    if (!groupName.trim()) {
-      Alert.alert(t('common.error'), t('create_group.name_required'));
-      return;
-    }
-
     setLoading(true);
     try {
-      let avatarUrl: string | undefined;
-
-      // Upload avatar to S3 if selected
-      if (avatarFile && authUser?.id) {
-        console.log('Uploading avatar to S3...');
-        const uploadResult = await uploadMedia(avatarFile, authUser.id);
-        // Use full S3 URL for backend @IsUrl validation
-        const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com';
-        avatarUrl = `${S3_BASE_URL}/${uploadResult.key}`;
-        console.log('Avatar uploaded, URL:', avatarUrl);
-      }
-
       const memberIds = selectedFriends.map((f) => f.id);
 
-      const payload = {
-        name: groupName.trim(),
-        memberIds,
-        ...(avatarUrl && { avatarUrl }),
-      };
+      if (mode === 'addMember' && conversationId) {
+        // Add members to existing group
+        const payload = { memberIds };
+        console.log('[CreateGroup] Adding members with payload:', JSON.stringify(payload, null, 2));
+        
+        const response = await addMember(conversationId, payload);
+        console.log('[CreateGroup] Add members response:', JSON.stringify(response, null, 2));
 
-      console.log('Creating group with payload:', JSON.stringify(payload, null, 2));
+        Alert.alert(t('common.success'), t('create_group.add_members_success'));
+        router.back();
+      } else {
+        // Create new group
+        if (!groupName.trim()) {
+          Alert.alert(t('common.error'), t('create_group.name_required'));
+          setLoading(false);
+          return;
+        }
 
-      const response = await createGroup(payload);
-      console.log('Create group response:', JSON.stringify(response, null, 2));
+        let avatarUrl: string | undefined;
 
-      const conversationId = response?.data?.id || response?.data?.data?.id;
+        // Upload avatar to S3 if selected
+        if (avatarFile && authUser?.id) {
+          console.log('Uploading avatar to S3...');
+          const uploadResult = await uploadMedia(avatarFile, authUser.id);
+          // Use full S3 URL for backend @IsUrl validation
+          const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com';
+          avatarUrl = `${S3_BASE_URL}/${uploadResult.key}`;
+          console.log('Avatar uploaded, URL:', avatarUrl);
+        }
 
-      if (!conversationId) {
-        throw new Error('Invalid response: missing conversation ID');
-      }
-
-      Alert.alert(t('common.success'), t('create_group.success'));
-
-      // Navigate to the new group chat
-      router.replace({
-        pathname: '/chat/[id]',
-        params: {
-          id: conversationId,
+        const payload = {
           name: groupName.trim(),
-        },
-      });
+          memberIds,
+          ...(avatarUrl && { avatarUrl }),
+        };
+
+        console.log('Creating group with payload:', JSON.stringify(payload, null, 2));
+
+        const response = await createGroup(payload);
+        console.log('Create group response:', JSON.stringify(response, null, 2));
+
+        const newConversationId = response?.data?.id || response?.data?.data?.id;
+
+        if (!newConversationId) {
+          throw new Error('Invalid response: missing conversation ID');
+        }
+
+        Alert.alert(t('common.success'), t('create_group.success'));
+
+        // Navigate to the new group chat
+        router.replace({
+          pathname: '/chat/[id]',
+          params: {
+            id: newConversationId,
+            name: groupName.trim(),
+          },
+        });
+      }
     } catch (error: any) {
-      console.error('Create group error:', error);
+      console.error('Group operation error:', error);
 
       // Extract error message properly
-      let errorMessage = t('create_group.error');
+      let errorMessage = mode === 'addMember' ? t('create_group.add_members_error') : t('create_group.error');
       if (error.message && typeof error.message === 'string') {
         errorMessage = error.message;
       } else if (typeof error === 'string') {
@@ -209,7 +260,12 @@ export default function CreateGroupScreen() {
       Alert.alert(t('common.error'), t('create_group.min_members_error'));
       return;
     }
-    setCurrentStep('set_info');
+    if (mode === 'addMember') {
+      // In addMember mode, directly add members without setting group info
+      handleCreateGroup();
+    } else {
+      setCurrentStep('set_info');
+    }
   };
 
   // Go back
@@ -339,7 +395,7 @@ export default function CreateGroupScreen() {
           disabled={selectedFriends.length === 0}
         >
           <Text style={[styles.nextButtonText, { color: '#fff' }]}>
-            {t('common.next')}
+            {mode === 'addMember' ? t('create_group.add_members') : t('common.next')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -461,7 +517,7 @@ export default function CreateGroupScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: currentStep === 'select_friends' ? t('create_group.title') : t('create_group.set_info'),
+          title: mode === 'addMember' ? t('create_group.add_members_title') : (currentStep === 'select_friends' ? t('create_group.title') : t('create_group.set_info')),
           headerStyle: { backgroundColor: theme.colors.statusBar },
           headerTintColor: theme.colors.textHeader,
           headerLeft: () => (

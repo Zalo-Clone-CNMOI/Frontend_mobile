@@ -16,7 +16,9 @@ interface ChatsState {
   addChat: (chat: ConversationV2) => void;
   deleteChat: (chatId: string) => void;
   updateChat: (chatId: string, updates: Partial<ConversationV2>) => void;
-  updateLastMessage: (conversationId: string, content: string, type: string, timestamp: number, senderId?: string, senderName?: string) => void;
+  updateLastMessage: (conversationId: string, content: string, type: string, timestamp: number, senderId?: string, senderName?: string, shouldIncrementUnread?: boolean) => void;
+  incrementUnreadCount: (conversationId: string) => void;
+  resetUnreadCount: (conversationId: string) => void;
   reset: () => void;
 }
 
@@ -91,10 +93,15 @@ export const useChatsStore = create<ChatsState>((set) => ({
     }));
   },
 
-  updateLastMessage: (conversationId: string, content: string, type: string, timestamp: number, senderId?: string, senderName?: string) => {
+  updateLastMessage: (conversationId: string, content: string, type: string, timestamp: number, senderId?: string, senderName?: string, shouldIncrementUnread?: boolean) => {
     set((state) => {
+      console.log('[useChatsStore] updateLastMessage called:', { conversationId, shouldIncrementUnread, foundInChats: state.chats.some(c => c.conversationId === conversationId) });
       const updateConversation = (chat: ConversationV2) => {
         if (chat.conversationId === conversationId) {
+          // Only increment unread if message is not from current user
+          const currentUnread = chat.unreadCount || 0;
+          const newUnread = shouldIncrementUnread ? currentUnread + 1 : currentUnread;
+          console.log('[useChatsStore] Updating conversation:', { name: chat.name, currentUnread, newUnread, shouldIncrementUnread });
           return {
             ...chat,
             lastMessage: {
@@ -105,6 +112,7 @@ export const useChatsStore = create<ChatsState>((set) => ({
               senderName,
             },
             lastMessageAt: timestamp,
+            unreadCount: newUnread,
           };
         }
         return chat;
@@ -126,6 +134,42 @@ export const useChatsStore = create<ChatsState>((set) => ({
       return {
         chats: sortedChats,
         filteredChats: sortedFiltered,
+      };
+    });
+  },
+
+  incrementUnreadCount: (conversationId: string) => {
+    set((state) => {
+      const updateUnread = (chat: ConversationV2) => {
+        if (chat.conversationId === conversationId) {
+          return {
+            ...chat,
+            unreadCount: (chat.unreadCount || 0) + 1,
+          };
+        }
+        return chat;
+      };
+      return {
+        chats: state.chats.map(updateUnread),
+        filteredChats: state.filteredChats.map(updateUnread),
+      };
+    });
+  },
+
+  resetUnreadCount: (conversationId: string) => {
+    set((state) => {
+      const updateUnread = (chat: ConversationV2) => {
+        if (chat.conversationId === conversationId) {
+          return {
+            ...chat,
+            unreadCount: 0,
+          };
+        }
+        return chat;
+      };
+      return {
+        chats: state.chats.map(updateUnread),
+        filteredChats: state.filteredChats.map(updateUnread),
       };
     });
   },

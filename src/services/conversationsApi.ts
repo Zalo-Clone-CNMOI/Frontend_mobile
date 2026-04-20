@@ -123,6 +123,17 @@ export const leaveConversation = (conversationId: string) =>
 export const markAsRead = (conversationId: string, payload?: any) =>
   request('POST', `/conversations/${encodeURIComponent(conversationId)}/read`, payload || {});
 
+// Update my settings for a conversation (notifications, etc.)
+export const updateMySettings = (
+  conversationId: string,
+  payload: { isMuted?: boolean; isPinned?: boolean; customName?: string },
+) =>
+  request(
+    'PATCH',
+    `/conversations/${encodeURIComponent(conversationId)}/settings`,
+    payload,
+  );
+
 // Update conversation (group name, avatar)
 export const updateConversation = (
   conversationId: string,
@@ -144,5 +155,6 @@ export default {
   removeMember,
   leaveConversation,
   markAsRead,
+  updateMySettings,
   updateConversation,
 };

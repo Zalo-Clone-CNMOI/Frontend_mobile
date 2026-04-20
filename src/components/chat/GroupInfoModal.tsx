@@ -7,6 +7,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { updateConversation } from '@/src/services/conversationsApi';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useAuth } from '@/src/contexts/AuthContext';
+import * as mediaService from '@/src/services/mediaService';
+import type { MediaFileInput } from '@/src/types/media';
 
 type GroupInfoModalProps = {
   visible: boolean;
@@ -32,6 +34,7 @@ export function GroupInfoModal({
 
   const [name, setName] = useState(currentName);
   const [avatarUri, setAvatarUri] = useState<string | null>(currentAvatar);
+  const [avatarFile, setAvatarFile] = useState<MediaFileInput | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handlePickAvatar = async () => {
@@ -44,7 +47,14 @@ export function GroupInfoModal({
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setAvatarUri(result.assets[0].uri);
+        const asset = result.assets[0];
+        setAvatarUri(asset.uri);
+        setAvatarFile({
+          uri: asset.uri,
+          name: asset.fileName || 'group-avatar.jpg',
+          mimeType: asset.mimeType || 'image/jpeg',
+          size: asset.fileSize || 0,
+        });
       }
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể chọn ảnh');
@@ -64,16 +74,19 @@ export function GroupInfoModal({
 
     setLoading(true);
     try {
-      // TODO: Upload avatar to S3 if changed
       const payload: { name?: string; avatarUrl?: string } = {};
       
       if (name !== currentName) {
         payload.name = name.trim();
       }
       
-      if (avatarUri !== currentAvatar && avatarUri) {
-        // For now, use the local URI. In production, upload to S3 first
-        payload.avatarUrl = avatarUri;
+      // Upload avatar to S3 if changed
+      if (avatarUri !== currentAvatar && avatarFile && authUser?.id) {
+        console.log('[GroupInfoModal] Uploading avatar to S3...');
+        const uploadResult = await mediaService.uploadMedia(avatarFile, authUser.id);
+        const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com';
+        payload.avatarUrl = `${S3_BASE_URL}/${uploadResult.key}`;
+        console.log('[GroupInfoModal] Avatar uploaded, URL:', payload.avatarUrl);
       }
 
       if (Object.keys(payload).length === 0) {
@@ -92,6 +105,7 @@ export function GroupInfoModal({
       Alert.alert('Thành công', 'Đã cập nhật thông tin nhóm');
       onClose();
     } catch (error: any) {
+      console.error('[GroupInfoModal] Error updating group info:', error);
       Alert.alert('Lỗi', error.message || 'Không thể cập nhật thông tin nhóm');
     } finally {
       setLoading(false);

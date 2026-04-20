@@ -36,6 +36,9 @@ export function ChatListItem({
 
   const messageTime = item.lastMessage?.timestamp || item.lastMessageAt;
 
+  // Debug log
+  console.log('[ChatListItem] conversation:', item.name, 'unreadCount:', item.unreadCount, 'type:', typeof item.unreadCount);
+
 
 
   // Get presence status for the other user (not for groups)
@@ -182,8 +185,6 @@ export function ChatListItem({
 
         )}
 
-        {item.unreadCount && item.unreadCount > 0 ? <View style={[styles.redDot, { borderColor: theme.colors.background }]} /> : null}
-
         {presenceStatus === 'online' && <View style={[styles.onlineDot, { borderColor: theme.colors.background }]} />}
 
       </View>
@@ -194,15 +195,33 @@ export function ChatListItem({
 
           <Text style={[styles.chatName, { color: theme.colors.text }]}>{item.name}</Text>
 
-          <Text style={[styles.chatTime, { color: '#8e8e93' }]}>
+          <View style={styles.timeAndBadgeColumn}>
 
-            {messageTime
+            <Text style={[styles.chatTime]}>
 
-              ? new Date(messageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+              {messageTime
 
-              : ''}
+                ? new Date(messageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
 
-          </Text>
+                : ''}
+
+            </Text>
+
+            {(item.unreadCount ?? 0) > 0 && (
+
+              <View style={styles.unreadBadge}>
+
+                <Text style={styles.unreadText}>
+
+                  {(item.unreadCount ?? 0) > 99 ? '99+' : item.unreadCount}
+
+                </Text>
+
+              </View>
+
+            )}
+
+          </View>
 
         </View>
 
@@ -213,6 +232,8 @@ export function ChatListItem({
         </Text>
 
       </View>
+
+
 
     </TouchableOpacity>
 
@@ -228,24 +249,19 @@ const styles = StyleSheet.create({
 
   avatar: { width: 55, height: 55, borderRadius: 27.5, borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.1)' },
 
-  redDot: {
-
-    position: 'absolute',
-
-    right: 0,
-
-    top: 2,
-
-    width: 12,
-
-    height: 12,
-
+  unreadBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: '#ff3b30',
-
-    borderRadius: 6,
-
-    borderWidth: 2,
-
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+  },
+  unreadText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
   },
 
   onlineDot: {
@@ -270,11 +286,21 @@ const styles = StyleSheet.create({
 
   chatContent: { flex: 1, marginLeft: 15 },
 
-  chatHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  chatHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4, alignItems: 'center' },
 
-  chatName: { fontSize: 17, fontWeight: '500' },
+  chatName: { fontSize: 17, fontWeight: '500', flex: 1 },
 
   chatTime: { fontSize: 12 },
+
+  timeAndBadgeColumn: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+  },
+
+  unreadBadgeContainer: {
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
 
   lastMsg: { fontSize: 14.5 },
 
