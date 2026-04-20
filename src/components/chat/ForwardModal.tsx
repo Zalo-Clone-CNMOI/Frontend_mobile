@@ -1,11 +1,10 @@
 import { fetchConversations } from '@/src/services/chatService';
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
-import { Check, Search, X } from 'lucide-react-native';
+import { ArrowLeft, Check, ChevronRight, File, Plus, Search, Send, Upload, Users } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  FlatList,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -170,6 +169,17 @@ export function ForwardModal({
     return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=7F9CFB` };
   };
 
+  // Separate conversations into recent and groups
+  const recentChats = filteredChats.filter((chat) => !chat.isGroup);
+  const groupChats = filteredChats.filter((chat) => chat.isGroup);
+
+  const getFileSize = (bytes: number | string) => {
+    const numBytes = typeof bytes === 'string' ? parseInt(bytes, 10) : bytes;
+    if (numBytes < 1024) return numBytes + ' B';
+    if (numBytes < 1024 * 1024) return (numBytes / 1024).toFixed(0) + ' KB';
+    return (numBytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
   return (
     <Modal
       visible={visible}
@@ -177,183 +187,163 @@ export function ForwardModal({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
-        style={[styles.container, { backgroundColor: '#FFFFFF' }]}
+        style={[styles.container, { backgroundColor: '#F5F5F5' }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <SafeAreaView style={styles.safeArea}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color="#000" />
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+          {/* Header Row 1: Back button, Title, Selected count */}
+          <View style={styles.headerRow1}>
+            <TouchableOpacity onPress={onClose} style={styles.backButton}>
+              <ArrowLeft size={24} color="#000" />
             </TouchableOpacity>
-            <Text style={styles.title}>
-              {t('chat.forward_to', { defaultValue: 'Chuyển tiếp' })}
-            </Text>
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>Chia sẻ</Text>
+              <Text style={styles.selectedCountHeader}>Đã chọn: {selectedConversationIds.size}</Text>
+            </View>
             <View style={styles.headerSpacer} />
           </View>
 
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-            <Search size={20} color="#8e8e93" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder={t('chat.search_friends_groups', { defaultValue: 'Tìm kiếm bạn bè, nhóm...' })}
-              placeholderTextColor="#8e8e93"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
+          {/* Header Row 2: Search Bar */}
+          <View style={styles.headerRow2}>
+            <View style={styles.searchContainer}>
+              <Search size={20} color="#8e8e93" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Tìm kiếm"
+                placeholderTextColor="#8e8e93"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
           </View>
 
-          {/* Message Preview */}
-          {localMessage && (
-            <View style={styles.messagePreviewSection}>
-              <View style={styles.bubbleContainer}>
-                {/* Header - Nguồn chuyển tiếp */}
-                <View style={styles.previewHeader}>
-                  <Text style={styles.fromText}>Từ</Text>
-                  <Image
-                    source={{ uri: localMessage.senderAvatar || 'https://i.pravatar.cc/100' }}
-                    style={styles.previewAvatar}
-                  />
-                  <Text style={styles.senderName}>{localMessage.senderName || 'Người gửi'}</Text>
-                  <Text style={styles.chevronIcon}>›</Text>
+          {/* Header Row 3: Quick Actions */}
+          <View style={styles.headerRow3}>
+            <TouchableOpacity style={styles.quickActionButton}>
+              <View style={styles.quickActionIcon}>
+                <Users size={24} color="#0068FF" />
+                <Plus size={12} color="#0068FF" style={styles.plusIcon} />
+              </View>
+              <Text style={styles.quickActionText}>Nhóm mới</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickActionButton}>
+              <View style={styles.quickActionIcon}>
+                <Upload size={24} color="#0068FF" />
+              </View>
+              <Text style={styles.quickActionText}>App khác</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+
+        {/* Body: Contact List with Sections */}
+        <View style={styles.bodyContainer}>
+          {loading ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Đang tải...</Text>
+            </View>
+          ) : (
+            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+              {/* Section 1: Gần đây (Recent) */}
+              {recentChats.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Gần đây</Text>
+                  {recentChats.map((chat) => {
+                    const isSelected = selectedConversationIds.has(chat.conversationId);
+                    return (
+                      <TouchableOpacity
+                        key={chat.conversationId}
+                        style={styles.contactRow}
+                        onPress={() => toggleSelection(chat.conversationId)}
+                      >
+                        <Image source={getAvatarSource(chat)} style={styles.contactAvatar} />
+                        <Text style={styles.contactName} numberOfLines={1}>
+                          {chat.name}
+                        </Text>
+                        <View style={[styles.contactCheckbox, isSelected && styles.contactCheckboxSelected]}>
+                          {isSelected && <Check size={16} color="#fff" />}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  <TouchableOpacity style={styles.viewMoreButton}>
+                    <Text style={styles.viewMoreText}>Xem thêm</Text>
+                    <ChevronRight size={16} color="#8e8e93" />
+                  </TouchableOpacity>
                 </View>
+              )}
 
-                {/* Nội dung text */}
-                <Text style={styles.mainLinkText} selectable>
-                  {localMessage.text || ''}
+              {/* Section 2: Nhóm trò chuyện (Groups) */}
+              {groupChats.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Nhóm trò chuyện</Text>
+                  {groupChats.map((chat) => {
+                    const isSelected = selectedConversationIds.has(chat.conversationId);
+                    return (
+                      <TouchableOpacity
+                        key={chat.conversationId}
+                        style={styles.contactRow}
+                        onPress={() => toggleSelection(chat.conversationId)}
+                      >
+                        <Image source={getAvatarSource(chat)} style={styles.contactAvatar} />
+                        <Text style={styles.contactName} numberOfLines={1}>
+                          {chat.name}
+                        </Text>
+                        <View style={[styles.contactCheckbox, isSelected && styles.contactCheckboxSelected]}>
+                          {isSelected && <Check size={16} color="#fff" />}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+              {filteredChats.length === 0 && (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>Không tìm thấy cuộc trò chuyện nào</Text>
+                </View>
+              )}
+            </ScrollView>
+          )}
+        </View>
+
+        {/* Footer: File Preview & Input */}
+        <SafeAreaView style={styles.footerContainer} edges={['bottom']}>
+          {/* File Preview Box */}
+          {localMessage && (
+            <View style={styles.filePreviewBox}>
+              <View style={styles.fileIconContainer}>
+                <File size={24} color="#0068FF" />
+              </View>
+              <View style={styles.fileInfoContainer}>
+                <Text style={styles.fileName} numberOfLines={1}>
+                  {localMessage.fileInfo?.name || 'Tin nhắn'}
                 </Text>
-
-                {/* Link Preview Card */}
-                {localMessage.type === 'file' && (
-                  <View style={styles.previewCard}>
-                    <View style={styles.previewImageContainer}>
-                      <Image
-                        source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/d/da/Google_Drive_logo.png' }}
-                        style={styles.driveLogo}
-                        resizeMode="contain"
-                      />
-                      <Text style={styles.driveLogoText}>Google Drive</Text>
-                    </View>
-
-                    <View style={styles.previewInfoContainer}>
-                      <Text style={styles.domainText}>drive.google.com</Text>
-                      <Text style={styles.fileNameText} numberOfLines={2}>
-                        {localMessage.fileInfo?.name || 'File'}
-                      </Text>
-                      <Text style={styles.subLinkText} numberOfLines={3}>
-                        {localMessage.text || ''}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-
-                {/* Footer (Thời gian) */}
-                <Text style={styles.timeText}>
-                  {localMessage.timestamp ? new Date(localMessage.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}
+                <Text style={styles.fileSize}>
+                  {localMessage.fileInfo?.size ? getFileSize(localMessage.fileInfo.size) : '20 KB'}
                 </Text>
-
-                {/* Nút Thả tim */}
-                <TouchableOpacity style={styles.reactionButton} activeOpacity={0.7}>
-                  <Text style={{ fontSize: 12 }}>🤍</Text>
-                </TouchableOpacity>
               </View>
             </View>
           )}
 
-          {/* Selected Contacts Horizontal Scroll */}
-          {selectedConversationIds.size > 0 && (
-            <View style={styles.selectedContactsSection}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.selectedContactsContainer}
-              >
-                {allConversations
-                  .filter((chat) => selectedConversationIds.has(chat.conversationId))
-                  .map((chat) => (
-                    <View key={chat.conversationId} style={styles.selectedContactItem}>
-                      <Image source={getAvatarSource(chat)} style={styles.selectedContactAvatar} />
-                      <TouchableOpacity
-                        style={styles.removeSelectedButton}
-                        onPress={() => toggleSelection(chat.conversationId)}
-                      >
-                        <X size={14} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Contact List */}
-          {loading ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                {t('common.loading', { defaultValue: 'Đang tải...' })}
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              style={styles.contactList}
-              data={filteredChats}
-              keyExtractor={(item) => item.conversationId}
-              renderItem={({ item }) => {
-                const isSelected = selectedConversationIds.has(item.conversationId);
-                return (
-                  <TouchableOpacity
-                    style={styles.chatItem}
-                    onPress={() => toggleSelection(item.conversationId)}
-                  >
-                    <Image source={getAvatarSource(item)} style={styles.avatar} />
-                    <View style={styles.chatInfo}>
-                      <Text style={styles.chatName} numberOfLines={1}>
-                        {item.name}
-                      </Text>
-                    </View>
-                    <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                      {isSelected && <Check size={16} color="#fff" />}
-                    </View>
-                  </TouchableOpacity>
-                );
-              }}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>
-                    {t('chat.no_conversations_found', { defaultValue: 'Không tìm thấy cuộc trò chuyện nào' })}
-                  </Text>
-                </View>
-              }
-            />
-          )}
-
-          {/* Optional Message Input */}
-          <View style={styles.messageInputSection}>
+          {/* Input Area */}
+          <View style={styles.inputArea}>
             <TextInput
               style={styles.messageInput}
-              placeholder={t('chat.enter_optional_message', { defaultValue: 'Nhập kèm tin nhắn...' })}
+              placeholder="Nhập tin nhắn"
               placeholderTextColor="#8e8e93"
-              multiline
-              numberOfLines={3}
               value={optionalMessage}
               onChangeText={setOptionalMessage}
             />
-          </View>
-
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.selectedCount}>
-              {t('chat.selected_count', { defaultValue: 'Đã chọn' })}: {selectedConversationIds.size}
-            </Text>
             <TouchableOpacity
               onPress={handleForward}
               disabled={selectedConversationIds.size === 0}
-              style={[styles.sendButton, selectedConversationIds.size > 0 && styles.sendButtonActive]}
+              style={[styles.sendButtonCircle, selectedConversationIds.size > 0 && styles.sendButtonCircleActive]}
             >
-              <Text style={[styles.sendButtonText, selectedConversationIds.size > 0 && styles.sendButtonTextActive]}>
-                {t('chat.send', { defaultValue: 'Gửi' })}
-              </Text>
+              <Send 
+                size={20} 
+                color={selectedConversationIds.size > 0 ? '#fff' : '#9CA3AF'} 
+              />
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -367,9 +357,111 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   safeArea: {
+    backgroundColor: '#FFFFFF',
+  },
+  // Header Row 1: Back button, Title, Selected count
+  headerRow1: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  backButton: {
+    padding: 4,
+  },
+  titleContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  selectedCountHeader: {
+    fontSize: 13,
+    color: '#8e8e93',
+    marginTop: 2,
+  },
+  headerSpacer: {
+    width: 32,
+  },
+  // Header Row 2: Search Bar
+  headerRow2: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    height: 40,
+    backgroundColor: '#F3F4F6',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#000000',
+  },
+  // Header Row 3: Quick Actions
+  headerRow3: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: '#FFFFFF',
+    gap: 12,
+  },
+  quickActionButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+  },
+  quickActionIcon: {
+    position: 'relative',
+    marginBottom: 4,
+  },
+  plusIcon: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+  },
+  quickActionText: {
+    fontSize: 13,
+    color: '#000000',
+  },
+  // Body Container
+  bodyContainer: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  scrollView: {
     flex: 1,
   },
-  header: {
+  // Section Styles
+  section: {
+    backgroundColor: '#FFFFFF',
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F5F5F5',
+  },
+  // Contact Row
+  contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -378,89 +470,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
-  closeButton: {
-    padding: 4,
-  },
-  title: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-    color: '#000000',
-  },
-  headerSpacer: {
-    width: 32,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    height: 44,
-    backgroundColor: '#F3F4F6',
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 16,
-    color: '#000000',
-  },
-  selectedContactsSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  selectedContactsContainer: {
-    gap: 12,
-  },
-  selectedContactItem: {
-    position: 'relative',
-  },
-  selectedContactAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  removeSelectedButton: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#0068FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  contactList: {
-    flex: 1,
-  },
-  chatItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  contactAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     marginRight: 12,
   },
-  chatInfo: {
+  contactName: {
     flex: 1,
-  },
-  chatName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#000000',
   },
-  checkbox: {
+  contactCheckbox: {
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -469,75 +491,92 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  checkboxSelected: {
+  contactCheckboxSelected: {
     backgroundColor: '#0068FF',
     borderColor: '#0068FF',
   },
-  messageInputSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  messageInput: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 16,
-    color: '#000000',
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  footer: {
+  // View More Button
+  viewMoreButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  viewMoreText: {
+    fontSize: 14,
+    color: '#0068FF',
+    marginRight: 4,
+  },
+  // Footer Container
+  footerContainer: {
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
-  selectedCount: {
-    fontSize: 15,
-    color: '#6B7280',
-  },
-  sendButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: '#E5E7EB',
-  },
-  sendButtonActive: {
-    backgroundColor: '#0068FF',
-  },
-  sendButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#9CA3AF',
-  },
-  sendButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  selectAllButton: {
+  // File Preview Box
+  filePreviewBox: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    gap: 8,
+    backgroundColor: '#F3F4F6',
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 12,
   },
-  selectAllText: {
+  fileIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#E3F2FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  fileInfoContainer: {
+    flex: 1,
+  },
+  fileName: {
     fontSize: 15,
     fontWeight: '500',
     color: '#000000',
+    marginBottom: 2,
   },
-  selectCountText: {
+  fileSize: {
     fontSize: 13,
     color: '#8e8e93',
   },
+  // Input Area
+  inputArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  messageInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#000000',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 20,
+  },
+  sendButtonCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendButtonCircleActive: {
+    backgroundColor: '#0068FF',
+  },
+  // Empty State
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -547,117 +586,5 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#8e8e93',
-  },
-  // Message Preview Styles (Zalo-style)
-  messagePreviewSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  bubbleContainer: {
-    backgroundColor: '#D8F0FA',
-    borderRadius: 12,
-    padding: 12,
-    width: '85%',
-    alignSelf: 'flex-start',
-    marginVertical: 8,
-    position: 'relative',
-  },
-  previewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  previewAvatar: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    marginRight: 6,
-  },
-  fromText: {
-    fontSize: 14,
-    color: '#555555',
-    marginRight: 4,
-  },
-  senderName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111111',
-    marginRight: 4,
-  },
-  chevronIcon: {
-    fontSize: 16,
-    color: '#555555',
-  },
-  mainLinkText: {
-    fontSize: 15,
-    color: '#0068FF',
-    lineHeight: 22,
-    marginBottom: 10,
-  },
-  previewCard: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  previewImageContainer: {
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-  },
-  driveLogo: {
-    width: 80,
-    height: 80,
-    marginBottom: 8,
-  },
-  driveLogoText: {
-    fontSize: 22,
-    color: '#5f6368',
-  },
-  previewInfoContainer: {
-    backgroundColor: '#C5E8F7',
-    padding: 10,
-  },
-  domainText: {
-    fontSize: 13,
-    color: '#005bb5',
-    marginBottom: 4,
-  },
-  fileNameText: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#111111',
-    marginBottom: 4,
-  },
-  subLinkText: {
-    fontSize: 13,
-    color: '#7A7A7A',
-    lineHeight: 18,
-  },
-  timeText: {
-    fontSize: 12,
-    color: '#888888',
-    marginTop: 4,
-  },
-  reactionButton: {
-    position: 'absolute',
-    bottom: -10,
-    right: 10,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
   },
 });

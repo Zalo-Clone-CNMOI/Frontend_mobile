@@ -1,5 +1,6 @@
 import { ContactsSearchHeader } from '@/src/components/contacts/ContactsSearchHeader';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
+import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
 import { ContactListItem, useContactsScreenLogic } from '@/src/hooks/screens/useContactsScreen';
 import { useTheme } from '@/src/theme/themeContext';
 import { FlashList } from '@shopify/flash-list';
@@ -30,12 +31,14 @@ function ContactItem({ item, onPress }: {
       onPress={onPress}
     >
       <View style={styles.cardAvatarContainer}>
-        {item.avatar ? (
-          <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        ) : (
-          <AvatarWithInitials name={title} size={50} style={styles.avatar} />
-        )}
-        {isOnline ? <View style={[styles.onlineDot, { borderColor: theme.colors.card }]} /> : null}
+        <AvatarWithPresence
+          uri={item.avatar}
+          name={title}
+          size={50}
+          status={isOnline ? 'online' : 'offline'}
+          lastSeenAt={item.lastSeenAt ? new Date(item.lastSeenAt).getTime() : undefined}
+          showPresence={true}
+        />
       </View>
 
       <View style={[styles.cardContent, { backgroundColor: 'transparent', borderBottomColor: 'transparent' }]}>

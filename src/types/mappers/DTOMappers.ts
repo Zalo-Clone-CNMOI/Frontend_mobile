@@ -189,7 +189,14 @@ export const mapApiConversationToConversationV2 = (
       : typeof dto.is_group === "boolean"
         ? dto.is_group
         : type === "group";
+  const isOwner = dto.isOwner ?? dto.is_owner ?? (dto.myRole === 'owner' || dto.my_role === 'owner');
+  const myRole = dto.myRole ?? dto.my_role;
   const muted = Boolean(dto.isMuted ?? dto.muted);
+  const myLastReadAt = dto.mySettings?.lastReadAt
+    ? new Date(dto.mySettings.lastReadAt).getTime()
+    : dto.my_settings?.last_read_at
+      ? new Date(dto.my_settings.last_read_at).getTime()
+      : undefined;
 
   return {
     conversationId: toStringId(dto.conversationId, dto.conversation_id, dto.id),
@@ -215,6 +222,9 @@ export const mapApiConversationToConversationV2 = (
       dto.memberCount !== undefined || dto.member_count !== undefined
         ? Number(dto.memberCount ?? dto.member_count ?? 0)
         : undefined,
+    isOwner,
+    myRole,
+    myLastReadAt,
     createdAt: toOptionalTimestamp(dto.createdAt, dto.created_at),
   };
 };

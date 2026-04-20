@@ -108,13 +108,6 @@ function toLegacyChatMessage(apiMessage: any): ChatMessage {
         ? "voice"
       : attachmentType || "text";
 
-  // Debug: Log if forwarded_from exists in API response
-  if (apiMessage?.forwarded_from) {
-    console.log('[toLegacyChatMessage] ✅ forwarded_from found in API response:', {
-      messageId: apiMessage.messageId || apiMessage.id,
-      forwarded_from: apiMessage.forwarded_from,
-    });
-  }
 
   return {
     id: buildStableMessageId(apiMessage),
@@ -136,7 +129,7 @@ function toLegacyChatMessage(apiMessage: any): ChatMessage {
     replyTo: apiMessage?.replyToMessageId
       ? { id: apiMessage.replyToMessageId }
       : undefined,
-    forwardedFrom: apiMessage?.forwarded_from,
+    forwardedFrom: apiMessage?.forwarded_from || apiMessage?.forwardedFrom,
     reactions: apiMessage?.reactions,
     status: apiMessage?.status,
     isEdited: Boolean(editedAtRaw),
@@ -343,17 +336,12 @@ function generateUUID(): string {
 async function ensureSocket() {
   await hydrateCurrentActorIds();
   if (!socketInstance) {
-    console.log('[ensureSocket] 🔌 No socket instance, connecting...');
-    socketInstance = await connectSocket();
-    console.log('[ensureSocket] 🔌 Socket instance created');
+        socketInstance = await connectSocket();
   } else {
-    console.log('[ensureSocket] 🔌 Socket instance exists, connected:', socketInstance.connected);
   }
   if (!listenersRegistered) {
-    console.log('[ensureSocket] 🔌 Registering socket listeners...');
     registerSocketListeners();
   }
-  console.log('[ensureSocket] 🔌 Returning socket, connected:', socketInstance?.connected, 'ID:', socketInstance?.id);
   return socketInstance;
 }
 
@@ -384,12 +372,15 @@ export async function loadInitialMessages(conversationId: string) {
   const hydratedMessages = hydrateReplyMessages(uiMessages);
 
   openConversations.add(normalizedConversationId);
+  console.log('[loadInitialMessages] Adding conversation to openConversations:', normalizedConversationId);
+  console.log('[loadInitialMessages] Current openConversations:', Array.from(openConversations));
+  
   const s = await ensureSocket();
   try {
     const joinPayload = buildChatJoinPayload(normalizedConversationId);
-    console.log('[loadInitialMessages] 🚪 Emitting chat:join for conversation:', normalizedConversationId);
-    console.log('[loadInitialMessages] 🚪 Join payload:', joinPayload);
+    console.log('[loadInitialMessages] Emitting chat:join for:', normalizedConversationId, joinPayload);
     s.emit("chat:join", joinPayload);
+    console.log('[loadInitialMessages] chat:join emitted successfully');
   } catch (e) {
     console.error('[loadInitialMessages] Failed to emit chat:join', e);
   }
@@ -596,13 +587,21 @@ let _handlers: any = {};
 // Sets up handlers for connect, chat:ack, chat:message, chat:edit, chat:delete, chat:react, presence:heartbeat
 function registerSocketListeners() {
   const s = getSocket() || socketInstance;
-  if (!s) return;
+  if (!s) {
+    console.log('[Socket] No socket available for listeners');
+    return;
+  }
+  console.log('[Socket] Registering listeners for socket:', s.id, 'connected:', s.connected);
 
   s.on("connect", () => {
+    console.log('[Socket] Connected, joining conversations:', Array.from(openConversations));
     for (const conv of Array.from(openConversations)) {
       try {
-        s.emit("chat:join", buildChatJoinPayload(conv));
+        const joinPayload = buildChatJoinPayload(conv);
+        console.log('[Socket] Joining conversation:', conv, joinPayload);
+        s.emit("chat:join", joinPayload);
       } catch (e) {
+        console.error('[Socket] Failed to join conversation:', conv, e);
       }
     }
     if (heartbeatTimer) clearInterval(heartbeatTimer);
@@ -631,6 +630,26 @@ function registerSocketListeners() {
     const messageId = payload?.id || payload?.message_id;
     const createdAt =
       payload?.created_at ?? payload?.createdAt ?? payload?.ts ?? payload?.timestamp;
+
+    // Log all incoming messages to debug
+    console.log('chat:message listener - Received message:', {
+      messageId,
+      conversationId,
+      hasForwardedFrom: !!payload?.forwarded_from,
+      forwardedFrom: payload?.forwarded_from,
+      body: payload?.body?.substring(0, 50) + '...',
+      senderId: payload?.sender_id
+    });
+
+    // Log forwarded messages from backend
+    if (payload?.forwarded_from) {
+      console.log('chat:message listener - *** FORWARDED MESSAGE DETECTED ***:', {
+        messageId,
+        conversationId,
+        forwardedFrom: payload.forwarded_from,
+        hasAttachments: !!payload.attachments?.length
+      });
+    }
 
     const messageKey = String(messageId || "");
     if (messageKey && recentMessageIds.includes(messageKey)) {
@@ -813,14 +832,6 @@ export async function forwardMessage(
     throw new Error("Source message ID is required for forwarding");
   }
 
-  console.log('[chatService] forwardMessage:', {
-    sourceMessageId,
-    hasServerMessageId: !!originalMessage.serverMessageId,
-    hasId: !!originalMessage.id,
-    targetsCount: targets.length,
-    conversationId: originalMessage.conversationId,
-    createdAt: originalMessage.timestamp,
-  });
 
   // Try to fetch message details first to verify it exists
   if (originalMessage.conversationId && originalMessage.timestamp) {
@@ -830,9 +841,7 @@ export async function forwardMessage(
         originalMessage.timestamp,
         sourceMessageId
       );
-      console.log('[chatService] Message details fetched:', messageDetails?.data ? 'success' : 'not found');
     } catch (error) {
-      console.error('[chatService] Failed to fetch message details:', error);
       throw new Error('SOURCE_NOT_FOUND');
     }
   }
@@ -850,12 +859,9 @@ export async function forwardMessage(
   };
 
   try {
-    console.log('[chatService] 🚀 Sending forward request to backend:', payload);
     const response = await messagesApi.forwardMessage(payload);
-    console.log('[chatService] 📥 Backend forward response:', response);
     return response?.data || response;
-  } catch (error) {
-    console.error('[chatService] ❌ forwardMessage error:', error);
+  } catch (error: any) {
     throw error;
   }
 }
@@ -922,6 +928,21 @@ export async function fetchConversations(): Promise<ConversationV2[]> {
   } catch (e) {
     console.error('[fetchConversations] Error:', e);
     return [];
+  }
+}
+
+/**
+ * POST /api/conversations/:conversationId/read
+ * Mark conversation as read and reset unread count.
+ */
+export async function markConversationAsRead(
+  conversationId: string,
+): Promise<void> {
+  try {
+    await conversationsApi.markAsRead(conversationId);
+    console.log('[markConversationAsRead] Success for:', conversationId);
+  } catch (e) {
+    console.error('[markConversationAsRead] Error:', e);
   }
 }
 

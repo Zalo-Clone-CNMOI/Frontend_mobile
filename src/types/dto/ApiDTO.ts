@@ -169,6 +169,10 @@ export type ApiConversationDTO = {
   type?: "direct" | "group" | "oa" | string;
   isGroup?: boolean;
   is_group?: boolean;
+  isOwner?: boolean;
+  is_owner?: boolean;
+  myRole?: 'owner' | 'admin' | 'member';
+  my_role?: 'owner' | 'admin' | 'member';
   name?: string;
   title?: string;
   avatar?: string;
@@ -187,4 +191,16 @@ export type ApiConversationDTO = {
   member_count?: number;
   createdAt?: string | number;
   created_at?: string | number;
+  mySettings?: {
+    role?: 'owner' | 'admin' | 'member';
+    nickname?: string | null;
+    isMuted?: boolean;
+    lastReadAt?: string | null;
+  };
+  my_settings?: {
+    role?: 'owner' | 'admin' | 'member';
+    nickname?: string | null;
+    is_muted?: boolean;
+    last_read_at?: string | null;
+  };
 };

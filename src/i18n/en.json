@@ -98,33 +98,7 @@
     "profile": "Profile",
     "change_wallpaper": "Change Wallpaper",
     "disable_notifications": "Mute Notifications",
-    "change_nickname": "Change Nickname",
-    "mark_best_friend": "Mark as Best Friend",
-    "shared_timeline": "Shared Timeline",
-    "language": "Language",
     "media_files_links": "Media, Files, Links",
-    "create_group_with": "Create group with {{name}}",
-    "add_to_group": "Add {{name}} to group",
-    "view_shared_groups": "View shared groups ({{count}})",
-    "pin_conversation": "Pin Conversation",
-    "hide_conversation": "Hide Conversation",
-    "report_calls": "Report Calls",
-    "personal_settings": "Personal Settings",
-    "auto_delete_messages": "Auto-delete Messages",
-    "no_auto_delete": "No Auto-delete",
-    "report": "Report",
-    "manage_block": "Manage Block List",
-    "conversation_storage": "Storage Usage",
-    "delete_history": "Delete Chat History"
-  },
-
-  "chat_options": {
-    "title": "Chat Options",
-    "search_messages": "Search Messages",
-    "profile": "Profile",
-    "change_wallpaper": "Change Wallpaper",
-    "disable_notifications": "Notifications",
-    "media_files_links": "Media, Files & Links",
     "no_media": "No media yet",
     "edit_group_info": "Edit Group Info",
     "group_members": "Group Members",
@@ -141,17 +115,47 @@
     "media_error": "Failed to load media",
     "create_group_with": "Create group with {{name}}",
     "add_to_group": "Add {{name}} to group",
-    "view_shared_groups": "{{count}} shared groups",
+    "view_shared_groups": "View shared groups ({{count}})",
     "pin_conversation": "Pin Conversation",
     "hide_conversation": "Hide Conversation",
     "report_calls": "Report Calls",
     "personal_settings": "Personal Settings",
     "auto_delete_messages": "Auto-delete Messages",
-    "no_auto_delete": "Off",
+    "no_auto_delete": "No Auto-delete",
     "report": "Report",
-    "manage_block": "Manage Block",
+    "manage_block": "Manage Block List",
     "conversation_storage": "Storage Usage",
-    "delete_history": "Delete Chat History"
+    "delete_history": "Delete Chat History",
+    "no_search_results": "No members found",
+    "no_members": "No members yet",
+    "role_owner": "Owner",
+    "role_admin": "Admin",
+    "change_role": "Change",
+    "delete_group_confirm": "Are you sure you want to delete this group? This action cannot be undone.",
+    "leave_group_confirm": "Are you sure you want to leave this group?",
+    "leave_group_failed": "Failed to leave group",
+    "delete": "Delete",
+    "leave": "Leave"
+  },
+
+  "member_role": {
+    "manage_roles": "Manage Roles",
+    "owner": "Owner",
+    "admin": "Admin",
+    "member": "Member",
+    "role_updated": "Role updated successfully",
+    "update_failed": "Failed to update role",
+    "remove_confirm": "Remove Member",
+    "remove_confirm_message": "Are you sure you want to remove {{name}} from the group?",
+    "remove": "Remove",
+    "remove_success": "Member removed successfully",
+    "remove_failed": "Failed to remove member",
+    "change_role_for": "Change role for {{name}}",
+    "change": "Change"
+  },
+
+  "reactions": {
+    "send_count": "Send {{count}} reaction"
   },
 
   "contacts": {
@@ -228,8 +232,11 @@
 
   "create_group": {
     "title": "Create Group",
+    "add_menber_title": "Add Members",
     "selected_count": "Selected: {{count}}",
-    "name_placeholder": "Enter group name"
+    "name_placeholder": "Enter group name",
+    "search_friends": "Search friends",
+    "no_friends": "No friends found"
   },
 
   "media_gallery": {

@@ -95,13 +95,11 @@ export const useChatsStore = create<ChatsState>((set) => ({
 
   updateLastMessage: (conversationId: string, content: string, type: string, timestamp: number, senderId?: string, senderName?: string, shouldIncrementUnread?: boolean) => {
     set((state) => {
-      console.log('[useChatsStore] updateLastMessage called:', { conversationId, shouldIncrementUnread, foundInChats: state.chats.some(c => c.conversationId === conversationId) });
       const updateConversation = (chat: ConversationV2) => {
         if (chat.conversationId === conversationId) {
           // Only increment unread if message is not from current user
           const currentUnread = chat.unreadCount || 0;
           const newUnread = shouldIncrementUnread ? currentUnread + 1 : currentUnread;
-          console.log('[useChatsStore] Updating conversation:', { name: chat.name, currentUnread, newUnread, shouldIncrementUnread });
           return {
             ...chat,
             lastMessage: {
@@ -158,11 +156,13 @@ export const useChatsStore = create<ChatsState>((set) => ({
 
   resetUnreadCount: (conversationId: string) => {
     set((state) => {
+      const now = Date.now();
       const updateUnread = (chat: ConversationV2) => {
         if (chat.conversationId === conversationId) {
           return {
             ...chat,
             unreadCount: 0,
+            myLastReadAt: now, // Update lastReadAt when marking as read
           };
         }
         return chat;

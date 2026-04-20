@@ -33,14 +33,11 @@ const stopHeartbeat = () => {
 
 export const createSocket = async (): Promise<Socket> => {
   if (socket) {
-    console.log('[socket] 🔌 Socket already exists, connected:', socket.connected, 'ID:', socket.id);
     return socket;
   }
 
-  console.log('[socket] 🔌 Creating new socket connection to:', WS_URL);
   const accessToken = await getCurrentToken();
   const bearerToken = withBearer(accessToken);
-  console.log('[socket] 🔌 Access token exists:', !!accessToken);
 
   socket = io(WS_URL, {
     auth: { token: bearerToken },
@@ -49,15 +46,12 @@ export const createSocket = async (): Promise<Socket> => {
     reconnection: true,
   });
 
-  console.log('[socket] 🔌 Socket instance created, connecting...');
 
   socket.on("connect", () => {
-    console.log('[socket] ✅ Socket connected, ID:', socket?.id);
     startHeartbeat();
   });
 
   socket.on("disconnect", (reason: any) => {
-    console.log('[socket] ❌ Socket disconnected, reason:', reason);
     stopHeartbeat();
   });
 
@@ -67,7 +61,6 @@ export const createSocket = async (): Promise<Socket> => {
     if (!message.includes("unauthorized")) return;
 
     try {
-      console.log('[socket] 🔑 Refreshing access token...');
       const newToken = await refreshAccessToken();
       if (!newToken || !socket) return;
 
@@ -77,7 +70,6 @@ export const createSocket = async (): Promise<Socket> => {
         socket.io.opts.extraHeaders.Authorization = newBearer;
       }
 
-      console.log('[socket] 🔑 Token refreshed, reconnecting...');
       socket.connect();
     } catch (refreshErr) {
       console.error('[socket] ❌ Failed to refresh token:', refreshErr);

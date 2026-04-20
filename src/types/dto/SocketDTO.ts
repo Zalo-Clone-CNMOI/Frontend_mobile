@@ -51,6 +51,7 @@ export type SocketChatDeletePayload = {
 export type SocketChatReactPayload = {
   message_id: ID;
   conversation_id: ID;
+  user_id: ID;
   reaction_type: ReactionType;
 };
 

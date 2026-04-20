@@ -22,12 +22,13 @@ export const useChatSocket = () => {
     addMessage,
     updateMessage,
     deleteMessage: deleteMessageFromStore,
-    addReaction,
+    addReaction: addReactionChatStore,
     removeReaction: removeReactionFromStore,
     updateTypingUsers,
     updatePresence
   } = useChatStore();
   const { updateLastMessage, chats } = useChatsStore();
+  const addReactionMessageStore = useMessagesStore((state) => state.addReaction);
 
   useEffect(() => {
     const token = authUser?.tokens?.accessToken;
@@ -131,8 +132,20 @@ export const useChatSocket = () => {
 
       if (conversationId) {
         const isFromMe = senderId === authUser?.id;
-        console.log('[useChatSocket] Updating last message:', { conversationId, senderId, authUserId: authUser?.id, isFromMe, shouldIncrementUnread: !isFromMe });
-        updateLastMessage(conversationId, content, type, timestamp, senderId, senderName, !isFromMe);
+        // Check if message is after lastReadAt to decide increment unread
+        const conversation = useConversationStore.getState().chats.find(c => c.conversationId === conversationId);
+        const myLastReadAt = conversation?.myLastReadAt || 0;
+        const shouldIncrementUnread = !isFromMe && timestamp > myLastReadAt;
+        console.log('[useChatSocket] Updating last message:', {
+          conversationId,
+          senderId,
+          authUserId: authUser?.id,
+          isFromMe,
+          myLastReadAt,
+          messageTimestamp: timestamp,
+          shouldIncrementUnread
+        });
+        updateLastMessage(conversationId, content, type, timestamp, senderId, senderName, shouldIncrementUnread);
       }
     });
 
@@ -149,7 +162,14 @@ export const useChatSocket = () => {
     // Reaction added
     socket.on('chat:reaction:added', (payload: any) => {
       console.log('[Socket] chat:reaction:added received:', payload);
-      addReaction(payload);
+      addReactionChatStore(payload);
+      // Also update useMessagesStore for UI consistency
+      addReactionMessageStore(
+        payload.conversation_id,
+        payload.message_id,
+        payload.user_id,
+        payload.reaction_type
+      );
     });
 
     // Reaction removed
@@ -210,7 +230,13 @@ export const useChatSocket = () => {
   }, []);
 
   const handleAddReaction = useCallback((payload: SocketChatReactPayload) => {
-    addReaction(payload);
+    addReactionChatStore(payload);
+    addReactionMessageStore(
+      payload.conversation_id,
+      payload.message_id,
+      payload.user_id,
+      payload.reaction_type
+    );
   }, []);
 
   const handleRemoveReaction = useCallback((messageId: string, conversationId: string) => {

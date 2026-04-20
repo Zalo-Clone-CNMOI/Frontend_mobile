@@ -129,7 +129,6 @@ export const forwardMessage = async (payload: {
     conversation_id: string;
   }>;
 }) => {
-  console.log('[messagesApi] forwardMessage payload:', payload);
   const response = await apiCallWithRefresh(`${API_BASE_URL}/messages/forward`, {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -139,8 +138,6 @@ export const forwardMessage = async (payload: {
   });
 
   const text = await response.text();
-  console.log('[messagesApi] forwardMessage response status:', response.status);
-  console.log('[messagesApi] forwardMessage response text:', text);
 
   let rawData: any = null;
   try {

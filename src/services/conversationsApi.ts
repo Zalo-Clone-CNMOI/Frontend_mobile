@@ -71,10 +71,8 @@ export const getConversationDetail = async (conversationId: string) =>
 
 // Create new group conversation
 export const createGroup = async (payload: any) => {
-  console.log('[conversationsApi] Creating group with payload:', JSON.stringify(payload, null, 2));
   try {
     const result = await request('POST', '/conversations/group', payload);
-    console.log('[conversationsApi] Create group success:', JSON.stringify(result, null, 2));
     return result;
   } catch (error: any) {
     console.error('[conversationsApi] Create group error:', error);

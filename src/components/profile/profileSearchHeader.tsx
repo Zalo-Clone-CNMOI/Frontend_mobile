@@ -26,10 +26,10 @@ export function ProfileSearchHeader({
         showSoftInputOnFocus={false}
         onFocus={onPressSearch}
       />
-      <TouchableOpacity style={styles.iconButton}>
-      <Settings  size={22} color={theme.colors.iconHeader} onPress={() => router.push('/settings')} />
+      <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/settings')}>
+        <Settings size={22} color={theme.colors.iconHeader} />
       </TouchableOpacity>
-          </View>
+    </View>
   );
 }
 
