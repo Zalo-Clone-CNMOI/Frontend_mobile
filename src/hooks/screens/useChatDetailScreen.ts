@@ -1,4 +1,8 @@
 import { useAuth } from '@/src/contexts/AuthContext';
+import {
+  usePresenceHeartbeat,
+  type PresenceUpdatePayload,
+} from '@/src/realtime';
 import { useTypingIndicator } from '@/src/hooks/useTypingIndicator';
 import {
     fetchMoreMessages,
@@ -10,11 +14,13 @@ import {
     sendMessage as sendSocketMessage,
     unreactMessage,
     forwardMessage,
+    markConversationAsRead,
 } from '@/src/services/chatService';
 import { searchMessages as searchMessagesApi } from '@/src/services/messagesApi';
 import { connectSocket } from '@/src/services/socket';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
+import { usePresenceStore } from '@/src/store/usePresenceStore';
 import type { ChatMessage } from '@/src/types/chat';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams } from 'expo-router';
@@ -24,10 +30,18 @@ import { Alert } from 'react-native';
 
 const EMPTY_MESSAGES: ChatMessage[] = [];
 
+const getSingleRouteParam = (
+  value?: string | string[],
+): string => (Array.isArray(value) ? value[0] || '' : value || '');
+
 export function useChatDetailScreenLogic() {
-  const params = useLocalSearchParams<{ id?: string; name?: string; jumpToMessageId?: string }>();
-  const chatId = params?.id || '';
-  const jumpToMessageId = params?.jumpToMessageId;
+  const params = useLocalSearchParams<{
+    id?: string | string[];
+    name?: string | string[];
+    jumpToMessageId?: string | string[];
+  }>();
+  const chatId = getSingleRouteParam(params?.id).trim();
+  const jumpToMessageId = getSingleRouteParam(params?.jumpToMessageId).trim() || undefined;
   const { t } = useTranslation();
   const { user } = useAuth();
   const headerHeight = useHeaderHeight();
@@ -36,7 +50,8 @@ export function useChatDetailScreenLogic() {
   const keyboardOffset = headerHeight;
 
   const title = useMemo(() => {
-    if (typeof params?.name === 'string' && params.name.trim().length > 0) return params.name;
+    const routeName = getSingleRouteParam(params?.name).trim();
+    if (routeName.length > 0) return routeName;
     return t('chat.default_title');
   }, [params?.name, t]);
 
@@ -75,32 +90,62 @@ export function useChatDetailScreenLogic() {
   const addReaction = useMessagesStore((state) => state.addReaction);
   const removeReaction = useMessagesStore((state) => state.removeReaction);
   const updateChat = useChatsStore((state) => state.updateChat);
+  const resetUnreadCount = useChatsStore((state) => state.resetUnreadCount);
 
   const currentChat = useChatsStore((state) => state.chats.find((chat) => chat.conversationId === chatId));
-  const { emitTyping, isTypingVisible, typingText, typingUsers } = useTypingIndicator({
+
+  // Presence state - use global store for persistence
+  const presenceMap = usePresenceStore((state) => state.presenceMap);
+  const updatePresence = usePresenceStore((state) => state.updatePresence);
+
+  // Use new realtime hooks
+  usePresenceHeartbeat({
     socket: typingSocket,
-    conversationId: chatId,
-    myUserId: String(user?.id || ''),
-    enabled: Boolean(typingSocket && chatId),
+    onPresenceUpdate: (payload) => {
+      updatePresence(payload.user_id, payload);
+    },
+    onUnauthorized: () => {
+      // Could trigger logout or token refresh here
+    },
   });
+
+
+  // Wrap useTypingIndicator in try-catch to catch any errors
+  let typingIndicatorResult;
+  try {
+    typingIndicatorResult = useTypingIndicator({
+      socket: typingSocket,
+      conversationId: chatId,
+      myUserId: String(user?.id || ''),
+      enabled: true,
+      throttleMs: 1000,
+    });
+  } catch (error) {
+    // Fallback values
+    typingIndicatorResult = {
+      emitTyping: () => {},
+      typingText: '',
+      typingUsers: [],
+      isTypingVisible: false,
+    };
+  }
+
+  const { emitTyping, typingText, typingUsers, isTypingVisible } = typingIndicatorResult;
+
+  // Re-run useTypingIndicator when typingSocket changes
+  useEffect(() => {
+    // typingSocket changed
+  }, [typingSocket]);
 
   useEffect(() => {
     let active = true;
+    
+    // Only load if we have a valid chatId
+    if (!chatId) return;
+    
     loadInitialMessages(chatId)
       .then((res) => {
         if (!active) return;
-        // Debug: Check if any messages have forwardedFrom
-        const messagesWithForwarded = (res.messages || []).filter((m: any) => m.forwardedFrom);
-        console.log('[loadInitialMessages] Total messages loaded:', (res.messages || []).length);
-        console.log('[loadInitialMessages] Messages with forwarded:', messagesWithForwarded.length);
-
-        if (messagesWithForwarded.length > 0) {
-          console.log('[loadInitialMessages] ✅ Found forwarded messages:', messagesWithForwarded.map((m: any) => ({
-            id: m.id || m.message_id,
-            text: (m.text || m.body || '').substring(0, 30),
-            forwardedFrom: m.forwardedFrom
-          })));
-        }
         // Add conversation avatar to initial messages
         const messagesWithAvatar = (res.messages || []).map(msg => ({
           ...msg,
@@ -110,6 +155,10 @@ export function useChatDetailScreenLogic() {
         setMessagesForChat(chatId, messagesWithAvatar);
         setNextCursor(res.nextCursor || undefined);
         setHasMore(Boolean(res.hasMore));
+
+        // Mark conversation as read and reset unread count
+        markConversationAsRead(chatId);
+        resetUnreadCount(chatId);
 
         // Handle jumpToMessageId - scroll to specific message
         if (jumpToMessageId && messagesWithAvatar.length > 0) {
@@ -143,11 +192,12 @@ export function useChatDetailScreenLogic() {
         }
       })
       .catch((err) => {
+        console.error('[useChatDetailScreen] Error loading messages:', err);
       });
     return () => {
       active = false;
     };
-  }, [chatId, setMessagesForChat, currentChat, jumpToMessageId]);
+  }, [chatId, currentChat?.conversationId, jumpToMessageId]); // Remove setMessagesForChat from dependencies
 
   const handleLoadMore = useCallback(async () => {
     if (!chatId || !hasMore || !nextCursor || isLoadingMore) return;
@@ -300,6 +350,8 @@ export function useChatDetailScreenLogic() {
       if (!active || !connectedSocket) return;
 
       setTypingSocket(connectedSocket);
+      // Join the conversation room to receive typing events
+      connectedSocket.emit('chat:join', { conversation_id: chatId });
       connectedSocket.emit('chat:read', { conversation_id: chatId });
       connectedSocket.on('chat:read', handleRead);
     };
@@ -383,22 +435,52 @@ export function useChatDetailScreenLogic() {
     }, 0);
   }, []);
 
-  const handleForward = useCallback(async (message: ChatMessage, targetConversationIds: string[]) => {
+  const handleForward = useCallback(async (message: ChatMessage, targetConversationIds: string[], optionalMessage?: string) => {
     if (!message || !targetConversationIds || targetConversationIds.length === 0) {
+      console.log('[handleForward] Invalid input:', { message: !!message, targetCount: targetConversationIds?.length });
       return;
     }
     try {
-      console.log('[handleForward] 🎯 Starting forward:', {
+      console.log('[handleForward] Starting forward operation:', {
         messageId: message.id,
         serverMessageId: message.serverMessageId,
-        conversationId: message.conversationId,
         targetCount: targetConversationIds.length,
         targets: targetConversationIds,
+        hasOptionalMessage: !!optionalMessage
       });
       const result = await forwardMessage(message, targetConversationIds);
-      console.log('[handleForward] ✅ Forward result:', result);
+      console.log('[handleForward] Forward completed:', result);
       const acceptedCount = result?.results?.filter((r: any) => r.status === 'accepted').length || 0;
       const totalCount = targetConversationIds.length;
+
+      // Send optional message to accepted conversations if provided
+      if (optionalMessage && optionalMessage.trim()) {
+        const acceptedConversationIds = result?.results
+          ?.filter((r: any) => r.status === 'accepted')
+          .map((r: any) => r.conversation_id) || [];
+        
+        console.log('[handleForward] Sending optional message to:', acceptedConversationIds);
+        
+        // Wait a bit to ensure forwarded message arrives first
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        for (const conversationId of acceptedConversationIds) {
+          try {
+            const { optimisticMessage, sendPromise } = await sendSocketMessage(
+              conversationId,
+              optionalMessage.trim(),
+              undefined,
+              undefined
+            );
+            addMessage(conversationId, optimisticMessage);
+            await sendPromise;
+            updateMessage(conversationId, optimisticMessage.id, { status: 'sent' });
+          } catch (error) {
+            console.error('[handleForward] Failed to send optional message to:', conversationId, error);
+          }
+        }
+      }
+
       Alert.alert(
         t('chat.forward_success', { defaultValue: 'Đã chuyển tiếp tin nhắn' }),
         `${acceptedCount}/${totalCount} cuộc trò chuyện`
@@ -435,7 +517,7 @@ export function useChatDetailScreenLogic() {
         );
       }
     }
-  }, [t]);
+  }, [t, addMessage, updateMessage]);
 
   const handleDeleteAction = useCallback(async (msg: ChatMessage) => {
     try {
@@ -452,17 +534,13 @@ export function useChatDetailScreenLogic() {
   }, [chatId, editingMessage?.id, replyingMessage?.id, deleteMessage]);
 
   const handleReactAction = useCallback(async (msg: ChatMessage, reaction: "like" | "love" | "haha" | "wow" | "sad" | "angry") => {
-    console.log('[handleReactAction] Adding reaction:', { messageId: msg.serverMessageId || msg.id, reaction });
     try {
       // Emit socket event to backend
       await reactMessage(chatId, msg.serverMessageId || msg.id, reaction);
-      console.log('[handleReactAction] Socket event emitted successfully');
       // Update local store immediately for UI
       const userId = user?.id || (user as any)?._id || (user as any)?.userId;
-      console.log('[handleReactAction] User ID:', userId);
       if (userId) {
         addReaction(chatId, msg.serverMessageId || msg.id, userId, reaction);
-        console.log('[handleReactAction] Local store updated');
       }
     } catch (error) {
       console.error('[handleReactAction] Error:', error);
@@ -470,18 +548,32 @@ export function useChatDetailScreenLogic() {
     closeMessageActions();
   }, [chatId, closeMessageActions, user, addReaction]);
 
+  const handleReactMultiple = useCallback(async (msg: ChatMessage, reactions: ("like" | "love" | "haha" | "wow" | "sad" | "angry")[]) => {
+    try {
+      const userId = user?.id || (user as any)?._id || (user as any)?.userId;
+      // Send all reactions in parallel
+      await Promise.all(
+        reactions.map(async (reaction) => {
+          await reactMessage(chatId, msg.serverMessageId || msg.id, reaction);
+          if (userId) {
+            addReaction(chatId, msg.serverMessageId || msg.id, userId, reaction);
+          }
+        })
+      );
+    } catch (error) {
+      console.error('[handleReactMultiple] Error:', error);
+    }
+    closeMessageActions();
+  }, [chatId, closeMessageActions, user, addReaction]);
+
   const handleUnreactAction = useCallback(async (messageId: string, reactionType: string) => {
-    console.log('[handleUnreactAction] Removing reaction:', { messageId, reactionType });
     try {
       // Emit socket event to backend
       await unreactMessage(chatId, messageId);
-      console.log('[handleUnreactAction] Socket event emitted successfully');
       // Update local store immediately for UI
       const userId = user?.id || (user as any)?._id || (user as any)?.userId;
-      console.log('[handleUnreactAction] User ID:', userId);
       if (userId) {
         removeReaction(chatId, messageId, userId);
-        console.log('[handleUnreactAction] Local store updated');
       }
     } catch (error) {
       console.error('[handleUnreactAction] Error:', error);
@@ -584,8 +676,9 @@ export function useChatDetailScreenLogic() {
 
   const handleTypingStart = useCallback(() => {
     if (!chatId) return;
-    emitTyping(user?.name || user?.phone || user?.id || 'User');
-  }, [chatId, emitTyping, user?.id, user?.name, user?.phone]);
+    const username = (user as any)?.fullName || (user as any)?.name || 'Bạn';
+    emitTyping(username);
+  }, [chatId, emitTyping, user]);
 
   const handleTypingStop = useCallback(() => undefined, []);
 
@@ -603,10 +696,6 @@ export function useChatDetailScreenLogic() {
 
       // Convert backend messages to frontend format
       const convertedMessages: ChatMessage[] = items.map((apiMsg: any) => {
-        // Debug: Log forwardedFrom if exists
-        if (apiMsg.forwardedFrom) {
-          console.log('[handleSearchMessages] forwardedFrom:', apiMsg.forwardedFrom);
-        }
 
         return {
           id: apiMsg.messageId || apiMsg.id,
@@ -747,6 +836,7 @@ export function useChatDetailScreenLogic() {
     handleRevokeAction,
     handleDeleteAction,
     handleReactAction,
+    handleReactMultiple,
     handleUnreactAction,
     handleForwardAction,
     handleForward,
@@ -776,6 +866,7 @@ export function useChatDetailScreenLogic() {
     typingText,
     typingUsers,
     isTypingVisible,
+    presence: { ...presenceMap },
     bottomComposerPadding,
     // Search exports
     isSearchMode,

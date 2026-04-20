@@ -49,6 +49,7 @@ export const createTypingIndicatorService = ({
   socket,
   throttleMs = 1000,
 }: CreateTypingIndicatorServiceOptions) => {
+  
   const lastEmittedAt = new Map<string, number>();
 
   const emitTyping = (payload: ChatTypingEmitPayload) => {
@@ -66,9 +67,13 @@ export const createTypingIndicatorService = ({
   const subscribe = (
     handler: (payload: ChatTypingUpdatePayload) => void,
   ) => {
-    socket.on("chat:typing:update", handler);
+    const handleTypingUpdate = (payload: ChatTypingUpdatePayload) => {
+      handler(payload);
+    };
+    
+    socket.on("chat:typing:update", handleTypingUpdate);
     return () => {
-      socket.off("chat:typing:update", handler);
+      socket.off("chat:typing:update", handleTypingUpdate);
     };
   };
 

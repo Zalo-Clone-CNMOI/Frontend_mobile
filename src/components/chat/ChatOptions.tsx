@@ -1,7 +1,7 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, BellOff, ChevronLeft, ChevronRight, Crown, FileText, Play, Search, Settings, Trash2, User, UserPlus, Users, UserX } from 'lucide-react-native';
-import React, { useEffect, useState, useCallback } from 'react';
+import { Bell, BellOff, ChevronLeft, ChevronRight, Crown, FileText, Play, Search, Settings, Trash2, User, UserPlus, Users, UserX, X } from 'lucide-react-native';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -99,10 +100,18 @@ export function ChatOptions({
   const [membersModalVisible, setMembersModalVisible] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
-  const [myRole, setMyRole] = useState<string>('member');
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [myRole, setMyRole] = useState<string>(isOwner ? 'owner' : 'member');
   const [roleModalVisible, setRoleModalVisible] = useState(false);
 
   const router = useRouter();
+
+  // Sync myRole with isOwner prop when it changes (only when isOwner=true)
+  useEffect(() => {
+    if (isOwner) {
+      setMyRole('owner');
+    }
+  }, [isOwner]);
 
   useEffect(() => {
     if (visible) {
@@ -279,10 +288,10 @@ export function ChatOptions({
   // Render member item
   const renderMemberItem = ({ item }: { item: any }) => {
     // Owner or admin can change roles (following Zalo logic)
-    const canChangeRole = (isOwner || myRole === 'admin') && 
+    const canChangeRole = (isOwner || myRole === 'owner' || myRole === 'admin') && 
                           item.userId !== currentUserId && 
                           item.role !== 'owner' &&
-                          (isOwner || item.role !== 'admin');
+                          (isOwner || myRole === 'owner' || item.role !== 'admin');
     
     return (
       <TouchableOpacity
@@ -303,11 +312,11 @@ export function ChatOptions({
             {item.role === 'owner' && (
               <View style={[styles.roleBadge, { backgroundColor: theme.colors.primary + '20' }]}>
                 <Crown size={12} color={theme.colors.primary} />
-                <Text style={[styles.roleText, { color: theme.colors.primary }]}>Owner</Text>
+                <Text style={[styles.roleText, { color: theme.colors.primary }]}>{t('chat_options.role_owner')}</Text>
               </View>
             )}
             {item.role === 'admin' && (
-              <Text style={[styles.adminText, { color: '#FF9500' }]}>Admin</Text>
+              <Text style={[styles.adminText, { color: '#FF9500' }]}>{t('chat_options.role_admin')}</Text>
             )}
             {item.nickname && (
               <Text style={[styles.memberNickname, { color: '#8e8e93' }]}>
@@ -318,7 +327,7 @@ export function ChatOptions({
         </View>
         {canChangeRole && (
           <Text style={[styles.changeRoleText, { color: theme.colors.primary }]}>
-            Change
+            {t('chat_options.change_role')}
           </Text>
         )}
       </TouchableOpacity>
@@ -378,7 +387,9 @@ export function ChatOptions({
       <View style={styles.optionLeft}>
         <Icon size={22} color={theme.colors.primary} />
         <View style={styles.optionTextContainer}>
-          <Text style={[styles.optionTitle, { color: theme.colors.text }]}>{title}</Text>
+          <Text style={[styles.optionTitle, { color: theme.colors.text }]}>
+            {title}
+          </Text>
           {subtitle && (
             <Text style={[styles.optionSubtitle, { color: '#8e8e93' }]}>{subtitle}</Text>
           )}
@@ -396,6 +407,18 @@ export function ChatOptions({
       )}
     </TouchableOpacity>
   );
+
+  // Debug log
+  console.log('[ChatOptions] Render - isOwner:', isOwner, 'myRole:', myRole, 'isGroup:', isGroup, 'canAddMember:', isOwner || myRole === 'admin' || myRole === 'owner');
+
+  const filteredMembers = useMemo(() => {
+    if (!memberSearchQuery.trim()) return members;
+    const query = memberSearchQuery.toLowerCase().trim();
+    return members.filter(m => 
+      (m.fullName || '').toLowerCase().includes(query) ||
+      (m.nickname || '').toLowerCase().includes(query)
+    );
+  }, [members, memberSearchQuery]);
 
   return (
     <Modal
@@ -481,7 +504,7 @@ export function ChatOptions({
                 />
                 
                 {/* Add Member - Owner and Admin only */}
-                {(isOwner || myRole === 'admin') && (
+                {(isOwner || myRole === 'admin' || myRole === 'owner') && (
                   <OptionItem
                     icon={UserPlus}
                     title={t('chat_options.add_member')}
@@ -582,20 +605,39 @@ export function ChatOptions({
                 <Text style={[styles.headerTitle, { color: theme.colors.iconHeader }]}>{t('chat_options.group_members')}</Text>
               </View>
             </View>
+            {/* Search input for members */}
+            <View style={[styles.searchContainer, { backgroundColor: theme.colors.background, borderBottomColor: theme.colors.border }]}>
+              <View style={[styles.searchInputContainer, { backgroundColor: theme.colors.card }]}>
+                <Search size={18} color={theme.colors.icon} style={styles.searchIcon} />
+                <TextInput
+                  style={[styles.searchInput, { color: theme.colors.text }]}
+                  placeholder={t('common.search') || 'Tìm kiếm...'}
+                  placeholderTextColor={theme.colors.icon}
+                  value={memberSearchQuery}
+                  onChangeText={setMemberSearchQuery}
+                />
+                {memberSearchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setMemberSearchQuery('')}>
+                    <X size={18} color={theme.colors.icon} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
             <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
               {membersLoading ? (
                 <View style={styles.membersLoadingContainer}>
                   <ActivityIndicator size="small" color={theme.colors.primary} />
                 </View>
-              ) : members.length === 0 ? (
+              ) : filteredMembers.length === 0 ? (
                 <View style={styles.membersLoadingContainer}>
                   <Text style={[styles.noMembersText, { color: theme.colors.icon }]}>
-                    {t('chat_options.no_members')}
+                    {memberSearchQuery ? t('chat_options.no_search_results') || 'Không tìm thấy thành viên' : t('chat_options.no_members')}
                   </Text>
                 </View>
               ) : (
                 <FlatList
-                  data={members}
+                  data={filteredMembers}
                   keyExtractor={(item) => item.id}
                   renderItem={renderMemberItem}
                   contentContainerStyle={styles.membersList}
@@ -836,5 +878,25 @@ const styles = StyleSheet.create({
   changeRoleText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 0.5,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 0,
   },
 });

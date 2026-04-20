@@ -8,6 +8,7 @@ import { MessageActionMenu } from '@/src/components/chat/MessageActionMenu';
 import { MessageBubble } from '@/src/components/chat/MessageBubble';
 import { TypingIndicator } from '@/src/components/chat/TypingIndicator';
 import { VideoViewer } from '@/src/components/chat/VideoViewer';
+import { PresenceIndicator } from '@/src/components/common/PresenceIndicator';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useChatDetailScreenLogic } from '@/src/hooks/screens/useChatDetailScreen';
 import { getMessageReactions } from '@/src/services/chatService';
@@ -22,6 +23,8 @@ import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { ChevronDown, ChevronUp, Circle, List, Phone, Search, X } from 'lucide-react-native';
+import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
+import { PresenceText } from '@/src/components/common/PresenceIndicator';
 import React, { useState, useEffect } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { leaveConversation, addMember, markAsRead } from '@/src/services/conversationsApi';
@@ -30,7 +33,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function ChatDetailScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { presence } = useChatStore();
   const { user: authUser } = useAuth();
   const setMessageReactions = useMessagesStore((state) => state.setMessageReactions);
   const deleteChat = useChatsStore((state) => state.deleteChat);
@@ -74,13 +76,16 @@ export default function ChatDetailScreen() {
     showChatOptions,
     title,
     typingText,
+    typingUsers,
     isTypingVisible,
+    presence,
     closeMessageActions,
     handleReplyAction,
     handleEditAction,
     handleRevokeAction,
     handleDeleteAction,
     handleReactAction,
+    handleReactMultiple,
     handleUnreactAction,
     handleForwardAction,
     handleForward,
@@ -103,6 +108,14 @@ export default function ChatDetailScreen() {
     setHighlightedMessageId,
     jumpToMessage,
   } = useChatDetailScreenLogic();
+
+  // Debug typing state
+  console.log('[ChatDetail] Typing state debug:', {
+    typingText,
+    typingUsers,
+    isTypingVisible,
+    chatId
+  });
 
   // Group management state
   const [showGroupInfoModal, setShowGroupInfoModal] = useState(false);
@@ -485,16 +498,57 @@ export default function ChatDetailScreen() {
             backgroundColor: theme.colors.statusBar,
           },
           headerTintColor: theme.colors.textHeader,
-          headerTitle: () => (
-            <View style={styles.headerTitleContainer}>
-              <Text style={[styles.headerTitle, { color: theme.colors.textHeader }]}>{title}</Text>
-              {presenceStatus === 'online' && (
-                <View style={styles.headerOnlineDot}>
-                  <Circle size={8} fill="#34c759" color="#34c759" />
+          headerTitle: () => {
+            // Get other user info for direct chat
+            const otherUserId = (currentChat as any)?.otherUserId ||
+                   (currentChat as any)?.userId ||
+                   (currentChat as any)?.recipientId ||
+                   (currentChat as any)?.partnerId ||
+                   (currentChat as any)?.contactId ||
+                   (currentChat as any)?.members?.[0]?.userId ||
+                   (currentChat as any)?.members?.[0]?.id ||
+                   (messages && messages.length > 0 ? messages.find((m: any) => !m.fromMe)?.senderId : undefined);
+            const otherUserPresence = otherUserId ? presence[otherUserId] : null;
+            const isGroup = currentChat?.isGroup ?? false;
+
+            // Debug logging
+            console.log('[ChatDetail] Header debug:', {
+              otherUserId,
+              isGroup,
+              presenceData: otherUserPresence,
+              allPresence: presence,
+              hasPresence: !!otherUserPresence
+            });
+
+            return (
+              <View style={styles.headerTitleContainer}>
+                {/* Title and Status - Giông Zalo, không có avatar */}
+                <View style={styles.headerTextContainer}>
+                  <Text style={[styles.headerTitle, { color: theme.colors.textHeader }]}>
+                    {title}
+                  </Text>
+                  {!isGroup && otherUserPresence && (
+                    <View style={styles.headerPresenceContainer}>
+                      <PresenceIndicator
+                        status={otherUserPresence?.status || 'offline'}
+                        size="small"
+                        showBorder={false}
+                      />
+                      <PresenceText
+                        status={otherUserPresence?.status || 'offline'}
+                        lastSeenAt={otherUserPresence?.last_seen_at}
+                      />
+                    </View>
+                  )}
+                  {isGroup && (
+                    <Text style={[styles.headerSubtitle, { color: theme.colors.icon || '#8E8E93', opacity: 0.7 }]}>
+                      {(currentChat as any)?.memberCount || 0} thành viên
+                    </Text>
+                  )}
                 </View>
-              )}
-            </View>
-          ),
+              </View>
+            );
+          },
           headerRight: () => (
             <View style={styles.headerRightContainer}>
               {!isSearchMode && (
@@ -627,7 +681,7 @@ export default function ChatDetailScreen() {
               replyingMessage
                 ? {
                     senderName: replyingMessage.fromMe ? 'Ban' : title,
-                    text: replyingMessage.isRevoked ? 'Tin nhan da thu hoi' : replyingMessage.text || '',
+                    text: replyingMessage.isRevoked ? 'Tin nhắn đã thu hồi' : replyingMessage.text || '',
                   }
                 : null
             }
@@ -679,6 +733,7 @@ export default function ChatDetailScreen() {
           onRevoke={handleRevokeAction}
           onDelete={handleDeleteAction}
           onReact={handleReactAction}
+          onReactMultiple={handleReactMultiple}
           onForward={handleForwardAction}
         />
 
@@ -729,6 +784,21 @@ const styles = StyleSheet.create({
   },
   headerOnlineDot: {
     marginTop: 2,
+  },
+  headerTextContainer: {
+    marginLeft: 10,
+    justifyContent: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '400',
+  },
+  headerPresenceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    gap: 4,
   },
   body: { flex: 1 },
   listContent: {

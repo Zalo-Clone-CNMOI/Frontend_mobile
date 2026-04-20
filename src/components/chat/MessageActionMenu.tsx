@@ -22,6 +22,7 @@ interface MessageActionMenuProps {
   onRevoke?: (msg: ChatMessage) => void;
   onDelete: (msg: ChatMessage) => void;
   onReact?: (msg: ChatMessage, reaction: "like" | "love" | "haha" | "wow" | "sad" | "angry") => void;
+  onReactMultiple?: (msg: ChatMessage, reactions: ("like" | "love" | "haha" | "wow" | "sad" | "angry")[]) => void;
   onForward?: (msg: ChatMessage) => void;
 }
 
@@ -43,10 +44,18 @@ export function MessageActionMenu({
   onRevoke,
   onDelete,
   onReact,
+  onReactMultiple,
   onForward,
 }: MessageActionMenuProps) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const [selectedReactions, setSelectedReactions] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    if (!visible) {
+      setSelectedReactions([]);
+    }
+  }, [visible]);
 
   if (!message) return null;
 
@@ -83,19 +92,47 @@ export function MessageActionMenu({
         >
           
           <View style={[styles.reactionsRow, { borderBottomColor: theme.colors.border }]}>
-            {REACTIONS.map((r, i) => (
+            {REACTIONS.map((r) => {
+              const isSelected = selectedReactions.includes(r.type);
+              return (
+                <TouchableOpacity
+                  key={r.type}
+                  style={[
+                    styles.reactionBtn,
+                    isSelected && { backgroundColor: theme.colors.primary + '30', borderRadius: 20 }
+                  ]}
+                  onPress={() => {
+                    setSelectedReactions(prev => {
+                      const exists = prev.includes(r.type);
+                      if (exists) {
+                        return prev.filter(type => type !== r.type);
+                      }
+                      return [...prev, r.type];
+                    });
+                  }}
+                >
+                  <Text style={styles.reactionEmoji}>{r.emoji}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {selectedReactions.length > 0 && (
+            <View style={styles.selectedReactionsBar}>
+              <Text style={[styles.selectedText, { color: theme.colors.text }]}>
+                {selectedReactions.map(type => REACTIONS.find(r => r.type === type)?.emoji).join(' ')}
+              </Text>
               <TouchableOpacity
-                key={i}
-                style={styles.reactionBtn}
+                style={[styles.sendReactionsBtn, { backgroundColor: theme.colors.primary }]}
                 onPress={() => {
-                  onReact?.(message, r.type);
+                  onReactMultiple?.(message, selectedReactions as any);
                   onClose();
                 }}
               >
-                <Text style={styles.reactionEmoji}>{r.emoji}</Text>
+                <Text style={styles.sendReactionsText}>{t('reactions.send_count', { count: selectedReactions.length, defaultValue: `Gửi ${selectedReactions.length} reaction` })}</Text>
               </TouchableOpacity>
-            ))}
-          </View>
+            </View>
+          )}
 
           
           <View style={styles.grid}>
@@ -213,5 +250,30 @@ const styles = StyleSheet.create({
   itemText: {
     fontSize: 12,
     textAlign: 'center',
+  },
+  selectedReactionsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 12,
+  },
+  selectedText: {
+    fontSize: 20,
+    flex: 1,
+    marginRight: 12,
+  },
+  sendReactionsBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  sendReactionsText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

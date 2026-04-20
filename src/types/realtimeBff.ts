@@ -173,8 +173,8 @@ export type ChatTypingEmitPayload = {
 export type ChatTypingUser = {
   userId?: EntityId;
   user_id?: EntityId;
-  username?: string;
   fullName?: string;
+  username?: string;
   name?: string;
 };
 

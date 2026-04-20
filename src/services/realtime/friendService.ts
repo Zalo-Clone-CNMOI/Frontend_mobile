@@ -183,14 +183,10 @@ export const createFriendService = ({
     withErrorMapping(async () => {
       rateLimiter.consume("mutation");
       const url = endpoint("/friends/requests");
-      console.log('[FriendService] httpClient baseURL:', (httpClient as any).defaults?.baseURL);
-      console.log('[FriendService] sendFriendRequest endpoint path:', url);
-      console.log('[FriendService] sendFriendRequest payload:', payload);
       const response = await httpClient.post<ApiEnvelope<FriendRequestRecord>>(
         url,
         payload,
       );
-      console.log('[FriendService] sendFriendRequest response:', response.data);
       return response.data;
     });
 

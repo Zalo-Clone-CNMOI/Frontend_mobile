@@ -4,6 +4,8 @@ export type ConversationV2 = {
   conversationId: string;
   type?: 'direct' | 'group' | 'oa' | string;
   isGroup: boolean;
+  isOwner?: boolean;
+  myRole?: 'owner' | 'admin' | 'member';
   name?: string;
   avatar?: string | null;
   lastMessage?: {
@@ -22,6 +24,7 @@ export type ConversationV2 = {
   createdAt?: number;
   userId?: string;
   otherUserId?: string;
+  myLastReadAt?: number;
 };
 
 export type MessageType = 'text' | 'image' | 'video' | 'file' | 'voice' | 'system';

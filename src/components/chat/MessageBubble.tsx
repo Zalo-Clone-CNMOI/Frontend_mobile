@@ -271,12 +271,7 @@ export const MessageBubble = React.memo(
   const messageText = (item as any).text || (item as any).content || '';
   const isMe = (item as any).fromMe || ((item as any).sender && (item as any).sender.me === true);
 
-  // Debug: Log forwardedFrom data
-  useEffect(() => {
-    if (item.forwardedFrom) {
-      console.log('[MessageBubble] ✓ forwardedFrom exists:', item.forwardedFrom);
-    }
-  }, [item.forwardedFrom]);
+  
   const replySenderName = item.replyTo?.senderName || t('messages.replying_to');
   const replyText =
     String(item.replyTo?.text || '').trim() ||
@@ -310,7 +305,6 @@ export const MessageBubble = React.memo(
   const getBubbleBg = () => {
     if (isImage || isVideo || isFile) return 'transparent';
     if (isMe) return myBubbleBg;
-    if (item.forwardedFrom) return forwardedTheirBubbleBg;
     return theirBubbleBg;
   };
 
@@ -412,60 +406,74 @@ export const MessageBubble = React.memo(
               style={[
                 styles.forwardedHeader,
                 {
-                  // Use more prominent background colors
                   backgroundColor: isMe
-                    ? 'rgba(255,255,255,0.2)'  // Brighter for my messages
-                    : theme.colors.primary + '20',  // Primary color tint for their messages
-                  borderWidth: 1.5,
-                  borderColor: isMe
-                    ? 'rgba(255,255,255,0.4)'
-                    : theme.colors.primary,
-                  minHeight: 44, // Make it taller
-                  paddingVertical: 8,
-                  paddingHorizontal: 10,
+                    ? 'rgba(255,255,255,0.15)'  // Subtle white for my messages
+                    : theme.colors.primary + '15',  // Subtle primary for their messages
+                  borderWidth: 1,
+                  borderColor: theme.colors.primary + '40',
+                  borderRadius: 12,
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  marginBottom: 6,
                 },
               ]}
-              onPress={() => {
-                console.log('[MessageBubble] Forwarded header pressed:', item.forwardedFrom);
-                // Navigate to original conversation to view the original message
-                onNavigateToForwarded?.(item.forwardedFrom);
-              }}
-              activeOpacity={0.6}
+              // onPress={() => {
+              //   // Navigate to original conversation to view the original message
+              //   onNavigateToForwarded?.(item.forwardedFrom);
+              // }}
+              activeOpacity={0.7}
             >
-              <View
-                style={[
-                  styles.forwardedAvatarContainer,
-                  {
-                    backgroundColor: theme.colors.primary + '30',
-                    width: 28,
-                    height: 28,
-                    borderRadius: 14,
-                  },
-                ]}
-              >
-                <Text style={[styles.forwardedAvatarText, { color: theme.colors.primary, fontSize: 13 }]}>
-                  {item.forwardedFrom.source_sender_name_snapshot?.charAt(0).toUpperCase() || 'U'}
-                </Text>
-              </View>
-              <View style={styles.forwardedContent}>
-                <Text
+              <View style={styles.forwardedHeaderContent}>
+                <View
                   style={[
-                    styles.forwardedHeaderText,
-                    { color: isMe ? myMetaColor : linkPreviewDomainColor, fontWeight: '600' },
+                    styles.forwardedAvatarContainer,
+                    {
+                      backgroundColor: theme.colors.primary + '25',
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      marginRight: 10,
+                    },
                   ]}
-                  numberOfLines={1}
                 >
-                  {t('chat.forwarded_from', { defaultValue: 'Từ' })} {item.forwardedFrom.source_sender_name_snapshot || 'Unknown'}
-                </Text>
-                <Text
-                  style={[
-                    styles.forwardedSubText,
-                    { color: isMe ? myMetaColor : theirMetaColor, fontSize: 11 },
-                  ]}
-                  numberOfLines={1}
-                >
-                  Nhấn để xem tin nhắn gốc ›
-                </Text>
+                  <Text style={[styles.forwardedAvatarText, { 
+                    color: theme.colors.primary, 
+                    fontSize: 12,
+                    fontWeight: '600'
+                  }]}>
+                    {item.forwardedFrom.source_sender_name_snapshot?.charAt(0).toUpperCase() || 'U'}
+                  </Text>
+                </View>
+                <View style={styles.forwardedContent}>
+                  <Text
+                    style={[
+                      styles.forwardedHeaderText,
+                      { 
+                        color: theme.colors.text, 
+                        fontSize: 13,
+                        fontWeight: '500',
+                        lineHeight: 16
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {t('chat.forwarded_from', { defaultValue: 'Đã chuyển tiếp' })} {item.forwardedFrom.source_sender_name_snapshot || 'Unknown'}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.forwardedSubText,
+                      { 
+                        color: theme.colors.text, 
+                        fontSize: 11,
+                        opacity: 0.6,
+                        marginTop: 1
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    Xem tin nhắn gốc
+                  </Text>
+                </View>
               </View>
             </TouchableOpacity>
           )}
@@ -484,7 +492,7 @@ export const MessageBubble = React.memo(
               <Text
                 style={[
                   styles.revoked,
-                  { color: isMe ? myMetaColor : theirMetaColor },
+                  { color: theme.colors.text },
                 ]}
               >
                 {t('messages.revoked')}
@@ -564,33 +572,6 @@ export const MessageBubble = React.memo(
                         </Pressable>
                       );
                     })}
-                  </View>
-                </View>
-              ) : item.forwardedFrom ? (
-                // ── Forwarded image – link preview card ──────────────────────
-                <View
-                  style={[
-                    styles.linkPreviewCard,
-                    { backgroundColor: linkPreviewCardBg },
-                  ]}
-                >
-                  <Image
-                    source={{ uri: attachmentUrl || '' }}
-                    style={styles.linkPreviewImageLarge}
-                  />
-                  <View style={styles.linkPreviewContent}>
-                    <Text
-                      style={[styles.linkPreviewDomain, { color: linkPreviewDomainColor }]}
-                      numberOfLines={1}
-                    >
-                      image
-                    </Text>
-                    <Text
-                      style={[styles.linkPreviewFileName, { color: linkPreviewFileNameColor }]}
-                      numberOfLines={1}
-                    >
-                      {item.fileInfo?.name || 'Hình ảnh'}
-                    </Text>
                   </View>
                 </View>
               ) : (
@@ -681,34 +662,83 @@ export const MessageBubble = React.memo(
               onPress={() => onVideoPress?.(attachmentUrl || '')}
               onLongPress={() => onLongPress?.(item)}
             >
-              {item.forwardedFrom ? (
-                // Forwarded video – compact preview
-                <View style={[styles.videoForwardedCard, { backgroundColor: linkPreviewCardBg, borderColor: theirBubbleBorder }]}>
-                  <View style={styles.videoForwardedThumbBox}>
-                    {(thumbnailUrl || attachmentUrl) ? (
-                      <Image
-                        source={{ uri: thumbnailUrl || attachmentUrl }}
-                        style={styles.videoForwardedThumbImg}
-                      />
-                    ) : (
-                      <View style={[styles.videoForwardedThumbImg, { backgroundColor: isDark ? '#2C2C2E' : '#E0E0E5', justifyContent: 'center', alignItems: 'center' }]}>
-                        <FileVideo size={28} color={isDark ? 'rgba(255,255,255,0.35)' : '#AAAAAA'} />
-                      </View>
-                    )}
-                    {/* mini play icon on thumb */}
-                    <View style={styles.videoForwardedPlayIcon}>
-                      <Play size={14} color="#FFFFFF" fill="#FFFFFF" />
+              {/* Forwarded header for video messages */}
+              {item.forwardedFrom && (
+                <TouchableOpacity
+                  style={[
+                    styles.forwardedHeader,
+                    {
+                      backgroundColor: isMe
+                        ? 'rgba(255,255,255,0.15)'  // Subtle white for my messages
+                        : theme.colors.primary + '15',  // Subtle primary for their messages
+                      borderWidth: 1,
+                      borderColor: theme.colors.primary + '40',
+                      borderRadius: 12,
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      marginBottom: 6,
+                    },
+                  ]}
+                  // onPress={() => {
+                  //   // Navigate to original conversation to view the original message
+                  //   onNavigateToForwarded?.(item.forwardedFrom);
+                  // }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.forwardedHeaderContent}>
+                    <View
+                      style={[
+                        styles.forwardedAvatarContainer,
+                        {
+                          backgroundColor: theme.colors.primary + '25',
+                          width: 24,
+                          height: 24,
+                          borderRadius: 12,
+                          marginRight: 10,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.forwardedAvatarText, { 
+                        color: theme.colors.primary, 
+                        fontSize: 12,
+                        fontWeight: '600'
+                      }]}>{item.forwardedFrom.source_sender_name_snapshot?.charAt(0).toUpperCase() || 'U'}</Text>
+                    </View>
+                    <View style={styles.forwardedContent}>
+                      <Text
+                        style={[
+                          styles.forwardedHeaderText,
+                          { 
+                            color: theme.colors.text, 
+                            fontSize: 13,
+                            fontWeight: '500',
+                            lineHeight: 16
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {t('chat.forwarded_from', { defaultValue: 'Tin nhắn' })} {item.forwardedFrom.source_sender_name_snapshot || 'Unknown'}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.forwardedSubText,
+                          { 
+                            color: theme.colors.text, 
+                            fontSize: 11,
+                            opacity: 0.6,
+                            marginTop: 1
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        Xem tin nhắn gốc
+                      </Text>
                     </View>
                   </View>
-                  <View style={styles.videoForwardedInfo}>
-                    <Text style={[styles.videoForwardedLabel, { color: linkPreviewDomainColor }]}>Video</Text>
-                    <Text style={[styles.videoForwardedName, { color: linkPreviewFileNameColor }]} numberOfLines={2}>
-                      {item.fileInfo?.name || 'Video'}
-                    </Text>
-                  </View>
-                </View>
-              ) : (
-                // Regular video card with forward button
+                </TouchableOpacity>
+              )}
+
+              {/* Regular video card with forward button */}
                 <View style={[styles.imageWithForwardContainer, !isMe && styles.imageWithForwardContainerReverse]}>
                   {onForwardPress && (
                     <TouchableOpacity
@@ -753,7 +783,7 @@ export const MessageBubble = React.memo(
                     </View>
                   </View>
                 </View>
-              )}
+            
 
               {/* Caption */}
               {item.caption && (
@@ -942,15 +972,15 @@ const styles = StyleSheet.create({
     marginVertical: 3,
     paddingHorizontal: 4,
     flexDirection: 'row',
-    alignItems: 'flex-end',           // avatars align to bottom of bubble
+    alignItems: 'flex-start',           // avatars align to top of bubble
   },
   rowLeft: {
     justifyContent: 'flex-start',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
   },
   rowRight: {
     justifyContent: 'flex-end',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
   },
 
   avatar: {
@@ -1216,22 +1246,27 @@ const styles = StyleSheet.create({
   forwardedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 12,
     alignSelf: 'stretch', // Take full width of bubble
     marginHorizontal: 4,
     marginTop: 4,
     marginBottom: 8,
   },
+  forwardedHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   forwardedAvatarContainer: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 6,
+    marginRight: 10,
   },
-  forwardedAvatarText: { fontSize: 11, fontWeight: '600' },
-  forwardedHeaderText: { fontSize: 12, fontWeight: '400' },
+  forwardedAvatarText: { fontSize: 12, fontWeight: '600' },
+  forwardedHeaderText: { fontSize: 13, fontWeight: '500' },
   forwardedContent: {
     flex: 1,
     flexDirection: 'column',

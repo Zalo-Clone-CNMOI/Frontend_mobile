@@ -88,10 +88,6 @@ export const useChatStore = create<ChatState>((set) => ({
       forwarded_from: payload.forwarded_from,  // ✅ Lưu forwarded_from từ socket
     };
 
-    // Debug: Log if forwarded message
-    if (payload.forwarded_from) {
-      console.log('[chatStore] Received forwarded message:', payload.forwarded_from);
-    }
 
     const existingMessages = state.messages[conversationId] || [];
     

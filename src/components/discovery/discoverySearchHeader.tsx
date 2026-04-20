@@ -46,10 +46,10 @@ export function DiscoverySearchHeader({
         showSoftInputOnFocus={false}
         onFocus={onPressSearch}
       />
-      <TouchableOpacity style={styles.iconButton}>
-        <QrCode size={20} color={theme.colors.iconHeader} onPress={() => router.push('/scanner')} />
-      </TouchableOpacity>    
-      </View>
+      <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/scanner')}>
+        <QrCode size={20} color={theme.colors.iconHeader} />
+      </TouchableOpacity>
+    </View>
   );
 }
 
