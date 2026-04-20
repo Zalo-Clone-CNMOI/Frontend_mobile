@@ -130,7 +130,9 @@ export const useChatSocket = () => {
       }
 
       if (conversationId) {
-        updateLastMessage(conversationId, content, type, timestamp, senderId, senderName);
+        const isFromMe = senderId === authUser?.id;
+        console.log('[useChatSocket] Updating last message:', { conversationId, senderId, authUserId: authUser?.id, isFromMe, shouldIncrementUnread: !isFromMe });
+        updateLastMessage(conversationId, content, type, timestamp, senderId, senderName, !isFromMe);
       }
     });
 

@@ -1,9 +1,9 @@
 import { useTheme } from '@/src/theme/themeContext';
-import { Shield, ShieldCheck, ShieldAlert, X } from 'lucide-react-native';
+import { Shield, ShieldCheck, ShieldAlert, Trash2, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { updateMember } from '@/src/services/conversationsApi';
+import { updateMember, removeMember } from '@/src/services/conversationsApi';
 
 type MemberRole = 'owner' | 'admin' | 'member';
 
@@ -22,6 +22,7 @@ interface MemberRoleModalProps {
   members: Member[];
   currentUserId: string;
   isOwner: boolean;
+  myRole: MemberRole;
 }
 
 export function MemberRoleModal({
@@ -31,6 +32,7 @@ export function MemberRoleModal({
   members,
   currentUserId,
   isOwner,
+  myRole,
 }: MemberRoleModalProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -59,11 +61,23 @@ export function MemberRoleModal({
   };
 
   const canChangeRole = (member: Member) => {
-    // Only owner can change roles
-    if (!isOwner) return false;
+    // Owner or admin can change roles (following Zalo logic)
+    if (!isOwner && myRole !== 'admin') return false;
     // Cannot change own role
     if (member.userId === currentUserId) return false;
     // Cannot change other owners
+    if (member.role === 'owner') return false;
+    // Admins cannot change other admins' roles
+    if (!isOwner && member.role === 'admin') return false;
+    return true;
+  };
+
+  const canRemoveMember = (member: Member) => {
+    // Only owner can remove members
+    if (!isOwner) return false;
+    // Cannot remove yourself
+    if (member.userId === currentUserId) return false;
+    // Cannot remove other owners
     if (member.role === 'owner') return false;
     return true;
   };
@@ -81,6 +95,35 @@ export function MemberRoleModal({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRemoveMember = async (member: Member) => {
+    Alert.alert(
+      t('member_role.remove_confirm'),
+      t('member_role.remove_confirm_message', { name: member.fullName }),
+      [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('member_role.remove'),
+          style: 'destructive',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await removeMember(conversationId, member.userId);
+              Alert.alert(t('common.success'), t('member_role.remove_success'));
+              onClose();
+            } catch (error: any) {
+              Alert.alert(t('common.error'), error.message || t('member_role.remove_failed'));
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const showRoleOptions = (member: Member) => {
@@ -137,7 +180,7 @@ export function MemberRoleModal({
                   { 
                     backgroundColor: theme.colors.background,
                     borderBottomColor: theme.colors.border,
-                    opacity: canChangeRole(member) ? 1 : 0.6,
+                    opacity: canChangeRole(member) || canRemoveMember(member) ? 1 : 0.6,
                   },
                 ]}
                 onPress={() => showRoleOptions(member)}
@@ -161,11 +204,25 @@ export function MemberRoleModal({
                     </View>
                   </View>
                 </View>
-                {canChangeRole(member) && (
-                  <Text style={[styles.changeText, { color: theme.colors.primary }]}>
-                    {t('member_role.change')}
-                  </Text>
-                )}
+                <View style={styles.actionsContainer}>
+                  {canChangeRole(member) && (
+                    <Text style={[styles.changeText, { color: theme.colors.primary }]}>
+                      {t('member_role.change')}
+                    </Text>
+                  )}
+                  {canRemoveMember(member) && (
+                    <TouchableOpacity
+                      style={styles.removeButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleRemoveMember(member);
+                      }}
+                      disabled={loading}
+                    >
+                      <Trash2 size={18} color="#FF3B30" />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -246,5 +303,13 @@ const styles = StyleSheet.create({
   changeText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  removeButton: {
+    padding: 8,
   },
 });

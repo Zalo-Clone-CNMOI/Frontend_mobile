@@ -1,7 +1,9 @@
 import { ChatComposer } from '@/src/components/chat/ChatComposer';
 import { ChatOptions } from '@/src/components/chat/ChatOptions';
 import { ForwardModal } from '@/src/components/chat/ForwardModal';
+import { GroupInfoModal } from '@/src/components/chat/GroupInfoModal';
 import { ImageViewer } from '@/src/components/chat/ImageViewer';
+import { MemberRoleModal } from '@/src/components/chat/MemberRoleModal';
 import { MessageActionMenu } from '@/src/components/chat/MessageActionMenu';
 import { MessageBubble } from '@/src/components/chat/MessageBubble';
 import { TypingIndicator } from '@/src/components/chat/TypingIndicator';
@@ -14,13 +16,15 @@ import { lookupMessage } from '@/src/services/messagesApi';
 import { searchUsers } from '@/src/services/usersApi';
 import { useChatStore } from '@/src/store/chatStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
+import { useChatsStore } from '@/src/store/useChatsStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { ChevronDown, ChevronUp, Circle, List, Phone, Search, X } from 'lucide-react-native';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { leaveConversation, addMember, markAsRead } from '@/src/services/conversationsApi';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ChatDetailScreen() {
@@ -29,6 +33,13 @@ export default function ChatDetailScreen() {
   const { presence } = useChatStore();
   const { user: authUser } = useAuth();
   const setMessageReactions = useMessagesStore((state) => state.setMessageReactions);
+  const deleteChat = useChatsStore((state) => state.deleteChat);
+
+  // Handle successful leave group - remove conversation from list
+  const handleLeaveSuccess = () => {
+    deleteChat(chatId);
+  };
+
   const {
     chatId,
     currentChat,
@@ -92,6 +103,28 @@ export default function ChatDetailScreen() {
     setHighlightedMessageId,
     jumpToMessage,
   } = useChatDetailScreenLogic();
+
+  // Group management state
+  const [showGroupInfoModal, setShowGroupInfoModal] = useState(false);
+  const [showMemberRoleModal, setShowMemberRoleModal] = useState(false);
+  const [groupMembers, setGroupMembers] = useState<any[]>([]);
+
+  // Mark conversation as read when entering chat
+  useEffect(() => {
+    console.log('[ChatDetail] useEffect triggered, chatId:', chatId, 'type:', typeof chatId);
+    if (chatId && chatId !== '') {
+      console.log('[ChatDetail] Calling markAsRead for:', chatId);
+      markAsRead(chatId)
+        .then(() => {
+          console.log('[ChatDetail] Mark as read SUCCESS');
+          // Reset unread count in local store
+          useChatsStore.getState().resetUnreadCount(chatId);
+        })
+        .catch((err) => console.error('[ChatDetail] Mark as read FAILED:', err?.message || err));
+    } else {
+      console.log('[ChatDetail] Skipping markAsRead - no valid chatId');
+    }
+  }, [chatId]);
 
   // Navigate to original conversation when clicking on forwarded message header
   const handleNavigateToForwarded = async (forwardedFrom: any) => {
@@ -308,6 +341,71 @@ export default function ChatDetailScreen() {
       [
         { text: 'Hủy', style: 'cancel' },
         { text: 'Xóa', style: 'destructive', onPress: () => { /* TODO: Implement delete history */ } }
+      ]
+    );
+  };
+
+  // Group management handlers
+  const handleEditGroupInfo = () => {
+    setShowGroupInfoModal(true);
+  };
+
+  const handleViewMembers = () => {
+    // Members are already loaded in currentChat from getConversationById
+    const members = (currentChat as any)?.members || [];
+    console.log('[ChatDetail] handleViewMembers - currentChat:', currentChat);
+    console.log('[ChatDetail] handleViewMembers - members:', members);
+    
+    if (members.length === 0) {
+      Alert.alert('Thông báo', 'Không có thông tin thành viên. Vui lòng thử lại sau.');
+      return;
+    }
+    
+    // Format members to match MemberRoleModal interface
+    const formattedMembers = members.map((m: any) => ({
+      id: m.userId || m.id,
+      userId: m.userId || m.id,
+      fullName: m.fullName || m.name || 'Unknown',
+      avatarUrl: m.avatarUrl,
+      role: m.role || 'member',
+    }));
+    
+    setGroupMembers(formattedMembers);
+    setShowMemberRoleModal(true);
+  };
+
+  const handleAddMember = () => {
+    // Navigate to create group screen with add member mode
+    router.push({
+      pathname: '/createGroup',
+      params: {
+        conversationId: chatId,
+        mode: 'addMember',
+      }
+    } as any);
+  };
+
+  const handleLeaveGroup = () => {
+    const isOwner = (currentChat as any)?.isOwner;
+    Alert.alert(
+      isOwner ? 'Xóa nhóm' : 'Rời nhóm',
+      isOwner
+        ? 'Bạn có chắc muốn xóa nhóm này? Hành động này không thể hoàn tác.'
+        : 'Bạn có chắc muốn rời khỏi nhóm này?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: isOwner ? 'Xóa' : 'Rời',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await leaveConversation(chatId);
+              router.back();
+            } catch (error: any) {
+              Alert.alert('Lỗi', error.message || 'Không thể rời nhóm');
+            }
+          }
+        }
       ]
     );
   };
@@ -565,6 +663,11 @@ export default function ChatDetailScreen() {
           onChangeWallpaper={handleChangeWallpaper}
           onToggleNotifications={handleToggleNotifications}
           onDeleteHistory={handleDeleteHistory}
+          onEditGroupInfo={handleEditGroupInfo}
+          onAddMember={handleAddMember}
+          onLeaveGroup={handleLeaveGroup}
+          onLeaveSuccess={handleLeaveSuccess}
+          onViewMembers={handleViewMembers}
         />
         
         <MessageActionMenu
@@ -584,6 +687,26 @@ export default function ChatDetailScreen() {
           message={selectedActionMessage}
           onClose={() => setIsForwardModalVisible(false)}
           onForward={handleForward}
+        />
+
+        {/* Group Management Modals */}
+        <GroupInfoModal
+          visible={showGroupInfoModal}
+          onClose={() => setShowGroupInfoModal(false)}
+          conversationId={chatId}
+          currentName={title}
+          currentAvatar={currentChat?.avatar || null}
+          isOwner={(currentChat as any)?.isOwner ?? false}
+        />
+
+        <MemberRoleModal
+          visible={showMemberRoleModal}
+          onClose={() => setShowMemberRoleModal(false)}
+          conversationId={chatId}
+          members={groupMembers}
+          currentUserId={authUser?.id || ''}
+          isOwner={(currentChat as any)?.isOwner ?? false}
+          myRole={(currentChat as any)?.myRole || 'member'}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
