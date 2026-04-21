@@ -185,7 +185,16 @@
     "document": "Tài liệu",
     "reply_to": "Trả lời",
     "revoke": "Thu hồi",
-    "actions": "Thao tác"
+    "actions": "Thao tác",
+    "forwarded_from": "Đã chuyển tiếp",
+    "forward_success": "Đã chuyển tiếp tin nhắn",
+    "forward_no_permission": "Không có quyền",
+    "forward_no_permission_desc": "Bạn không có quyền forward tin nhắn này",
+    "forward_source_not_found": "Tin nhắn không tồn tại",
+    "forward_source_not_found_desc": "Tin nhắn gốc không còn tồn tại",
+    "forward_failed": "Chuyển tiếp thất bại",
+    "rate_limited": "Quá nhiều yêu cầu",
+    "rate_limited_desc": "Vui lòng thử lại sau"
   },
 
   "member_role": {

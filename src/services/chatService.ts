@@ -820,7 +820,7 @@ export async function forwardMessage(
   forwardCallCount++;
   console.log(`[chatService] 📊 Forward call count: ${forwardCallCount}`);
   // Support single string or array of conversation IDs
-  const targets = Array.isArray(targetConversationIds) ? targetConversationIds : [targetConversationId];
+  const targets = Array.isArray(targetConversationIds) ? targetConversationIds : [targetConversationIds];
 
   // Generate idempotency key for forward operation
   const forwardId = generateUUID();
