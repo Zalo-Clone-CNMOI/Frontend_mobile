@@ -66,7 +66,8 @@
     "name_required": "Vui lòng nhập tên nhóm",
     "avatar_error": "Không thể chọn ảnh",
     "no_results": "Không tìm thấy",
-    "no_friends": "Không có bạn bè"
+    "no_friends": "Không có bạn bè",
+    "add_menber_title": "Thêm thành viên"
   },
   "auth": {
     "login": "Đăng nhập",
@@ -116,69 +117,8 @@
   },
 
   "chat_options": {
-    "title": "Tùy chọn chat",
-    "search_messages": "Tìm kiếm tin nhắn",
-    "profile": "Trang cá nhân",
-    "change_wallpaper": "Đổi hình nền",
-    "disable_notifications": "Thông báo",
-    "media_files_links": "Ảnh, file & link",
-    "no_media": "Chưa có media",
-    "edit_group_info": "Chỉnh sửa thông tin nhóm",
-    "group_members": "Thành viên nhóm",
-    "members": "thành viên",
-    "add_member": "Thêm thành viên",
-    "group_notifications": "Thông báo nhóm",
-    "leave_group": "Rời nhóm",
-    "delete_group": "Xóa nhóm",
-    "change_nickname": "Đổi biệt danh",
-    "mark_best_friend": "Đánh dấu bạn thân",
-    "shared_timeline": "Nhật ký chung",
-    "language": "Ngôn ngữ",
-    "view_all": "Xem tất cả",
-    "media_error": "Không thể tải media",
-    "create_group_with": "Tạo nhóm với {{name}}",
-    "add_to_group": "Thêm {{name}} vào nhóm",
-    "view_shared_groups": "{{count}} nhóm chung",
-    "pin_conversation": "Ghim trò chuyện",
-    "hide_conversation": "Ẩn trò chuyện",
-    "report_calls": "Báo cáo cuộc gọi",
-    "personal_settings": "Cài đặt cá nhân",
-    "auto_delete_messages": "Tự động xóa tin nhắn",
-    "no_auto_delete": "Tắt",
-    "report": "Báo cáo",
-    "manage_block": "Quản lý chặn",
-    "conversation_storage": "Dung lượng trò chuyện",
-    "delete_history": "Xóa lịch sử chat",
-    "delete_group_confirm": "Bạn có chắc muốn xóa nhóm này? Hành động này không thể hoàn tác.",
-    "leave_group_confirm": "Bạn có chắc muốn rời khỏi nhóm này?",
-    "leave_group_failed": "Không thể rời nhóm",
-    "delete": "Xóa",
-    "leave": "Rời"
-  },
-
-  "chat": {
-    "placeholder": "Nhập tin nhắn",
-    "send": "Gửi",
-    "reply": "Trả lời",
-    "revoked": "Tin nhắn đã thu hồi",
-    "typing": "Đang nhập...",
-    "online": "Trực tuyến",
-    "offline": "Ngoại tuyến",
-    "search_placeholder": "Tìm kiếm",
-    "no_messages": "Chưa có tin nhắn",
-    "default_title": "Trò chuyện",
-    "file": "Tệp",
-    "location": "Vị trí",
-    "contact": "Liên hệ",
-    "document": "Tài liệu",
-    "reply_to": "Trả lời",
-    "revoke": "Thu hồi",
-    "actions": "Thao tác"
-  },
-
-  "chat_options": {
     "title": "Tùy chọn",
-    "search_messages": "Tìm tin nhắn",
+    "search_messages": "Tìm kiếm tin nhắn",
     "profile": "Trang cá nhân",
     "change_wallpaper": "Đổi hình nền",
     "disable_notifications": "Tắt thông báo",
@@ -214,12 +154,38 @@
     "no_members": "Chưa có thành viên",
     "role_owner": "Trưởng nhóm",
     "role_admin": "Phó nhóm",
+    "role_member": "Thành viên",
     "change_role": "Thay đổi",
     "delete_group_confirm": "Bạn có chắc muốn xóa nhóm này? Hành động này không thể hoàn tác.",
     "leave_group_confirm": "Bạn có chắc muốn rời khỏi nhóm này?",
     "leave_group_failed": "Không thể rời nhóm",
     "delete": "Xóa",
-    "leave": "Rời"
+    "leave": "Rời",
+    "remove_member": "Xóa thành viên",
+    "remove_member_confirm": "Bạn có chắc muốn xóa {{name}} khỏi nhóm?",
+    "remove_member_success": "Đã xóa thành viên thành công",
+    "remove_member_failed": "Không thể xóa thành viên",
+    "remove": "Xóa"
+  },
+
+  "chat": {
+    "placeholder": "Nhập tin nhắn",
+    "send": "Gửi",
+    "reply": "Trả lời",
+    "revoked": "Tin nhắn đã thu hồi",
+    "typing": "Đang nhập...",
+    "online": "Trực tuyến",
+    "offline": "Ngoại tuyến",
+    "search_placeholder": "Tìm kiếm",
+    "no_messages": "Chưa có tin nhắn",
+    "default_title": "Trò chuyện",
+    "file": "Tệp",
+    "location": "Vị trí",
+    "contact": "Liên hệ",
+    "document": "Tài liệu",
+    "reply_to": "Trả lời",
+    "revoke": "Thu hồi",
+    "actions": "Thao tác"
   },
 
   "member_role": {
@@ -235,7 +201,10 @@
     "remove_success": "Đã xóa thành viên",
     "remove_failed": "Không thể xóa thành viên",
     "change_role_for": "Thay đổi vai trò của {{name}}",
-    "change": "Thay đổi"
+    "change": "Thay đổi",
+    "change_role_title": "Thay đổi vai trò",
+    "change_role_confirm": "Bạn có chắc muốn thay đổi vai trò của {{name}}?",
+    "confirm": "Xác nhận"
   },
 
   "reactions": {
@@ -261,15 +230,6 @@
     "friends_since": "Bạn bè từ",
     "last_seen": "Lần cuối",
     "unknown_user": "Người dùng không xác định"
-  },
-
-  "create_group": {
-    "title": "Tạo nhóm",
-    "add_menber_title": "Thêm thành viên",
-    "selected_count": "Đã chọn: {{count}}",
-    "name_placeholder": "Nhập tên nhóm",
-    "search_friends": "Tìm kiếm bạn bè",
-    "no_friends": "Không có bạn bè"
   },
 
   "timeline": {

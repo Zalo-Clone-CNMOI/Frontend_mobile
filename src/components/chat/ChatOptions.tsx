@@ -1,6 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, BellOff, ChevronLeft, ChevronRight, Crown, FileText, Play, Search, Settings, Trash2, User, UserPlus, Users, UserX, X } from 'lucide-react-native';
+import { Bell, BellOff, ChevronLeft, ChevronRight, Crown, FileText, Play, Search, Settings, Shield, ShieldAlert, Trash2, User, UserPlus, Users, UserX, X, Check } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -9,6 +9,7 @@ import {
   FlatList,
   Image,
   Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
@@ -19,9 +20,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getMessages } from '@/src/services/messagesApi';
-import { getConversationDetail, leaveConversation, updateMember } from '@/src/services/conversationsApi';
+import { getConversationDetail, leaveConversation, updateMember, removeMember } from '@/src/services/conversationsApi';
 import { MediaViewerModal } from './MediaViewerModal';
-import { MemberRoleModal } from './MemberRoleModal';
 import { useRouter } from 'expo-router';
 
 interface ChatOptionsProps {
@@ -101,17 +101,24 @@ export function ChatOptions({
   const [members, setMembers] = useState<any[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
-  const [myRole, setMyRole] = useState<string>(isOwner ? 'owner' : 'member');
-  const [roleModalVisible, setRoleModalVisible] = useState(false);
+  const [myRole, setMyRole] = useState<string>('member');
+  const [myRoleLoaded, setMyRoleLoaded] = useState(false);
+
+  // Role selection modal state
+  const [roleSelectionVisible, setRoleSelectionVisible] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<any>(null);
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'member'>('member');
+  const [roleUpdating, setRoleUpdating] = useState(false);
 
   const router = useRouter();
 
-  // Sync myRole with isOwner prop when it changes (only when isOwner=true)
+  // Reset myRoleLoaded when modal opens/closes
   useEffect(() => {
-    if (isOwner) {
-      setMyRole('owner');
+    if (!visible) {
+      setMyRoleLoaded(false);
+      setMyRole('member');
     }
-  }, [isOwner]);
+  }, [visible]);
 
   useEffect(() => {
     if (visible) {
@@ -214,13 +221,17 @@ export function ChatOptions({
         console.log('[ChatOptions] mySettings:', data.mySettings);
         console.log('[ChatOptions] mySettings.role:', data.mySettings?.role);
         setMembers(data.members || []);
-        setMyRole(data.mySettings?.role || 'member');
-        console.log('[ChatOptions] Set myRole to:', data.mySettings?.role || 'member');
+        const actualRole = data.mySettings?.role || 'member';
+        setMyRole(actualRole);
+        setMyRoleLoaded(true);
+        console.log('[ChatOptions] Set myRole to:', actualRole, 'from API');
       } else {
         console.log('[ChatOptions] No data in response');
+        setMyRoleLoaded(true);
       }
     } catch (error: any) {
       console.error('[ChatOptions] Failed to fetch conversation details:', error);
+      setMyRoleLoaded(true);
     } finally {
       setMembersLoading(false);
     }
@@ -270,12 +281,6 @@ export function ChatOptions({
     } as any);
   };
 
-  // Handle role modal close and refresh members
-  const handleRoleModalClose = () => {
-    setRoleModalVisible(false);
-    fetchConversationDetails();
-  };
-
   // Helper to get full avatar URL
   const getAvatarUrl = (avatarUrl: string | null) => {
     if (!avatarUrl) return 'https://i.pravatar.cc/150?u=default';
@@ -285,18 +290,117 @@ export function ChatOptions({
     return `${S3_BASE_URL}/${avatarUrl}`;
   };
 
+  // Handle role change confirm
+  const handleRoleChangeConfirm = async () => {
+    if (!selectedMember) return;
+
+    const previousRole = selectedMember.role;
+    console.log('[ChatOptions] Changing role for:', selectedMember.fullName, 'from:', previousRole, 'to:', selectedRole);
+    setRoleUpdating(true);
+    try {
+      await updateMember(chatId, selectedMember.userId, { role: selectedRole });
+      console.log('[ChatOptions] Role update successful');
+
+      // Optimistically update the UI immediately
+      setMembers(prevMembers =>
+        prevMembers.map(m =>
+          m.userId === selectedMember.userId ? { ...m, role: selectedRole } : m
+        )
+      );
+
+      Alert.alert(t('common.success'), t('member_role.role_updated'));
+      setRoleSelectionVisible(false);
+
+      // Fetch fresh data in background (non-blocking)
+      fetchConversationDetails();
+    } catch (error: any) {
+      console.log('[ChatOptions] Role update failed:', error);
+
+      // ROLLBACK: Revert to previous role
+      setMembers(prevMembers =>
+        prevMembers.map(m =>
+          m.userId === selectedMember.userId ? { ...m, role: previousRole } : m
+        )
+      );
+
+      Alert.alert(t('common.error'), error.message || t('member_role.update_failed'));
+    } finally {
+      setRoleUpdating(false);
+    }
+  };
+
+  // Handle remove member
+  const handleRemoveMemberPress = (item: any) => {
+    Alert.alert(
+      t('chat_options.remove_member'),
+      t('chat_options.remove_member_confirm', { name: item.fullName }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('chat_options.remove'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('[ChatOptions] Removing member:', item.userId);
+              await removeMember(chatId, item.userId);
+              console.log('[ChatOptions] Member removed successfully');
+
+              // Update UI - remove from list
+              setMembers(prevMembers => prevMembers.filter(m => m.userId !== item.userId));
+
+              Alert.alert(t('common.success'), t('chat_options.remove_member_success'));
+            } catch (error: any) {
+              console.log('[ChatOptions] Remove member failed:', error);
+              Alert.alert(t('common.error'), error.message || t('chat_options.remove_member_failed'));
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Render member item
   const renderMemberItem = ({ item }: { item: any }) => {
-    // Owner or admin can change roles (following Zalo logic)
-    const canChangeRole = (isOwner || myRole === 'owner' || myRole === 'admin') && 
-                          item.userId !== currentUserId && 
-                          item.role !== 'owner' &&
-                          (isOwner || myRole === 'owner' || item.role !== 'admin');
-    
+    // Role permission logic - ONLY use myRole from backend API
+    // Owner can: change any member's role (except other owners and self)
+    // Admin can: no role change permission (matching backend)
+    // Member can: no role change permission
+    // Remove member permission: OWNER can remove ADMIN/MEMBER (except self/other owners)
+    //                        ADMIN can remove MEMBER only (except self/admin/owner)
+    const isSelf = item.userId === currentUserId;
+    const isOtherOwner = item.role === 'owner';
+    const iAmOwner = myRole === 'owner';
+    const iAmAdmin = myRole === 'admin';
+
+    const canChangeRole = iAmOwner && !isSelf && !isOtherOwner;
+    const canRemoveMember = (iAmOwner && !isSelf && !isOtherOwner) ||
+                            (iAmAdmin && !isSelf && item.role === 'member');
+
+    console.log('[ChatOptions] Member:', item.fullName, 'role:', item.role, 'canChangeRole:', canChangeRole, 'myRole:', myRole, 'currentUserId:', currentUserId);
+
+    const handleRoleChange = () => {
+      console.log('[ChatOptions] Opening role selection for:', item.fullName);
+      setSelectedMember(item);
+      setSelectedRole(item.role === 'admin' ? 'admin' : 'member');
+
+      // Show confirmation dialog
+      Alert.alert(
+        t('member_role.change_role_title'),
+        t('member_role.change_role_confirm', { name: item.fullName }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('member_role.confirm'),
+            onPress: () => setRoleSelectionVisible(true)
+          }
+        ]
+      );
+    };
+
     return (
       <TouchableOpacity
         style={[styles.memberItem, { borderBottomColor: theme.colors.border }]}
-        onPress={() => canChangeRole && setRoleModalVisible(true)}
+        onPress={() => canChangeRole && handleRoleChange()}
         disabled={!canChangeRole}
         activeOpacity={canChangeRole ? 0.7 : 1}
       >
@@ -316,7 +420,16 @@ export function ChatOptions({
               </View>
             )}
             {item.role === 'admin' && (
-              <Text style={[styles.adminText, { color: '#FF9500' }]}>{t('chat_options.role_admin')}</Text>
+              <View style={[styles.roleBadge, { backgroundColor: '#FF9500' + '20' }]}>
+                <Shield size={12} color="#FF9500" />
+                <Text style={[styles.roleText, { color: '#FF9500' }]}>{t('chat_options.role_admin')}</Text>
+              </View>
+            )}
+            {item.role === 'member' && (
+              <View style={[styles.roleBadge, { backgroundColor: theme.colors.icon + '20' }]}>
+                <ShieldAlert size={12} color={theme.colors.icon} />
+                <Text style={[styles.roleText, { color: theme.colors.icon }]}>{t('chat_options.role_member')}</Text>
+              </View>
             )}
             {item.nickname && (
               <Text style={[styles.memberNickname, { color: '#8e8e93' }]}>
@@ -325,11 +438,20 @@ export function ChatOptions({
             )}
           </View>
         </View>
-        {canChangeRole && (
-          <Text style={[styles.changeRoleText, { color: theme.colors.primary }]}>
-            {t('chat_options.change_role')}
-          </Text>
-        )}
+        <View style={styles.memberActions}>
+          {canChangeRole && (
+            <Text style={[styles.changeRoleText, { color: theme.colors.primary }]}>{t('chat_options.change_role')}</Text>
+          )}
+          {canRemoveMember && (
+            <TouchableOpacity
+              onPress={() => handleRemoveMemberPress(item)}
+              style={styles.removeButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Trash2 size={20} color="#FF3B30" />
+            </TouchableOpacity>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -408,8 +530,9 @@ export function ChatOptions({
     </TouchableOpacity>
   );
 
-  // Debug log
-  console.log('[ChatOptions] Render - isOwner:', isOwner, 'myRole:', myRole, 'isGroup:', isGroup, 'canAddMember:', isOwner || myRole === 'admin' || myRole === 'owner');
+  // Debug log - using myRole from API only
+  const canAddMemberFromAPI = myRole === 'admin' || myRole === 'owner';
+  console.log('[ChatOptions] Render - myRole (from API):', myRole, 'isGroup:', isGroup, 'canAddMember:', canAddMemberFromAPI);
 
   const filteredMembers = useMemo(() => {
     if (!memberSearchQuery.trim()) return members;
@@ -486,8 +609,8 @@ export function ChatOptions({
             {/* Group Options - Only show for group conversations */}
             {isGroup ? (
               <View style={[styles.additionalOptions, { backgroundColor: theme.colors.background }]}>
-                {/* Group Info - Owner only */}
-                {isOwner && (
+                {/* Group Info - Owner only (use myRole from API) */}
+                {myRole === 'owner' && (
                   <OptionItem
                     icon={Settings}
                     title={t('chat_options.edit_group_info')}
@@ -504,7 +627,7 @@ export function ChatOptions({
                 />
                 
                 {/* Add Member - Owner and Admin only */}
-                {(isOwner || myRole === 'admin' || myRole === 'owner') && (
+                {(myRole === 'admin' || myRole === 'owner') && (
                   <OptionItem
                     icon={UserPlus}
                     title={t('chat_options.add_member')}
@@ -647,16 +770,96 @@ export function ChatOptions({
           </SafeAreaView>
         </Modal>
 
-        {/* Member Role Modal */}
-        <MemberRoleModal
-          visible={roleModalVisible}
-          onClose={handleRoleModalClose}
-          conversationId={chatId}
-          members={members}
-          currentUserId={currentUserId || ''}
-          isOwner={isOwner || false}
-          myRole={myRole as 'owner' | 'admin' | 'member'}
-        />
+        {/* Role Selection Modal */}
+        <Modal
+          transparent
+          visible={roleSelectionVisible}
+          animationType="fade"
+          onRequestClose={() => setRoleSelectionVisible(false)}
+        >
+          <Pressable style={styles.overlay} onPress={() => setRoleSelectionVisible(false)}>
+            <View style={[styles.roleSelectionContainer, { backgroundColor: theme.colors.card }]}>
+              <View style={styles.roleSelectionHeader}>
+                <Text style={[styles.roleSelectionTitle, { color: theme.colors.text }]}>
+                  {t('member_role.change_role_for', { name: selectedMember?.fullName })}
+                </Text>
+                <TouchableOpacity onPress={() => setRoleSelectionVisible(false)}>
+                  <X size={24} color={theme.colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.roleSelectionContent}>
+                {(['admin', 'member'] as const).map((role) => (
+                  <TouchableOpacity
+                    key={role}
+                    style={[
+                      styles.roleOption,
+                      {
+                        backgroundColor: theme.colors.background,
+                        borderColor: selectedRole === role ? theme.colors.primary : theme.colors.border,
+                        borderWidth: selectedRole === role ? 2 : 1,
+                      },
+                    ]}
+                    onPress={() => {
+                      console.log('[ChatOptions] Selected role:', role);
+                      setSelectedRole(role);
+                    }}
+                    disabled={roleUpdating}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.roleOptionLeft}>
+                      <View style={[
+                        styles.roleIconContainer,
+                        { backgroundColor: role === 'admin' ? '#FF9500' + '20' : theme.colors.icon + '20' }
+                      ]}>
+                        {role === 'admin' ? (
+                          <Shield size={20} color="#FF9500" />
+                        ) : (
+                          <ShieldAlert size={20} color={theme.colors.icon} />
+                        )}
+                      </View>
+                      <Text style={[styles.roleOptionText, { color: theme.colors.text }]}>
+                        {role === 'admin' ? t('member_role.admin') : t('member_role.member')}
+                      </Text>
+                    </View>
+                    {selectedRole === role && (
+                      <View style={[styles.radioButton, { backgroundColor: theme.colors.primary }]}>
+                        <Check size={16} color="#fff" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.roleSelectionFooter}>
+                <TouchableOpacity
+                  style={[styles.cancelButton, { borderColor: theme.colors.border }]}
+                  onPress={() => setRoleSelectionVisible(false)}
+                  disabled={roleUpdating}
+                >
+                  <Text style={[styles.cancelText, { color: theme.colors.text }]}>
+                    {t('common.cancel')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.saveButton,
+                    { backgroundColor: theme.colors.primary, opacity: roleUpdating ? 0.5 : 1 }
+                  ]}
+                  onPress={handleRoleChangeConfirm}
+                  disabled={roleUpdating}
+                >
+                  {roleUpdating ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.saveText}>{t('common.confirm')}</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+
       </SafeAreaView>
     </Modal>
   );
@@ -879,6 +1082,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  memberActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  removeButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -898,5 +1110,89 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     paddingVertical: 0,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  roleSelectionContainer: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 16,
+    padding: 20,
+  },
+  roleSelectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  roleSelectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  roleSelectionContent: {
+    gap: 12,
+  },
+  roleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 12,
+  },
+  roleOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  roleIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  roleOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  radioButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  roleSelectionFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  cancelText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  saveButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

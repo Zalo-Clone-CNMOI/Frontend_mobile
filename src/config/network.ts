@@ -9,7 +9,9 @@ const readEnv = (key: string, fallback: string): string => {
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
 // Single source of truth for backend host
-const API_HOST = readEnv('EXPO_PUBLIC_API_HOST', '54.179.206.215');
+// const API_HOST = readEnv('EXPO_PUBLIC_API_HOST', '54.179.206.215');
+// Default to localhost for local development, override with env for production
+const API_HOST = readEnv('EXPO_PUBLIC_API_HOST', 'localhost');
 
 // Service ports
 const BFF_PORT = readEnv('EXPO_PUBLIC_BFF_PORT', '3000');

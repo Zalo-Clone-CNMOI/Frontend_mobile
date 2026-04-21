@@ -135,7 +135,13 @@
     "leave_group_confirm": "Are you sure you want to leave this group?",
     "leave_group_failed": "Failed to leave group",
     "delete": "Delete",
-    "leave": "Leave"
+    "leave": "Leave",
+    "role_member": "Member",
+    "remove_member": "Remove Member",
+    "remove_member_confirm": "Are you sure you want to remove {{name}} from the group?",
+    "remove_member_success": "Member removed successfully",
+    "remove_member_failed": "Failed to remove member",
+    "remove": "Remove"
   },
 
   "member_role": {
@@ -151,7 +157,10 @@
     "remove_success": "Member removed successfully",
     "remove_failed": "Failed to remove member",
     "change_role_for": "Change role for {{name}}",
-    "change": "Change"
+    "change": "Change",
+    "change_role_title": "Change Role",
+    "change_role_confirm": "Are you sure you want to change {{name}}'s role?",
+    "confirm": "Confirm"
   },
 
   "reactions": {
