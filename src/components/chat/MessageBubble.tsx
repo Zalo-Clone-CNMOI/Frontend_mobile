@@ -417,10 +417,10 @@ export const MessageBubble = React.memo(
                   marginBottom: 6,
                 },
               ]}
-              // onPress={() => {
-              //   // Navigate to original conversation to view the original message
-              //   onNavigateToForwarded?.(item.forwardedFrom);
-              // }}
+              onPress={() => {
+                // Navigate to original conversation to view the original message
+                onNavigateToForwarded?.(item.forwardedFrom);
+              }}
               activeOpacity={0.7}
             >
               <View style={styles.forwardedHeaderContent}>
@@ -509,7 +509,20 @@ export const MessageBubble = React.memo(
             >
               {hasMultipleImages ? (
                 // ── Multi-image grid ─────────────────────────────────────────
-                <View style={styles.messageWrapper}>
+                <View style={[styles.imageWithForwardContainer, !isMe && styles.imageWithForwardContainerReverse]}>
+                  {onForwardPress && (
+                    <TouchableOpacity
+                      style={[
+                        styles.forwardButton,
+                        { backgroundColor: isDark ? '#2C2C2E' : '#FFFFFF' },
+                        isMe ? styles.forwardButtonMarginLeft : styles.forwardButtonMarginRight,
+                      ]}
+                      onPress={() => onForwardPress(item)}
+                      activeOpacity={0.7}
+                    >
+                      <Forward size={18} color={theme.colors.icon} />
+                    </TouchableOpacity>
+                  )}
                   <View style={[
                     styles.gridContainer,
                     { backgroundColor: gridBg },
@@ -1164,8 +1177,25 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     zIndex: 10,
   },
-  forwardButtonMarginRight: { marginRight: 8 },
-  forwardButtonMarginLeft: { marginLeft: 8 },
+  forwardButtonMarginRight: { marginRight: 12 },
+  forwardButtonMarginLeft: { marginLeft: 12 },
+  forwardButtonMulti: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 3,
+    zIndex: 10,
+    position: 'absolute',
+    top: 4,
+  },
+  forwardButtonMultiRight: { right: 4 },
+  forwardButtonMultiLeft: { left: 4 },
 
   imageContainer: {
     position: 'relative',

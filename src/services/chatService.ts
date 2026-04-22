@@ -5,6 +5,7 @@ import type { SocketChatJoinPayload } from "../types/dto/SocketDTO";
 import type { MessageReactionsResponseDto } from "../types/dto/ApiDTO";
 import { mapConversationsListFromApi } from "../types/mappers/DTOMappers";
 import type { MediaFileInput } from "../types/media";
+import { NETWORK_CONFIG } from "../config/network";
 import { getCurrentUser } from "./authService";
 import * as conversationsApi from "./conversationsApi";
 import * as friendsApi from "./friendsApi";
@@ -253,7 +254,8 @@ const pendingAcks = new Map<
 // Global socket instance
 let socketInstance: Socket | null = null;
 let listenersRegistered = false;
-let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+// NOTE: Heartbeat is now handled by usePresenceHeartbeat hook to avoid duplicate timers
 
 // Cache of recent message IDs to prevent duplicate processing
 const recentMessageIds: string[] = [];
@@ -604,13 +606,7 @@ function registerSocketListeners() {
         console.error('[Socket] Failed to join conversation:', conv, e);
       }
     }
-    if (heartbeatTimer) clearInterval(heartbeatTimer);
-    heartbeatTimer = setInterval(() => {
-      try {
-        s.emit("presence:heartbeat", { ts: Date.now() });
-      } catch (e) {
-      }
-    }, 30_000);
+    // NOTE: Heartbeat is now handled by usePresenceHeartbeat hook to avoid duplicate timers
   });
 
   s.on("chat:ack", (payload: any) => {
@@ -875,10 +871,7 @@ export function resetChatRuntime() {
   pendingAcks.clear();
   _handlers = {};
 
-  if (heartbeatTimer) {
-    clearInterval(heartbeatTimer);
-    heartbeatTimer = null;
-  }
+  // NOTE: Heartbeat is now handled by usePresenceHeartbeat hook, no cleanup needed here
 
   socketInstance = null;
   listenersRegistered = false;
@@ -1048,9 +1041,9 @@ export async function fetchContacts(): Promise<{ users: ContactUser[] }> {
       const normalizeAvatarUrl = (avatar?: string): string | null => {
         if (!avatar) return null;
         if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-          return avatar;
+          return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
         }
-        return 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/' + avatar.replace(/^\//, '');
+        return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
       };
 
       return {

@@ -1,7 +1,7 @@
 import { useAuth } from '@/src/contexts/AuthContext';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
+import { useDirectChat } from '@/src/hooks/useDirectChat';
 import { useSearchScreenLogic } from '@/src/hooks/screens/useSearchScreen';
-import { createDirect } from '@/src/services/conversationsApi';
 import {
   cancelRuntimeFriendRequest,
   respondRuntimeFriendRequest,
@@ -12,10 +12,10 @@ import { useTheme } from '@/src/theme/themeContext';
 import { mapFriendshipStatus } from '@/src/utils/friendshipStatus';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter } from 'expo-router';
-import { Check, Search, X } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import { Check, MessageCircle, Search, X } from 'lucide-react-native';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -28,24 +28,22 @@ export default function SearchScreen() {
   const sentRequests = useRealtimeStore((state) => state.sentRequests);
   const [processingUserId, setProcessingUserId] = useState<string | null>(null);
   const [localOutgoingIds, setLocalOutgoingIds] = useState<Set<string>>(new Set());
+  const { startChat, isStarting: isStartingChat } = useDirectChat();
 
   const friendIds = useMemo(() => new Set(friends.map((item) => item.id)), [friends]);
   const sentTargetIds = useMemo(() => new Set(sentRequests.map((item) => item.targetUserId)), [sentRequests]);
   const receivedRequesterIds = useMemo(() => new Set(receivedRequests.map((item) => item.requesterId)), [receivedRequests]);
 
-  const openChatWithUser = async (userId: string, fullName: string) => {
-    const response = await createDirect(userId);
-    const conversation = response?.data;
-    const conversationId =
-      conversation?.data?.id ||
-      conversation?.data?._id ||
-      conversation?.data?.conversationId ||
-      conversation?.id ||
-      conversation?._id ||
-      conversation?.conversationId;
+  useEffect(() => {
+    return () => {
+      setQuery('');
+    };
+  }, [setQuery]);
 
-    if (conversationId) {
-      router.push({ pathname: '/chat/[id]', params: { id: String(conversationId), name: fullName } });
+  const openChatWithUser = async (userId: string, fullName: string) => {
+    const result = await startChat(userId, fullName);
+    if (!result.success) {
+      Alert.alert('Lỗi', result.error || 'Không thể bắt đầu cuộc trò chuyện');
     }
   };
 
@@ -111,8 +109,13 @@ export default function SearchScreen() {
         <TouchableOpacity
           style={[styles.statusBadge, { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]}
           onPress={() => openChatWithUser(item.id, item.fullName)}
+          disabled={isStartingChat}
         >
-          <Text style={[styles.statusText, { color: '#fff' }]}>Chat</Text>
+          {isStartingChat ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={[styles.statusText, { color: '#fff' }]}>Chat</Text>
+          )}
         </TouchableOpacity>
       );
     }
@@ -154,12 +157,34 @@ export default function SearchScreen() {
 
     const st = mapFriendshipStatus(item.friendshipStatus);
     return (
-      <TouchableOpacity
-        style={[styles.statusBadge, { backgroundColor: st.color, borderColor: st.color }]}
-        onPress={() => handleAddFriend(item.id)}
-      >
-        <Text style={[styles.statusText, { color: st.textColor }]}>{st.label || 'Add'}</Text>
-      </TouchableOpacity>
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: st.color }]}
+          onPress={() => handleAddFriend(item.id)}
+          disabled={isProcessing}
+        >
+          <Text style={styles.actionBtnText}>{st.label || 'Add'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: '#2196f3' }]}
+          onPress={async () => {
+            const result = await startChat(item.id, item.fullName);
+            if (!result.success) {
+              Alert.alert('Lỗi', result.error || 'Không thể bắt đầu cuộc trò chuyện');
+            }
+          }}
+          disabled={isStartingChat}
+        >
+          {isStartingChat ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <MessageCircle size={14} color="#fff" />
+              <Text style={styles.actionBtnText}>Nhắn tin</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
     );
   };
 

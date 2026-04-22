@@ -1,9 +1,9 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { Shield, ShieldCheck, ShieldAlert, Trash2, X, Check } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { updateMember, removeMember } from '@/src/services/conversationsApi';
+import { updateMember, removeMember, getConversationDetail } from '@/src/services/conversationsApi';
 
 type MemberRole = 'owner' | 'admin' | 'member';
 
@@ -11,8 +11,9 @@ interface Member {
   id: string;
   userId: string;
   fullName: string;
-  avatarUrl?: string;
   role: MemberRole;
+  avatarUrl?: string;
+  nickname?: string;
 }
 
 interface MemberRoleModalProps {
@@ -21,8 +22,8 @@ interface MemberRoleModalProps {
   conversationId: string;
   members: Member[];
   currentUserId: string;
-  isOwner: boolean;
-  myRole: MemberRole;
+  isOwner?: boolean; // Deprecated - kept for compatibility
+  myRole?: MemberRole; // Deprecated - kept for compatibility
 }
 
 export function MemberRoleModal({
@@ -40,6 +41,38 @@ export function MemberRoleModal({
   const [roleSelectionVisible, setRoleSelectionVisible] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [selectedRole, setSelectedRole] = useState<MemberRole>('member');
+  const [apiMyRole, setApiMyRole] = useState<MemberRole>('member'); // Fetch from API
+
+  // Fetch myRole from API when modal opens
+  useEffect(() => {
+    if (visible && conversationId) {
+      getConversationDetail(conversationId)
+        .then((response) => {
+          const data = response.data?.data;
+          if (data) {
+            // Backend bug: mySettings.role is inconsistent with members array
+            // Use role from members list as fallback
+            const myMemberEntry = data.members?.find((m: any) => m.userId === currentUserId);
+            const roleFromMembers = myMemberEntry?.role || 'member';
+            const roleFromSettings = data.mySettings?.role || 'member';
+            
+            // Use role from members list if it differs from mySettings (backend bug workaround)
+            const actualRole = (roleFromMembers !== roleFromSettings) ? roleFromMembers : roleFromSettings;
+            
+            setApiMyRole(actualRole);
+            console.log('[MemberRoleModal] Fetched myRole from API:', actualRole);
+            console.log('[MemberRoleModal] roleFromSettings:', roleFromSettings, 'roleFromMembers:', roleFromMembers);
+          }
+        })
+        .catch((error) => {
+          console.error('[MemberRoleModal] Failed to fetch conversation details:', error);
+          setApiMyRole('member'); // Fallback to member if API fails
+        });
+    }
+  }, [visible, conversationId, currentUserId]);
+
+  // Use API-fetched role for authorization
+  const isGroupOwner = apiMyRole === 'owner';
 
   const getRoleIcon = (role: MemberRole) => {
     switch (role) {
@@ -65,7 +98,7 @@ export function MemberRoleModal({
 
   const canChangeRole = (member: Member) => {
     // Only owner can change roles (matching backend API permission)
-    if (!isOwner) return false;
+    if (!isGroupOwner) return false;
     // Cannot change own role
     if (member.userId === currentUserId) return false;
     // Cannot change other owners
@@ -75,7 +108,7 @@ export function MemberRoleModal({
 
   const canRemoveMember = (member: Member) => {
     // Only owner can remove members
-    if (!isOwner) return false;
+    if (!isGroupOwner) return false;
     // Cannot remove yourself
     if (member.userId === currentUserId) return false;
     // Cannot remove other owners
@@ -90,6 +123,18 @@ export function MemberRoleModal({
     try {
       await updateMember(conversationId, member.userId, { role: newRole });
       Alert.alert(t('common.success'), t('member_role.role_updated'));
+      
+      // Fetch fresh data to update myRole in case user changed their own role
+      const response = await getConversationDetail(conversationId);
+      const data = response.data?.data;
+      if (data) {
+        const myMemberEntry = data.members?.find((m: any) => m.userId === currentUserId);
+        const roleFromMembers = myMemberEntry?.role || 'member';
+        const roleFromSettings = data.mySettings?.role || 'member';
+        const actualRole = (roleFromMembers !== roleFromSettings) ? roleFromMembers : roleFromSettings;
+        setApiMyRole(actualRole);
+      }
+      
       onClose();
     } catch (error: any) {
       Alert.alert(t('common.error'), error.message || t('member_role.update_failed'));

@@ -27,7 +27,7 @@ import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
 import { PresenceText } from '@/src/components/common/PresenceIndicator';
 import React, { useState, useEffect } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
-import { leaveConversation, addMember, markAsRead } from '@/src/services/conversationsApi';
+import { leaveConversation, addMember, markAsRead, getConversationDetail, disbandConversation } from '@/src/services/conversationsApi';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ChatDetailScreen() {
@@ -398,29 +398,53 @@ export default function ChatDetailScreen() {
     } as any);
   };
 
-  const handleLeaveGroup = () => {
-    const isOwner = (currentChat as any)?.isOwner;
-    Alert.alert(
-      isOwner ? 'Xóa nhóm' : 'Rời nhóm',
-      isOwner
-        ? 'Bạn có chắc muốn xóa nhóm này? Hành động này không thể hoàn tác.'
-        : 'Bạn có chắc muốn rời khỏi nhóm này?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: isOwner ? 'Xóa' : 'Rời',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await leaveConversation(chatId);
-              router.back();
-            } catch (error: any) {
-              Alert.alert('Lỗi', error.message || 'Không thể rời nhóm');
-            }
-          }
-        }
-      ]
-    );
+  const handleLeaveGroup = async () => {
+    // Fetch fresh role from API to determine if user is owner
+    try {
+      const response = await getConversationDetail(chatId);
+      console.log(">>>>>>>>", response);
+      
+      const data = response.data?.data;
+      // Backend bug: mySettings.role is inconsistent with members array
+      // Use role from members list as fallback
+      const myMemberEntry = data?.members?.find((m: any) => m.userId === authUser?.id);
+      const roleFromMembers = myMemberEntry?.role || 'member';
+      const roleFromSettings = data?.mySettings?.role || 'member';
+      
+      // Use role from members list if it differs from mySettings (backend bug workaround)
+      const myRole = (roleFromMembers !== roleFromSettings) ? roleFromMembers : roleFromSettings;
+      const isOwner = myRole === 'owner';
+      
+      console.log('[handleLeaveGroup] roleFromSettings:', roleFromSettings, 'roleFromMembers:', roleFromMembers, 'final myRole:', myRole);
+
+      Alert.alert(
+        isOwner ? 'Xóa nhóm' : 'Rời nhóm',
+        isOwner
+          ? 'Bạn có chắc muốn xóa nhóm này? Hành động này không thể hoàn tác.'
+          : 'Bạn có chắc muốn rời khỏi nhóm này?',
+        [
+          { text: 'Hủy', style: 'cancel' },
+          {
+            text: isOwner ? 'Xóa' : 'Rời',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                if (isOwner) {
+                  await disbandConversation(chatId);
+                } else {
+                  await leaveConversation(chatId);
+                }
+                router.back();
+              } catch (error: any) {
+                Alert.alert('Lỗi', error.message || 'Không thể thực hiện thao tác');
+              }
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể kiểm tra quyền hạn');
+    }
   };
 
   // Get presence status for the other user (not for groups)
@@ -710,7 +734,8 @@ export default function ChatDetailScreen() {
           currentUserId={authUser?.id}
           otherUserId={(currentChat as any)?.otherUserId || (currentChat as any)?.userId}
           isGroup={currentChat?.isGroup ?? false}
-          isOwner={(currentChat as any)?.isOwner ?? false}
+          // isOwner and myRole props are deprecated - ChatOptions fetches fresh role from API
+          isOwner={false} // Not used anymore, kept for compatibility
           memberCount={currentChat?.memberCount ?? 0}
           onSearchMessages={handleOpenSearch}
           onViewProfile={handleViewProfile}
@@ -751,7 +776,7 @@ export default function ChatDetailScreen() {
           conversationId={chatId}
           currentName={title}
           currentAvatar={currentChat?.avatar || null}
-          isOwner={(currentChat as any)?.isOwner ?? false}
+          myRole={(currentChat as any)?.myRole || 'member'}
         />
 
         <MemberRoleModal
@@ -760,8 +785,7 @@ export default function ChatDetailScreen() {
           conversationId={chatId}
           members={groupMembers}
           currentUserId={authUser?.id || ''}
-          isOwner={(currentChat as any)?.isOwner ?? false}
-          myRole={(currentChat as any)?.myRole || 'member'}
+          // isOwner and myRole props are deprecated - MemberRoleModal fetches fresh role from API
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

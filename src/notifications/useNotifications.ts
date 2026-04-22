@@ -1,11 +1,10 @@
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { useEffect, useRef } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { registerForPushNotifications } from './registerForPushNotifications';
-import { registerDeviceToken } from '../services/deviceTokensApi';
+import { registerAndSyncToken, getPendingToken } from '../services/deviceTokenService';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -37,27 +36,17 @@ export function useNotifications() {
         const token = await registerForPushNotifications();
         if (!token) return;
 
-        const platform = Platform.OS === 'ios' ? 'ios' : 'android';
-
-        const lastToken = (await AsyncStorage.getItem('push:lastToken')) || '';
-        const pendingToken = (await AsyncStorage.getItem('push:pendingToken')) || '';
+        // Check if there's a pending token that failed to register
+        const pendingToken = await getPendingToken();
         const tokenToSend = pendingToken || token;
-        if (tokenToSend === lastToken) {
-          registeredRef.current = true;
-          return;
-        }
 
-        await registerDeviceToken({ token: tokenToSend, platform });
-        await AsyncStorage.setItem('push:lastToken', tokenToSend);
-        await AsyncStorage.removeItem('push:pendingToken');
+        // Register and sync token (handles AsyncStorage internally)
+        await registerAndSyncToken(tokenToSend);
         registeredRef.current = true;
       } catch (e) {
         const err: any = e;
-        try {
-          const lastKnown = (await AsyncStorage.getItem('push:lastToken')) || '';
-          const pending = (await AsyncStorage.getItem('push:pendingToken')) || '';
-          if (!pending && lastKnown) await AsyncStorage.setItem('push:pendingToken', lastKnown);
-        } catch {}
+        console.error('[useNotifications] Failed to register device token:', err);
+        // deviceTokenService handles pending token storage internally
       }
     })();
   }, [isAuthenticated]);

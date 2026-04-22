@@ -1,5 +1,6 @@
 {
   "common": {
+    "close":"Đóng",
     "ok": "OK",
     "cancel": "Hủy",
     "confirm": "Xác nhận",
@@ -17,7 +18,9 @@
     "retry": "Thử lại",
     "suggestions": "Gợi ý",
     "user": "Người dùng",
-    "conversation": "Cuộc trò chuyện"
+    "conversation": "Cuộc trò chuyện",
+    "adding": "Đang thêm",
+    "creating": "Đang tạo"
   },
 
   "navigation": {
@@ -67,7 +70,20 @@
     "avatar_error": "Không thể chọn ảnh",
     "no_results": "Không tìm thấy",
     "no_friends": "Không có bạn bè",
-    "add_menber_title": "Thêm thành viên"
+    "add_members_title": "Thêm thành viên",
+    "add_members": "Thêm thành viên",
+    "add_members_success": "Đã thêm thành viên thành công",
+    "add_members_error": "Không thể thêm thành viên",
+    "group_limit_exceeded": "Nhóm đã đạt giới hạn số thành viên ({{limit}})",
+    "conversation_not_found": "Cuộc trò chuyện không tồn tại",
+    "invalid_conversation_type": "Loại cuộc trò chuyện không hợp lệ",
+    "not_group_member": "Bạn không phải thành viên của cuộc trò chuyện này",
+    "permission_denied": "Bạn không có quyền thực hiện hành động này",
+    "already_member": "Bạn đã là thành viên của cuộc trò chuyện này",
+    "user_not_found": "Người dùng không tồn tại",
+    "user_not_active": "Tài khoản không hoạt động",
+    "server_error": "Lỗi máy chủ",
+    "unknown_error": "Lỗi không xác định"
   },
   "auth": {
     "login": "Đăng nhập",
@@ -78,7 +94,17 @@
     "confirm_password": "Xác nhận mật khẩu",
     "forgot_password": "Quên mật khẩu?",
     "login_error": "Đăng nhập thất bại",
-    "register_error": "Đăng ký thất bại"
+    "register_error": "Đăng ký thất bại",
+    "wrong_password": "Mật khẩu không đúng. Vui lòng thử lại.",
+    "invalid_credentials": "Số điện thoại hoặc mật khẩu không đúng.",
+    "account_not_found": "Tài khoản không tồn tại.",
+    "account_locked": "Tài khoản đã bị khóa. Vui lòng liên hệ hỗ trợ.",
+    "too_many_attempts": "Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau.",
+    "logout_success": "Đăng xuất thành công",
+    "logout_failed": "Đăng xuất thất bại",
+    "logout_api_failed": "Không thể kết nối đến máy chủ, nhưng dữ liệu đã được xóa",
+    "logout_clear_data_failed": "Không thể xóa dữ liệu cục bộ",
+    "logging_out": "Đang đăng xuất..."
   },
   "media_gallery": {
     "title": "Thư viện",
@@ -128,6 +154,8 @@
     "group_members": "Thành viên nhóm",
     "members": "thành viên",
     "add_member": "Thêm thành viên",
+    "send_invites": "Gửi lời mời",
+    "view_invites": "Xem lời mời",
     "group_notifications": "Thông báo nhóm",
     "leave_group": "Rời nhóm",
     "delete_group": "Xóa nhóm",
@@ -195,6 +223,49 @@
     "forward_failed": "Chuyển tiếp thất bại",
     "rate_limited": "Quá nhiều yêu cầu",
     "rate_limited_desc": "Vui lòng thử lại sau"
+  },
+
+  "group_errors": {
+    "conversation_not_found": "Cuộc trò chuyện không tồn tại",
+    "conversation_not_member": "Bạn không phải thành viên của cuộc trò chuyện này",
+    "conversation_permission_denied": "Bạn không có quyền thực hiện hành động này",
+    "conversation_member_not_found": "Thành viên không tồn tại",
+    "conversation_invalid_type": "Loại cuộc trò chuyện không hợp lệ",
+    "conversation_already_member": "Bạn đã là thành viên của cuộc trò chuyện này",
+    "conversation_cannot_leave": "Bạn không thể rời nhóm này",
+    "user_not_found": "Người dùng không tồn tại",
+    "group_invite_not_found": "Lời mời không tồn tại",
+    "group_invite_already_exists": "Lời mời đã tồn tại",
+    "group_invite_expired": "Lời mời đã hết hạn",
+    "group_invite_invalid_status": "Lời mời không ở trạng thái hợp lệ. Vui lòng làm mới danh sách",
+    "group_invite_accepted": "Đã chấp nhận lời mời",
+    "group_invite_rejected": "Đã từ chối lời mời",
+    "invited_by": "Mời bởi",
+    "members": "thành viên",
+    "no_pending_invites": "Không có lời mời nào",
+    "no_pending_invites_desc": "Bạn không có lời mời nhóm nào",
+    "no_history": "Không có lịch sử",
+    "no_sent_invites": "Chưa có lời mời nào",
+    "pending": "Chờ xử lý",
+    "history": "Lịch sử",
+    "send": "Gửi",
+    "sent": "Đã gửi",
+    "invite_center": "Lời mời nhóm",
+    "invite_to_group": "Mời vào nhóm",
+    "group": "Nhóm",
+    "invite_message": "Tin nhắn (tùy chọn)",
+    "invite_message_placeholder": "Thêm tin nhắn...",
+    "expiry_time": "Thời hạn",
+    "select_friends": "Chọn bạn bè",
+    "selected": "đã chọn",
+    "send_invites": "Gửi lời mời",
+    "invites_sent": "Đã gửi lời mời thành công",
+    "accepted": "Đã chấp nhận",
+    "skipped": "Đã bỏ qua",
+    "max_invites": "Tối đa 50 lời mời",
+    "invite_failed": "Gửi lời mời thất bại",
+    "cancel_invite_title": "Hủy lời mời",
+    "cancel_invite_message": "Bạn có chắc muốn hủy lời mời này?"
   },
 
   "member_role": {

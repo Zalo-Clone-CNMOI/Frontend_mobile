@@ -1,4 +1,5 @@
 import { getUserProfile } from '@/src/services/usersApi';
+import { NETWORK_CONFIG } from '@/src/config/network';
 import { useCallback, useEffect, useState } from 'react';
 
 interface UserProfile {
@@ -43,11 +44,17 @@ export function useUserProfiles() {
     if (!profile?.avatarUrl) return null;
     
     // Normalize with S3 prefix
-    const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/';
+    const S3_BASE_URL = NETWORK_CONFIG.S3_BASE_URL + '/';
     if (profile.avatarUrl.startsWith('http://') || profile.avatarUrl.startsWith('https://')) {
-      return profile.avatarUrl;
+      // Replace bucket name if URL from backend uses wrong bucket
+      const normalizedUrl = profile.avatarUrl.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
+      console.log('[useUserProfiles] Avatar already has URL, normalized:', normalizedUrl);
+      return normalizedUrl;
     }
-    return S3_BASE_URL + profile.avatarUrl.replace(/^\//, '');
+    const normalizedUrl = S3_BASE_URL + profile.avatarUrl.replace(/^\//, '');
+    console.log('[useUserProfiles] Original avatarUrl:', profile.avatarUrl);
+    console.log('[useUserProfiles] Normalized URL:', normalizedUrl);
+    return normalizedUrl;
   }, [profiles]);
 
   return {

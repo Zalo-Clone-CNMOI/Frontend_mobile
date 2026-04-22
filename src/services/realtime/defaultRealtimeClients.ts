@@ -5,9 +5,18 @@ import { createBffHttpClient } from "./createBffHttpClient";
 import { createSocketGateway } from "./createSocketGateway";
 import { NETWORK_CONFIG } from "../../config/network";
 
-const DEFAULT_HOST = process.env.EXPO_PUBLIC_API_HOST || "54.179.206.215";
-const DEFAULT_BFF_PORT = process.env.EXPO_PUBLIC_BFF_PORT || "3000";
-const DEFAULT_API_PORT = process.env.EXPO_PUBLIC_API_PORT || "5000";
+// Extract host from NETWORK_CONFIG (remove http:// and port)
+const extractHost = (url: string): string => {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname;
+  } catch {
+    return url;
+  }
+};
+
+const API_HOST = extractHost(NETWORK_CONFIG.API_BASE_URL);
+const API_PORT = NETWORK_CONFIG.API_BASE_URL.split(':')[2]?.split('/')[0] || '5000';
 
 let httpClientInstance: AxiosInstance | null = null;
 let socketInstance: Socket | null = null;
@@ -16,8 +25,8 @@ let socketInstancePromise: Promise<Socket> | null = null;
 export const getRealtimeHttpClient = () => {
   if (!httpClientInstance) {
     httpClientInstance = createBffHttpClient({
-      host: DEFAULT_HOST,
-      httpPort: Number(DEFAULT_API_PORT),
+      host: API_HOST,
+      httpPort: Number(API_PORT),
       getAccessToken: getCurrentToken,
       refreshAccessToken,
     });
@@ -33,7 +42,7 @@ export const getRealtimeSocket = async () => {
 
   if (!socketInstancePromise) {
     socketInstancePromise = createSocketGateway({
-      host: DEFAULT_HOST,
+      host: API_HOST,
       wsPort: 3001,
       getAccessToken: getCurrentToken,
       refreshAccessToken,

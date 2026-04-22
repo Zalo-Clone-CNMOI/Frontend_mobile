@@ -61,8 +61,50 @@ import { getCurrentToken } from './authService';
 const MEDIA_URL = NETWORK_CONFIG.MEDIA_BASE_URL;
 const MEDIA_FILE_BASE_URL = NETWORK_CONFIG.MEDIA_FILE_BASE_URL;
 const S3_BUCKET = NETWORK_CONFIG.S3_BUCKET;
-const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com';
+const S3_BASE_URL = NETWORK_CONFIG.S3_BASE_URL;
+const S3_UPLOAD_TIMEOUT = NETWORK_CONFIG.S3_UPLOAD_TIMEOUT;
+const PRESIGN_UPLOAD_TIMEOUT = NETWORK_CONFIG.PRESIGN_UPLOAD_TIMEOUT;
+const CONFIRM_UPLOAD_TIMEOUT = NETWORK_CONFIG.CONFIRM_UPLOAD_TIMEOUT;
+const PRESIGN_DOWNLOAD_TIMEOUT = NETWORK_CONFIG.PRESIGN_DOWNLOAD_TIMEOUT;
+const MAX_FILE_SIZE_IMAGE = NETWORK_CONFIG.MAX_FILE_SIZE_IMAGE;
+const MAX_FILE_SIZE_VIDEO = NETWORK_CONFIG.MAX_FILE_SIZE_VIDEO;
+const MAX_FILE_SIZE_AUDIO = NETWORK_CONFIG.MAX_FILE_SIZE_AUDIO;
+const MAX_FILE_SIZE_DOCUMENT = NETWORK_CONFIG.MAX_FILE_SIZE_DOCUMENT;
 
+
+
+/**
+ * Validate file size based on attachment type
+ * Throws MediaError if file size exceeds limit
+ */
+function validateFileSize(fileSize: number, mimeType: string): void {
+  const type = getAttachmentType(mimeType);
+  let maxSize: number;
+
+  switch (type) {
+    case 'image':
+      maxSize = MAX_FILE_SIZE_IMAGE;
+      break;
+    case 'video':
+      maxSize = MAX_FILE_SIZE_VIDEO;
+      break;
+    case 'audio':
+      maxSize = MAX_FILE_SIZE_AUDIO;
+      break;
+    default:
+      maxSize = MAX_FILE_SIZE_DOCUMENT;
+      break;
+  }
+
+  if (fileSize > maxSize) {
+    const maxSizeMB = Math.round(maxSize / 1024 / 1024);
+    const fileSizeMB = Math.round(fileSize / 1024 / 1024);
+    throw new MediaError(
+      413,
+      `File size (${fileSizeMB}MB) exceeds maximum allowed size (${maxSizeMB}MB) for ${type} files`
+    );
+  }
+}
 
 
 /** Fetch with timeout to prevent hanging */
@@ -204,6 +246,8 @@ async function presignUpload(
 
   const token = await getCurrentToken();
 
+  const MAX_RETRIES = 2;
+
   try {
     const response = await fetchWithTimeout(url, {
       method: 'POST',
@@ -213,7 +257,7 @@ async function presignUpload(
         'x-user-id': userId,
       },
       body: JSON.stringify({ contentType, fileName }),
-    }, 1000);
+    }, PRESIGN_UPLOAD_TIMEOUT);
 
     if (!response.ok) {
 
@@ -223,14 +267,22 @@ async function presignUpload(
 
       if (response.status === 400) {
 
-        throw new MediaError(400, `Presign failed: missing contentType or invalid request. ${text}`);
+        throw new MediaError(400, `Presign failed: invalid file type or missing required fields. ${text}`);
 
       }
 
       if (response.status === 401) {
 
-        throw new MediaError(401, `Presign failed: missing x-user-id header. ${text}`);
+        throw new MediaError(401, `Presign failed: authentication required. ${text}`);
 
+      }
+
+      // Retry on network errors (5xx)
+      if (response.status >= 500 && retryCount < MAX_RETRIES) {
+        const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s
+        console.log(`[presignUpload] Retrying (${retryCount + 1}/${MAX_RETRIES}) after ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return presignUpload(fileName, contentType, userId, retryCount + 1);
       }
 
       throw new MediaError(response.status, `Presign upload failed (${response.status}): ${text}`);
@@ -267,6 +319,14 @@ async function presignUpload(
 
     }
 
+    // Retry on network errors
+    if (retryCount < MAX_RETRIES) {
+      const delay = Math.pow(2, retryCount) * 1000;
+      console.log(`[presignUpload] Retrying (${retryCount + 1}/${MAX_RETRIES}) after ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return presignUpload(fileName, contentType, userId, retryCount + 1);
+    }
+
     throw new MediaError(0, `Presign network failed: ${error instanceof Error ? error.message : String(error)}`);
 
   }
@@ -289,7 +349,7 @@ async function uploadToS3(
 
   try {
 
-    const response = await fetch(uploadUrl, {
+    const response = await fetchWithTimeout(uploadUrl, {
 
       method: 'PUT',
 
@@ -301,7 +361,7 @@ async function uploadToS3(
 
       body: await uriToBlob(fileUri),
 
-    });
+    }, S3_UPLOAD_TIMEOUT);
 
     if (!response.ok) {
 
@@ -361,6 +421,8 @@ async function confirmUpload(
 
   conversationId?: string,
 
+  retryCount = 0,
+
 ): Promise<UploadConfirmResponse> {
 
   const url = `${MEDIA_URL}/api/media/upload/confirm`;
@@ -377,59 +439,94 @@ async function confirmUpload(
 
   const token = await getCurrentToken();
 
-  const response = await fetchWithTimeout(url, {
+  const MAX_RETRIES = 1;
 
-    method: 'POST',
+  try {
+    const response = await fetchWithTimeout(url, {
 
-    headers: {
+      method: 'POST',
 
-      'Content-Type': 'application/json',
+      headers: {
 
-      'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
 
-    },
+        'Authorization': `Bearer ${token}`,
 
-    body: JSON.stringify(body),
+        'x-user-id': userId,
 
-  });
+      },
+
+      body: JSON.stringify(body),
+
+    }, CONFIRM_UPLOAD_TIMEOUT);
 
 
 
-  if (!response.ok) {
+    if (!response.ok) {
 
-    const text = await response.text();
+      const text = await response.text();
 
-    if (response.status === 400) {
+      if (response.status === 400) {
 
-      throw new MediaError(400, `Confirm failed: file may not be fully uploaded on S3. ${text}`);
+        throw new MediaError(400, `Confirm failed: file may not be fully uploaded on S3 or validation failed. ${text}`);
+
+      }
+
+      if (response.status === 401) {
+
+        throw new MediaError(401, `Confirm failed: authentication required. ${text}`);
+
+      }
+
+      // Retry on network errors (5xx)
+      if (response.status >= 500 && retryCount < MAX_RETRIES) {
+        const delay = Math.pow(2, retryCount) * 1000;
+        console.log(`[confirmUpload] Retrying (${retryCount + 1}/${MAX_RETRIES}) after ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return confirmUpload(key, contentType, userId, conversationId, retryCount + 1);
+      }
+
+      throw new MediaError(response.status, `Upload confirm failed (${response.status}): ${text}`);
 
     }
 
-    if (response.status === 401) {
 
-      throw new MediaError(401, `Confirm failed: missing x-user-id header. ${text}`);
+
+    const json = await response.json();
+
+    const data = json?.data ?? json;
+
+
+
+    return {
+
+      ok: Boolean(data.ok ?? true),
+
+      thumbnailKey: data.thumbnailKey,
+
+    };
+
+  } catch (error) {
+
+    console.error('[confirmUpload] Error:', error);
+
+    if (error instanceof MediaError) {
+
+      throw error;
 
     }
 
-    throw new MediaError(response.status, `Upload confirm failed (${response.status}): ${text}`);
+    // Retry on network errors
+    if (retryCount < MAX_RETRIES) {
+      const delay = Math.pow(2, retryCount) * 1000;
+      console.log(`[confirmUpload] Retrying (${retryCount + 1}/${MAX_RETRIES}) after ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return confirmUpload(key, contentType, userId, conversationId, retryCount + 1);
+    }
+
+    throw new MediaError(0, `Confirm network failed: ${error instanceof Error ? error.message : String(error)}`);
 
   }
-
-
-
-  const json = await response.json();
-
-  const data = json?.data ?? json;
-
-
-
-  return {
-
-    ok: Boolean(data.ok ?? true),
-
-    thumbnailKey: data.thumbnailKey,
-
-  };
 
 }
 
@@ -470,6 +567,9 @@ export async function uploadMedia(
 ): Promise<UploadResult> {
 
   try {
+
+    // Validate file size before upload
+    validateFileSize(file.size, file.mimeType);
 
     const presign = await presignUpload(file.name, file.mimeType, userId);
 
@@ -663,7 +763,7 @@ async function presignDownload(
 
     body: JSON.stringify({ key }),
 
-  });
+  }, PRESIGN_DOWNLOAD_TIMEOUT);
 
 
 
@@ -679,7 +779,7 @@ async function presignDownload(
 
     if (response.status === 401) {
 
-      throw new MediaError(401, `Download failed: missing x-user-id header. ${text}`);
+      throw new MediaError(401, `Download failed: authentication required. ${text}`);
 
     }
 

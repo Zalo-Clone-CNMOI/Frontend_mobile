@@ -9,13 +9,15 @@ import type {
   ID,
 } from "../dto/ApiDTO";
 import type { SocketChatMessageEvent } from "../dto/SocketDTO";
+import { NETWORK_CONFIG } from '../../config/network';
 
-const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/';
+const S3_BASE_URL = NETWORK_CONFIG.S3_BASE_URL + '/';
 
 const normalizeAvatarUrl = (avatar?: string): string | null => {
   if (!avatar) return null;
   if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar;
+    // Replace bucket name if URL from backend uses wrong bucket
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
   }
   return S3_BASE_URL + avatar.replace(/^\//, '');
 };

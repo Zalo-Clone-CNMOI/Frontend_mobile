@@ -1,20 +1,22 @@
 import { ApiListEnvelope, FriendRecord, FriendRequestRecord } from "../../types/realtimeBff";
 import { getRealtimeHttpClient, getRealtimeSocket } from "./defaultRealtimeClients";
 import { FriendService, createFriendService } from "./friendService";
+import { NETWORK_CONFIG } from "../../config/network";
 
-const normalizeAvatarUrl = (avatar?: string): string | null => {
+const normalizeAvatar = (avatar?: string): string | null => {
   if (!avatar) return null;
   if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar;
+    // Replace bucket name if URL from backend uses wrong bucket
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
   }
-  return 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/' + avatar.replace(/^\//, '');
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
 };
 
 const normalizeProfileAvatar = (profile: any): any => {
   if (!profile) return profile;
   return {
     ...profile,
-    avatarUrl: normalizeAvatarUrl(profile?.avatarUrl || profile?.avatar),
+    avatarUrl: normalizeAvatar(profile?.avatarUrl || profile?.avatar),
   };
 };
 

@@ -19,6 +19,7 @@ import {
 import { searchMessages as searchMessagesApi } from '@/src/services/messagesApi';
 import { connectSocket } from '@/src/services/socket';
 import { useChatsStore } from '@/src/store/useChatsStore';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { usePresenceStore } from '@/src/store/usePresenceStore';
 import type { ChatMessage } from '@/src/types/chat';
@@ -90,9 +91,20 @@ export function useChatDetailScreenLogic() {
   const addReaction = useMessagesStore((state) => state.addReaction);
   const removeReaction = useMessagesStore((state) => state.removeReaction);
   const updateChat = useChatsStore((state) => state.updateChat);
+  const updateLastMessage = useChatsStore((state) => state.updateLastMessage);
   const resetUnreadCount = useChatsStore((state) => state.resetUnreadCount);
 
   const currentChat = useChatsStore((state) => state.chats.find((chat) => chat.conversationId === chatId));
+  const fetchConversationDetail = useConversationDetailStore((state) => state.fetchConversationDetail);
+
+  // Fetch conversation details with forceRefresh when opening a conversation
+  useEffect(() => {
+    if (chatId && currentChat?.type === 'group') {
+      fetchConversationDetail(chatId, true).catch(err => {
+        console.error('[useChatDetailScreen] Failed to fetch conversation details:', err);
+      });
+    }
+  }, [chatId, currentChat?.type, fetchConversationDetail]);
 
   // Presence state - use global store for persistence
   const presenceMap = usePresenceStore((state) => state.presenceMap);
@@ -131,11 +143,6 @@ export function useChatDetailScreenLogic() {
   }
 
   const { emitTyping, typingText, typingUsers, isTypingVisible } = typingIndicatorResult;
-
-  // Re-run useTypingIndicator when typingSocket changes
-  useEffect(() => {
-    // typingSocket changed
-  }, [typingSocket]);
 
   useEffect(() => {
     let active = true;
@@ -192,7 +199,12 @@ export function useChatDetailScreenLogic() {
         }
       })
       .catch((err) => {
-        console.error('[useChatDetailScreen] Error loading messages:', err);
+        const errorDetails = err instanceof Error ? {
+          message: err.message,
+          stack: err.stack,
+          name: err.name
+        } : err;
+        console.error('[useChatDetailScreen] Error loading messages:', JSON.stringify(errorDetails, null, 2));
       });
     return () => {
       active = false;
@@ -241,6 +253,16 @@ export function useChatDetailScreenLogic() {
                 )
               : undefined);
 
+          // Additional deduplication by signature (timestamp, senderId, text) for optimistic updates
+          const existingBySignature =
+            existing ||
+            current.find(
+              (m) =>
+                m.timestamp === msg.timestamp &&
+                (m.senderId || '') === (msg.senderId || '') &&
+                (m.text || '') === (msg.text || ''),
+            );
+
           // Add conversation avatar to incoming messages
           const messageWithAvatar = {
             ...msg,
@@ -248,34 +270,37 @@ export function useChatDetailScreenLogic() {
             senderName: currentChat?.name || msg.senderName,
           };
 
-          if (existing) {
-            updateMessage(chatId, existing.id, {
-              text: msg.text ?? existing.text,
-              timestamp: msg.timestamp ?? existing.timestamp,
-              type: msg.type ?? existing.type,
-              fileInfo: msg.fileInfo ?? existing.fileInfo,
-              replyTo: msg.replyTo ?? existing.replyTo,
-              status: msg.status ?? existing.status,
-              isEdited: msg.isEdited ?? existing.isEdited,
-              editedAt: msg.editedAt ?? existing.editedAt,
+          if (existingBySignature) {
+            updateMessage(chatId, existingBySignature.id, {
+              text: msg.text ?? existingBySignature.text,
+              timestamp: msg.timestamp ?? existingBySignature.timestamp,
+              type: msg.type ?? existingBySignature.type,
+              fileInfo: msg.fileInfo ?? existingBySignature.fileInfo,
+              replyTo: msg.replyTo ?? existingBySignature.replyTo,
+              status: msg.status ?? existingBySignature.status,
+              isEdited: msg.isEdited ?? existingBySignature.isEdited,
+              editedAt: msg.editedAt ?? existingBySignature.editedAt,
               serverMessageId:
-                existing.serverMessageId ||
+                existingBySignature.serverMessageId ||
                 msg.serverMessageId ||
-                (incomingKey && incomingKey !== existing.id ? incomingKey : undefined),
+                (incomingKey && incomingKey !== existingBySignature.id ? incomingKey : undefined),
               senderAvatar: currentChat?.avatar || null,
               senderName: currentChat?.name || msg.senderName,
             });
           } else {
             addMessage(chatId, messageWithAvatar);
-            // Update conversation lastMessage
-            updateChat(chatId, {
-              lastMessage: {
-                content: msg.text || '',
-                type: msg.type || 'text',
-                timestamp: msg.timestamp || Date.now(),
-              },
-              lastMessageAt: msg.timestamp || Date.now(),
-            });
+            // Update conversation lastMessage with auto-sort
+            const isFromMe = msg.senderId === user?.id;
+            const shouldIncrementUnread = !isFromMe;
+            updateLastMessage(
+              chatId,
+              msg.text || '',
+              msg.type || 'text',
+              msg.timestamp || Date.now(),
+              msg.senderId,
+              msg.senderName,
+              shouldIncrementUnread
+            );
           }
 
           if (typingSocket) typingSocket.emit('chat:read', { conversation_id: chatId });
@@ -627,15 +652,16 @@ export function useChatDetailScreenLogic() {
           isEdited: true,
           editedAt: Date.now(),
         });
-        // Update conversation lastMessage when editing
-        updateChat(chatId, {
-          lastMessage: {
-            content: trimmed,
-            type: editingMessage.type || 'text',
-            timestamp: Date.now(),
-          },
-          lastMessageAt: Date.now(),
-        });
+        // Update conversation lastMessage when editing (no unread increment for edits)
+        updateLastMessage(
+          chatId,
+          trimmed,
+          editingMessage.type || 'text',
+          Date.now(),
+          user?.id,
+          (user as any)?.fullName || (user as any)?.name,
+          false // Don't increment unread for edits
+        );
         setInput('');
         setEditingMessage(null);
       } catch (error) {
@@ -651,15 +677,16 @@ export function useChatDetailScreenLogic() {
         { replyToMessage: replyingMessage },
       );
       addMessage(chatId, optimisticMessage);
-      // Update conversation lastMessage when sending new message
-      updateChat(chatId, {
-        lastMessage: {
-          content: trimmed,
-          type: optimisticMessage.type || 'text',
-          timestamp: Date.now(),
-        },
-        lastMessageAt: Date.now(),
-      });
+      // Update conversation lastMessage when sending new message (no unread increment for own messages)
+      updateLastMessage(
+        chatId,
+        trimmed,
+        optimisticMessage.type || 'text',
+        Date.now(),
+        user?.id,
+        (user as any)?.fullName || (user as any)?.name,
+        false // Don't increment unread for own messages
+      );
       await sendPromise;
       updateMessage(chatId, optimisticMessage.id, { status: 'sent' });
       setInput('');
@@ -680,7 +707,11 @@ export function useChatDetailScreenLogic() {
     emitTyping(username);
   }, [chatId, emitTyping, user]);
 
-  const handleTypingStop = useCallback(() => undefined, []);
+  const handleTypingStop = useCallback(() => {
+    // Backend handles typing timeout automatically
+    // This clears local typing state to stop emitting events
+    // No explicit stop event in backend - relies on timeout
+  }, []);
 
   // Search messages function
   const handleSearchMessages = useCallback(async (query: string) => {

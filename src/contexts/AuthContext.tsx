@@ -1,5 +1,7 @@
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as authApi from '../services/authApi';
+import { NETWORK_CONFIG } from '../config/network';
 import { clearAuthData, getAuthData, saveAuthData, UserInfo } from '../services/authService';
 import { resetChatRuntime } from '../services/chatService';
 import { resetRealtimeClients } from '../services/realtime/defaultRealtimeClients';
@@ -10,17 +12,19 @@ import { useChatsStore } from '../store/useChatsStore';
 import { useMessagesStore } from '../store/useMessagesStore';
 import { useRealtimeStore } from '../store/useRealtimeStore';
 
-const normalizeAvatarUrl = (avatar?: string): string | undefined => {
-  if (!avatar) return undefined;
+const normalizeAvatar = (avatar?: string): string | null => {
+  if (!avatar) return null;
   if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar;
+    // Replace bucket name if URL from backend uses wrong bucket
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
   }
-  return 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/' + avatar.replace(/^\//, '');
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
 };
 
 interface AuthContextType {
   user: UserInfo | null;
   isLoading: boolean;
+  isLoggingOut: boolean;
   login: (userInfo: UserInfo) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
@@ -44,6 +48,7 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const resetChatsStore = useChatsStore((state) => state.reset);
   const resetMessagesStore = useMessagesStore((state) => state.reset);
   const resetRealtimeStore = useRealtimeStore((state) => state.reset);
@@ -52,6 +57,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const checkAuthStatus = async () => {
       try {
         setIsLoading(true);
+        
+        // Check if logout is in progress - prevent auto-login
+        const logoutInProgress = await AsyncStorage.getItem('@auth_logout_in_progress');
+        if (logoutInProgress === 'true') {
+          console.log('[AuthContext] Logout in progress, skipping auto-login');
+          // Clear the flag and ensure clean state
+          await AsyncStorage.removeItem('@auth_logout_in_progress');
+          await clearAuthData();
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+        
         const authData = await getAuthData();
         if (authData) {
           setUser(authData);
@@ -63,7 +81,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 ...authData,
                 name: serverData.fullName || serverData.name,
                 email: serverData.email,
-                avatarUrl: normalizeAvatarUrl(serverData.avatarUrl || serverData.avatar),
+                avatarUrl: normalizeAvatar(serverData.avatarUrl || serverData.avatar) || undefined,
                 bio: serverData.bio,
                 dateOfBirth: serverData.dateOfBirth,
                 gender: serverData.gender,
@@ -108,7 +126,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Normalize avatarUrl to ensure it has S3 base URL
       const normalizedUserInfo = {
         ...userInfo,
-        avatarUrl: normalizeAvatarUrl(userInfo.avatarUrl),
+        avatarUrl: normalizeAvatar(userInfo.avatarUrl) || undefined,
       };
       await saveAuthData(normalizedUserInfo);
       setUser(normalizedUserInfo);
@@ -118,17 +136,83 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logout = async () => {
+    // Prevent concurrent logout
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+    let logoutSuccess = false;
+    let errorMessage = '';
+
     try {
+      // STEP 1: Immediately clear user state to prevent auto-redirect/re-login
+      // This must happen FIRST to ensure UI shows logged-out state immediately
+      setUser(null);
+      
+      // Set a flag to prevent any background processes from re-logging in
+      await AsyncStorage.setItem('@auth_logout_in_progress', 'true');
+
+      // STEP 2: Clear auth data from storage
       try {
-        await authApi.logout();
-      } catch (e) {
+        await clearAuthData();
+      } catch (storageError) {
+        console.error('[AuthContext] Failed to clear auth data:', storageError);
+        errorMessage = errorMessage || 'Failed to clear local data';
       }
 
+      // STEP 3: Reset runtime state (socket, stores, etc.)
+      // This must happen AFTER clearing storage to prevent race conditions
       await resetRuntimeState();
-      await clearAuthData();
+
+      // STEP 4: Get deviceId and call logout API
+      let deviceId: string | undefined;
+      try {
+        deviceId = await AsyncStorage.getItem('@device_id') || undefined;
+      } catch (e) {
+        console.warn('[AuthContext] Failed to get deviceId:', e);
+      }
+
+      // Call logout API (non-blocking for UI)
+      try {
+        await authApi.logout(deviceId);
+        logoutSuccess = true;
+      } catch (apiError: any) {
+        console.warn('[AuthContext] Logout API failed:', apiError);
+        errorMessage = apiError?.message || 'Logout request failed';
+      }
+
+      // Delete all device tokens (non-blocking)
+      try {
+        const deleteResponse = await authApi.deleteAllDeviceTokens();
+        console.log('[AuthContext] Deleted device tokens:', deleteResponse?.data?.count || 0);
+      } catch (deleteError: any) {
+        console.warn('[AuthContext] Delete device tokens failed:', deleteError);
+      }
+
+      // Clear device token from AsyncStorage
+      try {
+        const { clearDeviceToken } = await import('../services/deviceTokenService');
+        await clearDeviceToken();
+      } catch (deviceTokenError) {
+        console.warn('[AuthContext] Failed to clear device token:', deviceTokenError);
+      }
+
+      // STEP 5: Clear the logout flag
+      await AsyncStorage.removeItem('@auth_logout_in_progress');
+
+      // Show feedback based on result
+      if (!logoutSuccess) {
+        console.warn('[AuthContext] Logout completed but API failed:', errorMessage);
+      }
+    } catch (error: any) {
+      console.error('[AuthContext] Logout error:', error);
+      errorMessage = error?.message || 'Logout failed';
+      // Ensure user is cleared even on error
       setUser(null);
-    } catch (error) {
       throw error;
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -138,7 +222,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Normalize avatarUrl if it's being updated
       const normalizedUpdates = {
         ...updates,
-        avatarUrl: updates.avatarUrl ? normalizeAvatarUrl(updates.avatarUrl) : user.avatarUrl,
+        avatarUrl: updates.avatarUrl ? normalizeAvatar(updates.avatarUrl) || undefined : user.avatarUrl,
       };
       const updatedUser = { ...user, ...normalizedUpdates };
       await saveAuthData(updatedUser);
@@ -151,6 +235,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const value: AuthContextType = {
     user,
     isLoading,
+    isLoggingOut,
     login,
     logout,
     isAuthenticated: !!user,

@@ -1,6 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, BellOff, ChevronLeft, ChevronRight, Crown, FileText, Play, Search, Settings, Shield, ShieldAlert, Trash2, User, UserPlus, Users, UserX, X, Check } from 'lucide-react-native';
+import { Bell, BellOff, ChevronLeft, ChevronRight, Crown, FileText, Play, Search, Settings, Shield, ShieldAlert, Trash2, User, UserPlus, Users, UserX, X, Check, Mail } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -19,9 +19,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NETWORK_CONFIG } from '@/src/config/network';
 import { getMessages } from '@/src/services/messagesApi';
-import { getConversationDetail, leaveConversation, updateMember, removeMember } from '@/src/services/conversationsApi';
+import { getConversationDetail, leaveConversation, updateMember, removeMember, disbandConversation } from '@/src/services/conversationsApi';
 import { MediaViewerModal } from './MediaViewerModal';
+import { ConversationInvitesModal } from './ConversationInvitesModal';
 import { useRouter } from 'expo-router';
 
 interface ChatOptionsProps {
@@ -57,7 +59,7 @@ interface MediaItem {
   createdAt: string;
 }
 
-const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com';
+const S3_BASE_URL = NETWORK_CONFIG.S3_BASE_URL;
 
 export function ChatOptions({
   visible,
@@ -109,6 +111,7 @@ export function ChatOptions({
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [selectedRole, setSelectedRole] = useState<'admin' | 'member'>('member');
   const [roleUpdating, setRoleUpdating] = useState(false);
+  const [conversationInvitesModalVisible, setConversationInvitesModalVisible] = useState(false);
 
   const router = useRouter();
 
@@ -221,10 +224,22 @@ export function ChatOptions({
         console.log('[ChatOptions] mySettings:', data.mySettings);
         console.log('[ChatOptions] mySettings.role:', data.mySettings?.role);
         setMembers(data.members || []);
-        const actualRole = data.mySettings?.role || 'member';
+        // Backend bug: mySettings.role is inconsistent with members array
+        // Use role from members list as fallback
+        const myMemberEntry = data.members?.find((m: any) => m.userId === currentUserId);
+        const roleFromMembers = myMemberEntry?.role || 'member';
+        const roleFromSettings = data.mySettings?.role || 'member';
+        
+        // Use role from members list if it differs from mySettings (backend bug workaround)
+        const actualRole = (roleFromMembers !== roleFromSettings) ? roleFromMembers : roleFromSettings;
+        
         setMyRole(actualRole);
         setMyRoleLoaded(true);
         console.log('[ChatOptions] Set myRole to:', actualRole, 'from API');
+        console.log('[ChatOptions] roleFromSettings:', roleFromSettings, 'roleFromMembers:', roleFromMembers);
+        console.log('[ChatOptions] currentUserId:', currentUserId);
+        console.log('[ChatOptions] Members:', data.members?.map((m: any) => ({ userId: m.userId, role: m.role, fullName: m.fullName })));
+        console.log('[ChatOptions] My member entry:', myMemberEntry);
       } else {
         console.log('[ChatOptions] No data in response');
         setMyRoleLoaded(true);
@@ -245,19 +260,26 @@ export function ChatOptions({
 
   // Handle leave group with direct API call
   const handleLeaveGroup = async () => {
+    const isGroupOwner = myRole === 'owner';
     Alert.alert(
-      isOwner ? t('chat_options.delete_group') : t('chat_options.leave_group'),
-      isOwner
+      isGroupOwner ? t('chat_options.delete_group') : t('chat_options.leave_group'),
+      isGroupOwner
         ? t('chat_options.delete_group_confirm')
         : t('chat_options.leave_group_confirm'),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
-          text: isOwner ? t('chat_options.delete') : t('chat_options.leave'),
+          text: isGroupOwner ? t('chat_options.delete') : t('chat_options.leave'),
           style: 'destructive',
           onPress: async () => {
             try {
-              await leaveConversation(chatId);
+              if (isGroupOwner) {
+                // Owner should disband the group instead of leaving
+                await disbandConversation(chatId);
+              } else {
+                // Regular members leave the group
+                await leaveConversation(chatId);
+              }
               onClose();
               onLeaveSuccess?.();
               router.back();
@@ -301,27 +323,13 @@ export function ChatOptions({
       await updateMember(chatId, selectedMember.userId, { role: selectedRole });
       console.log('[ChatOptions] Role update successful');
 
-      // Optimistically update the UI immediately
-      setMembers(prevMembers =>
-        prevMembers.map(m =>
-          m.userId === selectedMember.userId ? { ...m, role: selectedRole } : m
-        )
-      );
-
       Alert.alert(t('common.success'), t('member_role.role_updated'));
       setRoleSelectionVisible(false);
 
-      // Fetch fresh data in background (non-blocking)
-      fetchConversationDetails();
+      // Fetch fresh data to update both members list and myRole
+      await fetchConversationDetails();
     } catch (error: any) {
       console.log('[ChatOptions] Role update failed:', error);
-
-      // ROLLBACK: Revert to previous role
-      setMembers(prevMembers =>
-        prevMembers.map(m =>
-          m.userId === selectedMember.userId ? { ...m, role: previousRole } : m
-        )
-      );
 
       Alert.alert(t('common.error'), error.message || t('member_role.update_failed'));
     } finally {
@@ -609,7 +617,7 @@ export function ChatOptions({
             {/* Group Options - Only show for group conversations */}
             {isGroup ? (
               <View style={[styles.additionalOptions, { backgroundColor: theme.colors.background }]}>
-                {/* Group Info - Owner only (use myRole from API) */}
+                {/* Group Info - Owner only */}
                 {myRole === 'owner' && (
                   <OptionItem
                     icon={Settings}
@@ -634,7 +642,33 @@ export function ChatOptions({
                     onPress={handleAddMember}
                   />
                 )}
-                
+
+                {/* Send Invites - Owner and Admin only */}
+                {(myRole === 'admin' || myRole === 'owner') && (
+                  <OptionItem
+                    icon={Mail}
+                    title={t('chat_options.send_invites') || 'Send Invites'}
+                    onPress={() => {
+                      router.push({
+                        pathname: '/groupInvite',
+                        params: {
+                          conversationId: chatId,
+                          conversationName: chatName,
+                        },
+                      } as any);
+                    }}
+                  />
+                )}
+
+                {/* View Invites - Owner and Admin only */}
+                {(myRole === 'admin' || myRole === 'owner') && (
+                  <OptionItem
+                    icon={Users}
+                    title={t('chat_options.view_invites') || 'View Invites'}
+                    onPress={() => setConversationInvitesModalVisible(true)}
+                  />
+                )}
+
                 {/* Group Notifications */}
                 <OptionItem
                   icon={notificationsEnabled ? Bell : BellOff}
@@ -650,7 +684,7 @@ export function ChatOptions({
                 {/* Leave Group */}
                 <OptionItem
                   icon={UserX}
-                  title={isOwner ? t('chat_options.delete_group') : t('chat_options.leave_group')}
+                  title={myRole === 'owner' ? t('chat_options.delete_group') : t('chat_options.leave_group')}
                   onPress={handleLeaveGroup}
                 />
               </View>
@@ -709,6 +743,14 @@ export function ChatOptions({
           items={mediaItems}
           initialIndex={viewerInitialIndex}
           conversationId={chatId}
+        />
+
+        {/* Conversation Invites Modal */}
+        <ConversationInvitesModal
+          visible={conversationInvitesModalVisible}
+          conversationId={chatId}
+          conversationName={chatName}
+          onClose={() => setConversationInvitesModalVisible(false)}
         />
 
         {/* Members Modal */}

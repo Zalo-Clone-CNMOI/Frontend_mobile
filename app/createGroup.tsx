@@ -19,12 +19,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { FlashList } from '@shopify/flash-list';
+import { NETWORK_CONFIG } from '@/src/config/network';
 import { createGroup, addMember, getConversationDetail } from '@/src/services/conversationsApi';
 import { uploadMedia } from '@/src/services/mediaService';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
 import { FriendRecord } from '@/src/types/realtimeBff';
 import type { MediaFileInput } from '@/src/types/media';
+
+// Group member limit configuration
+const GROUP_MEMBER_LIMIT = 200;
 
 type Step = 'select_friends' | 'set_info';
 
@@ -156,6 +160,19 @@ export default function CreateGroupScreen() {
       return;
     }
 
+    // Check group member limit in addMember mode
+    if (mode === 'addMember' && conversationId) {
+      const currentMemberCount = existingMembers.filter((m: any) => m.leftAt === null).length;
+      const newMemberCount = selectedFriends.length;
+      if (currentMemberCount + newMemberCount > GROUP_MEMBER_LIMIT) {
+        Alert.alert(
+          t('common.error'),
+          t('create_group.group_limit_exceeded', { limit: GROUP_MEMBER_LIMIT })
+        );
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const memberIds = selectedFriends.map((f) => f.id);
@@ -185,8 +202,7 @@ export default function CreateGroupScreen() {
           console.log('Uploading avatar to S3...');
           const uploadResult = await uploadMedia(avatarFile, authUser.id);
           // Use full S3 URL for backend @IsUrl validation
-          const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com';
-          avatarUrl = `${S3_BASE_URL}/${uploadResult.key}`;
+          avatarUrl = `${NETWORK_CONFIG.S3_BASE_URL}/${uploadResult.key}`;
           console.log('Avatar uploaded, URL:', avatarUrl);
         }
 
@@ -202,6 +218,19 @@ export default function CreateGroupScreen() {
         console.log('Create group response:', JSON.stringify(response, null, 2));
 
         const newConversationId = response?.data?.id || response?.data?.data?.id;
+
+        // Fetch conversation details to check role
+        if (newConversationId) {
+          try {
+            const detailResponse = await getConversationDetail(newConversationId);
+            const detailData = detailResponse.data?.data;
+            console.log('[CreateGroup] Conversation details:', JSON.stringify(detailData, null, 2));
+            console.log('[CreateGroup] myRole from API:', detailData?.mySettings?.role);
+            console.log('[CreateGroup] mySettings:', JSON.stringify(detailData?.mySettings, null, 2));
+          } catch (error) {
+            console.error('[CreateGroup] Failed to fetch conversation details:', error);
+          }
+        }
 
         if (!newConversationId) {
           throw new Error('Invalid response: missing conversation ID');
@@ -221,16 +250,48 @@ export default function CreateGroupScreen() {
     } catch (error: any) {
       console.error('Group operation error:', error);
 
-      // Extract error message properly
+      // Map error codes to user-friendly messages
       let errorMessage = mode === 'addMember' ? t('create_group.add_members_error') : t('create_group.error');
-      if (error.message && typeof error.message === 'string') {
-        errorMessage = error.message;
+      
+      // Extract error message from various error structures
+      const errorBody = error.data || error.error || error;
+      const errorCode = errorBody?.code || errorBody?.errorCode;
+      const rawMessage = errorBody?.message || error.message;
+
+      // Map specific error codes to user-friendly messages
+      if (errorCode) {
+        switch (errorCode) {
+          case 'CONVERSATION_NOT_FOUND':
+            errorMessage = t('create_group.conversation_not_found');
+            break;
+          case 'CONVERSATION_INVALID_TYPE':
+            errorMessage = t('create_group.invalid_conversation_type');
+            break;
+          case 'CONVERSATION_NOT_MEMBER':
+            errorMessage = t('create_group.not_group_member');
+            break;
+          case 'CONVERSATION_PERMISSION_DENIED':
+            errorMessage = t('create_group.permission_denied');
+            break;
+          case 'CONVERSATION_ALREADY_MEMBER':
+            errorMessage = t('create_group.already_member');
+            break;
+          case 'USER_NOT_FOUND':
+            errorMessage = t('create_group.user_not_found');
+            break;
+          case 'USER_NOT_ACTIVE':
+            errorMessage = t('create_group.user_not_active');
+            break;
+          case 'GROUP_MEMBER_LIMIT_EXCEEDED':
+            errorMessage = t('create_group.group_limit_exceeded', { limit: GROUP_MEMBER_LIMIT });
+            break;
+          default:
+            errorMessage = rawMessage || errorMessage;
+        }
+      } else if (rawMessage && typeof rawMessage === 'string') {
+        errorMessage = rawMessage;
       } else if (typeof error === 'string') {
         errorMessage = error;
-      } else if (error.data?.message) {
-        errorMessage = error.data.message;
-      } else if (error.error?.message) {
-        errorMessage = error.error.message;
       }
 
       // Handle object message case
@@ -238,9 +299,9 @@ export default function CreateGroupScreen() {
         try {
           const errorStr = JSON.stringify(error, null, 2);
           console.error('Error object:', errorStr);
-          errorMessage = 'Server error occurred. Please check console logs.';
+          errorMessage = t('create_group.server_error');
         } catch {
-          errorMessage = 'Unknown error occurred';
+          errorMessage = t('create_group.unknown_error');
         }
       }
 
@@ -388,14 +449,19 @@ export default function CreateGroupScreen() {
           style={[
             styles.nextButton,
             {
-              backgroundColor: selectedFriends.length > 0 ? theme.colors.primary : theme.colors.border,
+              backgroundColor: selectedFriends.length > 0 && !loading ? theme.colors.primary : theme.colors.border,
+              opacity: loading ? 0.6 : 1,
             },
           ]}
           onPress={handleNext}
-          disabled={selectedFriends.length === 0}
+          disabled={selectedFriends.length === 0 || loading}
         >
           <Text style={[styles.nextButtonText, { color: '#fff' }]}>
-            {mode === 'addMember' ? t('create_group.add_members') : t('common.next')}
+            {loading && mode === 'addMember'
+              ? t('common.adding') + '...'
+              : mode === 'addMember'
+              ? t('create_group.add_members')
+              : t('common.next')}
           </Text>
         </TouchableOpacity>
       </View>

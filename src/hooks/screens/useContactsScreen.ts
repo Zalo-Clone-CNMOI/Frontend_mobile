@@ -1,5 +1,6 @@
 import { useAuth } from '@/src/contexts/AuthContext';
 import { createDirect } from '@/src/services/conversationsApi';
+import { NETWORK_CONFIG } from '@/src/config/network';
 import { fetchRuntimeFriendSnapshot } from '@/src/services/realtime/runtimeFriendService';
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
 import { useRouter } from 'expo-router';
@@ -26,18 +27,19 @@ export type ContactListItem = {
   friendRequestMessage?: string;
 };
 
-const normalizeAvatarUrl = (avatar?: string): string | null => {
+const normalizeAvatar = (avatar?: string): string | null => {
   if (!avatar) return null;
   if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar;
+    // Replace bucket name if URL from backend uses wrong bucket
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
   }
-  return 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/' + avatar.replace(/^\//, '');
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
 };
 
 const mapFriend = (friend: any): ContactListItem => ({
   id: friend.id || friend._id,
   fullName: friend.fullName || friend.name || '',
-  avatar: normalizeAvatarUrl(friend.avatarUrl || friend.avatar),
+  avatar: normalizeAvatar(friend.avatarUrl || friend.avatar),
   status: friend.status || 'offline',
   phone: friend.phone || '',
   email: friend.email || '',
