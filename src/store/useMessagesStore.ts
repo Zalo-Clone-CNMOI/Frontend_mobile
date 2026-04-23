@@ -7,6 +7,12 @@ interface MessagesState {
   isLoading: boolean;
   error: string | null;
 
+  // Track tempId → serverId mapping for optimistic updates
+  tempIdToServerId: Map<string, string>;
+
+  // Track pinned messages per conversation
+  pinnedMessagesByChatId: Record<string, Set<string>>;
+
   initializeMessages: () => Promise<void>;
   getMessagesByChatId: (chatId: string) => ChatMessage[];
   sendMessage: (chatId: string, message: Omit<ChatMessage, 'id'>) => void;
@@ -18,6 +24,14 @@ interface MessagesState {
   addReaction: (chatId: string, messageId: string, userId: string, reactionType: string) => void;
   removeReaction: (chatId: string, messageId: string, userId: string) => void;
   setMessageReactions: (chatId: string, messageId: string, reactions: Record<string, string[]>) => void;
+  mergeMessageId: (tempId: string, serverId: string) => void;
+  
+  // Pinned message methods
+  setPinnedMessages: (chatId: string, messageIds: string[]) => void;
+  addPinnedMessage: (chatId: string, messageId: string) => void;
+  removePinnedMessage: (chatId: string, messageId: string) => void;
+  isMessagePinned: (chatId: string, messageId: string) => boolean;
+  
   reset: () => void;
 }
 
@@ -46,6 +60,8 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   messagesByChatId: {},
   isLoading: false,
   error: null,
+  tempIdToServerId: new Map<string, string>(),
+  pinnedMessagesByChatId: {},
 
   /**
    * Load tất cả messages từ mock API (chatService).
@@ -86,6 +102,35 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   addMessage: (chatId, message) => {
     set((state) => {
       const existing = state.messagesByChatId[chatId] || [];
+      const incomingId = String(message.id || '').trim();
+      const incomingServerId = String(message.serverMessageId || '').trim();
+
+      // Check for tempId → serverId merge
+      const tempIdMatch = Array.from(state.tempIdToServerId.entries())
+        .find(([tempId, srvId]) => srvId === incomingServerId || tempId === incomingId);
+
+      if (tempIdMatch) {
+        const [tempId, serverId] = tempIdMatch;
+        const targetIndex = existing.findIndex(m => m.id === tempId);
+
+        if (targetIndex >= 0) {
+          // Merge with existing temp message - replace tempId with serverId
+          const updated = [...existing];
+          updated[targetIndex] = { ...updated[targetIndex], ...message, id: serverId };
+
+          const newMapping = new Map(state.tempIdToServerId);
+          newMapping.delete(tempId);
+
+          return {
+            messagesByChatId: {
+              ...state.messagesByChatId,
+              [chatId]: sortMessagesAscending(updated),
+            },
+            tempIdToServerId: newMapping,
+          };
+        }
+      }
+
       const normalizedMessageId = String(message.id || '').trim();
       const dedupeIndexById = normalizedMessageId
         ? existing.findIndex((m) => String(m.id || '').trim() === normalizedMessageId)
@@ -317,11 +362,64 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     });
   },
 
+  mergeMessageId: (tempId, serverId) => {
+    set((state) => {
+      const newMapping = new Map(state.tempIdToServerId);
+      newMapping.set(tempId, serverId);
+      return { tempIdToServerId: newMapping };
+    });
+  },
+
+  setPinnedMessages: (chatId, messageIds) => {
+    set((state) => ({
+      pinnedMessagesByChatId: {
+        ...state.pinnedMessagesByChatId,
+        [chatId]: new Set(messageIds),
+      },
+    }));
+  },
+
+  addPinnedMessage: (chatId, messageId) => {
+    set((state) => {
+      const currentSet = state.pinnedMessagesByChatId[chatId] || new Set();
+      const newSet = new Set(currentSet);
+      newSet.add(messageId);
+      return {
+        pinnedMessagesByChatId: {
+          ...state.pinnedMessagesByChatId,
+          [chatId]: newSet,
+        },
+      };
+    });
+  },
+
+  removePinnedMessage: (chatId, messageId) => {
+    set((state) => {
+      const currentSet = state.pinnedMessagesByChatId[chatId] || new Set();
+      const newSet = new Set(currentSet);
+      newSet.delete(messageId);
+      return {
+        pinnedMessagesByChatId: {
+          ...state.pinnedMessagesByChatId,
+          [chatId]: newSet,
+        },
+      };
+    });
+  },
+
+  isMessagePinned: (chatId, messageId) => {
+    const state = get();
+    const pinnedSet = state.pinnedMessagesByChatId[chatId];
+    return pinnedSet ? pinnedSet.has(messageId) : false;
+  },
+
   reset: () => {
     set({
       messagesByChatId: {},
       isLoading: false,
       error: null,
+      tempIdToServerId: new Map(),
+      pinnedMessagesByChatId: {},
     });
   },
 }));

@@ -110,7 +110,6 @@ export default function GroupInviteScreen() {
   // Fetch conversation invites when switching to 'sent' tab
   useEffect(() => {
     if (activeTab === 'sent' && conversationId) {
-      console.log('[GroupInvite] Fetching conversation invites for sent tab');
       fetchConversationInvites(conversationId, 'pending');
     }
   }, [activeTab, conversationId, fetchConversationInvites]);
@@ -186,9 +185,6 @@ export default function GroupInviteScreen() {
   };
 
   const handleSendInvites = async () => {
-    console.log('[GroupInvite] handleSendInvites called');
-    console.log('[GroupInvite] selectedFriends size:', selectedFriends.size);
-    
     if (selectedFriends.size === 0) {
       Alert.alert(t('common.error'), t('group_errors.select_friends') || 'Please select at least one friend');
       return;
@@ -202,8 +198,6 @@ export default function GroupInviteScreen() {
         expiresInHours,
       };
 
-      console.log('[GroupInvite] Sending invites with payload:', JSON.stringify(payload, null, 2));
-      console.log('[GroupInvite] conversationId:', conversationId);
 
       await sendInvites(conversationId, payload);
       
@@ -223,7 +217,6 @@ export default function GroupInviteScreen() {
       // Fetch conversation invites to show sent list
       await fetchConversationInvites(conversationId, 'pending');
     } catch (error: any) {
-      console.error('[GroupInvite] Error sending invites:', error);
       Alert.alert(t('common.error'), error.message || t('group_errors.invite_failed'));
     }
   };

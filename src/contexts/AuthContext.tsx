@@ -61,7 +61,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         // Check if logout is in progress - prevent auto-login
         const logoutInProgress = await AsyncStorage.getItem('@auth_logout_in_progress');
         if (logoutInProgress === 'true') {
-          console.log('[AuthContext] Logout in progress, skipping auto-login');
           // Clear the flag and ensure clean state
           await AsyncStorage.removeItem('@auth_logout_in_progress');
           await clearAuthData();
@@ -157,7 +156,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       try {
         await clearAuthData();
       } catch (storageError) {
-        console.error('[AuthContext] Failed to clear auth data:', storageError);
         errorMessage = errorMessage || 'Failed to clear local data';
       }
 
@@ -170,7 +168,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       try {
         deviceId = await AsyncStorage.getItem('@device_id') || undefined;
       } catch (e) {
-        console.warn('[AuthContext] Failed to get deviceId:', e);
       }
 
       // Call logout API (non-blocking for UI)
@@ -178,16 +175,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         await authApi.logout(deviceId);
         logoutSuccess = true;
       } catch (apiError: any) {
-        console.warn('[AuthContext] Logout API failed:', apiError);
         errorMessage = apiError?.message || 'Logout request failed';
       }
 
       // Delete all device tokens (non-blocking)
       try {
         const deleteResponse = await authApi.deleteAllDeviceTokens();
-        console.log('[AuthContext] Deleted device tokens:', deleteResponse?.data?.count || 0);
       } catch (deleteError: any) {
-        console.warn('[AuthContext] Delete device tokens failed:', deleteError);
       }
 
       // Clear device token from AsyncStorage
@@ -195,7 +189,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const { clearDeviceToken } = await import('../services/deviceTokenService');
         await clearDeviceToken();
       } catch (deviceTokenError) {
-        console.warn('[AuthContext] Failed to clear device token:', deviceTokenError);
       }
 
       // STEP 5: Clear the logout flag
@@ -203,10 +196,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       // Show feedback based on result
       if (!logoutSuccess) {
-        console.warn('[AuthContext] Logout completed but API failed:', errorMessage);
       }
     } catch (error: any) {
-      console.error('[AuthContext] Logout error:', error);
       errorMessage = error?.message || 'Logout failed';
       // Ensure user is cleared even on error
       setUser(null);

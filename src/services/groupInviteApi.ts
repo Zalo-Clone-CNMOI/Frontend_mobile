@@ -11,7 +11,6 @@ const request = async (
   body?: unknown,
 ): Promise<any> => {
   const url = `${API_BASE_URL}${endpoint}`;
-  console.log(`[API] ${method} ${url}`);
   
   const response = await apiCallWithRefresh(url, {
     method,
@@ -87,8 +86,6 @@ export const sendGroupInvites = async (
   conversationId: string,
   payload: SendGroupInvitesRequest
 ): Promise<ApiResponseDTO<SendGroupInvitesResponse>> => {
-  console.log('[groupInviteApi] sendGroupInvites:', { conversationId, payload });
-
   // Validation
   if (!payload.userIds || !Array.isArray(payload.userIds)) {
     throw new Error('userIds must be an array');
@@ -160,7 +157,6 @@ export const acceptGroupInvite = async (
   conversationId: string,
   inviteId: string
 ): Promise<ApiResponseDTO<{ message: string }>> => {
-  console.log('[groupInviteApi] acceptGroupInvite:', { conversationId, inviteId });
   return request('POST', `/conversations/${encodeURIComponent(conversationId)}/invites/${encodeURIComponent(inviteId)}/accept`);
 };
 
@@ -172,7 +168,6 @@ export const rejectGroupInvite = async (
   conversationId: string,
   inviteId: string
 ): Promise<ApiResponseDTO<{ message: string }>> => {
-  console.log('[groupInviteApi] rejectGroupInvite:', { conversationId, inviteId });
   return request('POST', `/conversations/${encodeURIComponent(conversationId)}/invites/${encodeURIComponent(inviteId)}/reject`);
 };
 
@@ -184,6 +179,5 @@ export const cancelGroupInvite = async (
   conversationId: string,
   inviteId: string
 ): Promise<ApiResponseDTO<{ message: string }>> => {
-  console.log('[groupInviteApi] cancelGroupInvite:', { conversationId, inviteId });
   return request('POST', `/conversations/${encodeURIComponent(conversationId)}/invites/${encodeURIComponent(inviteId)}/cancel`);
 };

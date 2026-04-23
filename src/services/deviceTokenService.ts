@@ -33,26 +33,21 @@ export const getDeviceToken = async (): Promise<string | null> => {
     );
     
     if (activeToken?.token) {
-      console.log('[deviceTokenService] Got token from API:', activeToken.token.substring(0, 20) + '...');
       // Sync to AsyncStorage for fallback
       await AsyncStorage.setItem(STORAGE_KEYS.LAST_TOKEN, activeToken.token);
       return activeToken.token;
     }
     
-    console.warn('[deviceTokenService] No active token found in API');
   } catch (apiError) {
-    console.warn('[deviceTokenService] API failed, falling back to AsyncStorage:', apiError);
   }
   
   // Fallback to AsyncStorage
   try {
     const lastToken = await AsyncStorage.getItem(STORAGE_KEYS.LAST_TOKEN);
     if (lastToken) {
-      console.log('[deviceTokenService] Got token from AsyncStorage:', lastToken.substring(0, 20) + '...');
       return lastToken;
     }
   } catch (storageError) {
-    console.error('[deviceTokenService] Failed to read from AsyncStorage:', storageError);
   }
   
   return null;
@@ -66,13 +61,11 @@ export const registerAndSyncToken = async (token: string): Promise<void> => {
   
   try {
     await registerDeviceToken({ token, platform });
-    console.log('[deviceTokenService] Token registered to API successfully');
     
     // Sync to AsyncStorage
     await AsyncStorage.setItem(STORAGE_KEYS.LAST_TOKEN, token);
     await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_TOKEN);
   } catch (error) {
-    console.error('[deviceTokenService] Failed to register token:', error);
     // Store as pending token to retry later
     await AsyncStorage.setItem(STORAGE_KEYS.PENDING_TOKEN, token);
     throw error;
@@ -88,9 +81,7 @@ export const clearDeviceToken = async (): Promise<void> => {
       STORAGE_KEYS.LAST_TOKEN,
       STORAGE_KEYS.PENDING_TOKEN,
     ]);
-    console.log('[deviceTokenService] Device tokens cleared from AsyncStorage');
   } catch (error) {
-    console.error('[deviceTokenService] Failed to clear device tokens:', error);
   }
 };
 
@@ -101,7 +92,6 @@ export const getPendingToken = async (): Promise<string | null> => {
   try {
     return await AsyncStorage.getItem(STORAGE_KEYS.PENDING_TOKEN);
   } catch (error) {
-    console.error('[deviceTokenService] Failed to get pending token:', error);
     return null;
   }
 };

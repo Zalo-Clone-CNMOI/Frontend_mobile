@@ -1,23 +1,8 @@
-export type ContactType = 'friend' | 'group' | 'oa';
+import type { Contact, UserV2, UserPresence } from '../types/contacts';
 
-export interface Contact {
-  id: string;
-  name: string;
-  subtitle: string;
-  avatar: string;
-  type: ContactType;
+export interface ContactMock extends Contact {
   color?: string;
   time?: string;
-}
-
-export type PresenceStatus = 'online' | 'offline';
-
-export interface UserV2 {
-  id: string;
-  fullName: string;
-  avatar?: string;
-  status: PresenceStatus;
-  lastSeen?: number;
 }
 
 /**

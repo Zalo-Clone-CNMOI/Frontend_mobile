@@ -193,7 +193,12 @@
     "remove_member_confirm": "Bạn có chắc muốn xóa {{name}} khỏi nhóm?",
     "remove_member_success": "Đã xóa thành viên thành công",
     "remove_member_failed": "Không thể xóa thành viên",
-    "remove": "Xóa"
+    "remove": "Xóa",
+    "edit_nickname": "Sửa nickname",
+    "nickname_too_long": "Nickname không được quá 100 ký tự",
+    "nickname_updated": "Đã cập nhật nickname",
+    "nickname_update_failed": "Không thể cập nhật nickname",
+    "enter_nickname": "Nhập nickname"
   },
 
   "chat": {
@@ -212,7 +217,9 @@
     "contact": "Liên hệ",
     "document": "Tài liệu",
     "reply_to": "Trả lời",
-    "revoke": "Thu hồi",
+    "pin": "Ghim",
+    "unpin": "Bỏ ghim",
+    "forward": "Chuyển tiếp",
     "actions": "Thao tác",
     "forwarded_from": "Đã chuyển tiếp",
     "forward_success": "Đã chuyển tiếp tin nhắn",

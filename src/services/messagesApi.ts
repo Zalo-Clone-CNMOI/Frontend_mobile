@@ -15,9 +15,9 @@ const toQueryString = (params: Record<string, string | number | boolean | undefi
 };
 
 // Make HTTP request with auth refresh
-// Handles GET and POST methods, parses JSON response, throws error on failure
+// Handles GET, POST, DELETE methods, parses JSON response, throws error on failure
 const request = async (
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   path: string,
   body?: FormData,
 ) => {
@@ -119,6 +119,52 @@ export const uploadMedia = async (formData: FormData) => {
   return request('POST', '/api/media/upload', formData);
 };
 
+// Get pinned messages in a conversation
+export const getPinnedMessages = async (
+  conversationId: string,
+  limit?: number,
+) => {
+  const normalizedConversationId = String(conversationId || '').trim();
+  if (!normalizedConversationId) {
+    return { data: { items: [] }, status: 200 };
+  }
+
+  const path = `/messages/${encodeURIComponent(normalizedConversationId)}/pins${toQueryString({
+    limit: Number(limit || 20),
+  })}`;
+  return request('GET', path);
+};
+
+// Pin a message
+export const pinMessage = async (
+  conversationId: string,
+  createdAt: number,
+  messageId: string,
+) => {
+  const normalizedConversationId = String(conversationId || '').trim();
+  if (!normalizedConversationId) {
+    throw new Error('Invalid conversation ID');
+  }
+
+  const path = `/messages/${encodeURIComponent(normalizedConversationId)}/${createdAt}/${encodeURIComponent(messageId)}/pin`;
+  return request('POST', path);
+};
+
+// Unpin a message
+export const unpinMessage = async (
+  conversationId: string,
+  createdAt: number,
+  messageId: string,
+) => {
+  const normalizedConversationId = String(conversationId || '').trim();
+  if (!normalizedConversationId) {
+    throw new Error('Invalid conversation ID');
+  }
+
+  const path = `/messages/${encodeURIComponent(normalizedConversationId)}/${createdAt}/${encodeURIComponent(messageId)}/pin`;
+  return request('DELETE', path);
+};
+
 // Forward a message to one or more conversations
 // Uses Backend's /messages/forward endpoint with proper payload structure
 export const forwardMessage = async (payload: {
@@ -178,6 +224,9 @@ export default {
   lookupMessage,
   searchMessages,
   uploadMedia,
+  getPinnedMessages,
+  pinMessage,
+  unpinMessage,
   forwardMessage,
 };
 

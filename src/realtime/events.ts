@@ -28,6 +28,8 @@ export const WsEvents = {
   ChatUnreact: 'chat:unreact',
   ChatReactionAdded: 'chat:reaction:added',
   ChatReactionRemoved: 'chat:reaction:removed',
+  ChatMessagePinned: 'chat:message:pinned',
+  ChatMessageUnpinned: 'chat:message:unpinned',
 
   // Group / Conversation
   ConversationCreated: 'conversation:created',
@@ -95,6 +97,24 @@ export interface TypingUser {
 export interface TypingUpdatePayload {
   conversation_id: string;
   users: TypingUser[];
+}
+
+// ==================== Message Pin Types ====================
+
+export interface ChatMessagePinnedPayload {
+  message_id: string;
+  conversation_id: string;
+  created_at: number;
+  pinned_by: string;
+  pinned_at: number;
+}
+
+export interface ChatMessageUnpinnedPayload {
+  message_id: string;
+  conversation_id: string;
+  created_at: number;
+  unpinned_by: string;
+  unpinned_at: number;
 }
 
 // ==================== Error Types ====================

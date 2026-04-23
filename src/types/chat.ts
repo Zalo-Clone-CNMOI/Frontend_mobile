@@ -83,4 +83,9 @@ export type ChatMessage = {
   attachments?: any[];
   senderAvatar?: string | null;
   senderName?: string;
+
+  // Pinned message fields
+  isPinned?: boolean;
+  pinnedBy?: string;
+  pinnedAt?: number;
 };

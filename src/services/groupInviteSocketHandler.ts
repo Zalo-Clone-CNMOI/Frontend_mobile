@@ -80,21 +80,16 @@ const getCurrentUserId = (): string | null => {
 export const subscribeToGroupInviteEvents = (currentUserId?: string) => {
   const socket = getSocket();
   if (!socket) {
-    console.warn('[groupInviteSocketHandler] Socket not connected');
     return;
   }
 
   const userId = currentUserId || getCurrentUserId();
   const store = useGroupInviteStore.getState();
 
-  console.log('[groupInviteSocketHandler] Subscribing to group invite events');
-
   // ==================== Group Invite Sent ====================
   // Received by: Invited user
   // When: Someone sends an invite to current user
   socket.on(WS_EVENTS.GroupInviteSent, (payload: WsGroupInviteSentPayload) => {
-    console.log('[groupInviteSocketHandler] group:invite:sent', payload);
-
     // Only process if current user is the invited user
     if (userId && payload.invited_user_id !== userId) {
       return;
@@ -132,8 +127,6 @@ export const subscribeToGroupInviteEvents = (currentUserId?: string) => {
   // Received by: Inviter and Invited user
   // When: Invited user accepts the invite
   socket.on(WS_EVENTS.GroupInviteAccepted, (payload: WsGroupInviteAcceptedPayload) => {
-    console.log('[groupInviteSocketHandler] group:invite:accepted', payload);
-
     // Update invite status in store
     const respondedAt = payload.responded_at 
       ? new Date(payload.responded_at).toISOString() 
@@ -146,8 +139,6 @@ export const subscribeToGroupInviteEvents = (currentUserId?: string) => {
   // Received by: Inviter
   // When: Invited user rejects the invite
   socket.on(WS_EVENTS.GroupInviteRejected, (payload: WsGroupInviteRejectedPayload) => {
-    console.log('[groupInviteSocketHandler] group:invite:rejected', payload);
-
     const respondedAt = payload.responded_at 
       ? new Date(payload.responded_at).toISOString() 
       : new Date().toISOString();
@@ -159,8 +150,6 @@ export const subscribeToGroupInviteEvents = (currentUserId?: string) => {
   // Received by: Invited user
   // When: Inviter or admin cancels the invite
   socket.on(WS_EVENTS.GroupInviteCancelled, (payload: WsGroupInviteCancelledPayload) => {
-    console.log('[groupInviteSocketHandler] group:invite:cancelled', payload);
-
     const cancelledAt = payload.cancelled_at 
       ? new Date(payload.cancelled_at).toISOString() 
       : new Date().toISOString();
@@ -172,16 +161,12 @@ export const subscribeToGroupInviteEvents = (currentUserId?: string) => {
   // Received by: Inviter and Invited user
   // When: Invite expires automatically
   socket.on(WS_EVENTS.GroupInviteExpired, (payload: WsGroupInviteExpiredPayload) => {
-    console.log('[groupInviteSocketHandler] group:invite:expired', payload);
-
     const expiredAt = payload.expired_at 
       ? new Date(payload.expired_at).toISOString() 
       : new Date().toISOString();
     
     store.handleInviteExpired(payload.invite_id, expiredAt, payload.trace_id);
   });
-
-  console.log('[groupInviteSocketHandler] Subscribed to all group invite events');
 };
 
 /**
@@ -197,8 +182,6 @@ export const unsubscribeFromGroupInviteEvents = () => {
   socket.off(WS_EVENTS.GroupInviteRejected);
   socket.off(WS_EVENTS.GroupInviteCancelled);
   socket.off(WS_EVENTS.GroupInviteExpired);
-
-  console.log('[groupInviteSocketHandler] Unsubscribed from all group invite events');
 };
 
 /**

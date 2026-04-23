@@ -101,7 +101,9 @@
     "contact": "Contact",
     "document": "Document",
     "reply_to": "Reply to",
-    "revoke": "Revoke",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "forward": "Forward",
     "actions": "Actions",
     "forwarded_from": "Forwarded from",
     "forward_success": "Message forwarded",
@@ -208,7 +210,12 @@
     "remove_member_confirm": "Are you sure you want to remove {{name}} from the group?",
     "remove_member_success": "Member removed successfully",
     "remove_member_failed": "Failed to remove member",
-    "remove": "Remove"
+    "remove": "Remove",
+    "edit_nickname": "Edit Nickname",
+    "nickname_too_long": "Nickname cannot exceed 100 characters",
+    "nickname_updated": "Nickname updated successfully",
+    "nickname_update_failed": "Failed to update nickname",
+    "enter_nickname": "Enter nickname"
   },
 
   "member_role": {

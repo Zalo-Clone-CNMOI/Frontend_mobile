@@ -9,6 +9,19 @@ import { useAuth } from '../contexts/AuthContext';
 const processedEvents = new Map<string, number>();
 const EVENT_ID_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Cached user ID for use outside React context
+let cachedUserId: string | null = null;
+
+// Set current user ID (call this from React context)
+export const setCurrentUserId = (userId: string) => {
+  cachedUserId = userId;
+};
+
+// Get current user ID from cache
+const getCurrentUserId = (): string | null => {
+  return cachedUserId;
+};
+
 // Cleanup expired event IDs
 const cleanupExpiredEventIds = () => {
   const now = Date.now();
@@ -30,23 +43,9 @@ const markEventProcessed = (eventId: string) => {
   processedEvents.set(eventId, Date.now());
 };
 
-// Get current user ID from auth context
-const getCurrentUserId = (): string | null => {
-  // Note: This function is called outside React context, so we need a different approach
-  // For now, we'll try to get it from the auth context if available
-  // TODO: Store current user ID in a separate store that can be accessed outside React
-  try {
-    const auth = useAuth();
-    return auth.user?.id || null;
-  } catch {
-    return null;
-  }
-};
-
 export const subscribeToGroupEvents = () => {
   const socket = getSocket();
   if (!socket) {
-    console.warn('[groupEventsHandler] Socket not connected');
     return;
   }
 
@@ -59,8 +58,6 @@ export const subscribeToGroupEvents = () => {
 
   // conversation:created
   socket.on(WsEvents.ConversationCreated, (payload: ConversationCreatedPayload) => {
-    console.log('[groupEventsHandler] conversation:created', payload);
-
     // Check if current user is in members
     const isMember = payload.members.some((m) => m.user_id === currentUserId);
     if (isMember) {
@@ -106,8 +103,6 @@ export const subscribeToGroupEvents = () => {
 
   // conversation:updated
   socket.on(WsEvents.ConversationUpdated, (payload: ConversationUpdatedPayload) => {
-    console.log('[groupEventsHandler] conversation:updated', payload);
-
     // Update in conversation list
     chatsStore.updateChat(payload.conversation_id, {
       name: payload.name || '',
@@ -124,8 +119,6 @@ export const subscribeToGroupEvents = () => {
 
   // conversation:disbanded
   socket.on(WsEvents.ConversationDisbanded, (payload: ConversationDisbandedPayload) => {
-    console.log('[groupEventsHandler] conversation:disbanded', payload);
-
     // Remove from conversation list
     chatsStore.deleteChat(payload.conversation_id);
 
@@ -138,8 +131,6 @@ export const subscribeToGroupEvents = () => {
 
   // conversation:member:added
   socket.on(WsEvents.ConversationMemberAdded, (payload: ConversationMemberAddedPayload) => {
-    console.log('[groupEventsHandler] conversation:member:added', payload);
-
     const addedUserIds = payload.members.map((m) => m.user_id);
     
     if (addedUserIds.includes(currentUserId || '')) {
@@ -186,8 +177,6 @@ export const subscribeToGroupEvents = () => {
 
   // conversation:member:removed
   socket.on(WsEvents.ConversationMemberRemoved, (payload: ConversationMemberRemovedPayload) => {
-    console.log('[groupEventsHandler] conversation:member:removed', payload);
-
     if (payload.removed_user_id === currentUserId) {
       // Current user was removed from conversation
       // Remove from conversation list
@@ -214,8 +203,6 @@ export const subscribeToGroupEvents = () => {
 
   // conversation:member:role:updated
   socket.on(WsEvents.ConversationMemberRoleUpdated, (payload: ConversationMemberRoleUpdatedPayload) => {
-    console.log('[groupEventsHandler] conversation:member:role:updated', payload);
-
     if (payload.user_id === currentUserId) {
       // Current user's role was updated
       // Update mySettings in cache
@@ -237,8 +224,6 @@ export const subscribeToGroupEvents = () => {
 
   // group:invite:sent
   socket.on(WsEvents.GroupInviteSent, (payload: GroupInviteSentPayload) => {
-    console.log('[groupEventsHandler] group:invite:sent', payload);
-
     if (payload.invited_user_id === currentUserId) {
       // Current user received an invite - use the new store handler
       groupInviteStore.handleInviteSent({
@@ -270,8 +255,6 @@ export const subscribeToGroupEvents = () => {
 
   // group:invite:accepted
   socket.on(WsEvents.GroupInviteAccepted, (payload: GroupInviteStatusPayload) => {
-    console.log('[groupEventsHandler] group:invite:accepted', payload);
-
     // Use the new store handler
     groupInviteStore.handleInviteAccepted(
       payload.invite_id,
@@ -284,8 +267,6 @@ export const subscribeToGroupEvents = () => {
 
   // group:invite:rejected
   socket.on(WsEvents.GroupInviteRejected, (payload: GroupInviteStatusPayload) => {
-    console.log('[groupEventsHandler] group:invite:rejected', payload);
-
     // Use the new store handler
     groupInviteStore.handleInviteRejected(
       payload.invite_id,
@@ -298,8 +279,6 @@ export const subscribeToGroupEvents = () => {
 
   // group:invite:cancelled
   socket.on(WsEvents.GroupInviteCancelled, (payload: GroupInviteStatusPayload) => {
-    console.log('[groupEventsHandler] group:invite:cancelled', payload);
-
     // Use the new store handler
     groupInviteStore.handleInviteCancelled(
       payload.invite_id,
@@ -312,8 +291,6 @@ export const subscribeToGroupEvents = () => {
 
   // group:invite:expired
   socket.on(WsEvents.GroupInviteExpired, (payload: GroupInviteStatusPayload) => {
-    console.log('[groupEventsHandler] group:invite:expired', payload);
-
     // Use the new store handler
     groupInviteStore.handleInviteExpired(
       payload.invite_id,
@@ -341,6 +318,4 @@ export const unsubscribeFromGroupEvents = () => {
   socket.off(WsEvents.GroupInviteRejected);
   socket.off(WsEvents.GroupInviteCancelled);
   socket.off(WsEvents.GroupInviteExpired);
-
-  console.log('[groupEventsHandler] Unsubscribed from all group events');
 };

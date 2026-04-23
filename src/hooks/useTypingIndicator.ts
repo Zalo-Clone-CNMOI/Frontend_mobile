@@ -39,27 +39,14 @@ export const useTypingIndicator = ({
   const latestPayloadRef = useRef<ChatTypingUpdatePayload | null>(null);
 
   useEffect(() => {
-    console.log('[useTypingIndicator] Effect triggered', {
-      enabled,
-      hasService: !!service,
-      conversationId,
-      myUserId
-    });
-    
     if (!enabled || !service) {
-      console.log('[useTypingIndicator] Early return - enabled:', enabled, 'hasService:', !!service);
       return;
     }
 
     const unsubscribe = service.subscribe((payload) => {
-      console.log('[useTypingIndicator] Received payload:', payload);
-      
       if (payload.conversation_id !== conversationId) {
-        console.log('[useTypingIndicator] Wrong conversation, expected:', conversationId, 'got:', payload.conversation_id);
         return;
       }
-
-      console.log('[useTypingIndicator] Updating local state with users:', payload.users);
       latestPayloadRef.current = payload;
       // Update local state directly to avoid infinite loop
       setState(formatTypingIndicator(payload.users || [], myUserId));
@@ -75,7 +62,6 @@ export const useTypingIndicator = ({
       useChatStore.getState().updateTypingUsers(transformedPayload);
     });
 
-    console.log('[useTypingIndicator] Subscription set up');
     return unsubscribe;
   }, [conversationId, enabled, myUserId, service]);
 

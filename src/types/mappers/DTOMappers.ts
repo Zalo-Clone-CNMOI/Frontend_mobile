@@ -1,5 +1,5 @@
 import type { ChatMessage, ConversationV2, MessageType } from "../chat";
-import type { ContactUser } from "../ContactUser";
+import type { ContactUser } from "../contacts";
 import type {
   ApiAttachmentDTO,
   ApiConversationDTO,

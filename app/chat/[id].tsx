@@ -6,14 +6,16 @@ import { ImageViewer } from '@/src/components/chat/ImageViewer';
 import { MemberRoleModal } from '@/src/components/chat/MemberRoleModal';
 import { MessageActionMenu } from '@/src/components/chat/MessageActionMenu';
 import { MessageBubble } from '@/src/components/chat/MessageBubble';
+import { PinnedMessagesSection } from '@/src/components/chat/PinnedMessagesSection';
 import { TypingIndicator } from '@/src/components/chat/TypingIndicator';
 import { VideoViewer } from '@/src/components/chat/VideoViewer';
 import { PresenceIndicator } from '@/src/components/common/PresenceIndicator';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useChatDetailScreenLogic } from '@/src/hooks/screens/useChatDetailScreen';
+import { useMessagePin } from '@/src/hooks/useMessagePin';
 import { getMessageReactions } from '@/src/services/chatService';
 import * as mediaService from '@/src/services/mediaService';
-import { lookupMessage } from '@/src/services/messagesApi';
+import { lookupMessage, getPinnedMessages } from '@/src/services/messagesApi';
 import { searchUsers } from '@/src/services/usersApi';
 import { useChatStore } from '@/src/store/chatStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
@@ -29,13 +31,19 @@ import React, { useState, useEffect } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { leaveConversation, addMember, markAsRead, getConversationDetail, disbandConversation } from '@/src/services/conversationsApi';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 
 export default function ChatDetailScreen() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const { user: authUser } = useAuth();
+  const getMembers = useConversationDetailStore((state) => state.getMembers);
+  const fetchConversationDetail = useConversationDetailStore((state) => state.fetchConversationDetail);
   const setMessageReactions = useMessagesStore((state) => state.setMessageReactions);
   const deleteChat = useChatsStore((state) => state.deleteChat);
+  const { pinMessage, unpinMessage, isMessagePinned } = useMessagePin();
 
   // Handle successful leave group - remove conversation from list
   const handleLeaveSuccess = () => {
@@ -82,7 +90,6 @@ export default function ChatDetailScreen() {
     closeMessageActions,
     handleReplyAction,
     handleEditAction,
-    handleRevokeAction,
     handleDeleteAction,
     handleReactAction,
     handleReactMultiple,
@@ -109,33 +116,52 @@ export default function ChatDetailScreen() {
     jumpToMessage,
   } = useChatDetailScreenLogic();
 
-  // Debug typing state
-  console.log('[ChatDetail] Typing state debug:', {
-    typingText,
-    typingUsers,
-    isTypingVisible,
-    chatId
-  });
 
   // Group management state
   const [showGroupInfoModal, setShowGroupInfoModal] = useState(false);
   const [showMemberRoleModal, setShowMemberRoleModal] = useState(false);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
+  
+  // Pinned messages state
+  const [pinnedMessages, setPinnedMessagesList] = useState<any[]>([]);
+  const [showPinnedSection, setShowPinnedSection] = useState(false);
+
+  // Load pinned messages when chat loads
+  useEffect(() => {
+    if (chatId && chatId !== '') {
+      // Fetch conversation detail to get members data
+      fetchConversationDetail(chatId, true).catch(err => {
+        console.error('[ChatDetail] Failed to fetch conversation detail:', err);
+      });
+
+      getPinnedMessages(chatId, 20)
+        .then((response) => {
+          console.log('[Pinned Messages API Response]:', response);
+          const items = response?.data?.items || [];
+          console.log('[Pinned Messages Items]:', items);
+          setPinnedMessagesList(items);
+          setShowPinnedSection(items.length > 0);
+          
+          // Populate store with pinned message IDs
+          const setPinnedMessagesInStore = useMessagesStore.getState().setPinnedMessages;
+          const pinnedIds = items.map((item: any) => item.message.messageId || item.message.id);
+          setPinnedMessagesInStore(chatId, pinnedIds);
+        })
+        .catch((err) => {
+          console.error('[Load pinned messages] Error:', err);
+        });
+    }
+  }, [chatId]);
 
   // Mark conversation as read when entering chat
   useEffect(() => {
-    console.log('[ChatDetail] useEffect triggered, chatId:', chatId, 'type:', typeof chatId);
     if (chatId && chatId !== '') {
-      console.log('[ChatDetail] Calling markAsRead for:', chatId);
       markAsRead(chatId)
         .then(() => {
-          console.log('[ChatDetail] Mark as read SUCCESS');
           // Reset unread count in local store
           useChatsStore.getState().resetUnreadCount(chatId);
         })
-        .catch((err) => console.error('[ChatDetail] Mark as read FAILED:', err?.message || err));
-    } else {
-      console.log('[ChatDetail] Skipping markAsRead - no valid chatId');
+        .catch((err) => {/* Mark as read failed */});
     }
   }, [chatId]);
 
@@ -249,6 +275,63 @@ export default function ChatDetailScreen() {
       }
     } catch (error) {
       // Error loading reactions
+    }
+  };
+
+  const handlePinAction = async (message: any) => {
+    try {
+      await pinMessage(chatId, message.timestamp || message.createdAt, message.id);
+      // Refresh pinned messages list
+      const response = await getPinnedMessages(chatId, 20);
+      const items = response?.data?.items || [];
+      setPinnedMessagesList(items);
+      setShowPinnedSection(items.length > 0);
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.message || 'Không thể ghim tin nhắn');
+    }
+  };
+
+  const handleUnpinAction = async (message: any) => {
+    try {
+      const messageId = message.messageId || message.id;
+      const createdAt = message.createdAt || message.timestamp;
+      console.log('[Unpin Message] messageId:', messageId, 'createdAt:', createdAt);
+      
+      await unpinMessage(chatId, createdAt, messageId);
+      // Refresh pinned messages list
+      const response = await getPinnedMessages(chatId, 20);
+      const items = response?.data?.items || [];
+      setPinnedMessagesList(items);
+      setShowPinnedSection(items.length > 0);
+    } catch (error: any) {
+      console.error('[Unpin Message] Error:', error);
+      Alert.alert('Lỗi', error.message || 'Không thể bỏ ghim tin nhắn');
+    }
+  };
+
+  const handlePinMessagePress = (pinnedMessage: any) => {
+    // Find the message in the current messages list
+    const currentMessages = messages || [];
+    const messageData = pinnedMessage.message || pinnedMessage;
+    const messageId = messageData.messageId || messageData.id || pinnedMessage.message_id || pinnedMessage.id;
+    
+    const messageIndex = currentMessages.findIndex(m =>
+      m.serverMessageId === messageId ||
+      m.id === messageId ||
+      m.id === messageData.messageId
+    );
+
+    if (messageIndex >= 0 && flashListRef.current) {
+      flashListRef.current.scrollToIndex({
+        index: messageIndex,
+        animated: true,
+        viewPosition: 0.5,
+      });
+      // Highlight the message briefly
+      setHighlightedMessageId(messageId);
+      setTimeout(() => setHighlightedMessageId(null), 2000);
+    } else {
+      Alert.alert('Thông báo', 'Tin nhắn không có trong danh sách hiện tại');
     }
   };
 
@@ -366,8 +449,6 @@ export default function ChatDetailScreen() {
   const handleViewMembers = () => {
     // Members are already loaded in currentChat from getConversationById
     const members = (currentChat as any)?.members || [];
-    console.log('[ChatDetail] handleViewMembers - currentChat:', currentChat);
-    console.log('[ChatDetail] handleViewMembers - members:', members);
     
     if (members.length === 0) {
       Alert.alert('Thông báo', 'Không có thông tin thành viên. Vui lòng thử lại sau.');
@@ -402,7 +483,6 @@ export default function ChatDetailScreen() {
     // Fetch fresh role from API to determine if user is owner
     try {
       const response = await getConversationDetail(chatId);
-      console.log(">>>>>>>>", response);
       
       const data = response.data?.data;
       // Backend bug: mySettings.role is inconsistent with members array
@@ -414,8 +494,6 @@ export default function ChatDetailScreen() {
       // Use role from members list if it differs from mySettings (backend bug workaround)
       const myRole = (roleFromMembers !== roleFromSettings) ? roleFromMembers : roleFromSettings;
       const isOwner = myRole === 'owner';
-      
-      console.log('[handleLeaveGroup] roleFromSettings:', roleFromSettings, 'roleFromMembers:', roleFromMembers, 'final myRole:', myRole);
 
       Alert.alert(
         isOwner ? 'Xóa nhóm' : 'Rời nhóm',
@@ -462,6 +540,7 @@ export default function ChatDetailScreen() {
   const presenceStatus = getPresenceStatus();
 
   const renderItem = React.useCallback(({ item }: { item: any }) => {
+    const members = getMembers(chatId);
     return (
       <MessageBubble
         item={item}
@@ -491,6 +570,8 @@ export default function ChatDetailScreen() {
         onFilePress={handleFilePress}
         onForwardPress={handleForwardAction}
         onNavigateToForwarded={handleNavigateToForwarded}
+        isPinned={isMessagePinned(chatId, item.id)}
+        conversationMembers={members}
       />
     );
   }, [
@@ -510,6 +591,9 @@ export default function ChatDetailScreen() {
     currentChat,
     isSearchMode,
     searchQuery,
+    chatId,
+    isMessagePinned,
+    getMembers,
   ]);
 
   return (
@@ -534,15 +618,6 @@ export default function ChatDetailScreen() {
                    (messages && messages.length > 0 ? messages.find((m: any) => !m.fromMe)?.senderId : undefined);
             const otherUserPresence = otherUserId ? presence[otherUserId] : null;
             const isGroup = currentChat?.isGroup ?? false;
-
-            // Debug logging
-            console.log('[ChatDetail] Header debug:', {
-              otherUserId,
-              isGroup,
-              presenceData: otherUserPresence,
-              allPresence: presence,
-              hasPresence: !!otherUserPresence
-            });
 
             return (
               <View style={styles.headerTitleContainer}>
@@ -602,6 +677,14 @@ export default function ChatDetailScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? keyboardOffset : 0}
       >
         {/* Search UI - Zalo Style */}
+        {showPinnedSection && !isSearchMode && (
+          <PinnedMessagesSection
+            pinnedMessages={pinnedMessages}
+            onPressMessage={handlePinMessagePress}
+            onUnpinMessage={handleUnpinAction}
+          />
+        )}
+
         {isSearchMode && (
           <View style={[styles.searchContainer, { backgroundColor: theme.colors.background }]}>
             <View style={[styles.searchInputContainer, { backgroundColor: theme.colors.card }]}>
@@ -755,11 +838,13 @@ export default function ChatDetailScreen() {
           onClose={closeMessageActions}
           onReply={handleReplyAction}
           onEdit={handleEditAction}
-          onRevoke={handleRevokeAction}
           onDelete={handleDeleteAction}
           onReact={handleReactAction}
           onReactMultiple={handleReactMultiple}
           onForward={handleForwardAction}
+          onPin={handlePinAction}
+          onUnpin={handleUnpinAction}
+          isPinned={selectedActionMessage ? isMessagePinned(chatId, selectedActionMessage.id) : false}
         />
 
         <ForwardModal

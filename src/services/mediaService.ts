@@ -263,8 +263,6 @@ async function presignUpload(
 
       const text = await response.text();
 
-      console.error('[presignUpload] Error response:', text);
-
       if (response.status === 400) {
 
         throw new MediaError(400, `Presign failed: invalid file type or missing required fields. ${text}`);
@@ -280,7 +278,6 @@ async function presignUpload(
       // Retry on network errors (5xx)
       if (response.status >= 500 && retryCount < MAX_RETRIES) {
         const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s
-        console.log(`[presignUpload] Retrying (${retryCount + 1}/${MAX_RETRIES}) after ${delay}ms`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return presignUpload(fileName, contentType, userId, retryCount + 1);
       }
@@ -311,8 +308,6 @@ async function presignUpload(
 
   } catch (error) {
 
-    console.error('[presignUpload] Error:', error);
-
     if (error instanceof MediaError) {
 
       throw error;
@@ -322,7 +317,6 @@ async function presignUpload(
     // Retry on network errors
     if (retryCount < MAX_RETRIES) {
       const delay = Math.pow(2, retryCount) * 1000;
-      console.log(`[presignUpload] Retrying (${retryCount + 1}/${MAX_RETRIES}) after ${delay}ms`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return presignUpload(fileName, contentType, userId, retryCount + 1);
     }
@@ -367,15 +361,11 @@ async function uploadToS3(
 
       const text = await response.text();
 
-      console.error('[uploadToS3] Error response:', text);
-
       throw new MediaError(response.status, `S3 upload failed (${response.status}): ${text}`);
 
     }
 
   } catch (error) {
-
-    console.error('[uploadToS3] Error:', error);
 
     if (error instanceof MediaError) {
 
@@ -481,7 +471,6 @@ async function confirmUpload(
       // Retry on network errors (5xx)
       if (response.status >= 500 && retryCount < MAX_RETRIES) {
         const delay = Math.pow(2, retryCount) * 1000;
-        console.log(`[confirmUpload] Retrying (${retryCount + 1}/${MAX_RETRIES}) after ${delay}ms`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return confirmUpload(key, contentType, userId, conversationId, retryCount + 1);
       }
@@ -508,8 +497,6 @@ async function confirmUpload(
 
   } catch (error) {
 
-    console.error('[confirmUpload] Error:', error);
-
     if (error instanceof MediaError) {
 
       throw error;
@@ -519,7 +506,6 @@ async function confirmUpload(
     // Retry on network errors
     if (retryCount < MAX_RETRIES) {
       const delay = Math.pow(2, retryCount) * 1000;
-      console.log(`[confirmUpload] Retrying (${retryCount + 1}/${MAX_RETRIES}) after ${delay}ms`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return confirmUpload(key, contentType, userId, conversationId, retryCount + 1);
     }
@@ -607,17 +593,11 @@ export async function uploadMedia(
 
   } catch (error) {
 
-    console.error('[mediaService] Upload failed:', error);
-
     if (error instanceof MediaError) {
-
-      console.error('[mediaService] MediaError:', error.status, error.message);
 
       throw error;
 
     }
-
-    console.error('[mediaService] Generic error:', error instanceof Error ? error.message : String(error));
 
     throw new MediaError(0, `Upload failed: ${error instanceof Error ? error.message : String(error)}`);
 

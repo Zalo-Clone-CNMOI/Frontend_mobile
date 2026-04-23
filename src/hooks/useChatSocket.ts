@@ -48,6 +48,8 @@ export const useChatSocket = () => {
   const { updateLastMessage, chats, resetUnreadCount } = useChatsStore();
   const addReactionMessageStore = useMessagesStore((state) => state.addReaction);
   const updatePresenceMap = usePresenceStore((state) => state.updatePresence);
+  const addPinnedMessage = useMessagesStore((state) => state.addPinnedMessage);
+  const removePinnedMessage = useMessagesStore((state) => state.removePinnedMessage);
 
   useEffect(() => {
     const token = authUser?.tokens?.accessToken;
@@ -67,81 +69,20 @@ export const useChatSocket = () => {
   }, [authUser?.tokens?.accessToken, authUser?.id]);
 
   const setupEventListeners = (socket: any) => {
-    // Debug: Log socket connection status
-    console.log('[useChatSocket] 🔌 Setting up socket event listeners');
-    console.log('[useChatSocket] 🔌 Socket connected:', socket.connected);
-    console.log('[useChatSocket] 🔌 Socket ID:', socket.id);
-
-    // Debug: Log when socket connects/disconnects
     socket.on('connect', () => {
-      console.log('[useChatSocket] ✅ Socket connected');
     });
 
     socket.on('disconnect', () => {
-      console.log('[useChatSocket] ❌ Socket disconnected');
     });
 
     socket.on('connect_error', (error: any) => {
-      console.error('[useChatSocket] ❌ Socket connect error:', error);
     });
 
-    // Debug: Log chat:join acknowledgment
     socket.on('chat:join:ack', (payload: any) => {
-      console.log('[useChatSocket] ✅ chat:join acknowledged:', payload);
     });
 
-    // New message - Re-enabled with duplicate prevention
-    // This listener handles global message updates for conversations not currently open
-    socket.on('chat:message', (payload: any) => {
-      const messageId = payload.message_id || payload.id;
-      const conversationId = payload.conversation_id || payload.conversationId;
-
-      // Duplicate prevention: check if message already processed
-      if (messageId && isMessageProcessed(String(messageId))) {
-        console.log('[useChatSocket] ⚠️ Duplicate message ignored:', messageId);
-        return;
-      }
-
-      if (messageId) {
-        addProcessedMessageId(String(messageId));
-      }
-
-      // Convert socket payload to ChatMessage
-      const chatMessage = mapSocketMessageEventToChatMessage(payload, authUser?.id);
-
-      // Add to useMessagesStore for the conversation
-      if (conversationId) {
-        useMessagesStore.getState().addMessage(conversationId, chatMessage);
-      }
-
-      // Update last message in conversation (global real-time update)
-      const content = payload.body || payload.content || '';
-      const type = payload.type;
-      const timestamp = payload.created_at || payload.timestamp || Date.now();
-      const senderId = payload.sender_id || payload.senderId;
-
-      // Get sender name
-      let senderName = payload.sender_name || payload.senderName;
-      if (!senderName && senderId === authUser?.id) {
-        senderName = (authUser as any)?.fullName || (authUser as any)?.name || 'Bạn';
-      }
-
-      if (conversationId) {
-        const isFromMe = senderId === authUser?.id;
-        const conversation = chats.find(c => c.conversationId === conversationId);
-        const myLastReadAt = conversation?.myLastReadAt || 0;
-        const shouldIncrementUnread = !isFromMe && timestamp > myLastReadAt;
-
-        console.log('[useChatSocket] 📨 Global message update:', {
-          conversationId,
-          messageId,
-          isFromMe,
-          shouldIncrementUnread
-        });
-
-        updateLastMessage(conversationId, content, type, timestamp, senderId, senderName, shouldIncrementUnread);
-      }
-    });
+    // New message - REMOVED: handled by chatService.registerSocketListeners()
+    // chatService already handles chat:message events, so we don't duplicate here
 
     // Chat read - Sync unread count when other users read messages
     socket.on('chat:read', (payload: any) => {
@@ -150,11 +91,6 @@ export const useChatSocket = () => {
 
       // Only reset unread if someone else (not me) reads the conversation
       if (conversationId && readerId && readerId !== authUser?.id) {
-        console.log('[useChatSocket] 📖 Conversation read by other user:', {
-          conversationId,
-          readerId,
-          myId: authUser?.id
-        });
         resetUnreadCount(conversationId);
       }
     });
@@ -171,7 +107,6 @@ export const useChatSocket = () => {
 
     // Reaction added
     socket.on('chat:reaction:added', (payload: any) => {
-      console.log('[Socket] chat:reaction:added received:', payload);
       addReactionChatStore(payload);
       // Also update useMessagesStore for UI consistency
       addReactionMessageStore(
@@ -184,8 +119,33 @@ export const useChatSocket = () => {
 
     // Reaction removed
     socket.on('chat:reaction:removed', (payload: any) => {
-      console.log('[Socket] chat:reaction:removed received:', payload);
       removeReactionFromStore(payload);
+    });
+
+    // Message pinned
+    socket.on('chat:message:pinned', (payload: any) => {
+      const conversationId = payload.conversation_id || payload.conversationId;
+      const messageId = payload.message_id || payload.messageId;
+      
+      // Update store with pinned status
+      addPinnedMessage(conversationId, messageId);
+      
+      // Update message with pinned status (chatStore format)
+      // Note: chatStore's Message type doesn't have isPinned field, so we update useMessagesStore instead
+      // The pinned status is tracked in useMessagesStore's pinnedMessagesByChatId
+    });
+
+    // Message unpinned
+    socket.on('chat:message:unpinned', (payload: any) => {
+      const conversationId = payload.conversation_id || payload.conversationId;
+      const messageId = payload.message_id || payload.messageId;
+      
+      // Update store with unpinned status
+      removePinnedMessage(conversationId, messageId);
+      
+      // Update message with unpinned status (chatStore format)
+      // Note: chatStore's Message type doesn't have isPinned field, so we update useMessagesStore instead
+      // The pinned status is tracked in useMessagesStore's pinnedMessagesByChatId
     });
 
     // Typing update - Handled by useTypingIndicator to avoid duplicates
@@ -204,13 +164,11 @@ export const useChatSocket = () => {
     // Ack (for sent messages)
     socket.on('chat:ack', (payload: any) => {
       if (payload.status === 'rejected') {
-        console.error('Message rejected:', payload.reason);
       }
     });
 
     // Error handling
     socket.on('ws:error', (error: any) => {
-      console.error('Socket error:', error);
     });
   };
 

@@ -3,7 +3,7 @@ import { useAuth } from '@/src/contexts/AuthContext';
 import * as mediaService from '@/src/services/mediaService';
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
-import { Check, CheckCheck, FileArchive, FileAudio, FileText, FileVideo, Forward, Play, RotateCcw } from 'lucide-react-native';
+import { Check, CheckCheck, FileArchive, FileAudio, FileText, FileVideo, Forward, Pin, Play, RotateCcw } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -74,6 +74,8 @@ type MessageBubbleProps = {
   onForwardPress?: (item: ChatMessage) => void;
   onNavigateToForwarded?: (forwardedFrom: ChatMessage['forwardedFrom']) => void; // Navigate to original conversation
   highlightText?: string; // For search highlighting
+  isPinned?: boolean; // Whether message is pinned
+  conversationMembers?: Array<{ userId: string; nickname?: string | null; fullName?: string | null }>; // Conversation members for nickname lookup
 };
 
 export const MessageBubble = React.memo(
@@ -91,6 +93,8 @@ export const MessageBubble = React.memo(
     onForwardPress,
     onNavigateToForwarded,
     highlightText,
+    isPinned = false,
+    conversationMembers,
   }: MessageBubbleProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -185,14 +189,25 @@ export const MessageBubble = React.memo(
 
   const senderName = useMemo(() => {
     if (item.fromMe) return 'Bạn';
-    if (isGroup && userProfile?.fullName) {
-      return userProfile.fullName;
+    if (isGroup && item.senderId) {
+      // First, try to get nickname from conversation members (conversation-specific)
+      const member = conversationMembers?.find(m => m.userId === item.senderId);
+      if (member?.nickname) {
+        return member.nickname;
+      }
+      // Fallback to member.fullName or userProfile.fullName
+      if (member?.fullName) {
+        return member.fullName;
+      }
+      if (userProfile?.fullName) {
+        return userProfile.fullName;
+      }
     }
     if (isGroup && item.senderId && loading[item.senderId]) {
       return 'Đang tải...';
     }
     return item.senderName || (item as any).senderName || (item as any).sender?.name || (item as any).sender?.fullName || 'User';
-  }, [item.fromMe, item.senderName, item.senderId, isGroup, userProfile, loading]);
+  }, [item.fromMe, item.senderName, item.senderId, isGroup, userProfile, loading, conversationMembers]);
 
   const formatTime = (dateProp: any) => {
     const d = dateProp ? new Date(dateProp) : new Date();
@@ -879,6 +894,12 @@ export const MessageBubble = React.memo(
             </>
           )}
 
+          {isPinned && (
+            <View style={styles.pinIcon}>
+              <Pin size={12} color={isMe ? myMetaColor : theirMetaColor} fill={isMe ? myMetaColor : theirMetaColor} />
+            </View>
+          )}
+
           {isMe && !item.isRevoked && (
             <View style={styles.receiptIcon}>
               {item.status === 'read' ? (
@@ -1242,8 +1263,12 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   receiptIcon: {
+    marginLeft: 4,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  pinIcon: {
+    marginLeft: 4,
   },
 
   // Reply preview

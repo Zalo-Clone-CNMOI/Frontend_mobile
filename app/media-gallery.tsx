@@ -96,7 +96,6 @@ export default function MediaGalleryScreen() {
               }
             }
           } catch (err) {
-            console.log('[MediaGallery] Failed to resolve URL for', item.id, err);
             urls[item.id] = item.uri; // fallback
           }
         }
@@ -121,29 +120,21 @@ export default function MediaGalleryScreen() {
     setLoading(true);
     setError(null);
     
-    console.log('[MediaGallery] Starting fetch for conversation:', conversationId);
-    
     try {
       // Fetch all messages with timeout
-      console.log('[MediaGallery] Calling getMessages API...');
       
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('API Timeout after 10s')), 10000)
       );
       
-      console.log('[MediaGallery] Requesting 50 messages only...');
       const response = await Promise.race([
         getMessages(conversationId, 50),
         timeoutPromise
       ]) as any;
       
-      console.log('[MediaGallery] API response:', response ? 'success' : 'null');
-      console.log('[MediaGallery] Response data:', response?.data ? 'has data' : 'no data');
       
       const messages = response?.data?.items || [];
       
-      console.log('[MediaGallery] Fetched messages count:', messages.length);
-      console.log('[MediaGallery] First message sample:', messages[0] ? JSON.stringify(messages[0], null, 2).substring(0, 500) : 'none');
       
       const media: MediaItem[] = [];
       const links: LinkItem[] = [];
@@ -157,9 +148,6 @@ export default function MediaGalleryScreen() {
         // Extract attachments
         const attachments = msg.attachments || msg.metadata?.attachments || [];
         
-        if (attachments.length > 0 && msgIndex < 3) {
-          console.log(`[MediaGallery] Message ${msgIndex} attachments:`, JSON.stringify(attachments, null, 2));
-        }
         
         attachments.forEach((att: any, index: number) => {
           // API returns: type (image/video/audio/document), contentType (mime), key, url
@@ -169,22 +157,13 @@ export default function MediaGalleryScreen() {
             type = getMediaType(att.contentType || att.content_type || att.mimeType);
           }
           
-          // Log raw attachment for debugging
-          if (msgIndex < 2) {
-            console.log(`[MediaGallery] Raw attachment ${index}:`, {
-              type: att.type,
-              detectedType: type,
-              contentType: att.contentType || att.content_type,
-              name: att.name,
-            });
-          }
           
           // Use URL from backend if available, otherwise build from key
           const uri = att.url || (att.key ? `${S3_BASE_URL}/${att.key}` : null);
           const thumbnailUri = att.thumbnail_url || att.thumbnailUrl || uri;
           
           if (!uri) {
-            console.log('[MediaGallery] Attachment missing URL:', att);
+            // Attachment missing URL
           }
           
           media.push({
@@ -223,22 +202,10 @@ export default function MediaGalleryScreen() {
       media.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       links.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       
-      console.log('[MediaGallery] Total media items:', media.length);
-      console.log('[MediaGallery] Media types:', {
-        images: media.filter(m => m.type === 'image').length,
-        videos: media.filter(m => m.type === 'video').length,
-        documents: media.filter(m => m.type === 'document').length,
-        audio: media.filter(m => m.type === 'audio').length,
-      });
-      console.log('[MediaGallery] First media item:', media[0] || 'none');
-      console.log('[MediaGallery] Total links:', links.length);
       
       setMediaItems(media);
       setLinkItems(links);
     } catch (err: any) {
-      console.error('[MediaGallery] Fetch error:', err);
-      console.error('[MediaGallery] Error message:', err?.message || 'Unknown error');
-      console.error('[MediaGallery] Error stack:', err?.stack || 'No stack');
       setError(`${t('media_gallery.fetch_error')}: ${err?.message || 'Unknown'}`);
     } finally {
       setLoading(false);
@@ -321,14 +288,6 @@ export default function MediaGalleryScreen() {
     // Use resolved presigned URL if available, otherwise use original
     const imageUri = resolvedUrls[item.id] || item.thumbnail || item.uri;
     
-    if (index < 3) {
-      console.log(`[MediaGallery] Render item ${index}:`, { 
-        id: item.id, 
-        type: item.type, 
-        hasResolvedUrl: !!resolvedUrls[item.id],
-        uri: imageUri?.substring(0, 80) 
-      });
-    }
     
     return (
       <TouchableOpacity
@@ -352,14 +311,13 @@ export default function MediaGalleryScreen() {
             style={styles.gridImage}
             resizeMode="cover"
             onError={(e) => {
-              console.log('[MediaGallery] Image load error:', e.nativeEvent.error, imageUri?.substring(0, 80));
               // Try to resolve URL again if failed
               if (item.key && authUser?.id && !resolvedUrls[item.id]) {
                 getAttachmentUrl({ key: item.key, visibility: 'private' }, authUser.id)
                   .then(url => {
                     setResolvedUrls(prev => ({ ...prev, [item.id]: url }));
                   })
-                  .catch(err => console.log('[MediaGallery] Failed to resolve on error:', err));
+                  .catch(err => {/* Failed to resolve on error */});
               }
             }}
           />

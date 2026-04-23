@@ -35,8 +35,11 @@ interface GroupInviteState {
   isSending: boolean; // For send invites loading state
   error: string | null;
   
-  // Track processed socket event IDs for idempotency
-  processedEventIds: Set<string>;
+  // Track processed socket event IDs for idempotency (eventId -> timestamp)
+  processedEventIds: Map<string, number>;
+  
+  // Track ongoing requests to prevent race conditions
+  ongoingRequests: Map<string, AbortController>;
 
   // Actions
   fetchPendingInvites: (params?: {
@@ -94,26 +97,32 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
   isLoading: false,
   isSending: false,
   error: null,
-  processedEventIds: new Set<string>(),
+  processedEventIds: new Map<string, number>(),
+  ongoingRequests: new Map<string, AbortController>(),
 
   // Idempotency helpers
   isEventProcessed: (eventId: string) => {
-    return get().processedEventIds.has(eventId);
+    const state = get();
+    const timestamp = state.processedEventIds.get(eventId);
+    if (!timestamp) return false;
+    // Check if event is still within TTL (5 minutes)
+    return Date.now() - timestamp < CACHE_TTL;
   },
   
   markEventProcessed: (eventId: string) => {
     set((state) => {
-      const newSet = new Set(state.processedEventIds);
-      newSet.add(eventId);
-      // Keep only last 100 event IDs to prevent memory leak
-      if (newSet.size > 100) {
-        const iterator = newSet.values();
-        const firstValue = iterator.next().value;
-        if (firstValue) {
-          newSet.delete(firstValue);
+      const newMap = new Map(state.processedEventIds);
+      newMap.set(eventId, Date.now());
+      
+      // Cleanup events older than 5 minutes
+      const now = Date.now();
+      for (const [id, timestamp] of newMap.entries()) {
+        if (now - timestamp > CACHE_TTL) {
+          newMap.delete(id);
         }
       }
-      return { processedEventIds: newSet };
+      
+      return { processedEventIds: newMap };
     });
   },
 
@@ -138,7 +147,6 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
     
     // Check cache validity unless force refresh
     if (!force && state.lastFetchedAt && Date.now() - state.lastFetchedAt < CACHE_TTL) {
-      console.log('[useGroupInviteStore] Using cached invites');
       return;
     }
 
@@ -171,7 +179,6 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
         };
       });
     } catch (err) {
-      console.error('[useGroupInviteStore] fetchPendingInvites error:', err);
       set({ error: String(err), isLoading: false });
     }
   },
@@ -181,11 +188,25 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
   },
 
   fetchConversationInvites: async (conversationId: string, status: GroupInviteStatus = 'pending') => {
-    set({ isLoading: true, error: null });
+    const requestKey = `${conversationId}:${status}`;
+    const state = get();
+    
+    // Cancel existing request if any
+    const existingController = state.ongoingRequests.get(requestKey);
+    if (existingController) {
+      existingController.abort();
+    }
+    
+    const controller = new AbortController();
+    set((state) => ({
+      ongoingRequests: new Map(state.ongoingRequests).set(requestKey, controller),
+      isLoading: true,
+      error: null,
+    }));
+    
     try {
       const response = await getConversationInvites(conversationId, { status });
       const invites = response.data?.items || [];
-      console.log('[useGroupInviteStore] fetchConversationInvites response:', invites);
       
       set((state) => {
         // Categorize invites by status - update sentInvites
@@ -195,7 +216,8 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
         const cancelled = invites.filter((i: Invite) => i.status === 'cancelled');
         const expired = invites.filter((i: Invite) => i.status === 'expired');
 
-        console.log('[useGroupInviteStore] Categorized sent invites:', { pending, accepted, rejected, cancelled, expired });
+        const newOngoingRequests = new Map(state.ongoingRequests);
+        newOngoingRequests.delete(requestKey);
 
         return {
           sentInvites: {
@@ -206,11 +228,21 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
             expired,
           },
           isLoading: false,
+          ongoingRequests: newOngoingRequests,
         };
       });
-    } catch (err) {
-      console.error('[useGroupInviteStore] fetchConversationInvites error:', err);
-      set({ error: String(err), isLoading: false });
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        set((state) => {
+          const newOngoingRequests = new Map(state.ongoingRequests);
+          newOngoingRequests.delete(requestKey);
+          return { 
+            error: String(err), 
+            isLoading: false,
+            ongoingRequests: newOngoingRequests,
+          };
+        });
+      }
     }
   },
 
@@ -337,7 +369,6 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
   handleInviteSent: (invite: Invite, eventId?: string) => {
     // Check idempotency
     if (eventId && get().isEventProcessed(eventId)) {
-      console.log('[useGroupInviteStore] Duplicate event ignored:', eventId);
       return;
     }
     if (eventId) {
@@ -348,7 +379,6 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
       // This event is for the recipient (user who received the invite)
       // Update receivedInvites only
       if (state.receivedInvites.pending.some((i) => i.id === invite.id)) {
-        console.log('[useGroupInviteStore] Invite already exists in received:', invite.id);
         return {};
       }
 
@@ -364,7 +394,6 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
 
   handleInviteAccepted: (inviteId: string, respondedAt: string, eventId?: string) => {
     if (eventId && get().isEventProcessed(eventId)) {
-      console.log('[useGroupInviteStore] Duplicate event ignored:', eventId);
       return;
     }
     if (eventId) {
@@ -413,7 +442,6 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
 
   handleInviteRejected: (inviteId: string, respondedAt: string, eventId?: string) => {
     if (eventId && get().isEventProcessed(eventId)) {
-      console.log('[useGroupInviteStore] Duplicate event ignored:', eventId);
       return;
     }
     if (eventId) {
@@ -462,7 +490,6 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
 
   handleInviteCancelled: (inviteId: string, cancelledAt: string, eventId?: string) => {
     if (eventId && get().isEventProcessed(eventId)) {
-      console.log('[useGroupInviteStore] Duplicate event ignored:', eventId);
       return;
     }
     if (eventId) {
@@ -511,7 +538,6 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
 
   handleInviteExpired: (inviteId: string, expiredAt: string, eventId?: string) => {
     if (eventId && get().isEventProcessed(eventId)) {
-      console.log('[useGroupInviteStore] Duplicate event ignored:', eventId);
       return;
     }
     if (eventId) {
@@ -589,7 +615,8 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
       isLoading: false,
       isSending: false,
       error: null,
-      processedEventIds: new Set(),
+      processedEventIds: new Map(),
+      ongoingRequests: new Map(),
     });
   },
 }));

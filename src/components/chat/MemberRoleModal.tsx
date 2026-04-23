@@ -43,8 +43,7 @@ export function MemberRoleModal({
   const [selectedRole, setSelectedRole] = useState<MemberRole>('member');
   const [apiMyRole, setApiMyRole] = useState<MemberRole>('member'); // Fetch from API
 
-  // Fetch myRole from API when modal opens
-  useEffect(() => {
+  const fetchConversationDetails = async () => {
     if (visible && conversationId) {
       getConversationDetail(conversationId)
         .then((response) => {
@@ -55,21 +54,24 @@ export function MemberRoleModal({
             const myMemberEntry = data.members?.find((m: any) => m.userId === currentUserId);
             const roleFromMembers = myMemberEntry?.role || 'member';
             const roleFromSettings = data.mySettings?.role || 'member';
-            
+
             // Use role from members list if it differs from mySettings (backend bug workaround)
             const actualRole = (roleFromMembers !== roleFromSettings) ? roleFromMembers : roleFromSettings;
-            
+
             setApiMyRole(actualRole);
-            console.log('[MemberRoleModal] Fetched myRole from API:', actualRole);
-            console.log('[MemberRoleModal] roleFromSettings:', roleFromSettings, 'roleFromMembers:', roleFromMembers);
           }
         })
         .catch((error) => {
-          console.error('[MemberRoleModal] Failed to fetch conversation details:', error);
           setApiMyRole('member'); // Fallback to member if API fails
         });
     }
-  }, [visible, conversationId, currentUserId]);
+  };
+
+  useEffect(() => {
+    if (visible && conversationId) {
+      fetchConversationDetails();
+    }
+  }, [visible, conversationId, fetchConversationDetails]);
 
   // Use API-fetched role for authorization
   const isGroupOwner = apiMyRole === 'owner';
@@ -146,7 +148,7 @@ export function MemberRoleModal({
   const handleRemoveMember = async (member: Member) => {
     Alert.alert(
       t('member_role.remove_confirm'),
-      t('member_role.remove_confirm_message', { name: member.fullName }),
+      t('member_role.remove_confirm_message', { name: member.nickname || member.fullName }),
       [
         {
           text: t('common.cancel'),
@@ -238,12 +240,12 @@ export function MemberRoleModal({
                   <View style={styles.memberInfo}>
                     <View style={[styles.avatar, { backgroundColor: theme.colors.primary + '20' }]}>
                       <Text style={[styles.avatarText, { color: theme.colors.primary }]}>
-                        {member.fullName.charAt(0).toUpperCase()}
+                        {(member.nickname || member.fullName).charAt(0).toUpperCase()}
                       </Text>
                     </View>
                     <View style={styles.memberDetails}>
                       <Text style={[styles.memberName, { color: theme.colors.text }]}>
-                        {member.fullName}
+                        {member.nickname || member.fullName}
                       </Text>
                       <View style={styles.roleContainer}>
                         {getRoleIcon(member.role)}
@@ -290,7 +292,7 @@ export function MemberRoleModal({
           <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
             <View style={styles.header}>
               <Text style={[styles.title, { color: theme.colors.text }]}>
-                {t('member_role.change_role_for', { name: selectedMember?.fullName })}
+                {t('member_role.change_role_for', { name: selectedMember?.nickname || selectedMember?.fullName })}
               </Text>
               <TouchableOpacity onPress={() => setRoleSelectionVisible(false)}>
                 <X size={24} color={theme.colors.text} />

@@ -5,6 +5,7 @@ export interface ConversationMember {
   id: string;
   userId: string;
   fullName: string;
+  nickname?: string | null;
   avatarUrl?: string | null;
   role: 'owner' | 'admin' | 'member';
   joinedAt: string;
@@ -98,6 +99,7 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
           id: m.id,
           userId: m.userId,
           fullName: m.fullName,
+          nickname: m.nickname,
           avatarUrl: m.avatarUrl,
           role: m.role,
           joinedAt: m.joinedAt,

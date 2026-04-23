@@ -43,13 +43,6 @@ const request = async (
       errorMessage = JSON.stringify(errorMessage);
     }
 
-    // Log error details for debugging
-    console.error('[conversationsApi] Request failed:', {
-      status: response.status,
-      statusText: response.statusText,
-      data: data,
-      path: path,
-    });
 
     throw new Error(errorMessage);
   }
@@ -75,7 +68,6 @@ export const createGroup = async (payload: any) => {
     const result = await request('POST', '/conversations/group', payload);
     return result;
   } catch (error: any) {
-    console.error('[conversationsApi] Create group error:', error);
     // Re-throw with better error info
     throw error;
   }
@@ -151,10 +143,10 @@ export const leaveConversation = (conversationId: string) =>
 export const markAsRead = (conversationId: string, payload?: any) =>
   request('POST', `/conversations/${encodeURIComponent(conversationId)}/read`, payload || {});
 
-// Update my settings for a conversation (notifications, etc.)
+// Update my settings for a conversation (notifications, nickname, etc.)
 export const updateMySettings = (
   conversationId: string,
-  payload: { isMuted?: boolean; isPinned?: boolean; customName?: string },
+  payload: { isMuted?: boolean; isPinned?: boolean; nickname?: string },
 ) =>
   request(
     'PATCH',
@@ -256,10 +248,8 @@ export const updateConversation = async (
       `/conversations/${encodeURIComponent(conversationId)}`,
       payload,
     );
-    console.log('[conversationsApi] Update conversation successful:', conversationId);
     return result;
   } catch (error: any) {
-    console.error('[conversationsApi] Update conversation error:', error);
 
     // 7. Enhanced error handling
     const statusCode = (error as any).status || 0;
@@ -318,86 +308,64 @@ export const sendInvites = (
     expiresInHours?: number;
   },
 ) => {
-  console.log('[conversationsApi] sendInvites called');
-  console.log('[conversationsApi] conversationId:', conversationId);
-  console.log('[conversationsApi] payload:', JSON.stringify(payload, null, 2));
-
   // Client-side validation
   if (!payload.userIds || !Array.isArray(payload.userIds)) {
-    console.error('[conversationsApi] Validation failed: userIds must be an array');
     const error = new Error('userIds must be an array');
     (error as any).code = 'INVALID_INPUT';
     throw error;
   }
 
   if (payload.userIds.length === 0) {
-    console.error('[conversationsApi] Validation failed: At least 1 user is required');
     const error = new Error('At least 1 user is required');
     (error as any).code = 'INVALID_INPUT';
     throw error;
   }
 
   if (payload.userIds.length > 50) {
-    console.error('[conversationsApi] Validation failed: Maximum 50 invites at once');
     const error = new Error('Maximum 50 invites at once');
     (error as any).code = 'INVALID_INPUT';
     throw error;
   }
 
-  console.log('[conversationsApi] userIds count:', payload.userIds.length);
-
   // Validate UUID format for each user ID
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   for (const userId of payload.userIds) {
     if (!uuidRegex.test(userId)) {
-      console.error('[conversationsApi] Validation failed: Invalid UUID format for user:', userId);
       const error = new Error(`Invalid UUID format for user: ${userId}`);
       (error as any).code = 'INVALID_INPUT';
       throw error;
     }
   }
 
-  console.log('[conversationsApi] UUID validation passed');
-
   // Validate message length if provided
   if (payload.message !== undefined) {
     if (typeof payload.message !== 'string') {
-      console.error('[conversationsApi] Validation failed: Message must be a string');
       const error = new Error('Message must be a string');
       (error as any).code = 'INVALID_INPUT';
       throw error;
     }
 
     if (payload.message.length > 500) {
-      console.error('[conversationsApi] Validation failed: Message must not exceed 500 characters');
       const error = new Error('Message must not exceed 500 characters');
       (error as any).code = 'INVALID_INPUT';
       throw error;
     }
   }
 
-  console.log('[conversationsApi] Message validation passed, length:', payload.message?.length || 0);
-
   // Validate expiresInHours if provided
   if (payload.expiresInHours !== undefined) {
     if (typeof payload.expiresInHours !== 'number') {
-      console.error('[conversationsApi] Validation failed: expiresInHours must be a number');
       const error = new Error('expiresInHours must be a number');
       (error as any).code = 'INVALID_INPUT';
       throw error;
     }
 
     if (payload.expiresInHours < 1 || payload.expiresInHours > 168) {
-      console.error('[conversationsApi] Validation failed: expiresInHours must be between 1 and 168 hours');
       const error = new Error('expiresInHours must be between 1 and 168 hours (7 days)');
       (error as any).code = 'INVALID_INPUT';
       throw error;
     }
   }
-
-  console.log('[conversationsApi] expiresInHours validation passed, value:', payload.expiresInHours);
-  console.log('[conversationsApi] All validations passed, sending API request');
-  console.log('[conversationsApi] API endpoint:', `POST /conversations/${encodeURIComponent(conversationId)}/invites`);
 
   return request('POST', `/conversations/${encodeURIComponent(conversationId)}/invites`, payload);
 };
@@ -430,7 +398,6 @@ export const getConversationInvites = (
   const limit = Math.min(Number(params?.limit || 20), 50);
   const status = params?.status || 'pending';
   const path = `/conversations/${encodeURIComponent(conversationId)}/invites${toQueryString({ page, limit, status })}`;
-  console.log('[conversationsApi] getConversationInvites:', path);
   return request('GET', path);
 };
 

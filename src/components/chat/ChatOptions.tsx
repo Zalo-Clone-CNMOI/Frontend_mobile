@@ -1,6 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, BellOff, ChevronLeft, ChevronRight, Crown, FileText, Play, Search, Settings, Shield, ShieldAlert, Trash2, User, UserPlus, Users, UserX, X, Check, Mail } from 'lucide-react-native';
+import { Bell, BellOff, ChevronLeft, ChevronRight, Crown, FileText, Play, Search, Settings, Shield, ShieldAlert, Trash2, User, UserPlus, Users, UserX, X, Check, Mail, Edit3 } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -21,7 +21,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NETWORK_CONFIG } from '@/src/config/network';
 import { getMessages } from '@/src/services/messagesApi';
-import { getConversationDetail, leaveConversation, updateMember, removeMember, disbandConversation } from '@/src/services/conversationsApi';
+import { getConversationDetail, leaveConversation, updateMember, removeMember, disbandConversation, updateMySettings } from '@/src/services/conversationsApi';
 import { MediaViewerModal } from './MediaViewerModal';
 import { ConversationInvitesModal } from './ConversationInvitesModal';
 import { useRouter } from 'expo-router';
@@ -113,6 +113,12 @@ export function ChatOptions({
   const [roleUpdating, setRoleUpdating] = useState(false);
   const [conversationInvitesModalVisible, setConversationInvitesModalVisible] = useState(false);
 
+  // Nickname edit modal state
+  const [nicknameModalVisible, setNicknameModalVisible] = useState(false);
+  const [myNickname, setMyNickname] = useState<string>('');
+  const [nicknameInput, setNicknameInput] = useState<string>('');
+  const [nicknameUpdating, setNicknameUpdating] = useState(false);
+
   const router = useRouter();
 
   // Reset myRoleLoaded when modal opens/closes
@@ -175,7 +181,6 @@ export function ChatOptions({
       // Limit to first 20 for preview
       setMediaItems(attachments.slice(0, 20));
     } catch (error: any) {
-      console.error('[ChatOptions] Failed to fetch media:', error);
       setMediaError(t('chat_options.media_error'));
     } finally {
       setMediaLoading(false);
@@ -215,14 +220,9 @@ export function ChatOptions({
 
     setMembersLoading(true);
     try {
-      console.log('[ChatOptions] Fetching conversation details for chatId:', chatId);
       const response = await getConversationDetail(chatId);
-      console.log('[ChatOptions] API response:', response);
       const data = response.data?.data;
       if (data) {
-        console.log('[ChatOptions] Members data:', data.members);
-        console.log('[ChatOptions] mySettings:', data.mySettings);
-        console.log('[ChatOptions] mySettings.role:', data.mySettings?.role);
         setMembers(data.members || []);
         // Backend bug: mySettings.role is inconsistent with members array
         // Use role from members list as fallback
@@ -234,18 +234,12 @@ export function ChatOptions({
         const actualRole = (roleFromMembers !== roleFromSettings) ? roleFromMembers : roleFromSettings;
         
         setMyRole(actualRole);
+        setMyNickname(myMemberEntry?.nickname || data.mySettings?.nickname || '');
         setMyRoleLoaded(true);
-        console.log('[ChatOptions] Set myRole to:', actualRole, 'from API');
-        console.log('[ChatOptions] roleFromSettings:', roleFromSettings, 'roleFromMembers:', roleFromMembers);
-        console.log('[ChatOptions] currentUserId:', currentUserId);
-        console.log('[ChatOptions] Members:', data.members?.map((m: any) => ({ userId: m.userId, role: m.role, fullName: m.fullName })));
-        console.log('[ChatOptions] My member entry:', myMemberEntry);
       } else {
-        console.log('[ChatOptions] No data in response');
         setMyRoleLoaded(true);
       }
     } catch (error: any) {
-      console.error('[ChatOptions] Failed to fetch conversation details:', error);
       setMyRoleLoaded(true);
     } finally {
       setMembersLoading(false);
@@ -303,6 +297,37 @@ export function ChatOptions({
     } as any);
   };
 
+  // Handle edit nickname - open modal
+  const handleEditNickname = () => {
+    setNicknameInput(myNickname);
+    setNicknameModalVisible(true);
+  };
+
+  // Handle save nickname
+  const handleSaveNickname = async () => {
+    const trimmedNickname = nicknameInput.trim();
+
+    if (trimmedNickname.length > 100) {
+      Alert.alert(t('common.error'), t('chat_options.nickname_too_long'));
+      return;
+    }
+
+    setNicknameUpdating(true);
+    try {
+      await updateMySettings(chatId, { nickname: trimmedNickname || undefined });
+      setMyNickname(trimmedNickname);
+      setNicknameModalVisible(false);
+      Alert.alert(t('common.success'), t('chat_options.nickname_updated'));
+
+      // Refresh conversation details to update the UI
+      await fetchConversationDetails();
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || t('chat_options.nickname_update_failed'));
+    } finally {
+      setNicknameUpdating(false);
+    }
+  };
+
   // Helper to get full avatar URL
   const getAvatarUrl = (avatarUrl: string | null) => {
     if (!avatarUrl) return 'https://i.pravatar.cc/150?u=default';
@@ -317,11 +342,9 @@ export function ChatOptions({
     if (!selectedMember) return;
 
     const previousRole = selectedMember.role;
-    console.log('[ChatOptions] Changing role for:', selectedMember.fullName, 'from:', previousRole, 'to:', selectedRole);
     setRoleUpdating(true);
     try {
       await updateMember(chatId, selectedMember.userId, { role: selectedRole });
-      console.log('[ChatOptions] Role update successful');
 
       Alert.alert(t('common.success'), t('member_role.role_updated'));
       setRoleSelectionVisible(false);
@@ -329,8 +352,6 @@ export function ChatOptions({
       // Fetch fresh data to update both members list and myRole
       await fetchConversationDetails();
     } catch (error: any) {
-      console.log('[ChatOptions] Role update failed:', error);
-
       Alert.alert(t('common.error'), error.message || t('member_role.update_failed'));
     } finally {
       setRoleUpdating(false);
@@ -349,16 +370,13 @@ export function ChatOptions({
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('[ChatOptions] Removing member:', item.userId);
               await removeMember(chatId, item.userId);
-              console.log('[ChatOptions] Member removed successfully');
 
               // Update UI - remove from list
               setMembers(prevMembers => prevMembers.filter(m => m.userId !== item.userId));
 
               Alert.alert(t('common.success'), t('chat_options.remove_member_success'));
             } catch (error: any) {
-              console.log('[ChatOptions] Remove member failed:', error);
               Alert.alert(t('common.error'), error.message || t('chat_options.remove_member_failed'));
             }
           }
@@ -384,10 +402,7 @@ export function ChatOptions({
     const canRemoveMember = (iAmOwner && !isSelf && !isOtherOwner) ||
                             (iAmAdmin && !isSelf && item.role === 'member');
 
-    console.log('[ChatOptions] Member:', item.fullName, 'role:', item.role, 'canChangeRole:', canChangeRole, 'myRole:', myRole, 'currentUserId:', currentUserId);
-
     const handleRoleChange = () => {
-      console.log('[ChatOptions] Opening role selection for:', item.fullName);
       setSelectedMember(item);
       setSelectedRole(item.role === 'admin' ? 'admin' : 'member');
 
@@ -418,7 +433,7 @@ export function ChatOptions({
         />
         <View style={styles.memberInfo}>
           <Text style={[styles.memberName, { color: theme.colors.text }]}>
-            {item.fullName}
+            {item.nickname || item.fullName}
           </Text>
           <View style={styles.memberRoleContainer}>
             {item.role === 'owner' && (
@@ -538,9 +553,7 @@ export function ChatOptions({
     </TouchableOpacity>
   );
 
-  // Debug log - using myRole from API only
   const canAddMemberFromAPI = myRole === 'admin' || myRole === 'owner';
-  console.log('[ChatOptions] Render - myRole (from API):', myRole, 'isGroup:', isGroup, 'canAddMember:', canAddMemberFromAPI);
 
   const filteredMembers = useMemo(() => {
     if (!memberSearchQuery.trim()) return members;
@@ -633,7 +646,15 @@ export function ChatOptions({
                   subtitle={`${memberCount} ${t('chat_options.members')}`}
                   onPress={handleViewMembers}
                 />
-                
+
+                {/* Edit Nickname */}
+                <OptionItem
+                  icon={Edit3}
+                  title={t('chat_options.edit_nickname') || 'Edit Nickname'}
+                  subtitle={myNickname ? `@${myNickname}` : t('chat_options.enter_nickname') || 'Enter nickname'}
+                  onPress={handleEditNickname}
+                />
+
                 {/* Add Member - Owner and Admin only */}
                 {(myRole === 'admin' || myRole === 'owner') && (
                   <OptionItem
@@ -894,7 +915,60 @@ export function ChatOptions({
                   {roleUpdating ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.saveText}>{t('common.confirm')}</Text>
+                    <Text style={styles.saveText}>{t('common.save') || 'Save'}</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+
+        {/* Nickname Edit Modal */}
+        <Modal
+          visible={nicknameModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setNicknameModalVisible(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setNicknameModalVisible(false)}
+          >
+            <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                {t('chat_options.edit_nickname') || 'Edit Nickname'}
+              </Text>
+              <View style={styles.nicknameInputContainer}>
+                <TextInput
+                  style={[styles.nicknameInput, { color: theme.colors.text, backgroundColor: theme.colors.background }]}
+                  value={nicknameInput}
+                  onChangeText={setNicknameInput}
+                  placeholder={t('chat_options.enter_nickname') || 'Enter nickname'}
+                  placeholderTextColor={theme.colors.icon}
+                  maxLength={100}
+                />
+              </View>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.cancelButton, { borderColor: theme.colors.border }]}
+                  onPress={() => setNicknameModalVisible(false)}
+                >
+                  <Text style={[styles.cancelText, { color: theme.colors.text }]}>
+                    {t('common.cancel') || 'Cancel'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.saveButton,
+                    { backgroundColor: theme.colors.primary, opacity: nicknameUpdating ? 0.5 : 1 }
+                  ]}
+                  onPress={handleSaveNickname}
+                  disabled={nicknameUpdating}
+                >
+                  {nicknameUpdating ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.saveText}>{t('common.save') || 'Save'}</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -1234,7 +1308,39 @@ const styles = StyleSheet.create({
   },
   saveText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#fff',
+  },
+  // Nickname modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 12,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  nicknameInputContainer: {
+    marginBottom: 20,
+  },
+  nicknameInput: {
+    height: 48,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    fontSize: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
   },
 });

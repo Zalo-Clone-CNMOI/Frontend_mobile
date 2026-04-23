@@ -47,11 +47,9 @@ export function GroupInfoModal({
           const data = response.data?.data;
           if (data?.mySettings?.role) {
             setLocalRole(data.mySettings.role);
-            console.log('[GroupInfoModal] Fetched myRole from API:', data.mySettings.role);
           }
         })
         .catch((error) => {
-          console.error('[GroupInfoModal] Failed to fetch conversation details:', error);
         });
     }
   }, [visible, conversationId]);
@@ -101,7 +99,6 @@ export function GroupInfoModal({
       
       // Upload avatar to S3 if changed
       if (avatarUri !== currentAvatar && avatarFile && authUser?.id) {
-        console.log('[GroupInfoModal] Uploading avatar to S3...');
         const uploadResult = await mediaService.uploadMedia(avatarFile, authUser.id);
         // Ensure key has prefix for backend validation
         const key = uploadResult.key;
@@ -109,7 +106,6 @@ export function GroupInfoModal({
           ? key
           : `${uploadResult.visibility}/${key}`;
         payload.avatarUrl = formattedKey;
-        console.log('[GroupInfoModal] Avatar uploaded, key:', formattedKey);
       }
 
       if (Object.keys(payload).length === 0) {
@@ -128,7 +124,6 @@ export function GroupInfoModal({
       Alert.alert('Thành công', 'Đã cập nhật thông tin nhóm');
       onClose();
     } catch (error: any) {
-      console.error('[GroupInfoModal] Error updating group info:', error);
       Alert.alert('Lỗi', error.message || 'Không thể cập nhật thông tin nhóm');
     } finally {
       setLoading(false);

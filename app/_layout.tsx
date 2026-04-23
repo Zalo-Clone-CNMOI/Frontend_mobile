@@ -54,7 +54,7 @@ function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (isAuthenticated) {
-      if (inAuthGroup || segments.length === 0) {
+      if (inAuthGroup) {
         setTimeout(() => router.replace('/(tabs)/home'), 0);
       }
     } else {

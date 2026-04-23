@@ -64,11 +64,6 @@ export const useGroupInvite = (options: UseGroupInviteOptions = {}): UseGroupInv
   
   // Get state from store
   const {
-    pending,
-    accepted,
-    rejected,
-    cancelled,
-    expired,
     unreadCount,
     isLoading,
     isSending,
@@ -89,7 +84,7 @@ export const useGroupInvite = (options: UseGroupInviteOptions = {}): UseGroupInv
     if (autoFetch) {
       storeFetchPending({ force: false });
     }
-  }, [autoFetch, storeFetchPending]);
+  }, [autoFetch]); // Remove storeFetchPending from dependencies
 
   // Auto-subscribe to socket events
   useEffect(() => {
@@ -113,7 +108,6 @@ export const useGroupInvite = (options: UseGroupInviteOptions = {}): UseGroupInv
     markSending(true);
     try {
       const response = await sendGroupInvites(conversationId, payload);
-      console.log('[useGroupInvite] Invites sent:', response.data);
       
       // Không cần optimistic update vì người nhận sẽ nhận qua socket
       // Người gửi (current user) không cần update UI vì họ đang ở màn hình gửi lời mời

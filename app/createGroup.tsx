@@ -180,10 +180,8 @@ export default function CreateGroupScreen() {
       if (mode === 'addMember' && conversationId) {
         // Add members to existing group
         const payload = { memberIds };
-        console.log('[CreateGroup] Adding members with payload:', JSON.stringify(payload, null, 2));
         
         const response = await addMember(conversationId, payload);
-        console.log('[CreateGroup] Add members response:', JSON.stringify(response, null, 2));
 
         Alert.alert(t('common.success'), t('create_group.add_members_success'));
         router.back();
@@ -199,11 +197,9 @@ export default function CreateGroupScreen() {
 
         // Upload avatar to S3 if selected
         if (avatarFile && authUser?.id) {
-          console.log('Uploading avatar to S3...');
           const uploadResult = await uploadMedia(avatarFile, authUser.id);
           // Use full S3 URL for backend @IsUrl validation
           avatarUrl = `${NETWORK_CONFIG.S3_BASE_URL}/${uploadResult.key}`;
-          console.log('Avatar uploaded, URL:', avatarUrl);
         }
 
         const payload = {
@@ -212,23 +208,16 @@ export default function CreateGroupScreen() {
           ...(avatarUrl && { avatarUrl }),
         };
 
-        console.log('Creating group with payload:', JSON.stringify(payload, null, 2));
-
         const response = await createGroup(payload);
-        console.log('Create group response:', JSON.stringify(response, null, 2));
 
         const newConversationId = response?.data?.id || response?.data?.data?.id;
 
         // Fetch conversation details to check role
         if (newConversationId) {
           try {
-            const detailResponse = await getConversationDetail(newConversationId);
-            const detailData = detailResponse.data?.data;
-            console.log('[CreateGroup] Conversation details:', JSON.stringify(detailData, null, 2));
-            console.log('[CreateGroup] myRole from API:', detailData?.mySettings?.role);
-            console.log('[CreateGroup] mySettings:', JSON.stringify(detailData?.mySettings, null, 2));
+            await getConversationDetail(newConversationId);
           } catch (error) {
-            console.error('[CreateGroup] Failed to fetch conversation details:', error);
+            // Failed to fetch conversation details
           }
         }
 

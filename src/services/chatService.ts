@@ -1,5 +1,5 @@
 import { Socket } from "socket.io-client";
-import { ContactUser } from "../types/ContactUser";
+import type { UserV2 } from "../types/contacts";
 import type { ChatMessage, ConversationV2, ReplyInfo } from "../types/chat";
 import type { SocketChatJoinPayload } from "../types/dto/SocketDTO";
 import type { MessageReactionsResponseDto } from "../types/dto/ApiDTO";
@@ -165,10 +165,8 @@ export async function enrichReplyToDetails(message: ChatMessage): Promise<ChatMe
       };
     }
   } catch (error) {
-    console.error('[enrichReplyToDetails] Failed to fetch reply message details:', error);
+    return message;
   }
-
-  return message;
 }
 
 // Get reply preview text similar to Frontend_web's getReplyPreview
@@ -367,24 +365,18 @@ export async function loadInitialMessages(conversationId: string) {
         : Array.isArray(payload)
           ? payload
           : [];
-  // Filter out deleted messages
-  const activeMessages = messages.filter(m => !m?.isDeleted);
-  const uiMessages = sortMessagesAscending(activeMessages.map(toLegacyChatMessage));
+  // Don't filter deleted messages - they will be displayed as revoked
+  const uiMessages = sortMessagesAscending(messages.map(toLegacyChatMessage));
   // Hydrate reply messages from current message list (similar to Frontend_web)
   const hydratedMessages = hydrateReplyMessages(uiMessages);
 
   openConversations.add(normalizedConversationId);
-  console.log('[loadInitialMessages] Adding conversation to openConversations:', normalizedConversationId);
-  console.log('[loadInitialMessages] Current openConversations:', Array.from(openConversations));
   
   const s = await ensureSocket();
   try {
     const joinPayload = buildChatJoinPayload(normalizedConversationId);
-    console.log('[loadInitialMessages] Emitting chat:join for:', normalizedConversationId, joinPayload);
     s.emit("chat:join", joinPayload);
-    console.log('[loadInitialMessages] chat:join emitted successfully');
   } catch (e) {
-    console.error('[loadInitialMessages] Failed to emit chat:join', e);
   }
 
   return {
@@ -414,9 +406,8 @@ export async function fetchMoreMessages(
           ? payload
           : [];
 
-  // Filter out deleted messages
-  const activeMessages = messages.filter((m : any) => !m?.isDeleted);
-  const uiMessages = sortMessagesAscending(activeMessages.map(toLegacyChatMessage));
+  // Don't filter deleted messages - they will be displayed as revoked
+  const uiMessages = sortMessagesAscending(messages.map(toLegacyChatMessage));
   // Hydrate reply messages from current message list (similar to Frontend_web)
   const hydratedMessages = hydrateReplyMessages(uiMessages);
   return {
@@ -590,20 +581,15 @@ let _handlers: any = {};
 function registerSocketListeners() {
   const s = getSocket() || socketInstance;
   if (!s) {
-    console.log('[Socket] No socket available for listeners');
     return;
   }
-  console.log('[Socket] Registering listeners for socket:', s.id, 'connected:', s.connected);
 
   s.on("connect", () => {
-    console.log('[Socket] Connected, joining conversations:', Array.from(openConversations));
     for (const conv of Array.from(openConversations)) {
       try {
         const joinPayload = buildChatJoinPayload(conv);
-        console.log('[Socket] Joining conversation:', conv, joinPayload);
         s.emit("chat:join", joinPayload);
       } catch (e) {
-        console.error('[Socket] Failed to join conversation:', conv, e);
       }
     }
     // NOTE: Heartbeat is now handled by usePresenceHeartbeat hook to avoid duplicate timers
@@ -626,26 +612,6 @@ function registerSocketListeners() {
     const messageId = payload?.id || payload?.message_id;
     const createdAt =
       payload?.created_at ?? payload?.createdAt ?? payload?.ts ?? payload?.timestamp;
-
-    // Log all incoming messages to debug
-    console.log('chat:message listener - Received message:', {
-      messageId,
-      conversationId,
-      hasForwardedFrom: !!payload?.forwarded_from,
-      forwardedFrom: payload?.forwarded_from,
-      body: payload?.body?.substring(0, 50) + '...',
-      senderId: payload?.sender_id
-    });
-
-    // Log forwarded messages from backend
-    if (payload?.forwarded_from) {
-      console.log('chat:message listener - *** FORWARDED MESSAGE DETECTED ***:', {
-        messageId,
-        conversationId,
-        forwardedFrom: payload.forwarded_from,
-        hasAttachments: !!payload.attachments?.length
-      });
-    }
 
     const messageKey = String(messageId || "");
     if (messageKey && recentMessageIds.includes(messageKey)) {
@@ -742,6 +708,12 @@ export async function leaveConversation(conversationId: string) {
   return conversationsApi.leaveConversation(conversationId);
 }
 
+// Update my nickname in a conversation
+// Calls backend API to update nickname for current user
+export async function updateMyNickname(conversationId: string, nickname?: string) {
+  return conversationsApi.updateMySettings(conversationId, { nickname });
+}
+
 // Edit a message via socket
 // Emits chat:edit event with message ID, conversation ID, new body, and created timestamp
 export async function editMessage(
@@ -814,7 +786,6 @@ export async function forwardMessage(
   targetConversationIds: string | string[],
 ) {
   forwardCallCount++;
-  console.log(`[chatService] 📊 Forward call count: ${forwardCallCount}`);
   // Support single string or array of conversation IDs
   const targets = Array.isArray(targetConversationIds) ? targetConversationIds : [targetConversationIds];
 
@@ -908,18 +879,15 @@ export async function fetchConversations(): Promise<ConversationV2[]> {
     });
 
     const payload = resp?.data;
-    console.log('[fetchConversations] API response:', JSON.stringify(payload, null, 2)?.substring(0, 2000));
 
     if (!payload) return [];
 
     if (Array.isArray(payload.data) || Array.isArray(payload.conversations)) {
       const conversations = mapConversationsListFromApi(payload);
-      console.log('[fetchConversations] Mapped conversations with unreadCount:', conversations.map(c => ({ id: c.conversationId, name: c.name, unreadCount: c.unreadCount })));
       return conversations;
     }
     return [];
   } catch (e) {
-    console.error('[fetchConversations] Error:', e);
     return [];
   }
 }
@@ -933,9 +901,7 @@ export async function markConversationAsRead(
 ): Promise<void> {
   try {
     await conversationsApi.markAsRead(conversationId);
-    console.log('[markConversationAsRead] Success for:', conversationId);
   } catch (e) {
-    console.error('[markConversationAsRead] Error:', e);
   }
 }
 
@@ -959,9 +925,8 @@ export async function fetchMessages(
       messages = payload.messages;
     }
 
-    // Filter out deleted messages
-    const activeMessages = messages.filter(m => !m?.isDeleted && !m?.is_deleted);
-    return activeMessages.map(toLegacyChatMessage);
+    // Don't filter deleted messages - they will be displayed as revoked
+    return messages.map(toLegacyChatMessage);
   } catch (e) {
     return [];
   }
@@ -1005,9 +970,8 @@ export async function fetchAllMessages(): Promise<
               : Array.isArray(payload?.messages)
                 ? payload.messages
                 : [];
-          // Filter out deleted messages
-          const activeMessages = list.filter(m => !m?.isDeleted && !m?.is_deleted);
-          result[c.conversationId] = activeMessages.map(toLegacyChatMessage);
+          // Don't filter deleted messages - they will be displayed as revoked
+          result[c.conversationId] = list.map(toLegacyChatMessage);
         } catch {
           result[c.conversationId] = [];
         }
@@ -1024,7 +988,7 @@ export async function fetchAllMessages(): Promise<
  * GET /api/contacts
  * Trả về danh sách bạn bè / users.
  */
-export async function fetchContacts(): Promise<{ users: ContactUser[] }> {
+export async function fetchContacts(): Promise<{ users: UserV2[] }> {
   try {
     const resp = await friendsApi.getFriendsList({ page: 1, limit: 100 });
     const payload = resp?.data;
@@ -1035,7 +999,7 @@ export async function fetchContacts(): Promise<{ users: ContactUser[] }> {
       return { users: [] };
     }
 
-    const users: ContactUser[] = list.map((u: any) => {
+    const users: UserV2[] = list.map((u: any) => {
       const id = u.id || u._id;
 
       const normalizeAvatarUrl = (avatar?: string): string | null => {
@@ -1075,7 +1039,6 @@ export async function getMessageReactions(
     const response = await messagesApi.getMessageReactions(messageId);
     return response?.data as MessageReactionsResponseDto;
   } catch (error) {
-    console.error('[chatService] getMessageReactions error:', error);
     return null;
   }
 }
