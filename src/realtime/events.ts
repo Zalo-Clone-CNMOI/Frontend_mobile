@@ -20,6 +20,7 @@ export const WsEvents = {
   ChatLeave: 'chat:leave',
   ChatSend: 'chat:send',
   ChatMessage: 'chat:message',
+  ChatSystemMessage: 'chat.system_message',
   ChatEdit: 'chat:edit',
   ChatMessageUpdated: 'chat:message:updated',
   ChatDelete: 'chat:delete',
@@ -28,6 +29,23 @@ export const WsEvents = {
   ChatUnreact: 'chat:unreact',
   ChatReactionAdded: 'chat:reaction:added',
   ChatReactionRemoved: 'chat:reaction:removed',
+  ChatMessagePinned: 'chat:message:pinned',
+  ChatMessageUnpinned: 'chat:message:unpinned',
+
+  // Group / Conversation
+  ConversationCreated: 'conversation:created',
+  ConversationUpdated: 'conversation:updated',
+  ConversationDisbanded: 'conversation:disbanded',
+  ConversationMemberAdded: 'conversation:member:added',
+  ConversationMemberRemoved: 'conversation:member:removed',
+  ConversationMemberRoleUpdated: 'conversation:member:role:updated',
+
+  // Group / Invite
+  GroupInviteSent: 'group:invite:sent',
+  GroupInviteAccepted: 'group:invite:accepted',
+  GroupInviteRejected: 'group:invite:rejected',
+  GroupInviteCancelled: 'group:invite:cancelled',
+  GroupInviteExpired: 'group:invite:expired',
 } as const;
 
 export type WsEventName = (typeof WsEvents)[keyof typeof WsEvents];
@@ -82,6 +100,24 @@ export interface TypingUpdatePayload {
   users: TypingUser[];
 }
 
+// ==================== Message Pin Types ====================
+
+export interface ChatMessagePinnedPayload {
+  message_id: string;
+  conversation_id: string;
+  created_at: number;
+  pinned_by: string;
+  pinned_at: number;
+}
+
+export interface ChatMessageUnpinnedPayload {
+  message_id: string;
+  conversation_id: string;
+  created_at: number;
+  unpinned_by: string;
+  unpinned_at: number;
+}
+
 // ==================== Error Types ====================
 
 export interface WsErrorPayload {
@@ -89,4 +125,89 @@ export interface WsErrorPayload {
   message: string;
   details?: unknown;
   timestamp?: string;
+}
+
+// ==================== Group / Conversation Types ====================
+
+export interface ConversationCreatedPayload {
+  conversation_id: string;
+  type: 'direct' | 'group';
+  name: string | null;
+  avatar_url: string | null;
+  created_by: string;
+  members: Array<{
+    user_id: string;
+    full_name: string;
+    avatar_url: string | null;
+    role: 'owner' | 'admin' | 'member';
+  }>;
+  created_at: number;
+}
+
+export interface ConversationUpdatedPayload {
+  conversation_id: string;
+  updated_by: string;
+  name: string | null;
+  avatar_url: string | null;
+  updated_at: number;
+}
+
+export interface ConversationDisbandedPayload {
+  conversation_id: string;
+  disbanded_by: string;
+  member_ids: string[];
+  disbanded_at: number;
+}
+
+export interface ConversationMemberAddedPayload {
+  conversation_id: string;
+  added_by: string;
+  members: Array<{
+    user_id: string;
+    full_name: string;
+    avatar_url: string | null;
+    role: 'owner' | 'admin' | 'member';
+  }>;
+  added_at: number;
+}
+
+export interface ConversationMemberRemovedPayload {
+  conversation_id: string;
+  removed_by: string;
+  removed_user_id: string;
+  removed_at: number;
+}
+
+export interface ConversationMemberRoleUpdatedPayload {
+  conversation_id: string;
+  updated_by: string;
+  user_id: string;
+  previous_role: 'owner' | 'admin' | 'member';
+  current_role: 'owner' | 'admin' | 'member';
+  updated_at: number;
+}
+
+// ==================== Group / Invite Types ====================
+
+export interface GroupInviteSentPayload {
+  invite_id: string;
+  conversation_id: string;
+  inviter_id: string;
+  invited_user_id: string;
+  inviter_full_name: string;
+  conversation_name: string | null;
+  message: string | null;
+  expires_at: number;
+  sent_at: number;
+}
+
+export interface GroupInviteStatusPayload {
+  invite_id: string;
+  conversation_id: string;
+  inviter_id: string;
+  invited_user_id: string;
+  status: 'accepted' | 'rejected' | 'cancelled' | 'expired';
+  responded_at?: number;
+  cancelled_at?: number;
+  expired_at?: number;
 }

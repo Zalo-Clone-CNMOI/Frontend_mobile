@@ -8,9 +8,20 @@ import {
   RefreshAccessTokenProvider,
   RealtimeHostConfig,
 } from "../../types/realtimeBff";
+import { NETWORK_CONFIG } from "../../config/network";
 
-const DEFAULT_HOST = process.env.EXPO_PUBLIC_API_HOST || "54.179.206.215";
-const DEFAULT_HTTP_PORT = 5000;
+// Extract host from NETWORK_CONFIG (remove http:// and port)
+const extractHost = (url: string): string => {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname;
+  } catch {
+    return url;
+  }
+};
+
+const DEFAULT_HOST = extractHost(NETWORK_CONFIG.API_BASE_URL);
+const DEFAULT_HTTP_PORT = Number(NETWORK_CONFIG.API_BASE_URL.split(':')[2]?.split('/')[0] || '5000');
 
 export type CreateBffHttpClientOptions = RealtimeHostConfig & {
   getAccessToken: AccessTokenProvider;

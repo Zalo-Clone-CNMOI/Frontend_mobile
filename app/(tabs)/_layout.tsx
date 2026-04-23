@@ -1,4 +1,5 @@
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
+import { useGroupInviteStore } from '@/src/store/useGroupInviteStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { Tabs } from 'expo-router';
 import { Clock3, Contact2, LayoutGrid, MessageSquare, User2 } from 'lucide-react-native';
@@ -9,7 +10,8 @@ import { useTranslation } from 'react-i18next';
 export default function TabsLayout() {
   const theme = useTheme();
   const { t } = useTranslation();
-    const receivedRequestsCount = useRealtimeStore((state) => state.receivedRequests.length);
+  const receivedRequestsCount = useRealtimeStore((state) => state.receivedRequests.length);
+  const pendingInvitesCount = useGroupInviteStore((state) => state.unreadCount);
 
   return (
     <Tabs
@@ -30,7 +32,7 @@ export default function TabsLayout() {
         name="home"
         options={{
           title: t('navigation.tabs.messages'),
-          tabBarBadge: undefined,
+          tabBarBadge: pendingInvitesCount > 0 ? (pendingInvitesCount > 99 ? '99+' : pendingInvitesCount) : undefined,
           tabBarIcon: ({ color }) => <MessageSquare size={24} color={color} fill={color === '#0091ff' ? color : 'none'} />,
         }}
       />

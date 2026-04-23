@@ -1,5 +1,6 @@
 {
   "common": {
+    "close":"close",
     "ok": "OK",
     "cancel": "Cancel",
     "confirm": "Confirm",
@@ -17,7 +18,9 @@
     "retry": "Retry",
     "suggestions": "Suggestions",
     "user": "User",
-    "conversation": "Conversation"
+    "conversation": "Conversation",
+    "adding": "Adding",
+    "creating": "Creating"
   },
 
   "navigation": {
@@ -54,12 +57,22 @@
     "login": "Login",
     "register": "Register",
     "email": "Email",
-    "phone": "Phone Number",
+    "phone": "Phone",
     "password": "Password",
     "confirm_password": "Confirm Password",
     "forgot_password": "Forgot Password?",
     "login_error": "Login failed",
-    "register_error": "Registration failed"
+    "register_error": "Registration failed",
+    "wrong_password": "Incorrect password. Please try again.",
+    "invalid_credentials": "Invalid phone number or password.",
+    "account_not_found": "Account not found.",
+    "account_locked": "Account has been locked. Please contact support.",
+    "too_many_attempts": "Too many login attempts. Please try again later.",
+    "logout_success": "Logged out successfully",
+    "logout_failed": "Logout failed",
+    "logout_api_failed": "Could not connect to server, but local data has been cleared",
+    "logout_clear_data_failed": "Failed to clear local data",
+    "logging_out": "Logging out..."
   },
 
   "welcome": {
@@ -88,8 +101,62 @@
     "contact": "Contact",
     "document": "Document",
     "reply_to": "Reply to",
-    "revoke": "Revoke",
-    "actions": "Actions"
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "forward": "Forward",
+    "actions": "Actions",
+    "forwarded_from": "Forwarded from",
+    "forward_success": "Message forwarded",
+    "forward_no_permission": "No permission",
+    "forward_no_permission_desc": "You don't have permission to forward this message",
+    "forward_source_not_found": "Message not found",
+    "forward_source_not_found_desc": "The original message no longer exists",
+    "forward_failed": "Forward failed",
+    "rate_limited": "Too many requests",
+    "rate_limited_desc": "Please try again later"
+  },
+
+  "group_errors": {
+    "conversation_not_found": "Conversation not found",
+    "conversation_not_member": "You are not a member of this conversation",
+    "conversation_permission_denied": "You don't have permission to perform this action",
+    "conversation_member_not_found": "Member not found",
+    "conversation_invalid_type": "Invalid conversation type",
+    "conversation_already_member": "You are already a member of this conversation",
+    "conversation_cannot_leave": "You cannot leave this group",
+    "user_not_found": "User not found",
+    "group_invite_not_found": "Invite not found",
+    "group_invite_already_exists": "Invite already exists",
+    "group_invite_expired": "Invite has expired",
+    "group_invite_invalid_status": "Invite is not in a valid state. Please refresh the list",
+    "group_invite_accepted": "Invite accepted",
+    "group_invite_rejected": "Invite rejected",
+    "invited_by": "Invited by",
+    "members": "members",
+    "no_pending_invites": "No pending invites",
+    "no_pending_invites_desc": "You don't have any pending group invitations",
+    "no_history": "No history",
+    "no_sent_invites": "No sent invites",
+    "pending": "Pending",
+    "history": "History",
+    "send": "Send",
+    "sent": "Sent",
+    "invite_center": "Group Invites",
+    "invite_to_group": "Invite to Group",
+    "group": "Group",
+    "invite_message": "Message (optional)",
+    "invite_message_placeholder": "Add a message...",
+    "expiry_time": "Expiry Time",
+    "select_friends": "Select Friends",
+    "selected": "selected",
+    "send_invites": "Send Invites",
+    "invites_sent": "Invites sent successfully",
+    "accepted": "Accepted",
+    "skipped": "Skipped",
+    "max_invites": "Maximum 50 invites",
+    "invite_failed": "Failed to send invites",
+    "cancel_invite_title": "Cancel Invite",
+    "cancel_invite_message": "Are you sure you want to cancel this invite?"
   },
 
   "chat_options": {
@@ -104,6 +171,8 @@
     "group_members": "Group Members",
     "members": "members",
     "add_member": "Add Member",
+    "send_invites": "Send Invites",
+    "view_invites": "View Invites",
     "group_notifications": "Group Notifications",
     "leave_group": "Leave Group",
     "delete_group": "Delete Group",
@@ -135,7 +204,18 @@
     "leave_group_confirm": "Are you sure you want to leave this group?",
     "leave_group_failed": "Failed to leave group",
     "delete": "Delete",
-    "leave": "Leave"
+    "leave": "Leave",
+    "role_member": "Member",
+    "remove_member": "Remove Member",
+    "remove_member_confirm": "Are you sure you want to remove {{name}} from the group?",
+    "remove_member_success": "Member removed successfully",
+    "remove_member_failed": "Failed to remove member",
+    "remove": "Remove",
+    "edit_nickname": "Edit Nickname",
+    "nickname_too_long": "Nickname cannot exceed 100 characters",
+    "nickname_updated": "Nickname updated successfully",
+    "nickname_update_failed": "Failed to update nickname",
+    "enter_nickname": "Enter nickname"
   },
 
   "member_role": {
@@ -151,7 +231,10 @@
     "remove_success": "Member removed successfully",
     "remove_failed": "Failed to remove member",
     "change_role_for": "Change role for {{name}}",
-    "change": "Change"
+    "change": "Change",
+    "change_role_title": "Change Role",
+    "change_role_confirm": "Are you sure you want to change {{name}}'s role?",
+    "confirm": "Confirm"
   },
 
   "reactions": {
@@ -232,11 +315,36 @@
 
   "create_group": {
     "title": "Create Group",
-    "add_menber_title": "Add Members",
-    "selected_count": "Selected: {{count}}",
-    "name_placeholder": "Enter group name",
+    "set_info": "Group Information",
     "search_friends": "Search friends",
-    "no_friends": "No friends found"
+    "selected_count": "Selected: {{count}}",
+    "add_avatar": "Add group avatar",
+    "group_name": "Group name",
+    "name_placeholder": "Enter group name",
+    "members": "Members ({{count}})",
+    "you": "You",
+    "create": "Create Group",
+    "success": "Group created successfully",
+    "error": "Failed to create group",
+    "min_members_error": "Please select at least 1 member",
+    "name_required": "Please enter group name",
+    "avatar_error": "Failed to select image",
+    "no_results": "No results found",
+    "no_friends": "No friends found",
+    "add_members_title": "Add Members",
+    "add_members": "Add Members",
+    "add_members_success": "Members added successfully",
+    "add_members_error": "Failed to add members",
+    "group_limit_exceeded": "Group has reached member limit ({{limit}})",
+    "conversation_not_found": "Conversation not found",
+    "invalid_conversation_type": "Invalid conversation type",
+    "not_group_member": "You are not a member of this conversation",
+    "permission_denied": "You don't have permission to perform this action",
+    "already_member": "You are already a member of this conversation",
+    "user_not_found": "User not found",
+    "user_not_active": "Account is not active",
+    "server_error": "Server error",
+    "unknown_error": "Unknown error"
   },
 
   "media_gallery": {

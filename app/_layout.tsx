@@ -11,17 +11,34 @@ import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import { initializeLanguage } from '../src/i18n';
 import '../src/i18n/config';
 import { useNotifications } from '../src/notifications/useNotifications';
+import { useNotificationListener } from '../src/hooks/useNotificationListener';
 import { ThemeProvider as AppThemeProvider } from '../src/theme/themeContext';
 import { ThemeManagerProvider, useThemeManager } from '../src/theme/themeManager';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
   const { theme } = useThemeManager();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [ready, setReady] = useState(false);
+  const [isLogoutInProgress, setIsLogoutInProgress] = useState(false);
   const router = useRouter();
   const segments = useSegments();
 
-useNotifications();
+  useNotifications();
+  useNotificationListener();
+
+  // Check for logout in progress
+  useEffect(() => {
+    const checkLogoutStatus = async () => {
+      const logoutFlag = await AsyncStorage.getItem('@auth_logout_in_progress');
+      setIsLogoutInProgress(logoutFlag === 'true');
+    };
+    
+    // Check immediately and periodically during logout
+    checkLogoutStatus();
+    const interval = setInterval(checkLogoutStatus, 100);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(theme.colors.statusBar);
@@ -34,12 +51,12 @@ useNotifications();
   }, []);
 
   useEffect(() => {
-    if (!ready || authLoading) return;
+    if (!ready || authLoading || isLogoutInProgress) return;
 
     const inAuthGroup = segments[0] === '(auth)';
 
     if (isAuthenticated) {
-      if (inAuthGroup || segments.length === 0) {
+      if (inAuthGroup) {
         setTimeout(() => router.replace('/(tabs)/home'), 0);
       }
     } else {
@@ -47,7 +64,7 @@ useNotifications();
         setTimeout(() => router.replace('/(auth)'), 0);
       }
     }
-  }, [ready, authLoading, isAuthenticated, segments]);
+  }, [ready, authLoading, isAuthenticated, segments, isLogoutInProgress]);
 
   if (!ready || authLoading) {
     return (

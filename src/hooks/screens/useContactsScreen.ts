@@ -1,43 +1,26 @@
 import { useAuth } from '@/src/contexts/AuthContext';
 import { createDirect } from '@/src/services/conversationsApi';
+import { NETWORK_CONFIG } from '@/src/config/network';
 import { fetchRuntimeFriendSnapshot } from '@/src/services/realtime/runtimeFriendService';
+import { usePresenceStore } from '@/src/store/usePresenceStore';
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
+import type { ContactListItem } from '@/src/types/contacts';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 
-export type ContactListItem = {
-  id: string;
-  fullName: string;
-  avatar: string | null;
-  status: string;
-  phone: string;
-  email: string;
-  bio: string;
-  isOnline: boolean;
-  lastSeenAt?: string;
-  friendsSince?: string;
-  mutualFriends?: number;
-  friendType?: string;
-  friendStatus?: string;
-  friendCategory?: string;
-  friendRequestStatus?: string;
-  friendRequestSent?: boolean;
-  friendRequestReceived?: boolean;
-  friendRequestMessage?: string;
-};
-
-const normalizeAvatarUrl = (avatar?: string): string | null => {
+const normalizeAvatar = (avatar?: string): string | null => {
   if (!avatar) return null;
   if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar;
+    // Replace bucket name if URL from backend uses wrong bucket
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
   }
-  return 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/' + avatar.replace(/^\//, '');
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
 };
 
 const mapFriend = (friend: any): ContactListItem => ({
   id: friend.id || friend._id,
   fullName: friend.fullName || friend.name || '',
-  avatar: normalizeAvatarUrl(friend.avatarUrl || friend.avatar),
+  avatar: normalizeAvatar(friend.avatarUrl || friend.avatar),
   status: friend.status || 'offline',
   phone: friend.phone || '',
   email: friend.email || '',
@@ -61,6 +44,7 @@ export function useContactsScreenLogic() {
   const realtimeFriends = useRealtimeStore((state) => state.friends);
   const receivedRequests = useRealtimeStore((state) => state.receivedRequests);
   const isHydrating = useRealtimeStore((state) => state.isHydrating);
+  const presenceMap = usePresenceStore((state) => state.presenceMap);
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -68,7 +52,19 @@ export function useContactsScreenLogic() {
   const [activeTab, setActiveTab] = useState(0);
   const [usersFilterType, setUsersFilterType] = useState<'all' | 'recent'>('all');
 
-  const friends = useMemo(() => realtimeFriends.map(mapFriend), [realtimeFriends]);
+  const friends = useMemo(() => {
+    return realtimeFriends.map((friend) => {
+      const mappedFriend = mapFriend(friend);
+      // Merge real-time presence data
+      const presence = presenceMap[friend.id];
+      if (presence) {
+        mappedFriend.status = presence.status;
+        mappedFriend.isOnline = presence.status === 'online';
+        mappedFriend.lastSeenAt = presence.last_seen_at ? new Date(presence.last_seen_at).toISOString() : mappedFriend.lastSeenAt;
+      }
+      return mappedFriend;
+    });
+  }, [realtimeFriends, presenceMap]);
 
   const handleViewProfile = useCallback(
     (friendId: string) => {

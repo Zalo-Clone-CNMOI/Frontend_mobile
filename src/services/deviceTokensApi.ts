@@ -51,7 +51,22 @@ export const deleteDeviceToken = async (tokenId: string) => {
   }
 };
 
+/**
+ * Get all device tokens for current user from API
+ * Response: Array of device tokens
+ */
+export const getDeviceTokens = async () => {
+  try {
+    const response = await api.get(`${NETWORK_CONFIG.API_BASE_URL}/device-tokens`);
+    return response.data?.data || [];
+  } catch (e: any) {
+    console.warn('[deviceTokensApi] Failed to get device tokens:', e);
+    throw e;
+  }
+};
+
 export default {
   registerDeviceToken,
   deleteDeviceToken,
+  getDeviceTokens,
 };

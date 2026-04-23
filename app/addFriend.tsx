@@ -1,4 +1,5 @@
 import { useAddFriendScreenLogic } from '@/src/hooks/screens/useAddFriendScreen';
+import { useDirectChat } from '@/src/hooks/useDirectChat';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { useCountriesStore } from '@/src/store/useCountriesStore';
 import { useTheme } from '@/src/theme/themeContext';
@@ -10,6 +11,7 @@ import {
     Check,
     ChevronDown,
     Clock,
+    MessageCircle,
     QrCode,
     Search,
     UserPlus,
@@ -20,6 +22,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     Image,
     Modal,
@@ -54,6 +57,8 @@ export default function AddFriendScreen() {
     rejectRequest,
     clearSearch,
   } = useAddFriendScreenLogic();
+
+  const { startChat, isStarting: isStartingChat } = useDirectChat();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState(
@@ -216,9 +221,30 @@ export default function AddFriendScreen() {
               </View>
             )}
             {searchResult.status === 'friend' && (
-              <View style={[styles.statusBadge, { backgroundColor: '#e8f5e9' }]}>
-                <Check size={14} color="#4caf50" />
-                <Text style={[styles.statusText, { color: '#4caf50' }]}>Bạn bè</Text>
+              <View style={styles.actionButtons}>
+                <View style={[styles.statusBadge, { backgroundColor: '#e8f5e9' }]}>
+                  <Check size={14} color="#4caf50" />
+                  <Text style={[styles.statusText, { color: '#4caf50' }]}>Bạn bè</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: '#2196f3' }]}
+                  onPress={async () => {
+                    const result = await startChat(searchResult.id, searchResult.fullName);
+                    if (!result.success) {
+                      Alert.alert('Lỗi', result.error || 'Không thể bắt đầu cuộc trò chuyện');
+                    }
+                  }}
+                  disabled={isStartingChat}
+                >
+                  {isStartingChat ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <MessageCircle size={16} color="#fff" />
+                      <Text style={styles.actionBtnText}>Nhắn tin</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               </View>
             )}
             {searchResult.status === 'outgoing' && (
@@ -252,20 +278,41 @@ export default function AddFriendScreen() {
               </View>
             )}
             {searchResult.status === 'none' && (
-              <TouchableOpacity
-                style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
-                onPress={() => sendRequest(searchResult.id)}
-                disabled={isSending}
-              >
-                {isSending ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <UserPlus size={16} color="#fff" />
-                    <Text style={styles.addBtnText}>Kết bạn</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => sendRequest(searchResult.id)}
+                  disabled={isSending}
+                >
+                  {isSending ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <UserPlus size={16} color="#fff" />
+                      <Text style={styles.actionBtnText}>Kết bạn</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: '#2196f3' }]}
+                  onPress={async () => {
+                    const result = await startChat(searchResult.id, searchResult.fullName);
+                    if (!result.success) {
+                      Alert.alert('Lỗi', result.error || 'Không thể bắt đầu cuộc trò chuyện');
+                    }
+                  }}
+                  disabled={isStartingChat}
+                >
+                  {isStartingChat ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <MessageCircle size={16} color="#fff" />
+                      <Text style={styles.actionBtnText}>Nhắn tin</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         )}

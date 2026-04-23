@@ -1,9 +1,11 @@
 import { getUserProfile } from '@/src/services/usersApi';
+import { NETWORK_CONFIG } from '@/src/config/network';
 import { useCallback, useEffect, useState } from 'react';
 
 interface UserProfile {
   id: string;
   fullName?: string;
+  nickname?: string;
   avatarUrl?: string;
 }
 
@@ -26,12 +28,12 @@ export function useUserProfiles() {
       const profile: UserProfile = {
         id: userId,
         fullName: data?.fullName,
+        nickname: data?.nickname,
         avatarUrl: data?.avatarUrl,
       };
       setProfiles((prev) => ({ ...prev, [userId]: profile }));
       return profile;
     } catch (error) {
-      console.error(`Failed to fetch user profile for ${userId}:`, error);
       return null;
     } finally {
       setLoading((prev) => ({ ...prev, [userId]: false }));
@@ -43,11 +45,14 @@ export function useUserProfiles() {
     if (!profile?.avatarUrl) return null;
     
     // Normalize with S3 prefix
-    const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/';
+    const S3_BASE_URL = NETWORK_CONFIG.S3_BASE_URL + '/';
     if (profile.avatarUrl.startsWith('http://') || profile.avatarUrl.startsWith('https://')) {
-      return profile.avatarUrl;
+      // Replace bucket name if URL from backend uses wrong bucket
+      const normalizedUrl = profile.avatarUrl.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
+      return normalizedUrl;
     }
-    return S3_BASE_URL + profile.avatarUrl.replace(/^\//, '');
+    const normalizedUrl = S3_BASE_URL + profile.avatarUrl.replace(/^\//, '');
+    return normalizedUrl;
   }, [profiles]);
 
   return {

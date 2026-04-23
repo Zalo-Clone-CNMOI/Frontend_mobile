@@ -1,5 +1,5 @@
 import type { ChatMessage, ConversationV2, MessageType } from "../chat";
-import type { ContactUser } from "../ContactUser";
+import type { ContactUser } from "../contacts";
 import type {
   ApiAttachmentDTO,
   ApiConversationDTO,
@@ -9,13 +9,15 @@ import type {
   ID,
 } from "../dto/ApiDTO";
 import type { SocketChatMessageEvent } from "../dto/SocketDTO";
+import { NETWORK_CONFIG } from '../../config/network';
 
-const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/';
+const S3_BASE_URL = NETWORK_CONFIG.S3_BASE_URL + '/';
 
 const normalizeAvatarUrl = (avatar?: string): string | null => {
   if (!avatar) return null;
   if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar;
+    // Replace bucket name if URL from backend uses wrong bucket
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
   }
   return S3_BASE_URL + avatar.replace(/^\//, '');
 };
@@ -197,6 +199,7 @@ export const mapApiConversationToConversationV2 = (
     : dto.my_settings?.last_read_at
       ? new Date(dto.my_settings.last_read_at).getTime()
       : undefined;
+  const myNickname = dto.mySettings?.nickname || dto.my_settings?.nickname || undefined;
 
   return {
     conversationId: toStringId(dto.conversationId, dto.conversation_id, dto.id),
@@ -225,6 +228,7 @@ export const mapApiConversationToConversationV2 = (
     isOwner,
     myRole,
     myLastReadAt,
+    myNickname,
     createdAt: toOptionalTimestamp(dto.createdAt, dto.created_at),
   };
 };

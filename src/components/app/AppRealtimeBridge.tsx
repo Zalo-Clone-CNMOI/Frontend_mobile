@@ -7,6 +7,7 @@ import {
   resetRuntimeFriendService,
 } from "../../services/realtime/runtimeFriendService";
 import { useRealtimeStore } from "../../store/useRealtimeStore";
+import { subscribeToGroupEvents, unsubscribeFromGroupEvents, setCurrentUserId } from "../../services/groupEventsHandler";
 
 const buildEventId = (prefix: string, suffix?: string | number) =>
   `${prefix}:${String(suffix || Date.now())}`;
@@ -26,12 +27,20 @@ export function AppRealtimeBridge() {
     if (!isAuthenticated || !user?.id) {
       resetRuntimeFriendService();
       resetStore();
+      unsubscribeFromGroupEvents();
+      setCurrentUserId('');
       return;
     }
 
     let isCancelled = false;
     let cleanupFriendRealtime = () => {};
     let cleanupSocketNotifications = () => {};
+
+    // Set current user ID for socket handlers
+    setCurrentUserId(user.id);
+
+    // Subscribe to conversation events (global) - includes group invite events
+    subscribeToGroupEvents();
 
     const bootRealtime = async () => {
       try {
@@ -108,6 +117,7 @@ export function AppRealtimeBridge() {
       isCancelled = true;
       cleanupFriendRealtime();
       cleanupSocketNotifications();
+      unsubscribeFromGroupEvents();
     };
   }, [
     isAuthenticated,

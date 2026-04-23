@@ -1,9 +1,10 @@
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
+import { SystemMessageBanner } from '@/src/components/chat/SystemMessageBanner';
 import { useAuth } from '@/src/contexts/AuthContext';
 import * as mediaService from '@/src/services/mediaService';
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
-import { Check, CheckCheck, FileArchive, FileAudio, FileText, FileVideo, Forward, Play, RotateCcw } from 'lucide-react-native';
+import { Check, CheckCheck, FileArchive, FileAudio, FileText, FileVideo, Forward, Pin, Play, RotateCcw } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -74,6 +75,8 @@ type MessageBubbleProps = {
   onForwardPress?: (item: ChatMessage) => void;
   onNavigateToForwarded?: (forwardedFrom: ChatMessage['forwardedFrom']) => void; // Navigate to original conversation
   highlightText?: string; // For search highlighting
+  isPinned?: boolean; // Whether message is pinned
+  conversationMembers?: Array<{ userId: string; nickname?: string | null; fullName?: string | null }>; // Conversation members for nickname lookup
 };
 
 export const MessageBubble = React.memo(
@@ -91,6 +94,8 @@ export const MessageBubble = React.memo(
     onForwardPress,
     onNavigateToForwarded,
     highlightText,
+    isPinned = false,
+    conversationMembers,
   }: MessageBubbleProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -185,14 +190,25 @@ export const MessageBubble = React.memo(
 
   const senderName = useMemo(() => {
     if (item.fromMe) return 'Bạn';
-    if (isGroup && userProfile?.fullName) {
-      return userProfile.fullName;
+    if (isGroup && item.senderId) {
+      // First, try to get nickname from conversation members (conversation-specific)
+      const member = conversationMembers?.find(m => m.userId === item.senderId);
+      if (member?.nickname) {
+        return member.nickname;
+      }
+      // Fallback to member.fullName or userProfile.fullName
+      if (member?.fullName) {
+        return member.fullName;
+      }
+      if (userProfile?.fullName) {
+        return userProfile.fullName;
+      }
     }
     if (isGroup && item.senderId && loading[item.senderId]) {
       return 'Đang tải...';
     }
     return item.senderName || (item as any).senderName || (item as any).sender?.name || (item as any).sender?.fullName || 'User';
-  }, [item.fromMe, item.senderName, item.senderId, isGroup, userProfile, loading]);
+  }, [item.fromMe, item.senderName, item.senderId, isGroup, userProfile, loading, conversationMembers]);
 
   const formatTime = (dateProp: any) => {
     const d = dateProp ? new Date(dateProp) : new Date();
@@ -308,6 +324,13 @@ export const MessageBubble = React.memo(
     return theirBubbleBg;
   };
 
+  // Check if this is a system message
+  const isSystemMessage = item.messageType === 'system' || item.senderId === 'SYSTEM' || item.type === 'system';
+
+  if (isSystemMessage) {
+    return <SystemMessageBanner message={item} />;
+  }
+
   return (
     <View
       style={[
@@ -417,10 +440,10 @@ export const MessageBubble = React.memo(
                   marginBottom: 6,
                 },
               ]}
-              // onPress={() => {
-              //   // Navigate to original conversation to view the original message
-              //   onNavigateToForwarded?.(item.forwardedFrom);
-              // }}
+              onPress={() => {
+                // Navigate to original conversation to view the original message
+                onNavigateToForwarded?.(item.forwardedFrom);
+              }}
               activeOpacity={0.7}
             >
               <View style={styles.forwardedHeaderContent}>
@@ -509,7 +532,20 @@ export const MessageBubble = React.memo(
             >
               {hasMultipleImages ? (
                 // ── Multi-image grid ─────────────────────────────────────────
-                <View style={styles.messageWrapper}>
+                <View style={[styles.imageWithForwardContainer, !isMe && styles.imageWithForwardContainerReverse]}>
+                  {onForwardPress && (
+                    <TouchableOpacity
+                      style={[
+                        styles.forwardButton,
+                        { backgroundColor: isDark ? '#2C2C2E' : '#FFFFFF' },
+                        isMe ? styles.forwardButtonMarginLeft : styles.forwardButtonMarginRight,
+                      ]}
+                      onPress={() => onForwardPress(item)}
+                      activeOpacity={0.7}
+                    >
+                      <Forward size={18} color={theme.colors.icon} />
+                    </TouchableOpacity>
+                  )}
                   <View style={[
                     styles.gridContainer,
                     { backgroundColor: gridBg },
@@ -866,6 +902,12 @@ export const MessageBubble = React.memo(
             </>
           )}
 
+          {isPinned && (
+            <View style={styles.pinIcon}>
+              <Pin size={12} color={isMe ? myMetaColor : theirMetaColor} fill={isMe ? myMetaColor : theirMetaColor} />
+            </View>
+          )}
+
           {isMe && !item.isRevoked && (
             <View style={styles.receiptIcon}>
               {item.status === 'read' ? (
@@ -1164,8 +1206,25 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     zIndex: 10,
   },
-  forwardButtonMarginRight: { marginRight: 8 },
-  forwardButtonMarginLeft: { marginLeft: 8 },
+  forwardButtonMarginRight: { marginRight: 12 },
+  forwardButtonMarginLeft: { marginLeft: 12 },
+  forwardButtonMulti: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 3,
+    zIndex: 10,
+    position: 'absolute',
+    top: 4,
+  },
+  forwardButtonMultiRight: { right: 4 },
+  forwardButtonMultiLeft: { left: 4 },
 
   imageContainer: {
     position: 'relative',
@@ -1212,8 +1271,12 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   receiptIcon: {
+    marginLeft: 4,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  pinIcon: {
+    marginLeft: 4,
   },
 
   // Reply preview

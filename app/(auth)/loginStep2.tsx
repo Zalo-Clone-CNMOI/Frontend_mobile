@@ -93,8 +93,60 @@ export default function LoginStep2() {
       router.push('/(tabs)/home');
     } catch (error: any) {
       const errorMsg = error?.response?.data?.message || error?.message || 'Không thể đăng nhập';
+      const errorCode = error?.response?.data?.code || error?.code || '';
       const displayMsg = Array.isArray(errorMsg) ? errorMsg.join('\n') : String(errorMsg);
-      Alert.alert('Đăng nhập thất bại', displayMsg);
+      
+      // Detect specific error types and show appropriate messages
+      let title = t('auth.login_error');
+      let message = displayMsg;
+      
+      const errorLower = displayMsg.toLowerCase();
+      const codeLower = errorCode.toLowerCase();
+      
+      if (
+        codeLower.includes('wrong_password') ||
+        codeLower.includes('invalid_password') ||
+        errorLower.includes('wrong password') ||
+        errorLower.includes('incorrect password') ||
+        errorLower.includes('sai mật khẩu')
+      ) {
+        title = t('auth.wrong_password');
+        message = t('auth.wrong_password');
+      } else if (
+        codeLower.includes('invalid_credentials') ||
+        codeLower.includes('auth_invalid_credentials') ||
+        errorLower.includes('invalid credentials') ||
+        errorLower.includes('số điện thoại hoặc mật khẩu không đúng')
+      ) {
+        title = t('auth.invalid_credentials');
+        message = t('auth.invalid_credentials');
+      } else if (
+        codeLower.includes('account_not_found') ||
+        codeLower.includes('auth_account_not_found') ||
+        errorLower.includes('account not found') ||
+        errorLower.includes('tài khoản không tồn tại')
+      ) {
+        title = t('auth.account_not_found');
+        message = t('auth.account_not_found');
+      } else if (
+        codeLower.includes('account_locked') ||
+        codeLower.includes('auth_account_locked') ||
+        errorLower.includes('account locked') ||
+        errorLower.includes('tài khoản đã bị khóa')
+      ) {
+        title = t('auth.account_locked');
+        message = t('auth.account_locked');
+      } else if (
+        codeLower.includes('too_many_attempts') ||
+        codeLower.includes('rate_limit') ||
+        errorLower.includes('too many attempts') ||
+        errorLower.includes('quá nhiều lần thử')
+      ) {
+        title = t('auth.too_many_attempts');
+        message = t('auth.too_many_attempts');
+      }
+      
+      Alert.alert(title, message);
     } finally {
       setIsLoading(false);
     }

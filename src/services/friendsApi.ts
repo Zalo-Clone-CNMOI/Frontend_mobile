@@ -1,36 +1,21 @@
 import { NETWORK_CONFIG } from '../config/network';
 import { apiCallWithRefresh } from './authService';
+import type { ContactListItem } from '../types/contacts';
 
 export type FriendsListParams = {
   page?: number;
   limit?: number;
 };
 
-export type FriendDTO = {
-  id?: string;
+// FriendDTO extends ContactListItem with API-specific fields
+export type FriendDTO = Omit<ContactListItem, 'isOnline'> & {
   _id?: string;
-  fullName?: string;
   name?: string;
   firstName?: string;
   lastName?: string;
   avatarUrl?: string;
-  avatar?: string;
-  phone?: string;
-  email?: string;
-  bio?: string;
-  status?: string;
   isOnline?: boolean;
-  lastSeenAt?: string;
   lastSeen?: string | number;
-  friendsSince?: string;
-  mutualFriends?: number;
-  friendType?: string;
-  friendStatus?: string;
-  friendCategory?: string;
-  friendRequestStatus?: string;
-  friendRequestSent?: boolean;
-  friendRequestReceived?: boolean;
-  friendRequestMessage?: string;
 };
 
 export type FriendsListResponse = {

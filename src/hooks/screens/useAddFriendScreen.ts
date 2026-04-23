@@ -5,17 +5,19 @@ import {
   respondRuntimeFriendRequest,
   sendRuntimeFriendRequest,
 } from '@/src/services/realtime/runtimeFriendActions';
+import { NETWORK_CONFIG } from '@/src/config/network';
 import { searchUsers, type SearchUserDTO } from '@/src/services/usersApi';
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 
-const normalizeAvatarUrl = (avatar?: string): string | undefined => {
-  if (!avatar) return undefined;
+const normalizeAvatar = (avatar?: string): string | null => {
+  if (!avatar) return null;
   if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar;
+    // Replace bucket name if URL from backend uses wrong bucket
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
   }
-  return 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/' + avatar.replace(/^\//, '');
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
 };
 
 export type SearchResultStatus =
@@ -106,11 +108,11 @@ export function useAddFriendScreenLogic() {
         const dto = users[0];
         const userId = dto.id || dto._id || '';
         const avatarRaw = dto.avatar;
-        const avatarUrl = normalizeAvatarUrl(
+        const avatarUrl = normalizeAvatar(
           dto.avatarUrl ||
           (typeof avatarRaw === 'string' ? avatarRaw : avatarRaw?.url) ||
           undefined
-        );
+        ) || undefined;
 
         const status = resolveStatus(userId, dto);
 

@@ -5,31 +5,11 @@ import { getCurrentToken, refreshAccessToken } from "./authService";
 const WS_URL = NETWORK_CONFIG.SOCKET_URL;
 
 let socket: Socket | null = null;
-let heartbeatInterval: number | null = null;
 
-// Heartbeat interval: 30s (nhỏ hơn TTL 60s của Backend)
-const HEARTBEAT_INTERVAL_MS = 30_000;
+// NOTE: Heartbeat is now handled by usePresenceHeartbeat hook to avoid duplicate timers
+// This file only manages socket connection lifecycle
 
 const withBearer = (token: string | null) => (token ? `Bearer ${token}` : "");
-
-const startHeartbeat = () => {
-  if (heartbeatInterval) {
-    clearInterval(heartbeatInterval);
-  }
-
-  heartbeatInterval = setInterval(() => {
-    if (socket?.connected) {
-      socket.emit("presence:heartbeat", { ts: Date.now() });
-    }
-  }, HEARTBEAT_INTERVAL_MS) as unknown as number;
-};
-
-const stopHeartbeat = () => {
-  if (heartbeatInterval) {
-    clearInterval(heartbeatInterval);
-    heartbeatInterval = null;
-  }
-};
 
 export const createSocket = async (): Promise<Socket> => {
   if (socket) {
@@ -44,15 +24,7 @@ export const createSocket = async (): Promise<Socket> => {
     extraHeaders: accessToken ? { Authorization: bearerToken } : {},
     transports: ["websocket", "polling"],
     reconnection: true,
-  });
-
-
-  socket.on("connect", () => {
-    startHeartbeat();
-  });
-
-  socket.on("disconnect", (reason: any) => {
-    stopHeartbeat();
+    path: "/socket.io",
   });
 
   socket.on("connect_error", async (err: any) => {
@@ -82,7 +54,6 @@ export const createSocket = async (): Promise<Socket> => {
 export const getSocket = (): Socket | null => socket;
 
 export const disconnectSocket = () => {
-  stopHeartbeat();
   if (socket) {
     socket.disconnect();
     socket = null;

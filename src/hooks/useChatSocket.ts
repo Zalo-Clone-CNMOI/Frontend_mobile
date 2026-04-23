@@ -6,6 +6,7 @@ import { useChatStore } from '../store/chatStore';
 import { useChatsStore } from '../store/useChatsStore';
 import { useChatsStore as useConversationStore } from '../store/useChatsStore';
 import { useMessagesStore } from '../store/useMessagesStore';
+import { usePresenceStore } from '../store/usePresenceStore';
 import { mapSocketMessageEventToChatMessage } from '../types/mappers/DTOMappers';
 import type {
     SocketChatDeletePayload,
@@ -16,6 +17,24 @@ import type {
 
 
 
+// Track processed message IDs for duplicate prevention
+const processedMessageIds = new Set<string>();
+const MAX_PROCESSED_IDS = 1000;
+
+const addProcessedMessageId = (messageId: string) => {
+  processedMessageIds.add(messageId);
+  if (processedMessageIds.size > MAX_PROCESSED_IDS) {
+    const firstId = processedMessageIds.values().next().value;
+    if (firstId) {
+      processedMessageIds.delete(firstId);
+    }
+  }
+};
+
+const isMessageProcessed = (messageId: string): boolean => {
+  return processedMessageIds.has(messageId);
+};
+
 export const useChatSocket = () => {
   const { user: authUser } = useAuth();
   const {
@@ -24,11 +43,13 @@ export const useChatSocket = () => {
     deleteMessage: deleteMessageFromStore,
     addReaction: addReactionChatStore,
     removeReaction: removeReactionFromStore,
-    updateTypingUsers,
     updatePresence
   } = useChatStore();
-  const { updateLastMessage, chats } = useChatsStore();
+  const { updateLastMessage, chats, resetUnreadCount } = useChatsStore();
   const addReactionMessageStore = useMessagesStore((state) => state.addReaction);
+  const updatePresenceMap = usePresenceStore((state) => state.updatePresence);
+  const addPinnedMessage = useMessagesStore((state) => state.addPinnedMessage);
+  const removePinnedMessage = useMessagesStore((state) => state.removePinnedMessage);
 
   useEffect(() => {
     const token = authUser?.tokens?.accessToken;
@@ -48,104 +69,29 @@ export const useChatSocket = () => {
   }, [authUser?.tokens?.accessToken, authUser?.id]);
 
   const setupEventListeners = (socket: any) => {
-    // Debug: Log socket connection status
-    console.log('[useChatSocket] 🔌 Setting up socket event listeners');
-    console.log('[useChatSocket] 🔌 Socket connected:', socket.connected);
-    console.log('[useChatSocket] 🔌 Socket ID:', socket.id);
-
-    // Debug: Log when socket connects/disconnects
     socket.on('connect', () => {
-      console.log('[useChatSocket] ✅ Socket connected');
     });
 
     socket.on('disconnect', () => {
-      console.log('[useChatSocket] ❌ Socket disconnected');
     });
 
     socket.on('connect_error', (error: any) => {
-      console.error('[useChatSocket] ❌ Socket connect error:', error);
     });
 
-    // Debug: Log chat:join acknowledgment
     socket.on('chat:join:ack', (payload: any) => {
-      console.log('[useChatSocket] ✅ chat:join acknowledged:', payload);
     });
 
-    // New message
-    socket.on('chat:message', (payload: any) => {
-      // Debug: Log full socket payload
-      console.log('[useChatSocket] 📨 Received socket payload:', {
-        message_id: payload.message_id || payload.id,
-        conversation_id: payload.conversation_id || payload.conversationId,
-        sender_id: payload.sender_id || payload.senderId,
-        body: payload.body,
-        type: payload.type,
-        has_forwarded_from: !!payload.forwarded_from,
-        forwarded_from: payload.forwarded_from,
-        created_at: payload.created_at,
-        timestamp: payload.timestamp,
-      });
+    // New message - REMOVED: handled by chatService.registerSocketListeners()
+    // chatService already handles chat:message events, so we don't duplicate here
 
-      // Debug: Log forwarded message from socket
-      if (payload.forwarded_from) {
-        console.log('[useChatSocket] ✅✅✅ FORWARDED MESSAGE RECEIVED FROM SOCKET:', payload.forwarded_from);
-        console.log('[useChatSocket] ✅✅✅ Full forwarded payload:', payload);
-      }
-
-      // Convert socket payload to ChatMessage (handles forwarded_from -> forwardedFrom)
-      const chatMessage = mapSocketMessageEventToChatMessage(payload, authUser?.id);
-
-      // Debug: Log converted ChatMessage
-      console.log('[useChatSocket] 🔄 Converted ChatMessage:', {
-        id: chatMessage.id,
-        conversationId: chatMessage.conversationId,
-        senderId: chatMessage.senderId,
-        text: chatMessage.text,
-        type: chatMessage.type,
-        has_forwardedFrom: !!chatMessage.forwardedFrom,
-        forwardedFrom: chatMessage.forwardedFrom,
-        timestamp: chatMessage.timestamp,
-      });
-
-      // Add to chatStore (for backward compatibility)
-      addMessage(payload);
-
-      // Add to useMessagesStore (main store used by UI)
+    // Chat read - Sync unread count when other users read messages
+    socket.on('chat:read', (payload: any) => {
       const conversationId = payload.conversation_id || payload.conversationId;
-      if (conversationId) {
-        useMessagesStore.getState().addMessage(conversationId, chatMessage);
-      }
+      const readerId = payload.user_id || payload.userId;
 
-      // Update last message in conversation
-      const content = payload.body || payload.content || '';
-      const type = payload.type;
-      const timestamp = payload.created_at || payload.timestamp || Date.now();
-      const senderId = payload.sender_id || payload.senderId;
-
-      // Get sender name from conversation or current user
-      let senderName = payload.sender_name || payload.senderName;
-      if (!senderName) {
-        if (senderId === authUser?.id) {
-          senderName = (authUser as any)?.fullName || (authUser as any)?.name || 'Bạn';
-        }
-      }
-
-      if (conversationId) {
-        const isFromMe = senderId === authUser?.id;
-        // Check if message is after lastReadAt to decide increment unread
-        const conversation = useConversationStore.getState().chats.find(c => c.conversationId === conversationId);
-        const myLastReadAt = conversation?.myLastReadAt || 0;
-        const shouldIncrementUnread = !isFromMe && timestamp > myLastReadAt;
-        console.log('[useChatSocket] Updating last message:', {
-          conversationId,
-          senderId,
-          authUserId: authUser?.id,
-          isFromMe,
-          myLastReadAt,
-          messageTimestamp: timestamp,
-          shouldIncrementUnread
-        });
-        updateLastMessage(conversationId, content, type, timestamp, senderId, senderName, shouldIncrementUnread);
+      // Only reset unread if someone else (not me) reads the conversation
+      if (conversationId && readerId && readerId !== authUser?.id) {
+        resetUnreadCount(conversationId);
       }
     });
 
@@ -161,7 +107,6 @@ export const useChatSocket = () => {
 
     // Reaction added
     socket.on('chat:reaction:added', (payload: any) => {
-      console.log('[Socket] chat:reaction:added received:', payload);
       addReactionChatStore(payload);
       // Also update useMessagesStore for UI consistency
       addReactionMessageStore(
@@ -174,30 +119,63 @@ export const useChatSocket = () => {
 
     // Reaction removed
     socket.on('chat:reaction:removed', (payload: any) => {
-      console.log('[Socket] chat:reaction:removed received:', payload);
       removeReactionFromStore(payload);
     });
 
-    // Typing update
-    socket.on('chat:typing:update', (payload: any) => {
-      updateTypingUsers(payload);
+    // System message
+    socket.on('chat.system_message', (payload: any) => {
+      // System messages are handled like regular messages and will be added to the store
+      // They will be rendered differently by MessageBubble component
+      addMessage(payload);
     });
 
-    // Presence update
+    // Message pinned
+    socket.on('chat:message:pinned', (payload: any) => {
+      const conversationId = payload.conversation_id || payload.conversationId;
+      const messageId = payload.message_id || payload.messageId;
+      
+      // Update store with pinned status
+      addPinnedMessage(conversationId, messageId);
+      
+      // Update message with pinned status (chatStore format)
+      // Note: chatStore's Message type doesn't have isPinned field, so we update useMessagesStore instead
+      // The pinned status is tracked in useMessagesStore's pinnedMessagesByChatId
+    });
+
+    // Message unpinned
+    socket.on('chat:message:unpinned', (payload: any) => {
+      const conversationId = payload.conversation_id || payload.conversationId;
+      const messageId = payload.message_id || payload.messageId;
+      
+      // Update store with unpinned status
+      removePinnedMessage(conversationId, messageId);
+      
+      // Update message with unpinned status (chatStore format)
+      // Note: chatStore's Message type doesn't have isPinned field, so we update useMessagesStore instead
+      // The pinned status is tracked in useMessagesStore's pinnedMessagesByChatId
+    });
+
+    // Typing update - Handled by useTypingIndicator to avoid duplicates
+    // socket.on('chat:typing:update', (payload: any) => {
+    //   updateTypingUsers(payload);
+    // });
+
+    // Presence update - Sync to both stores for single source of truth
     socket.on('presence:update', (payload: any) => {
+      // Update chatStore for backward compatibility
       updatePresence(payload.user_id, payload.status, payload.last_seen_at, payload.expires_at);
+      // Update usePresenceStore as single source of truth
+      updatePresenceMap(payload.user_id, payload);
     });
 
     // Ack (for sent messages)
     socket.on('chat:ack', (payload: any) => {
       if (payload.status === 'rejected') {
-        console.error('Message rejected:', payload.reason);
       }
     });
 
     // Error handling
     socket.on('ws:error', (error: any) => {
-      console.error('Socket error:', error);
     });
   };
 
@@ -243,12 +221,7 @@ export const useChatSocket = () => {
     unreactMessage(conversationId, messageId);
   }, []);
 
-  const handleSendTyping = useCallback((conversationId: string, username: string) => {
-    const socket = getSocket();
-    if (socket) {
-      socket.emit('chat:typing', { conversation_id: conversationId, username });
-    }
-  }, []);
+  // handleSendTyping removed - use useTypingIndicator instead to avoid duplicate emits
 
   return {
     joinConversation: handleJoinConversation,
@@ -257,6 +230,5 @@ export const useChatSocket = () => {
     deleteMessage: handleDeleteMessage,
     addReaction: handleAddReaction,
     removeReaction: handleRemoveReaction,
-    sendTyping: handleSendTyping,
   };
 };

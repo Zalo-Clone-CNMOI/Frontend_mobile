@@ -1,6 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, BellOff, ChevronLeft, ChevronRight, Crown, FileText, Play, Search, Settings, Trash2, User, UserPlus, Users, UserX, X } from 'lucide-react-native';
+import { Bell, BellOff, ChevronLeft, ChevronRight, Crown, FileText, Play, Search, Settings, Shield, ShieldAlert, Trash2, User, UserPlus, Users, UserX, X, Check, Mail, Edit3 } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -9,6 +9,7 @@ import {
   FlatList,
   Image,
   Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
@@ -18,10 +19,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NETWORK_CONFIG } from '@/src/config/network';
 import { getMessages } from '@/src/services/messagesApi';
-import { getConversationDetail, leaveConversation, updateMember } from '@/src/services/conversationsApi';
+import { getConversationDetail, leaveConversation, updateMember, removeMember, disbandConversation, updateMySettings } from '@/src/services/conversationsApi';
 import { MediaViewerModal } from './MediaViewerModal';
-import { MemberRoleModal } from './MemberRoleModal';
+import { ConversationInvitesModal } from './ConversationInvitesModal';
 import { useRouter } from 'expo-router';
 
 interface ChatOptionsProps {
@@ -45,6 +47,8 @@ interface ChatOptionsProps {
   onLeaveGroup?: () => void;
   onLeaveSuccess?: () => void;
   onViewMembers?: () => void;
+  onChangeNickname?: () => void;
+  onNicknameChanged?: () => void;
 }
 
 interface MediaItem {
@@ -57,7 +61,7 @@ interface MediaItem {
   createdAt: string;
 }
 
-const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com';
+const S3_BASE_URL = NETWORK_CONFIG.S3_BASE_URL;
 
 export function ChatOptions({
   visible,
@@ -80,6 +84,8 @@ export function ChatOptions({
   onLeaveGroup,
   onLeaveSuccess,
   onViewMembers,
+  onChangeNickname,
+  onNicknameChanged,
 }: ChatOptionsProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -101,26 +107,38 @@ export function ChatOptions({
   const [members, setMembers] = useState<any[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
-  const [myRole, setMyRole] = useState<string>(isOwner ? 'owner' : 'member');
-  const [roleModalVisible, setRoleModalVisible] = useState(false);
+  const [myRole, setMyRole] = useState<string>('member');
+  const [myRoleLoaded, setMyRoleLoaded] = useState(false);
+
+  // Role selection modal state
+  const [roleSelectionVisible, setRoleSelectionVisible] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<any>(null);
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'member'>('member');
+  const [roleUpdating, setRoleUpdating] = useState(false);
+  const [conversationInvitesModalVisible, setConversationInvitesModalVisible] = useState(false);
+
+  // Nickname edit modal state
+  const [nicknameModalVisible, setNicknameModalVisible] = useState(false);
+  const [myNickname, setMyNickname] = useState<string>('');
+  const [nicknameInput, setNicknameInput] = useState<string>('');
+  const [nicknameUpdating, setNicknameUpdating] = useState(false);
 
   const router = useRouter();
 
-  // Sync myRole with isOwner prop when it changes (only when isOwner=true)
+  // Reset myRoleLoaded when modal opens/closes
   useEffect(() => {
-    if (isOwner) {
-      setMyRole('owner');
+    if (!visible) {
+      setMyRoleLoaded(false);
+      setMyRole('member');
     }
-  }, [isOwner]);
+  }, [visible]);
 
   useEffect(() => {
     if (visible) {
       // Fetch media when modal opens
       fetchConversationMedia();
-      // Fetch conversation details to get my role
-      if (isGroup) {
-        fetchConversationDetails();
-      }
+      // Fetch conversation details to get my role and nickname
+      fetchConversationDetails();
     }
   }, [visible, chatId, isGroup]);
 
@@ -165,7 +183,6 @@ export function ChatOptions({
       // Limit to first 20 for preview
       setMediaItems(attachments.slice(0, 20));
     } catch (error: any) {
-      console.error('[ChatOptions] Failed to fetch media:', error);
       setMediaError(t('chat_options.media_error'));
     } finally {
       setMediaLoading(false);
@@ -205,22 +222,27 @@ export function ChatOptions({
 
     setMembersLoading(true);
     try {
-      console.log('[ChatOptions] Fetching conversation details for chatId:', chatId);
       const response = await getConversationDetail(chatId);
-      console.log('[ChatOptions] API response:', response);
       const data = response.data?.data;
       if (data) {
-        console.log('[ChatOptions] Members data:', data.members);
-        console.log('[ChatOptions] mySettings:', data.mySettings);
-        console.log('[ChatOptions] mySettings.role:', data.mySettings?.role);
         setMembers(data.members || []);
-        setMyRole(data.mySettings?.role || 'member');
-        console.log('[ChatOptions] Set myRole to:', data.mySettings?.role || 'member');
+        // Backend bug: mySettings.role is inconsistent with members array
+        // Use role from members list as fallback
+        const myMemberEntry = data.members?.find((m: any) => m.userId === currentUserId);
+        const roleFromMembers = myMemberEntry?.role || 'member';
+        const roleFromSettings = data.mySettings?.role || 'member';
+        
+        // Use role from members list if it differs from mySettings (backend bug workaround)
+        const actualRole = (roleFromMembers !== roleFromSettings) ? roleFromMembers : roleFromSettings;
+        
+        setMyRole(actualRole);
+        setMyNickname(myMemberEntry?.nickname || data.mySettings?.nickname || '');
+        setMyRoleLoaded(true);
       } else {
-        console.log('[ChatOptions] No data in response');
+        setMyRoleLoaded(true);
       }
     } catch (error: any) {
-      console.error('[ChatOptions] Failed to fetch conversation details:', error);
+      setMyRoleLoaded(true);
     } finally {
       setMembersLoading(false);
     }
@@ -234,19 +256,26 @@ export function ChatOptions({
 
   // Handle leave group with direct API call
   const handleLeaveGroup = async () => {
+    const isGroupOwner = myRole === 'owner';
     Alert.alert(
-      isOwner ? t('chat_options.delete_group') : t('chat_options.leave_group'),
-      isOwner
+      isGroupOwner ? t('chat_options.delete_group') : t('chat_options.leave_group'),
+      isGroupOwner
         ? t('chat_options.delete_group_confirm')
         : t('chat_options.leave_group_confirm'),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
-          text: isOwner ? t('chat_options.delete') : t('chat_options.leave'),
+          text: isGroupOwner ? t('chat_options.delete') : t('chat_options.leave'),
           style: 'destructive',
           onPress: async () => {
             try {
-              await leaveConversation(chatId);
+              if (isGroupOwner) {
+                // Owner should disband the group instead of leaving
+                await disbandConversation(chatId);
+              } else {
+                // Regular members leave the group
+                await leaveConversation(chatId);
+              }
               onClose();
               onLeaveSuccess?.();
               router.back();
@@ -270,10 +299,38 @@ export function ChatOptions({
     } as any);
   };
 
-  // Handle role modal close and refresh members
-  const handleRoleModalClose = () => {
-    setRoleModalVisible(false);
-    fetchConversationDetails();
+  // Handle edit nickname - open modal
+  const handleEditNickname = () => {
+    setNicknameInput(myNickname);
+    setNicknameModalVisible(true);
+  };
+
+  // Handle save nickname
+  const handleSaveNickname = async () => {
+    const trimmedNickname = nicknameInput.trim();
+
+    if (trimmedNickname.length > 100) {
+      Alert.alert(t('common.error'), t('chat_options.nickname_too_long'));
+      return;
+    }
+
+    setNicknameUpdating(true);
+    try {
+      await updateMySettings(chatId, { nickname: trimmedNickname || undefined });
+      setMyNickname(trimmedNickname);
+      setNicknameModalVisible(false);
+      Alert.alert(t('common.success'), t('chat_options.nickname_updated'));
+
+      // Refresh conversation details to update the UI
+      await fetchConversationDetails();
+
+      // Notify parent to refresh conversation list
+      onNicknameChanged?.();
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || t('chat_options.nickname_update_failed'));
+    } finally {
+      setNicknameUpdating(false);
+    }
   };
 
   // Helper to get full avatar URL
@@ -285,18 +342,93 @@ export function ChatOptions({
     return `${S3_BASE_URL}/${avatarUrl}`;
   };
 
+  // Handle role change confirm
+  const handleRoleChangeConfirm = async () => {
+    if (!selectedMember) return;
+
+    const previousRole = selectedMember.role;
+    setRoleUpdating(true);
+    try {
+      await updateMember(chatId, selectedMember.userId, { role: selectedRole });
+
+      Alert.alert(t('common.success'), t('member_role.role_updated'));
+      setRoleSelectionVisible(false);
+
+      // Fetch fresh data to update both members list and myRole
+      await fetchConversationDetails();
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || t('member_role.update_failed'));
+    } finally {
+      setRoleUpdating(false);
+    }
+  };
+
+  // Handle remove member
+  const handleRemoveMemberPress = (item: any) => {
+    Alert.alert(
+      t('chat_options.remove_member'),
+      t('chat_options.remove_member_confirm', { name: item.fullName }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('chat_options.remove'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeMember(chatId, item.userId);
+
+              // Update UI - remove from list
+              setMembers(prevMembers => prevMembers.filter(m => m.userId !== item.userId));
+
+              Alert.alert(t('common.success'), t('chat_options.remove_member_success'));
+            } catch (error: any) {
+              Alert.alert(t('common.error'), error.message || t('chat_options.remove_member_failed'));
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Render member item
   const renderMemberItem = ({ item }: { item: any }) => {
-    // Owner or admin can change roles (following Zalo logic)
-    const canChangeRole = (isOwner || myRole === 'owner' || myRole === 'admin') && 
-                          item.userId !== currentUserId && 
-                          item.role !== 'owner' &&
-                          (isOwner || myRole === 'owner' || item.role !== 'admin');
-    
+    // Role permission logic - ONLY use myRole from backend API
+    // Owner can: change any member's role (except other owners and self)
+    // Admin can: no role change permission (matching backend)
+    // Member can: no role change permission
+    // Remove member permission: OWNER can remove ADMIN/MEMBER (except self/other owners)
+    //                        ADMIN can remove MEMBER only (except self/admin/owner)
+    const isSelf = item.userId === currentUserId;
+    const isOtherOwner = item.role === 'owner';
+    const iAmOwner = myRole === 'owner';
+    const iAmAdmin = myRole === 'admin';
+
+    const canChangeRole = iAmOwner && !isSelf && !isOtherOwner;
+    const canRemoveMember = (iAmOwner && !isSelf && !isOtherOwner) ||
+                            (iAmAdmin && !isSelf && item.role === 'member');
+
+    const handleRoleChange = () => {
+      setSelectedMember(item);
+      setSelectedRole(item.role === 'admin' ? 'admin' : 'member');
+
+      // Show confirmation dialog
+      Alert.alert(
+        t('member_role.change_role_title'),
+        t('member_role.change_role_confirm', { name: item.fullName }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('member_role.confirm'),
+            onPress: () => setRoleSelectionVisible(true)
+          }
+        ]
+      );
+    };
+
     return (
       <TouchableOpacity
         style={[styles.memberItem, { borderBottomColor: theme.colors.border }]}
-        onPress={() => canChangeRole && setRoleModalVisible(true)}
+        onPress={() => canChangeRole && handleRoleChange()}
         disabled={!canChangeRole}
         activeOpacity={canChangeRole ? 0.7 : 1}
       >
@@ -306,7 +438,7 @@ export function ChatOptions({
         />
         <View style={styles.memberInfo}>
           <Text style={[styles.memberName, { color: theme.colors.text }]}>
-            {item.fullName}
+            {item.nickname || item.fullName}
           </Text>
           <View style={styles.memberRoleContainer}>
             {item.role === 'owner' && (
@@ -316,7 +448,16 @@ export function ChatOptions({
               </View>
             )}
             {item.role === 'admin' && (
-              <Text style={[styles.adminText, { color: '#FF9500' }]}>{t('chat_options.role_admin')}</Text>
+              <View style={[styles.roleBadge, { backgroundColor: '#FF9500' + '20' }]}>
+                <Shield size={12} color="#FF9500" />
+                <Text style={[styles.roleText, { color: '#FF9500' }]}>{t('chat_options.role_admin')}</Text>
+              </View>
+            )}
+            {item.role === 'member' && (
+              <View style={[styles.roleBadge, { backgroundColor: theme.colors.icon + '20' }]}>
+                <ShieldAlert size={12} color={theme.colors.icon} />
+                <Text style={[styles.roleText, { color: theme.colors.icon }]}>{t('chat_options.role_member')}</Text>
+              </View>
             )}
             {item.nickname && (
               <Text style={[styles.memberNickname, { color: '#8e8e93' }]}>
@@ -325,11 +466,20 @@ export function ChatOptions({
             )}
           </View>
         </View>
-        {canChangeRole && (
-          <Text style={[styles.changeRoleText, { color: theme.colors.primary }]}>
-            {t('chat_options.change_role')}
-          </Text>
-        )}
+        <View style={styles.memberActions}>
+          {canChangeRole && (
+            <Text style={[styles.changeRoleText, { color: theme.colors.primary }]}>{t('chat_options.change_role')}</Text>
+          )}
+          {canRemoveMember && (
+            <TouchableOpacity
+              onPress={() => handleRemoveMemberPress(item)}
+              style={styles.removeButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Trash2 size={20} color="#FF3B30" />
+            </TouchableOpacity>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -408,8 +558,7 @@ export function ChatOptions({
     </TouchableOpacity>
   );
 
-  // Debug log
-  console.log('[ChatOptions] Render - isOwner:', isOwner, 'myRole:', myRole, 'isGroup:', isGroup, 'canAddMember:', isOwner || myRole === 'admin' || myRole === 'owner');
+  const canAddMemberFromAPI = myRole === 'admin' || myRole === 'owner';
 
   const filteredMembers = useMemo(() => {
     if (!memberSearchQuery.trim()) return members;
@@ -458,12 +607,20 @@ export function ChatOptions({
                 </TouchableOpacity>
                 
                 {!isGroup && (
-                  <TouchableOpacity style={styles.quickActionItem} onPress={onViewProfile}>
-                    <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                      <User size={24} color={theme.colors.primary} />
-                    </View>
-                    <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.profile')}</Text>
-                  </TouchableOpacity>
+                  <>
+                    <TouchableOpacity style={styles.quickActionItem} onPress={onViewProfile}>
+                      <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                        <User size={24} color={theme.colors.primary} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.profile')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.quickActionItem} onPress={handleEditNickname}>
+                      <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                        <Edit3 size={24} color={theme.colors.primary} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.change_nickname')}</Text>
+                    </TouchableOpacity>
+                  </>
                 )}
                 
                 <TouchableOpacity style={styles.quickActionItem} onPress={() => {
@@ -487,7 +644,7 @@ export function ChatOptions({
             {isGroup ? (
               <View style={[styles.additionalOptions, { backgroundColor: theme.colors.background }]}>
                 {/* Group Info - Owner only */}
-                {isOwner && (
+                {myRole === 'owner' && (
                   <OptionItem
                     icon={Settings}
                     title={t('chat_options.edit_group_info')}
@@ -502,16 +659,50 @@ export function ChatOptions({
                   subtitle={`${memberCount} ${t('chat_options.members')}`}
                   onPress={handleViewMembers}
                 />
-                
+
+                {/* Edit Nickname */}
+                <OptionItem
+                  icon={Edit3}
+                  title={t('chat_options.edit_nickname') || 'Edit Nickname'}
+                  subtitle={myNickname ? `@${myNickname}` : t('chat_options.enter_nickname') || 'Enter nickname'}
+                  onPress={handleEditNickname}
+                />
+
                 {/* Add Member - Owner and Admin only */}
-                {(isOwner || myRole === 'admin' || myRole === 'owner') && (
+                {(myRole === 'admin' || myRole === 'owner') && (
                   <OptionItem
                     icon={UserPlus}
                     title={t('chat_options.add_member')}
                     onPress={handleAddMember}
                   />
                 )}
-                
+
+                {/* Send Invites - Owner and Admin only */}
+                {(myRole === 'admin' || myRole === 'owner') && (
+                  <OptionItem
+                    icon={Mail}
+                    title={t('chat_options.send_invites') || 'Send Invites'}
+                    onPress={() => {
+                      router.push({
+                        pathname: '/groupInvite',
+                        params: {
+                          conversationId: chatId,
+                          conversationName: chatName,
+                        },
+                      } as any);
+                    }}
+                  />
+                )}
+
+                {/* View Invites - Owner and Admin only */}
+                {(myRole === 'admin' || myRole === 'owner') && (
+                  <OptionItem
+                    icon={Users}
+                    title={t('chat_options.view_invites') || 'View Invites'}
+                    onPress={() => setConversationInvitesModalVisible(true)}
+                  />
+                )}
+
                 {/* Group Notifications */}
                 <OptionItem
                   icon={notificationsEnabled ? Bell : BellOff}
@@ -527,7 +718,7 @@ export function ChatOptions({
                 {/* Leave Group */}
                 <OptionItem
                   icon={UserX}
-                  title={isOwner ? t('chat_options.delete_group') : t('chat_options.leave_group')}
+                  title={myRole === 'owner' ? t('chat_options.delete_group') : t('chat_options.leave_group')}
                   onPress={handleLeaveGroup}
                 />
               </View>
@@ -586,6 +777,14 @@ export function ChatOptions({
           items={mediaItems}
           initialIndex={viewerInitialIndex}
           conversationId={chatId}
+        />
+
+        {/* Conversation Invites Modal */}
+        <ConversationInvitesModal
+          visible={conversationInvitesModalVisible}
+          conversationId={chatId}
+          conversationName={chatName}
+          onClose={() => setConversationInvitesModalVisible(false)}
         />
 
         {/* Members Modal */}
@@ -647,16 +846,149 @@ export function ChatOptions({
           </SafeAreaView>
         </Modal>
 
-        {/* Member Role Modal */}
-        <MemberRoleModal
-          visible={roleModalVisible}
-          onClose={handleRoleModalClose}
-          conversationId={chatId}
-          members={members}
-          currentUserId={currentUserId || ''}
-          isOwner={isOwner || false}
-          myRole={myRole as 'owner' | 'admin' | 'member'}
-        />
+        {/* Role Selection Modal */}
+        <Modal
+          transparent
+          visible={roleSelectionVisible}
+          animationType="fade"
+          onRequestClose={() => setRoleSelectionVisible(false)}
+        >
+          <Pressable style={styles.overlay} onPress={() => setRoleSelectionVisible(false)}>
+            <View style={[styles.roleSelectionContainer, { backgroundColor: theme.colors.card }]}>
+              <View style={styles.roleSelectionHeader}>
+                <Text style={[styles.roleSelectionTitle, { color: theme.colors.text }]}>
+                  {t('member_role.change_role_for', { name: selectedMember?.fullName })}
+                </Text>
+                <TouchableOpacity onPress={() => setRoleSelectionVisible(false)}>
+                  <X size={24} color={theme.colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.roleSelectionContent}>
+                {(['admin', 'member'] as const).map((role) => (
+                  <TouchableOpacity
+                    key={role}
+                    style={[
+                      styles.roleOption,
+                      {
+                        backgroundColor: theme.colors.background,
+                        borderColor: selectedRole === role ? theme.colors.primary : theme.colors.border,
+                        borderWidth: selectedRole === role ? 2 : 1,
+                      },
+                    ]}
+                    onPress={() => {
+                      console.log('[ChatOptions] Selected role:', role);
+                      setSelectedRole(role);
+                    }}
+                    disabled={roleUpdating}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.roleOptionLeft}>
+                      <View style={[
+                        styles.roleIconContainer,
+                        { backgroundColor: role === 'admin' ? '#FF9500' + '20' : theme.colors.icon + '20' }
+                      ]}>
+                        {role === 'admin' ? (
+                          <Shield size={20} color="#FF9500" />
+                        ) : (
+                          <ShieldAlert size={20} color={theme.colors.icon} />
+                        )}
+                      </View>
+                      <Text style={[styles.roleOptionText, { color: theme.colors.text }]}>
+                        {role === 'admin' ? t('member_role.admin') : t('member_role.member')}
+                      </Text>
+                    </View>
+                    {selectedRole === role && (
+                      <View style={[styles.radioButton, { backgroundColor: theme.colors.primary }]}>
+                        <Check size={16} color="#fff" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.roleSelectionFooter}>
+                <TouchableOpacity
+                  style={[styles.cancelButton, { borderColor: theme.colors.border }]}
+                  onPress={() => setRoleSelectionVisible(false)}
+                  disabled={roleUpdating}
+                >
+                  <Text style={[styles.cancelText, { color: theme.colors.text }]}>
+                    {t('common.cancel')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.saveButton,
+                    { backgroundColor: theme.colors.primary, opacity: roleUpdating ? 0.5 : 1 }
+                  ]}
+                  onPress={handleRoleChangeConfirm}
+                  disabled={roleUpdating}
+                >
+                  {roleUpdating ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.saveText}>{t('common.save') || 'Save'}</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+
+        {/* Nickname Edit Modal */}
+        <Modal
+          visible={nicknameModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setNicknameModalVisible(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setNicknameModalVisible(false)}
+          >
+            <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                {t('chat_options.edit_nickname') || 'Edit Nickname'}
+              </Text>
+              <View style={styles.nicknameInputContainer}>
+                <TextInput
+                  style={[styles.nicknameInput, { color: theme.colors.text, backgroundColor: theme.colors.background }]}
+                  value={nicknameInput}
+                  onChangeText={setNicknameInput}
+                  placeholder={t('chat_options.enter_nickname') || 'Enter nickname'}
+                  placeholderTextColor={theme.colors.icon}
+                  maxLength={100}
+                />
+              </View>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.cancelButton, { borderColor: theme.colors.border }]}
+                  onPress={() => setNicknameModalVisible(false)}
+                >
+                  <Text style={[styles.cancelText, { color: theme.colors.text }]}>
+                    {t('common.cancel') || 'Cancel'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.saveButton,
+                    { backgroundColor: theme.colors.primary, opacity: nicknameUpdating ? 0.5 : 1 }
+                  ]}
+                  onPress={handleSaveNickname}
+                  disabled={nicknameUpdating}
+                >
+                  {nicknameUpdating ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.saveText}>{t('common.save') || 'Save'}</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+
       </SafeAreaView>
     </Modal>
   );
@@ -879,6 +1211,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  memberActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  removeButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -898,5 +1239,121 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     paddingVertical: 0,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  roleSelectionContainer: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 16,
+    padding: 20,
+  },
+  roleSelectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  roleSelectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  roleSelectionContent: {
+    gap: 12,
+  },
+  roleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 12,
+  },
+  roleOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  roleIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  roleOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  radioButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  roleSelectionFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  cancelText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  saveButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#fff',
+  },
+  // Nickname modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 12,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  nicknameInputContainer: {
+    marginBottom: 20,
+  },
+  nicknameInput: {
+    height: 48,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    fontSize: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
   },
 });

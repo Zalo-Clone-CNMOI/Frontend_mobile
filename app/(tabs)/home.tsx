@@ -2,14 +2,15 @@ import { ChatListItem } from '@/src/components/chat/ChatListItem';
 import { ChatSearchHeader } from '@/src/components/chat/ChatSearchHeader';
 import { useChatSocket } from '@/src/hooks/useChatSocket';
 import { useHomeScreenLogic } from '@/src/hooks/screens/useHomeScreen';
+import { useGroupInviteStore } from '@/src/store/useGroupInviteStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Filter } from 'lucide-react-native';
+import { Filter, MailOpen } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
@@ -17,6 +18,7 @@ export default function HomeScreen() {
   const theme = useTheme();
   const { t } = useTranslation();
   const { listData, onRefresh, openChat, refreshing } = useHomeScreenLogic();
+  const pendingInvitesCount = useGroupInviteStore((state) => state.unreadCount);
   useChatSocket(); // Initialize socket for real-time updates
 
   return (
@@ -30,7 +32,22 @@ export default function HomeScreen() {
             <Text style={[styles.activeTabText, { color: theme.colors.text }]}>{t('messages.title')}</Text>
             <View style={[styles.activeLine, { backgroundColor: theme.colors.text }]} />
           </View>
-          <Filter size={18} color="#8e8e93" style={{ marginLeft: 'auto' }} />
+          <View style={styles.headerIcons}>
+            <TouchableOpacity 
+              onPress={() => router.push('/inviteCenter')}
+              style={styles.iconButton}
+            >
+              <MailOpen size={18} color="#8e8e93" />
+              {pendingInvitesCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {pendingInvitesCount > 99 ? '99+' : pendingInvitesCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <Filter size={18} color="#8e8e93" style={{ marginLeft: 12 }} />
+          </View>
         </View>
 
         <FlashList
@@ -63,4 +80,30 @@ const styles = StyleSheet.create({
   activeTabContainer: { alignItems: 'flex-start' },
   activeTabText: { fontWeight: 'bold', fontSize: 15 },
   activeLine: { height: 2, marginTop: 4 },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+  },
+  iconButton: {
+    position: 'relative',
+    padding: 4,
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#ff3b30',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
 });

@@ -1,7 +1,7 @@
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
 import * as Clipboard from 'expo-clipboard';
-import { Copy, Edit, Forward, Reply, RotateCcw, Trash2 } from 'lucide-react-native';
+import { Copy, Edit, Forward, Pin, Reply, RotateCcw, Trash2 } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -17,13 +17,15 @@ interface MessageActionMenuProps {
   visible: boolean;
   message: ChatMessage | null;
   onClose: () => void;
-  onReply: (msg: ChatMessage) => void;
-  onEdit?: (msg: ChatMessage) => void;
-  onRevoke?: (msg: ChatMessage) => void;
-  onDelete: (msg: ChatMessage) => void;
-  onReact?: (msg: ChatMessage, reaction: "like" | "love" | "haha" | "wow" | "sad" | "angry") => void;
-  onReactMultiple?: (msg: ChatMessage, reactions: ("like" | "love" | "haha" | "wow" | "sad" | "angry")[]) => void;
-  onForward?: (msg: ChatMessage) => void;
+  onReply?: (message: ChatMessage) => void;
+  onEdit?: (message: ChatMessage) => void;
+  onDelete?: (message: ChatMessage) => void;
+  onReact?: (message: ChatMessage, reaction: "like" | "love" | "haha" | "wow" | "sad" | "angry") => void;
+  onReactMultiple?: (message: ChatMessage, reactions: ("like" | "love" | "haha" | "wow" | "sad" | "angry")[]) => void;
+  onForward?: (message: ChatMessage) => void;
+  onPin?: (message: ChatMessage) => void;
+  onUnpin?: (message: ChatMessage) => void;
+  isPinned?: boolean;
 }
 
 const REACTIONS = [
@@ -41,11 +43,13 @@ export function MessageActionMenu({
   onClose,
   onReply,
   onEdit,
-  onRevoke,
   onDelete,
   onReact,
   onReactMultiple,
   onForward,
+  onPin,
+  onUnpin,
+  isPinned,
 }: MessageActionMenuProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -74,7 +78,6 @@ export function MessageActionMenu({
   };
 
   const isMe = Boolean(message.fromMe);
-  const canRevoke = isMe && !message.isRevoked;
   const hasImageAttachment = message.attachments?.some((a: any) => a.type === 'image') || message.type === 'image';
   const canEdit = isMe && !message.isRevoked && !hasImageAttachment;
 
@@ -137,7 +140,7 @@ export function MessageActionMenu({
           
           <View style={styles.grid}>
 
-            <TouchableOpacity style={styles.gridItem} onPress={() => { onReply(message); onClose(); }}>
+            <TouchableOpacity style={styles.gridItem} onPress={() => { onReply?.(message); onClose(); }}>
               <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
                 <Reply size={24} color={theme.colors.primary} />
               </View>
@@ -160,6 +163,21 @@ export function MessageActionMenu({
               <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.forward', { defaultValue: 'Chuyển tiếp' })}</Text>
             </TouchableOpacity>
 
+            {isPinned ? (
+              <TouchableOpacity style={styles.gridItem} onPress={() => { onUnpin?.(message); onClose(); }}>
+                <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
+                  <Pin size={24} color="#8b5cf6" />
+                </View>
+                <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.unpin', { defaultValue: 'Bỏ ghim' })}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.gridItem} onPress={() => { onPin?.(message); onClose(); }}>
+                <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
+                  <Pin size={24} color="#8b5cf6" />
+                </View>
+                <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.pin', { defaultValue: 'Ghim' })}</Text>
+              </TouchableOpacity>
+            )}
 
             {canEdit && (
               <TouchableOpacity style={styles.gridItem} onPress={() => { onEdit?.(message); onClose(); }}>
@@ -170,18 +188,7 @@ export function MessageActionMenu({
               </TouchableOpacity>
             )}
 
-
-            {canRevoke && (
-              <TouchableOpacity style={styles.gridItem} onPress={() => { onRevoke?.(message); onClose(); }}>
-                <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
-                  <RotateCcw size={24} color="#f59e0b" />
-                </View>
-                <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.revoke', { defaultValue: 'Thu hồi' })}</Text>
-              </TouchableOpacity>
-            )}
-
-
-            <TouchableOpacity style={styles.gridItem} onPress={() => { onDelete(message); onClose(); }}>
+            <TouchableOpacity style={styles.gridItem} onPress={() => { onDelete?.(message); onClose(); }}>
               <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
                 <Trash2 size={24} color="#ef4444" />
               </View>

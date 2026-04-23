@@ -1,10 +1,11 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { Camera, Check, X } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Image, Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { updateConversation } from '@/src/services/conversationsApi';
+import { NETWORK_CONFIG } from '@/src/config/network';
+import { updateConversation, getConversationDetail } from '@/src/services/conversationsApi';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useAuth } from '@/src/contexts/AuthContext';
 import * as mediaService from '@/src/services/mediaService';
@@ -16,7 +17,7 @@ type GroupInfoModalProps = {
   conversationId: string;
   currentName: string;
   currentAvatar: string | null;
-  isOwner: boolean;
+  myRole: 'owner' | 'admin' | 'member';
 };
 
 export function GroupInfoModal({
@@ -25,7 +26,7 @@ export function GroupInfoModal({
   conversationId,
   currentName,
   currentAvatar,
-  isOwner,
+  myRole,
 }: GroupInfoModalProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -36,6 +37,22 @@ export function GroupInfoModal({
   const [avatarUri, setAvatarUri] = useState<string | null>(currentAvatar);
   const [avatarFile, setAvatarFile] = useState<MediaFileInput | null>(null);
   const [loading, setLoading] = useState(false);
+  const [localRole, setLocalRole] = useState<'owner' | 'admin' | 'member'>(myRole);
+
+  // Fetch myRole from API when modal opens
+  useEffect(() => {
+    if (visible && conversationId) {
+      getConversationDetail(conversationId)
+        .then((response) => {
+          const data = response.data?.data;
+          if (data?.mySettings?.role) {
+            setLocalRole(data.mySettings.role);
+          }
+        })
+        .catch((error) => {
+        });
+    }
+  }, [visible, conversationId]);
 
   const handlePickAvatar = async () => {
     try {
@@ -62,7 +79,7 @@ export function GroupInfoModal({
   };
 
   const handleSave = async () => {
-    if (!isOwner) {
+    if (localRole !== 'owner') {
       Alert.alert('Lỗi', 'Chỉ chủ nhóm mới có thể chỉnh sửa thông tin nhóm');
       return;
     }
@@ -82,11 +99,13 @@ export function GroupInfoModal({
       
       // Upload avatar to S3 if changed
       if (avatarUri !== currentAvatar && avatarFile && authUser?.id) {
-        console.log('[GroupInfoModal] Uploading avatar to S3...');
         const uploadResult = await mediaService.uploadMedia(avatarFile, authUser.id);
-        const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com';
-        payload.avatarUrl = `${S3_BASE_URL}/${uploadResult.key}`;
-        console.log('[GroupInfoModal] Avatar uploaded, URL:', payload.avatarUrl);
+        // Ensure key has prefix for backend validation
+        const key = uploadResult.key;
+        const formattedKey = key.startsWith('public/') || key.startsWith('private/')
+          ? key
+          : `${uploadResult.visibility}/${key}`;
+        payload.avatarUrl = formattedKey;
       }
 
       if (Object.keys(payload).length === 0) {
@@ -96,23 +115,22 @@ export function GroupInfoModal({
 
       const response = await updateConversation(conversationId, payload);
       
-      // Update conversation in store
+      // Update conversation in store (convert key to full URL for display)
       updateChat(conversationId, {
         name: payload.name || currentName,
-        avatar: payload.avatarUrl || currentAvatar,
+        avatar: payload.avatarUrl ? `${NETWORK_CONFIG.S3_BASE_URL}/${payload.avatarUrl}` : currentAvatar,
       });
 
       Alert.alert('Thành công', 'Đã cập nhật thông tin nhóm');
       onClose();
     } catch (error: any) {
-      console.error('[GroupInfoModal] Error updating group info:', error);
       Alert.alert('Lỗi', error.message || 'Không thể cập nhật thông tin nhóm');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isOwner) {
+  if (localRole !== 'owner') {
     // View-only mode for non-owners
     return (
       <Modal

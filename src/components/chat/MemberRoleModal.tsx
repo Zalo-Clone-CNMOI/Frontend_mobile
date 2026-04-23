@@ -1,9 +1,9 @@
 import { useTheme } from '@/src/theme/themeContext';
-import { Shield, ShieldCheck, ShieldAlert, Trash2, X } from 'lucide-react-native';
-import React, { useState } from 'react';
+import { Shield, ShieldCheck, ShieldAlert, Trash2, X, Check } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { updateMember, removeMember } from '@/src/services/conversationsApi';
+import { updateMember, removeMember, getConversationDetail } from '@/src/services/conversationsApi';
 
 type MemberRole = 'owner' | 'admin' | 'member';
 
@@ -11,8 +11,9 @@ interface Member {
   id: string;
   userId: string;
   fullName: string;
-  avatarUrl?: string;
   role: MemberRole;
+  avatarUrl?: string;
+  nickname?: string;
 }
 
 interface MemberRoleModalProps {
@@ -21,8 +22,8 @@ interface MemberRoleModalProps {
   conversationId: string;
   members: Member[];
   currentUserId: string;
-  isOwner: boolean;
-  myRole: MemberRole;
+  isOwner?: boolean; // Deprecated - kept for compatibility
+  myRole?: MemberRole; // Deprecated - kept for compatibility
 }
 
 export function MemberRoleModal({
@@ -37,6 +38,43 @@ export function MemberRoleModal({
   const theme = useTheme();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
+  const [roleSelectionVisible, setRoleSelectionVisible] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [selectedRole, setSelectedRole] = useState<MemberRole>('member');
+  const [apiMyRole, setApiMyRole] = useState<MemberRole>('member'); // Fetch from API
+
+  const fetchConversationDetails = async () => {
+    if (visible && conversationId) {
+      getConversationDetail(conversationId)
+        .then((response) => {
+          const data = response.data?.data;
+          if (data) {
+            // Backend bug: mySettings.role is inconsistent with members array
+            // Use role from members list as fallback
+            const myMemberEntry = data.members?.find((m: any) => m.userId === currentUserId);
+            const roleFromMembers = myMemberEntry?.role || 'member';
+            const roleFromSettings = data.mySettings?.role || 'member';
+
+            // Use role from members list if it differs from mySettings (backend bug workaround)
+            const actualRole = (roleFromMembers !== roleFromSettings) ? roleFromMembers : roleFromSettings;
+
+            setApiMyRole(actualRole);
+          }
+        })
+        .catch((error) => {
+          setApiMyRole('member'); // Fallback to member if API fails
+        });
+    }
+  };
+
+  useEffect(() => {
+    if (visible && conversationId) {
+      fetchConversationDetails();
+    }
+  }, [visible, conversationId, fetchConversationDetails]);
+
+  // Use API-fetched role for authorization
+  const isGroupOwner = apiMyRole === 'owner';
 
   const getRoleIcon = (role: MemberRole) => {
     switch (role) {
@@ -61,20 +99,18 @@ export function MemberRoleModal({
   };
 
   const canChangeRole = (member: Member) => {
-    // Owner or admin can change roles (following Zalo logic)
-    if (!isOwner && myRole !== 'admin') return false;
+    // Only owner can change roles (matching backend API permission)
+    if (!isGroupOwner) return false;
     // Cannot change own role
     if (member.userId === currentUserId) return false;
     // Cannot change other owners
     if (member.role === 'owner') return false;
-    // Admins cannot change other admins' roles
-    if (!isOwner && member.role === 'admin') return false;
     return true;
   };
 
   const canRemoveMember = (member: Member) => {
     // Only owner can remove members
-    if (!isOwner) return false;
+    if (!isGroupOwner) return false;
     // Cannot remove yourself
     if (member.userId === currentUserId) return false;
     // Cannot remove other owners
@@ -89,6 +125,18 @@ export function MemberRoleModal({
     try {
       await updateMember(conversationId, member.userId, { role: newRole });
       Alert.alert(t('common.success'), t('member_role.role_updated'));
+      
+      // Fetch fresh data to update myRole in case user changed their own role
+      const response = await getConversationDetail(conversationId);
+      const data = response.data?.data;
+      if (data) {
+        const myMemberEntry = data.members?.find((m: any) => m.userId === currentUserId);
+        const roleFromMembers = myMemberEntry?.role || 'member';
+        const roleFromSettings = data.mySettings?.role || 'member';
+        const actualRole = (roleFromMembers !== roleFromSettings) ? roleFromMembers : roleFromSettings;
+        setApiMyRole(actualRole);
+      }
+      
       onClose();
     } catch (error: any) {
       Alert.alert(t('common.error'), error.message || t('member_role.update_failed'));
@@ -100,7 +148,7 @@ export function MemberRoleModal({
   const handleRemoveMember = async (member: Member) => {
     Alert.alert(
       t('member_role.remove_confirm'),
-      t('member_role.remove_confirm_message', { name: member.fullName }),
+      t('member_role.remove_confirm_message', { name: member.nickname || member.fullName }),
       [
         {
           text: t('common.cancel'),
@@ -129,106 +177,183 @@ export function MemberRoleModal({
   const showRoleOptions = (member: Member) => {
     if (!canChangeRole(member)) return;
 
-    const options: MemberRole[] = ['admin', 'member'];
-    const currentRoleIndex = options.indexOf(member.role as MemberRole);
+    setSelectedMember(member);
+    setSelectedRole(member.role);
+    setRoleSelectionVisible(true);
+  };
 
-    Alert.alert(
-      t('member_role.change_role_for', { name: member.fullName }),
-      '',
-      [
-        {
-          text: getRoleLabel('admin'),
-          onPress: () => handleRoleChange(member, 'admin'),
-        },
-        {
-          text: getRoleLabel('member'),
-          onPress: () => handleRoleChange(member, 'member'),
-          style: 'destructive',
-        },
-        {
-          text: t('common.cancel'),
-          style: 'cancel',
-        },
-      ],
-    );
+  const handleRoleSelectionConfirm = async () => {
+    if (!selectedMember) return;
+
+    if (selectedMember.role === selectedRole) {
+      setRoleSelectionVisible(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await updateMember(conversationId, selectedMember.userId, { role: selectedRole });
+      Alert.alert(t('common.success'), t('member_role.role_updated'));
+      setRoleSelectionVisible(false);
+      onClose();
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || t('member_role.update_failed'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.colors.text }]}>
-              {t('member_role.manage_roles')}
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <X size={24} color={theme.colors.text} />
-            </TouchableOpacity>
-          </View>
+    <>
+      <Modal
+        transparent
+        visible={visible}
+        animationType="fade"
+        onRequestClose={onClose}
+      >
+        <Pressable style={styles.overlay} onPress={onClose}>
+          <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
+            <View style={styles.header}>
+              <Text style={[styles.title, { color: theme.colors.text }]}>
+                {t('member_role.manage_roles')}
+              </Text>
+              <TouchableOpacity onPress={onClose}>
+                <X size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.content}>
-            {members.map((member) => (
-              <TouchableOpacity
-                key={member.id}
-                style={[
-                  styles.memberItem,
-                  { 
-                    backgroundColor: theme.colors.background,
-                    borderBottomColor: theme.colors.border,
-                    opacity: canChangeRole(member) || canRemoveMember(member) ? 1 : 0.6,
-                  },
-                ]}
-                onPress={() => showRoleOptions(member)}
-                disabled={!canChangeRole(member) || loading}
-              >
-                <View style={styles.memberInfo}>
-                  <View style={[styles.avatar, { backgroundColor: theme.colors.primary + '20' }]}>
-                    <Text style={[styles.avatarText, { color: theme.colors.primary }]}>
-                      {member.fullName.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.memberDetails}>
-                    <Text style={[styles.memberName, { color: theme.colors.text }]}>
-                      {member.fullName}
-                    </Text>
-                    <View style={styles.roleContainer}>
-                      {getRoleIcon(member.role)}
-                      <Text style={[styles.roleText, { color: theme.colors.icon }]}>
-                        {getRoleLabel(member.role)}
+            <View style={styles.content}>
+              {members.map((member) => (
+                <TouchableOpacity
+                  key={member.id}
+                  style={[
+                    styles.memberItem,
+                    {
+                      backgroundColor: theme.colors.background,
+                      borderBottomColor: theme.colors.border,
+                      opacity: canChangeRole(member) || canRemoveMember(member) ? 1 : 0.6,
+                    },
+                  ]}
+                  onPress={() => showRoleOptions(member)}
+                  disabled={!canChangeRole(member) || loading}
+                >
+                  <View style={styles.memberInfo}>
+                    <View style={[styles.avatar, { backgroundColor: theme.colors.primary + '20' }]}>
+                      <Text style={[styles.avatarText, { color: theme.colors.primary }]}>
+                        {(member.nickname || member.fullName).charAt(0).toUpperCase()}
                       </Text>
                     </View>
+                    <View style={styles.memberDetails}>
+                      <Text style={[styles.memberName, { color: theme.colors.text }]}>
+                        {member.nickname || member.fullName}
+                      </Text>
+                      <View style={styles.roleContainer}>
+                        {getRoleIcon(member.role)}
+                        <Text style={[styles.roleText, { color: theme.colors.icon }]}>
+                          {getRoleLabel(member.role)}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
-                </View>
-                <View style={styles.actionsContainer}>
-                  {canChangeRole(member) && (
-                    <Text style={[styles.changeText, { color: theme.colors.primary }]}>
-                      {t('member_role.change')}
-                    </Text>
-                  )}
-                  {canRemoveMember(member) && (
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleRemoveMember(member);
-                      }}
-                      disabled={loading}
-                    >
-                      <Trash2 size={18} color="#FF3B30" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
+                  <View style={styles.actionsContainer}>
+                    {canChangeRole(member) && (
+                      <Text style={[styles.changeText, { color: theme.colors.primary }]}>
+                        {t('member_role.change')}
+                      </Text>
+                    )}
+                    {canRemoveMember(member) && (
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleRemoveMember(member);
+                        }}
+                        disabled={loading}
+                      >
+                        <Trash2 size={18} color="#FF3B30" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
-      </Pressable>
-    </Modal>
+        </Pressable>
+      </Modal>
+
+      {/* Role Selection Modal */}
+      <Modal
+        transparent
+        visible={roleSelectionVisible}
+        animationType="fade"
+        onRequestClose={() => setRoleSelectionVisible(false)}
+      >
+        <Pressable style={styles.overlay} onPress={() => setRoleSelectionVisible(false)}>
+          <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
+            <View style={styles.header}>
+              <Text style={[styles.title, { color: theme.colors.text }]}>
+                {t('member_role.change_role_for', { name: selectedMember?.nickname || selectedMember?.fullName })}
+              </Text>
+              <TouchableOpacity onPress={() => setRoleSelectionVisible(false)}>
+                <X size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.content}>
+              {(['admin', 'member'] as MemberRole[]).map((role) => (
+                <TouchableOpacity
+                  key={role}
+                  style={[
+                    styles.roleOption,
+                    {
+                      backgroundColor: theme.colors.background,
+                      borderColor: selectedRole === role ? theme.colors.primary : theme.colors.border,
+                    },
+                  ]}
+                  onPress={() => setSelectedRole(role)}
+                  disabled={loading}
+                >
+                  <View style={styles.roleOptionLeft}>
+                    {getRoleIcon(role)}
+                    <Text style={[styles.roleOptionText, { color: theme.colors.text }]}>
+                      {getRoleLabel(role)}
+                    </Text>
+                  </View>
+                  {selectedRole === role && (
+                    <View style={[styles.radioButton, { backgroundColor: theme.colors.primary }]}>
+                      <Check size={16} color="#fff" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={[styles.cancelButton, { borderColor: theme.colors.border }]}
+                onPress={() => setRoleSelectionVisible(false)}
+                disabled={loading}
+              >
+                <Text style={[styles.cancelText, { color: theme.colors.text }]}>
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveButton, { backgroundColor: theme.colors.primary, opacity: loading ? 0.5 : 1 }]}
+                onPress={handleRoleSelectionConfirm}
+                disabled={loading}
+              >
+                {loading ? (
+                  <Text style={styles.saveText}>{t('common.saving')}</Text>
+                ) : (
+                  <Text style={styles.saveText}>{t('common.confirm')}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
@@ -311,5 +436,60 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     padding: 8,
+  },
+  roleOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+  },
+  roleOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  roleOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  radioButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  cancelButton: {
+    flex: 1,
+    height: 44,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  cancelText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  saveButton: {
+    flex: 1,
+    height: 44,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

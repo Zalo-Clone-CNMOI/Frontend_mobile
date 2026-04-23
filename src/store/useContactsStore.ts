@@ -1,51 +1,13 @@
 import { create } from 'zustand';
 import { fetchContacts } from '../services/chatService';
-
-type UserPresence = 'online' | 'offline' | 'away';
-
-type UserV2 = {
-  id: string;
-  fullName: string;
-  avatar?: string;
-  status?: UserPresence;
-  lastSeen?: number | null;
-};
-
-type Contact = {
-  id: string;
-  name: string;
-  subtitle: string;
-  avatar: string;
-  type: 'friend' | 'group' | 'oa';
-};
-
-interface ContactsState {
-  friends: Contact[];
-  groups: Contact[];
-  oas: Contact[];
-  activeTab: number;
-  filterType: 'all' | 'recent';
-  searchQuery: string;
-  isLoading: boolean;
-  error: string | null;
-
-  currentData: Contact[];
-  filteredData: Contact[];
-  usersV2: UserV2[];
-  filteredUsersV2: UserV2[];
-  usersFilterType: 'all' | 'recent';
-
-  initializeContacts: () => Promise<void>;
-  setActiveTab: (tab: number) => void;
-  setFilterType: (filter: 'all' | 'recent') => void;
-  setSearchQuery: (query: string) => void;
-  setUsersFilterType: (filter: 'all' | 'recent') => void;
-  setUsersSearchQuery: (query: string) => void;
-  addFriend: (friend: Contact) => void;
-  deleteFriend: (friendId: string) => void;
-  addGroup: (group: Contact) => void;
-  deleteGroup: (groupId: string) => void;
-}
+import type {
+  UserPresence,
+  UserV2,
+  Contact,
+  ContactListItem,
+  ContactsState,
+  FilterType,
+} from '../types/contacts';
 
 const RECENT_SUBTITLES = new Set(['Vua truy cap', 'Dang hoat dong']);
 
@@ -119,6 +81,46 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   usersFilterType: 'all',
   isLoading: false,
   error: null,
+
+  recentContacts: [],
+  getRecentContacts: (limit) => {
+    const recentContacts = get().recentContacts;
+    // Sort by lastInteractionAt descending and apply limit
+    const sorted = recentContacts
+      .filter((item) => item.lastInteractionAt)
+      .sort((a, b) => (b.lastInteractionAt || 0) - (a.lastInteractionAt || 0));
+    return limit ? sorted.slice(0, limit) : sorted;
+  },
+  updateContactInteraction: (contactId, timestamp) => {
+    const recentContacts = get().recentContacts;
+    const index = recentContacts.findIndex((item) => item.id === contactId);
+    const interactionTime = timestamp || Date.now();
+    
+    if (index !== -1) {
+      // Update existing contact
+      recentContacts[index] = {
+        ...recentContacts[index],
+        lastInteractionAt: interactionTime,
+      };
+      // Move to front
+      const updated = [recentContacts[index], ...recentContacts.filter((_, i) => i !== index)];
+      set({ recentContacts: updated });
+    } else {
+      // Add new contact with minimal data
+      const newContact: ContactListItem = {
+        id: contactId,
+        fullName: '',
+        avatar: null,
+        status: 'offline',
+        phone: '',
+        email: '',
+        bio: '',
+        isOnline: false,
+        lastInteractionAt: interactionTime,
+      };
+      set({ recentContacts: [newContact, ...recentContacts] });
+    }
+  },
 
   initializeContacts: async () => {
     set({ isLoading: true, error: null });

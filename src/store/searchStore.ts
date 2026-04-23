@@ -3,13 +3,15 @@ import * as usersApi from '../services/usersApi';
 import { SearchResult } from '../types/search';
 import { getErrorMessage } from '../utils/networkUtils';
 import { normalizeVietnamesePhoneNumber } from '../validators/phoneValidator';
+import { NETWORK_CONFIG } from '../config/network';
 
-const normalizeAvatarUrl = (avatar?: string): string | null => {
+const normalizeAvatar = (avatar?: string): string | null => {
   if (!avatar) return null;
   if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar;
+    // Replace bucket name if URL from backend uses wrong bucket
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
   }
-  return 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/' + avatar.replace(/^\//, '');
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
 };
 
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -103,7 +105,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
         type: 'user',
         id: u.id || u._id,
         fullName: u.fullName || u.name || '',
-        avatarUrl: normalizeAvatarUrl(u.avatarUrl || (u.avatar && u.avatar.url)),
+        avatarUrl: normalizeAvatar(u.avatarUrl || (u.avatar && u.avatar.url)),
         phone: u.phone,
         friendshipStatus: u.friendshipStatus || 'none',
       }));

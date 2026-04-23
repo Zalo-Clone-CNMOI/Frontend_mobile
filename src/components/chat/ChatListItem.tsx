@@ -4,15 +4,26 @@ import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 
 import { useAuth } from '@/src/contexts/AuthContext';
 
-import React from 'react';
+import { NETWORK_CONFIG } from '@/src/config/network';
+
+import React, { useMemo } from 'react';
 
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useTheme } from '../../theme/themeContext';
 
 import { useChatStore } from '../../store/chatStore';
+import { usePresenceStore } from '../../store/usePresenceStore';
 
-
+const normalizeAvatarUrl = (avatar?: string): string | null => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    // Replace bucket name if URL from backend uses wrong bucket
+    const regex = /https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/;
+    return avatar.replace(regex, NETWORK_CONFIG.S3_BASE_URL);
+  }
+  return `${NETWORK_CONFIG.S3_BASE_URL}/${avatar.replace(/^\//, '')}`;
+};
 
 export function ChatListItem({
 
@@ -30,142 +41,86 @@ export function ChatListItem({
 
   const theme = useTheme();
 
-  const { presence } = useChatStore();
+  const { presenceMap } = usePresenceStore();
 
   const { user: authUser } = useAuth();
 
   const messageTime = item.lastMessage?.timestamp || item.lastMessageAt;
 
-  // Debug log
-  console.log('[ChatListItem] conversation:', item.name, 'unreadCount:', item.unreadCount, 'type:', typeof item.unreadCount);
-
-
-
   // Get presence status for the other user (not for groups)
-
   const getPresenceStatus = () => {
-
     if (item.isGroup) return null;
 
     // Get the other user's ID (for direct conversations)
-
     const userId = item.otherUserId || item.userId;
-
     if (!userId) return null;
 
-    const userPresence = presence[userId];
-
+    const userPresence = presenceMap[userId];
     if (!userPresence) return null;
 
     // Check if presence is still valid (not expired)
-
-    if (Date.now() > userPresence.expires_at) return null;
+    if (Date.now() > (userPresence.expires_at || 0)) return null;
 
     return userPresence.status;
-
   };
 
 
 
   const presenceStatus = getPresenceStatus();
 
+  // Use nickname for direct conversations if available
+  const displayName = useMemo(() => {
+    if (!item.isGroup && item.myNickname) {
+      return item.myNickname;
+    }
+    return item.name;
+  }, [item.isGroup, item.myNickname, item.name]);
 
+  // Memoize computed values to avoid unnecessary re-renders
+  const avatarSource = useMemo(() => {
+    const normalizedAvatar = normalizeAvatarUrl(item.avatar || undefined);
+    if (normalizedAvatar) {
+      return { uri: normalizedAvatar };
+    }
+    return null;
+  }, [item.avatar]);
 
-  const formatLastMessage = () => {
-
+  const formattedLastMessage = useMemo(() => {
     const type = item.lastMessage?.type || 'text';
-
     const content = item.lastMessage?.content;
-
     const senderId = (item.lastMessage as any)?.senderId;
-
-    // Determine fromMe by comparing senderId with current user ID
-
     const fromMe = senderId ? senderId === authUser?.id : false;
 
-    const isGroup = item.isGroup;
-
-
-
     // Determine content based on type
-
     let messageContent = '';
-
     switch (type) {
-
       case 'image':
-
         messageContent = 'đã gửi ảnh';
-
         break;
-
       case 'video':
-
         messageContent = 'đã gửi video';
-
         break;
-
       case 'file':
-
         messageContent = 'đã gửi tệp';
-
         break;
-
       case 'voice':
-
         messageContent = 'đã gửi tin nhắn thoại';
-
         break;
-
       default:
-
         messageContent = content || '';
-
     }
-
-
 
     // Determine prefix based on sender and chat type
-
     let prefix = '';
-
     if (fromMe) {
-
       prefix = 'Bạn: ';
-
     } else {
-
-      // For both group and direct chats, show sender name
-
       const senderName = (item.lastMessage as any)?.senderName || '';
-
       prefix = senderName ? `${senderName}: ` : '';
-
     }
-
-
 
     return prefix + messageContent;
-
-  };
-
-
-
-  const getAvatarSource = () => {
-
-    if (item.avatar) {
-
-      return { uri: item.avatar };
-
-    }
-
-    return null;
-
-  };
-
-
-
-  const avatarSource = getAvatarSource();
+  }, [item.lastMessage, authUser?.id]);
 
 
 
@@ -193,7 +148,7 @@ export function ChatListItem({
 
         <View style={styles.chatHeader}>
 
-          <Text style={[styles.chatName, { color: theme.colors.text }]}>{item.name}</Text>
+          <Text style={[styles.chatName, { color: theme.colors.text }]}>{displayName}</Text>
 
           <View style={styles.timeAndBadgeColumn}>
 
@@ -227,7 +182,7 @@ export function ChatListItem({
 
         <Text style={[styles.lastMsg, { color: '#8e8e93' }]} numberOfLines={1}>
 
-          {formatLastMessage()}
+          {formattedLastMessage}
 
         </Text>
 

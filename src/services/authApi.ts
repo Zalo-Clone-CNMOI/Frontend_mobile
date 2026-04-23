@@ -180,6 +180,12 @@ export const logout = async (deviceId?: string) => {
   return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/logout`, payload);
 };
 
+// Delete all device tokens for current user
+// Used during logout to stop push notifications on all devices
+export const deleteAllDeviceTokens = async () => {
+  return await api.delete(`${NETWORK_CONFIG.AUTH_BASE_URL}/device-tokens`);
+};
+
 // Reset password with Firebase token
 export const resetPassword = async (payload: any) => {
   return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/reset-password`, payload);
@@ -221,6 +227,7 @@ export default {
   checkPhoneExists,
   login,
   logout,
+  deleteAllDeviceTokens,
   qrConfirm,
   qrGenerate,
   qrReject,

@@ -204,3 +204,47 @@ export type ApiConversationDTO = {
     last_read_at?: string | null;
   };
 };
+
+export type GroupInviteStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'expired';
+
+export type GroupInviteDTO = {
+  id: string;
+  conversationId: string;
+  inviterUserId: string;
+  invitedUserId: string;
+  status: GroupInviteStatus;
+  message: string | null;
+  expiresAt: string;
+  createdAt: string;
+  respondedAt: string | null;
+  conversation?: {
+    id: string;
+    name: string | null;
+    avatarUrl: string | null;
+    memberCount: number;
+  };
+  inviter?: {
+    id: string;
+    fullName: string;
+    avatarUrl: string | null;
+  };
+};
+
+export type SendGroupInvitesDTO = {
+  userIds: string[];
+  message?: string;
+  expiresInHours?: number;
+};
+
+export type SendGroupInvitesResponseDTO = {
+  acceptedCount: number;
+  skippedCount: number;
+  inviteIds: string[];
+};
+
+export type GetGroupInvitesQueryDTO = {
+  page?: number;
+  limit?: number;
+  status?: GroupInviteStatus;
+  sort?: string;
+};
