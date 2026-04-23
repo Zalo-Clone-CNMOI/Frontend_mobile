@@ -105,7 +105,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       const incomingId = String(message.id || '').trim();
       const incomingServerId = String(message.serverMessageId || '').trim();
 
-      // Check for tempId → serverId merge
+      // Check for tempId → serverId merge (optimistic UI)
       const tempIdMatch = Array.from(state.tempIdToServerId.entries())
         .find(([tempId, srvId]) => srvId === incomingServerId || tempId === incomingId);
 
@@ -131,28 +131,16 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
         }
       }
 
+      // Simplified deduplication: Trust server message_id (server echoes client's message_id)
       const normalizedMessageId = String(message.id || '').trim();
       const dedupeIndexById = normalizedMessageId
         ? existing.findIndex((m) => String(m.id || '').trim() === normalizedMessageId)
         : -1;
 
-      const dedupeIndexBySignature =
-        dedupeIndexById >= 0
-          ? dedupeIndexById
-          : existing.findIndex(
-              (m) =>
-                m.timestamp === message.timestamp &&
-                (m.senderId || '') === (message.senderId || '') &&
-                (m.text || '') === (message.text || ''),
-            );
-
-      const index = dedupeIndexBySignature;
-
-      // Preserve revoked state from existing message
-
-      if (index >= 0) {
+      // If message already exists by ID, merge with it
+      if (dedupeIndexById >= 0) {
         const updated = [...existing];
-        const existingMsg = updated[index];
+        const existingMsg = updated[dedupeIndexById];
         const merged = { ...existingMsg, ...message };
 
         // Preserve revoked state from existing message
@@ -204,7 +192,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
 
         // Preserve reactions from existing message
 
-        updated[index] = merged;
+        updated[dedupeIndexById] = merged;
         return {
           messagesByChatId: {
             ...state.messagesByChatId,
