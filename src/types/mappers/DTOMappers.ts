@@ -199,6 +199,7 @@ export const mapApiConversationToConversationV2 = (
     : dto.my_settings?.last_read_at
       ? new Date(dto.my_settings.last_read_at).getTime()
       : undefined;
+  const myNickname = dto.mySettings?.nickname || dto.my_settings?.nickname || undefined;
 
   return {
     conversationId: toStringId(dto.conversationId, dto.conversation_id, dto.id),
@@ -227,6 +228,7 @@ export const mapApiConversationToConversationV2 = (
     isOwner,
     myRole,
     myLastReadAt,
+    myNickname,
     createdAt: toOptionalTimestamp(dto.createdAt, dto.created_at),
   };
 };

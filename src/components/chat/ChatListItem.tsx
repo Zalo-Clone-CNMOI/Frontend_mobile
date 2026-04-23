@@ -68,6 +68,14 @@ export function ChatListItem({
 
   const presenceStatus = getPresenceStatus();
 
+  // Use nickname for direct conversations if available
+  const displayName = useMemo(() => {
+    if (!item.isGroup && item.myNickname) {
+      return item.myNickname;
+    }
+    return item.name;
+  }, [item.isGroup, item.myNickname, item.name]);
+
   // Memoize computed values to avoid unnecessary re-renders
   const avatarSource = useMemo(() => {
     const normalizedAvatar = normalizeAvatarUrl(item.avatar || undefined);
@@ -140,7 +148,7 @@ export function ChatListItem({
 
         <View style={styles.chatHeader}>
 
-          <Text style={[styles.chatName, { color: theme.colors.text }]}>{item.name}</Text>
+          <Text style={[styles.chatName, { color: theme.colors.text }]}>{displayName}</Text>
 
           <View style={styles.timeAndBadgeColumn}>
 

@@ -24,7 +24,7 @@ import { useTheme } from '@/src/theme/themeContext';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { ChevronDown, ChevronUp, Circle, List, Phone, Search, X } from 'lucide-react-native';
+import { Bell, ChevronDown, ChevronUp, Circle, List, Phone, Search, X } from 'lucide-react-native';
 import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
 import { PresenceText } from '@/src/components/common/PresenceIndicator';
 import React, { useState, useEffect } from 'react';
@@ -33,12 +33,15 @@ import { leaveConversation, addMember, markAsRead, getConversationDetail, disban
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
+import { useInAppNotification } from '@/src/notifications/useInAppNotification';
+import { NotificationBanner } from '@/src/components/notifications/NotificationBanner';
 
 export default function ChatDetailScreen() {
   const theme = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
   const { user: authUser } = useAuth();
+  const { notification, showInfo, showSuccess, showError, hideNotification } = useInAppNotification();
   const getMembers = useConversationDetailStore((state) => state.getMembers);
   const fetchConversationDetail = useConversationDetailStore((state) => state.fetchConversationDetail);
   const setMessageReactions = useMessagesStore((state) => state.setMessageReactions);
@@ -598,6 +601,15 @@ export default function ChatDetailScreen() {
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <NotificationBanner
+        visible={notification.visible}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        duration={3000}
+        onClose={hideNotification}
+        onPress={notification.onPress}
+      />
       <Stack.Screen
         options={{
           headerShown: true,
@@ -652,8 +664,8 @@ export default function ChatDetailScreen() {
             <View style={styles.headerRightContainer}>
               {!isSearchMode && (
                 <>
-                  <TouchableOpacity 
-                    style={styles.callButton} 
+                  <TouchableOpacity
+                    style={styles.callButton}
                     onPress={handleVoiceCall}
                   >
                     <Phone size={20} color={theme.colors.iconHeader} />
@@ -830,6 +842,14 @@ export default function ChatDetailScreen() {
           onLeaveGroup={handleLeaveGroup}
           onLeaveSuccess={handleLeaveSuccess}
           onViewMembers={handleViewMembers}
+          onChangeNickname={() => {
+            // Nickname change is handled internally in ChatOptions
+            // This prop is kept for future extensibility
+          }}
+          onNicknameChanged={() => {
+            // Refresh conversation list to show updated nickname
+            router.replace('/(tabs)/home' as any);
+          }}
         />
         
         <MessageActionMenu

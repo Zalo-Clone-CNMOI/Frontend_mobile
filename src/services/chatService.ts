@@ -116,7 +116,7 @@ function toLegacyChatMessage(apiMessage: any): ChatMessage {
     conversationId: apiMessage?.conversationId,
     fromMe: isCurrentActor(senderId),
     senderId: senderId,
-    type: messageType,
+    type: apiMessage?.messageType === 'system' ? 'system' : messageType,
     text: body,
     timestamp: toTimestampMs(createdAtRaw),
     fileInfo: firstAttachment
@@ -137,6 +137,10 @@ function toLegacyChatMessage(apiMessage: any): ChatMessage {
     editedAt: editedAtRaw ? toTimestampMs(editedAtRaw) : undefined,
     isRevoked: Boolean(apiMessage?.isDeleted),
     attachments: Array.isArray(apiMessage?.attachments) ? apiMessage.attachments : undefined,
+    // System message fields
+    messageType: apiMessage?.messageType,
+    systemEventType: apiMessage?.systemEventType,
+    metadata: apiMessage?.metadata,
   };
 }
 

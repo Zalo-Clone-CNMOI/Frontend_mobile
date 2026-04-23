@@ -1,4 +1,5 @@
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
+import { SystemMessageBanner } from '@/src/components/chat/SystemMessageBanner';
 import { useAuth } from '@/src/contexts/AuthContext';
 import * as mediaService from '@/src/services/mediaService';
 import { useTheme } from '@/src/theme/themeContext';
@@ -322,6 +323,13 @@ export const MessageBubble = React.memo(
     if (isMe) return myBubbleBg;
     return theirBubbleBg;
   };
+
+  // Check if this is a system message
+  const isSystemMessage = item.messageType === 'system' || item.senderId === 'SYSTEM' || item.type === 'system';
+
+  if (isSystemMessage) {
+    return <SystemMessageBanner message={item} />;
+  }
 
   return (
     <View

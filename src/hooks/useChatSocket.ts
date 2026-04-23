@@ -122,6 +122,13 @@ export const useChatSocket = () => {
       removeReactionFromStore(payload);
     });
 
+    // System message
+    socket.on('chat.system_message', (payload: any) => {
+      // System messages are handled like regular messages and will be added to the store
+      // They will be rendered differently by MessageBubble component
+      addMessage(payload);
+    });
+
     // Message pinned
     socket.on('chat:message:pinned', (payload: any) => {
       const conversationId = payload.conversation_id || payload.conversationId;

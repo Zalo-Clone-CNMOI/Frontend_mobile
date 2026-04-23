@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import { initializeLanguage } from '../src/i18n';
 import '../src/i18n/config';
 import { useNotifications } from '../src/notifications/useNotifications';
+import { useNotificationListener } from '../src/hooks/useNotificationListener';
 import { ThemeProvider as AppThemeProvider } from '../src/theme/themeContext';
 import { ThemeManagerProvider, useThemeManager } from '../src/theme/themeManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,6 +25,7 @@ function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
 
   useNotifications();
+  useNotificationListener();
 
   // Check for logout in progress
   useEffect(() => {

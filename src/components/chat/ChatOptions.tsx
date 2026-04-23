@@ -47,6 +47,8 @@ interface ChatOptionsProps {
   onLeaveGroup?: () => void;
   onLeaveSuccess?: () => void;
   onViewMembers?: () => void;
+  onChangeNickname?: () => void;
+  onNicknameChanged?: () => void;
 }
 
 interface MediaItem {
@@ -82,6 +84,8 @@ export function ChatOptions({
   onLeaveGroup,
   onLeaveSuccess,
   onViewMembers,
+  onChangeNickname,
+  onNicknameChanged,
 }: ChatOptionsProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -133,10 +137,8 @@ export function ChatOptions({
     if (visible) {
       // Fetch media when modal opens
       fetchConversationMedia();
-      // Fetch conversation details to get my role
-      if (isGroup) {
-        fetchConversationDetails();
-      }
+      // Fetch conversation details to get my role and nickname
+      fetchConversationDetails();
     }
   }, [visible, chatId, isGroup]);
 
@@ -321,6 +323,9 @@ export function ChatOptions({
 
       // Refresh conversation details to update the UI
       await fetchConversationDetails();
+
+      // Notify parent to refresh conversation list
+      onNicknameChanged?.();
     } catch (error: any) {
       Alert.alert(t('common.error'), error.message || t('chat_options.nickname_update_failed'));
     } finally {
@@ -602,12 +607,20 @@ export function ChatOptions({
                 </TouchableOpacity>
                 
                 {!isGroup && (
-                  <TouchableOpacity style={styles.quickActionItem} onPress={onViewProfile}>
-                    <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                      <User size={24} color={theme.colors.primary} />
-                    </View>
-                    <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.profile')}</Text>
-                  </TouchableOpacity>
+                  <>
+                    <TouchableOpacity style={styles.quickActionItem} onPress={onViewProfile}>
+                      <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                        <User size={24} color={theme.colors.primary} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.profile')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.quickActionItem} onPress={handleEditNickname}>
+                      <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                        <Edit3 size={24} color={theme.colors.primary} />
+                      </View>
+                      <Text style={[styles.quickActionLabel, { color: theme.colors.text }]}>{t('chat_options.change_nickname')}</Text>
+                    </TouchableOpacity>
+                  </>
                 )}
                 
                 <TouchableOpacity style={styles.quickActionItem} onPress={() => {
