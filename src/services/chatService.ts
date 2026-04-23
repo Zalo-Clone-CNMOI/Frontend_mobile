@@ -91,7 +91,7 @@ const toTimestampMs = (value: unknown): number => {
 // Convert backend MessageResponseDto to frontend ChatMessage type
 // Maps backend fields (messageId, conversationId, senderId, body, createdAt, etc.) to frontend format
 // Handles attachment mapping, reply-to messages, and message type detection
-function toLegacyChatMessage(apiMessage: any): ChatMessage {
+export function toLegacyChatMessage(apiMessage: any): ChatMessage {
   const firstAttachment = Array.isArray(apiMessage?.attachments)
     ? apiMessage.attachments[0]
     : undefined;
@@ -256,6 +256,7 @@ const pendingAcks = new Map<
 // Global socket instance
 let socketInstance: Socket | null = null;
 let listenersRegistered = false;
+let registeredSocketId: string | null = null;
 
 // NOTE: Heartbeat is now handled by usePresenceHeartbeat hook to avoid duplicate timers
 
@@ -340,10 +341,18 @@ function generateUUID(): string {
 async function ensureSocket() {
   await hydrateCurrentActorIds();
   if (!socketInstance) {
-        socketInstance = await connectSocket();
-  } else {
+    socketInstance = await connectSocket();
   }
-  if (!listenersRegistered) {
+  
+  const currentSocketId = (socketInstance as any)?.id || 'default';
+  
+  // Reset listenersRegistered flag if socket has changed (reconnected)
+  if (registeredSocketId !== currentSocketId) {
+    listenersRegistered = false;
+    registeredSocketId = currentSocketId;
+  }
+  
+  if (!listenersRegistered && socketInstance) {
     registerSocketListeners();
   }
   return socketInstance;
@@ -582,13 +591,15 @@ let _handlers: any = {};
 
 // Register socket event listeners for chat events
 // Sets up handlers for connect, chat:ack, chat:message, chat:edit, chat:delete, chat:react, presence:heartbeat
+// Returns cleanup function to remove listeners
 function registerSocketListeners() {
   const s = getSocket() || socketInstance;
   if (!s) {
-    return;
+    return () => {};
   }
 
-  s.on("connect", () => {
+  // Define handler functions so they can be removed later
+  const handleConnect = () => {
     for (const conv of Array.from(openConversations)) {
       try {
         const joinPayload = buildChatJoinPayload(conv);
@@ -597,9 +608,9 @@ function registerSocketListeners() {
       }
     }
     // NOTE: Heartbeat is now handled by usePresenceHeartbeat hook to avoid duplicate timers
-  });
+  };
 
-  s.on("chat:ack", (payload: any) => {
+  const handleAck = (payload: any) => {
     const clientId = payload?.message_id;
     if (clientId) {
       const p = pendingAcks.get(clientId);
@@ -609,17 +620,31 @@ function registerSocketListeners() {
         pendingAcks.delete(clientId);
       }
     }
-  });
+  };
 
-  s.on("chat:message", async (payload: any) => {
+  const handleMessage = async (payload: any) => {
     const conversationId = payload?.conversation_id || payload?.conversationId;
     const messageId = payload?.id || payload?.message_id;
     const createdAt =
       payload?.created_at ?? payload?.createdAt ?? payload?.ts ?? payload?.timestamp;
 
     const messageKey = String(messageId || "");
+    
+    // Deduplication: Check recent cache first
     if (messageKey && recentMessageIds.includes(messageKey)) {
+      console.log('[chatService] Message already in recent cache, skipping:', messageId);
       return;
+    }
+
+    // Additional deduplication: Check store directly for existing message
+    if (messageKey && conversationId) {
+      const { useMessagesStore } = await import('../store/useMessagesStore');
+      const existingMessages = useMessagesStore.getState().messagesByChatId[conversationId] || [];
+      const messageExists = existingMessages.some(m => m.id === messageKey || m.serverMessageId === messageKey);
+      if (messageExists) {
+        console.log('[chatService] Message already exists in store, skipping:', messageId);
+        return;
+      }
     }
 
     if (messageKey) {
@@ -660,9 +685,9 @@ function registerSocketListeners() {
       const enrichedMessage = await enrichReplyToDetails(uiMessage);
       _handlers.onMessage?.(enrichedMessage);
     }
-  });
+  };
 
-  s.on("chat:message:updated", async (payload: any) => {
+  const handleMessageUpdated = async (payload: any) => {
     const uiMessage = toLegacyChatMessage({
       id: payload?.message_id,
       conversationId: payload?.conversation_id,
@@ -674,17 +699,17 @@ function registerSocketListeners() {
     });
     const enrichedMessage = await enrichReplyToDetails(uiMessage);
     _handlers.onMessageUpdated?.(enrichedMessage);
-  });
+  };
 
-  s.on("chat:message:deleted", (payload: any) => {
+  const handleMessageDeleted = (payload: any) => {
     _handlers.onMessageDeleted?.({
       messageId: payload?.message_id,
       conversationId: payload?.conversation_id,
       deletedAt: payload?.deleted_at,
     });
-  });
+  };
 
-  s.on("chat:reaction:added", (payload: any) => {
+  const handleReactionAdded = (payload: any) => {
     _handlers.onReactionAdded?.({
       messageId: payload?.message_id,
       conversationId: payload?.conversation_id,
@@ -692,17 +717,41 @@ function registerSocketListeners() {
       reactionType: payload?.reaction_type,
       createdAt: payload?.created_at,
     });
-  });
+  };
 
-  s.on("chat:reaction:removed", (payload: any) => {
+  const handleReactionRemoved = (payload: any) => {
     _handlers.onReactionRemoved?.({
       messageId: payload?.message_id,
       conversationId: payload?.conversation_id,
       userId: payload?.user_id,
+      reactionType: payload?.reaction_type,
+      createdAt: payload?.created_at,
     });
-  });
+  };
+
+  // Register all listeners
+  // NOTE: chat:message is now handled by useChatSocket.ts to avoid duplicate handlers
+  s.on("connect", handleConnect);
+  s.on("chat:ack", handleAck);
+  // s.on("chat:message", handleMessage); // MOVED to useChatSocket.ts
+  s.on("chat:message:updated", handleMessageUpdated);
+  s.on("chat:message:deleted", handleMessageDeleted);
+  s.on("chat:reaction:added", handleReactionAdded);
+  s.on("chat:reaction:removed", handleReactionRemoved);
 
   listenersRegistered = true;
+
+  // Return cleanup function
+  return () => {
+    s.off("connect", handleConnect);
+    s.off("chat:ack", handleAck);
+    // s.off("chat:message", handleMessage); // MOVED to useChatSocket.ts
+    s.off("chat:message:updated", handleMessageUpdated);
+    s.off("chat:message:deleted", handleMessageDeleted);
+    s.off("chat:reaction:added", handleReactionAdded);
+    s.off("chat:reaction:removed", handleReactionRemoved);
+    listenersRegistered = false;
+  };
 }
 
 // Leave a conversation via API
