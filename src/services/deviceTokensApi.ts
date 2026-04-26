@@ -60,7 +60,6 @@ export const getDeviceTokens = async () => {
     const response = await api.get(`${NETWORK_CONFIG.API_BASE_URL}/device-tokens`);
     return response.data?.data || [];
   } catch (e: any) {
-    console.warn('[deviceTokensApi] Failed to get device tokens:', e);
     throw e;
   }
 };

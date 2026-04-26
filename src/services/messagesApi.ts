@@ -209,7 +209,6 @@ export const forwardMessage = async (payload: {
   if (!response.ok) {
     const errorMessage =
       rawData?.message || rawData?.error || `Request failed (${response.status})`;
-    console.error('[messagesApi] forwardMessage error:', errorMessage, rawData);
     throw new Error(errorMessage);
   }
 

@@ -1,7 +1,9 @@
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
+import type { PinnedMessageItem } from '@/src/types/mappers/DTOMappers';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import { MessageCircle } from 'lucide-react-native';
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,36 +11,42 @@ import {
   View,
 } from 'react-native';
 
-interface PinnedMessageItem {
-  message: ChatMessage;
-  pinnedBy: string;
-  pinnedAt: number;
-}
-
 interface PinnedItemProps {
   item: PinnedMessageItem;
   onPress: (message: ChatMessage) => void;
   isHighlighted?: boolean;
+  conversationId?: string;
 }
 
 export const PinnedItem: React.FC<PinnedItemProps> = ({
   item,
   onPress,
   isHighlighted = false,
+  conversationId,
 }) => {
   const theme = useTheme();
+  const getMembers = useConversationDetailStore((state) => state.getMembers);
 
   const message = item.message;
-  const messageText = (message as any).body || message.text || '';
+  const messageText = message.text || '';
   const hasAttachments = message.attachments && message.attachments.length > 0;
-  
+
   let previewText = messageText;
   if (!previewText) {
     if (hasAttachments) previewText = '📎 Tệp';
     else previewText = 'Tin nhắn';
   }
-  
-  const senderName = message.senderName || 'Người dùng';
+
+  const senderName = useMemo(() => {
+    const senderId = message.senderId;
+    if (!senderId || !conversationId) {
+      return message.senderName || 'Người dùng';
+    }
+    // Get sender name from conversation members
+    const members = getMembers(conversationId);
+    const member = members?.find((m) => m.userId === senderId);
+    return member?.nickname || member?.fullName || message.senderName || 'Người dùng';
+  }, [message, conversationId, getMembers]);
 
   return (
     <TouchableOpacity

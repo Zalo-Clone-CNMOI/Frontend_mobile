@@ -39,6 +39,17 @@ export function GroupInfoModal({
   const [loading, setLoading] = useState(false);
   const [localRole, setLocalRole] = useState<'owner' | 'admin' | 'member'>(myRole);
 
+  // Reset state when modal opens
+  useEffect(() => {
+    if (visible) {
+      // Reset inputs to current values from props
+      setName(currentName);
+      setAvatarUri(currentAvatar);
+      setAvatarFile(null);
+      setLoading(false);
+    }
+  }, [visible, currentName, currentAvatar]);
+
   // Fetch myRole from API when modal opens
   useEffect(() => {
     if (visible && conversationId) {

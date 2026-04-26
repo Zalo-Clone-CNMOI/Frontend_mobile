@@ -30,6 +30,7 @@ interface GroupInviteState {
   
   // Metadata
   lastFetchedAt: number | null;
+  lastSocketUpdateAt: number | null; // ✅ FIX 3: Track socket update time
   unreadCount: number;
   isLoading: boolean;
   isSending: boolean; // For send invites loading state
@@ -93,6 +94,7 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
     expired: [],
   },
   lastFetchedAt: null,
+  lastSocketUpdateAt: null, // ✅ FIX 3: Track socket update time
   unreadCount: 0,
   isLoading: false,
   isSending: false,
@@ -145,12 +147,17 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
     const { force } = params || {};
     const state = get();
     
+    // ✅ FIX 3: Force refresh nếu có socket update trong 1 giây gần đây
+    const hasRecentSocketUpdate = state.lastSocketUpdateAt && 
+      Date.now() - state.lastSocketUpdateAt < 1000;
+    const shouldForce = force || hasRecentSocketUpdate;
+    
     // Check cache validity unless force refresh
-    if (!force && state.lastFetchedAt && Date.now() - state.lastFetchedAt < CACHE_TTL) {
+    if (!shouldForce && state.lastFetchedAt && Date.now() - state.lastFetchedAt < CACHE_TTL) {
       return;
     }
 
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, lastSocketUpdateAt: null }); // Reset socket update flag
     try {
       const response = await getPendingInvites(params);
       const invites = response.data?.items || [];
@@ -367,29 +374,40 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
 
   // Socket Event Handlers - with idempotency
   handleInviteSent: (invite: Invite, eventId?: string) => {
-    // Check idempotency
+    // Check idempotency by eventId
     if (eventId && get().isEventProcessed(eventId)) {
       return;
     }
-    if (eventId) {
-      get().markEventProcessed(eventId);
-    }
 
     set((state) => {
-      // This event is for the recipient (user who received the invite)
-      // Update receivedInvites only
-      if (state.receivedInvites.pending.some((i) => i.id === invite.id)) {
-        return {};
+      // ✅ FIX 4: Dedupe bằng invite.id - check trong tất cả categories
+      const allReceived = [
+        ...state.receivedInvites.pending,
+        ...state.receivedInvites.accepted,
+        ...state.receivedInvites.rejected,
+        ...state.receivedInvites.cancelled,
+        ...state.receivedInvites.expired,
+      ];
+      
+      if (allReceived.some((i) => i.id === invite.id)) {
+        console.log('[GroupInviteStore] Invite already exists:', invite.id);
+        return {}; // Skip nếu đã tồn tại
       }
 
+      // ✅ FIX 3: Track socket update time để force refresh sau này
       return {
         receivedInvites: {
           ...state.receivedInvites,
           pending: [invite, ...state.receivedInvites.pending],
         },
         unreadCount: state.unreadCount + 1,
+        lastSocketUpdateAt: Date.now(),
       };
     });
+    
+    if (eventId) {
+      get().markEventProcessed(eventId);
+    }
   },
 
   handleInviteAccepted: (inviteId: string, respondedAt: string, eventId?: string) => {
@@ -611,6 +629,7 @@ export const useGroupInviteStore = create<GroupInviteState>((set, get) => ({
         expired: [],
       },
       lastFetchedAt: null,
+      lastSocketUpdateAt: null, // ✅ Reset socket update time
       unreadCount: 0,
       isLoading: false,
       isSending: false,

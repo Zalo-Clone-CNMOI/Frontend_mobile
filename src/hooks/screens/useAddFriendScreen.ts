@@ -144,7 +144,6 @@ export function useAddFriendScreenLogic() {
           prev ? { ...prev, status: 'outgoing' } : prev,
         );
       } catch (err: any) {
-        console.error('[sendRequest] Error:', err);
         const code = err?.code;
         if (code === 'ALREADY_EXISTS') {
           // Already exists - update status to outgoing
@@ -172,7 +171,6 @@ export function useAddFriendScreenLogic() {
           prev ? { ...prev, status: 'none' } : prev,
         );
       } catch (err: any) {
-        console.error('[cancelRequest] Error:', err);
         Alert.alert('Lỗi', err?.message || 'Hủy lời mời thất bại');
       } finally {
         setIsSending(false);
@@ -190,7 +188,6 @@ export function useAddFriendScreenLogic() {
           prev ? { ...prev, status: 'friend' } : prev,
         );
       } catch (err: any) {
-        console.error('[acceptRequest] Error:', err);
         Alert.alert('Lỗi', err?.message || 'Chấp nhận lời mời thất bại');
       } finally {
         setIsSending(false);
@@ -208,7 +205,6 @@ export function useAddFriendScreenLogic() {
           prev ? { ...prev, status: 'none' } : prev,
         );
       } catch (err: any) {
-        console.error('[rejectRequest] Error:', err);
         Alert.alert('Lỗi', err?.message || 'Từ chối lời mời thất bại');
       } finally {
         setIsSending(false);

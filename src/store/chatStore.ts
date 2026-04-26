@@ -60,6 +60,7 @@ interface ChatState {
   removeReaction: (payload: SocketChatReactionRemovedEvent) => void;
   updateTypingUsers: (payload: SocketChatTypingUpdateEvent) => void;
   updatePresence: (userId: string, status: 'online' | 'offline', lastSeenAt: number, expiresAt: number) => void;
+  resetUnreadCount: (conversationId: string) => void;
   reset: () => void;
 }
 
@@ -209,6 +210,13 @@ export const useChatStore = create<ChatState>((set) => ({
       },
     },
   })),
+
+  resetUnreadCount: (conversationId) => set((state) => {
+    // This resets unread count for a conversation when someone else reads it
+    // The actual unread count is managed by the conversation list store
+    // This method is called from socket events to trigger UI updates
+    return state; // No state change needed here, conversation store handles it
+  }),
 
   reset: () => ({
     messages: {},

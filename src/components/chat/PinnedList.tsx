@@ -1,5 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
+import type { PinnedMessageItem } from '@/src/types/mappers/DTOMappers';
 import { Pin, ChevronUp } from 'lucide-react-native';
 import React from 'react';
 import {
@@ -11,17 +12,12 @@ import {
 } from 'react-native';
 import { PinnedItem } from './PinnedItem';
 
-interface PinnedMessageItem {
-  message: ChatMessage;
-  pinnedBy: string;
-  pinnedAt: number;
-}
-
 interface PinnedListProps {
   pinnedMessages: PinnedMessageItem[];
   onPressMessage: (message: ChatMessage) => void;
   onCollapse: () => void;
   highlightedMessageId?: string | null;
+  conversationId?: string;
 }
 
 export const PinnedList: React.FC<PinnedListProps> = ({
@@ -29,6 +25,7 @@ export const PinnedList: React.FC<PinnedListProps> = ({
   onPressMessage,
   onCollapse,
   highlightedMessageId,
+  conversationId,
 }) => {
   const theme = useTheme();
 
@@ -60,11 +57,12 @@ export const PinnedList: React.FC<PinnedListProps> = ({
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        style={styles.scrollView}
       >
         {pinnedMessages.map((item, index) => {
-          const messageId = (item.message as any).messageId || item.message.id;
+          const messageId = item.message.id;
           const isHighlighted = messageId === highlightedMessageId;
-          
+
           return (
             <PinnedItem
               key={messageId || `pinned-${index}`}
@@ -74,6 +72,7 @@ export const PinnedList: React.FC<PinnedListProps> = ({
                 onCollapse();
               }}
               isHighlighted={isHighlighted}
+              conversationId={conversationId}
             />
           );
         })}
@@ -122,6 +121,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  scrollView: {
+    maxHeight: 300,
   },
   scrollContent: {
     paddingVertical: 8,

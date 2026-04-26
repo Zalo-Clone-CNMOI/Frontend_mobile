@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { fetchConversations } from '../services/chatService';
-import { ConversationV2 } from '../types/chat';
+import type { ConversationV2 } from '../types/chat';
+// TODO: Migrate to new Conversation type from '../types/interface/chat-interface' when ready
 
 interface ChatsState {
   chats: ConversationV2[];

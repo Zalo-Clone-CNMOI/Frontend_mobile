@@ -57,7 +57,11 @@ export const subscribeToGroupEvents = () => {
   // ==================== Conversation Events ====================
 
   // conversation:created
-  socket.on(WsEvents.ConversationCreated, (payload: ConversationCreatedPayload) => {
+  socket.on(WsEvents.ConversationCreated, (payload: ConversationCreatedPayload, eventId?: string) => {
+    // Idempotency check
+    const id = eventId || `conv-created:${payload.conversation_id}`;
+    if (isEventProcessed(id)) return;
+    
     // Check if current user is in members
     const isMember = payload.members.some((m) => m.user_id === currentUserId);
     if (isMember) {
@@ -99,10 +103,15 @@ export const subscribeToGroupEvents = () => {
         cachedAt: Date.now(),
       };
     }
+    markEventProcessed(id);
   });
 
   // conversation:updated
-  socket.on(WsEvents.ConversationUpdated, (payload: ConversationUpdatedPayload) => {
+  socket.on(WsEvents.ConversationUpdated, (payload: ConversationUpdatedPayload, eventId?: string) => {
+    // Idempotency check
+    const id = eventId || `conv-updated:${payload.conversation_id}:${payload.updated_at}`;
+    if (isEventProcessed(id)) return;
+    
     // Update in conversation list
     chatsStore.updateChat(payload.conversation_id, {
       name: payload.name || '',
@@ -115,10 +124,15 @@ export const subscribeToGroupEvents = () => {
       avatarUrl: payload.avatar_url,
       updatedAt: new Date(payload.updated_at).toISOString(),
     });
+    markEventProcessed(id);
   });
 
   // conversation:disbanded
-  socket.on(WsEvents.ConversationDisbanded, (payload: ConversationDisbandedPayload) => {
+  socket.on(WsEvents.ConversationDisbanded, (payload: ConversationDisbandedPayload, eventId?: string) => {
+    // Idempotency check
+    const id = eventId || `conv-disbanded:${payload.conversation_id}`;
+    if (isEventProcessed(id)) return;
+    
     // Remove from conversation list
     chatsStore.deleteChat(payload.conversation_id);
 
@@ -127,10 +141,15 @@ export const subscribeToGroupEvents = () => {
 
     // TODO: Show toast/notification to user
     // TODO: If user is in chat screen, navigate back to conversation list
+    markEventProcessed(id);
   });
 
   // conversation:member:added
-  socket.on(WsEvents.ConversationMemberAdded, (payload: ConversationMemberAddedPayload) => {
+  socket.on(WsEvents.ConversationMemberAdded, (payload: ConversationMemberAddedPayload, eventId?: string) => {
+    // Idempotency check
+    const id = eventId || `member-added:${payload.conversation_id}:${payload.added_at}`;
+    if (isEventProcessed(id)) return;
+    
     const addedUserIds = payload.members.map((m) => m.user_id);
     
     if (addedUserIds.includes(currentUserId || '')) {
@@ -173,10 +192,15 @@ export const subscribeToGroupEvents = () => {
         });
       }
     }
+    markEventProcessed(id);
   });
 
   // conversation:member:removed
-  socket.on(WsEvents.ConversationMemberRemoved, (payload: ConversationMemberRemovedPayload) => {
+  socket.on(WsEvents.ConversationMemberRemoved, (payload: ConversationMemberRemovedPayload, eventId?: string) => {
+    // Idempotency check
+    const id = eventId || `member-removed:${payload.conversation_id}:${payload.removed_user_id}`;
+    if (isEventProcessed(id)) return;
+    
     if (payload.removed_user_id === currentUserId) {
       // Current user was removed from conversation
       // Remove from conversation list
@@ -199,10 +223,15 @@ export const subscribeToGroupEvents = () => {
       // Remove member from conversation detail cache
       conversationDetailStore.removeMember(payload.conversation_id, payload.removed_user_id);
     }
+    markEventProcessed(id);
   });
 
   // conversation:member:role:updated
-  socket.on(WsEvents.ConversationMemberRoleUpdated, (payload: ConversationMemberRoleUpdatedPayload) => {
+  socket.on(WsEvents.ConversationMemberRoleUpdated, (payload: ConversationMemberRoleUpdatedPayload, eventId?: string) => {
+    // Idempotency check
+    const id = eventId || `role-updated:${payload.conversation_id}:${payload.user_id}:${payload.updated_at}`;
+    if (isEventProcessed(id)) return;
+    
     if (payload.user_id === currentUserId) {
       // Current user's role was updated
       // Update mySettings in cache
@@ -218,6 +247,7 @@ export const subscribeToGroupEvents = () => {
         role: payload.current_role,
       });
     }
+    markEventProcessed(id);
   });
 
   // ==================== Group Invite Events ====================
@@ -262,6 +292,8 @@ export const subscribeToGroupEvents = () => {
       payload.invite_id // Using invite_id as eventId for idempotency
     );
 
+    // NOTE: UI member list update sẽ được xử lý bởi `conversation:member:added` event
+    // Backend emit cả 2 events khi invite accepted
     // TODO: If inviter, show notification that invite was accepted
   });
 

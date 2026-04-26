@@ -1,16 +1,11 @@
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
+import type { PinnedMessageItem } from '@/src/types/mappers/DTOMappers';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import { PinnedPreviewBar } from './PinnedPreviewBar';
 import { ReminderCard } from './ReminderCard';
 import { PinnedList } from './PinnedList';
-
-interface PinnedMessageItem {
-  message: ChatMessage;
-  pinnedBy: string;
-  pinnedAt: number;
-}
 
 interface Reminder {
   id: string;
@@ -24,6 +19,7 @@ interface PinnedMessagesSectionProps {
   reminders?: Reminder[];
   onPressMessage: (message: ChatMessage) => void;
   onUnpinMessage?: (message: ChatMessage) => void;
+  conversationId?: string;
 }
 
 export const PinnedMessagesSection: React.FC<PinnedMessagesSectionProps> = ({
@@ -31,6 +27,7 @@ export const PinnedMessagesSection: React.FC<PinnedMessagesSectionProps> = ({
   reminders = [],
   onPressMessage,
   onUnpinMessage,
+  conversationId,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
@@ -49,8 +46,7 @@ export const PinnedMessagesSection: React.FC<PinnedMessagesSectionProps> = ({
   };
 
   const handlePressMessage = (message: ChatMessage) => {
-    const messageId = (message as any).messageId || message.id;
-    setHighlightedMessageId(messageId);
+    setHighlightedMessageId(message.id);
     onPressMessage(message);
   };
 
@@ -63,6 +59,7 @@ export const PinnedMessagesSection: React.FC<PinnedMessagesSectionProps> = ({
           onPressMessage={handlePressMessage}
           onCollapse={handleCollapse}
           highlightedMessageId={highlightedMessageId}
+          conversationId={conversationId}
         />
       </View>
     );
@@ -72,6 +69,7 @@ export const PinnedMessagesSection: React.FC<PinnedMessagesSectionProps> = ({
     <PinnedPreviewBar
       pinnedMessages={pinnedMessages}
       onPress={handleExpand}
+      conversationId={conversationId}
     />
   );
 };

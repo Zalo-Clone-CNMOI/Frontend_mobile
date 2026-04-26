@@ -1,9 +1,11 @@
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { SystemMessageBanner } from '@/src/components/chat/SystemMessageBanner';
+import { PollCard } from '@/src/components/chat/PollCard';
 import { useAuth } from '@/src/contexts/AuthContext';
 import * as mediaService from '@/src/services/mediaService';
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
+import type { PollMessageMetadata } from '@/src/types/dto/PollDTO';
 import { Check, CheckCheck, FileArchive, FileAudio, FileText, FileVideo, Forward, Pin, Play, RotateCcw } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -63,6 +65,7 @@ function HighlightText({ text, highlight, textColor, highlightColor }: Highlight
 
 type MessageBubbleProps = {
   item: ChatMessage;
+  conversationId?: string;
   isGroup?: boolean;
   onLongPress?: (item: ChatMessage) => void;
   onImagePress?: (uri: string, urls?: string[], index?: number) => void;
@@ -77,11 +80,13 @@ type MessageBubbleProps = {
   highlightText?: string; // For search highlighting
   isPinned?: boolean; // Whether message is pinned
   conversationMembers?: Array<{ userId: string; nickname?: string | null; fullName?: string | null }>; // Conversation members for nickname lookup
+  currentUserRole?: 'owner' | 'admin' | 'member';
 };
 
 export const MessageBubble = React.memo(
   function MessageBubble({
     item,
+    conversationId,
     isGroup = false,
     onLongPress,
     onImagePress,
@@ -96,6 +101,7 @@ export const MessageBubble = React.memo(
     highlightText,
     isPinned = false,
     conversationMembers,
+    currentUserRole,
   }: MessageBubbleProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -331,6 +337,23 @@ export const MessageBubble = React.memo(
     return <SystemMessageBanner message={item} />;
   }
 
+  // Check if this is a poll message
+  const isPollMessage = item.messageType === 'poll' || item.type === 'poll';
+  const pollMetadata = item.metadata as PollMessageMetadata | undefined;
+
+  if (isPollMessage && pollMetadata?.poll_id && conversationId) {
+    return (
+      <View style={styles.pollContainer}>
+        <PollCard
+          message={item}
+          metadata={pollMetadata}
+          conversationId={conversationId}
+          currentUserId={authUser?.id || ''}
+        />
+      </View>
+    );
+  }
+
   return (
     <View
       style={[
@@ -424,7 +447,7 @@ export const MessageBubble = React.memo(
           
           
           {/* ── Forwarded header ───────────────────────────────────────────── */}
-          {item.forwardedFrom && (                              
+          {item.forwardedFrom && (isImage || isVideo || isFile) && (                              
             <TouchableOpacity
               style={[
                 styles.forwardedHeader,
@@ -1023,6 +1046,11 @@ const styles = StyleSheet.create({
   rowRight: {
     justifyContent: 'flex-end',
     alignItems: 'flex-start',
+  },
+  pollContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
 
   avatar: {

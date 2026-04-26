@@ -1,6 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, BellOff, ChevronLeft, ChevronRight, Crown, FileText, Play, Search, Settings, Shield, ShieldAlert, Trash2, User, UserPlus, Users, UserX, X, Check, Mail, Edit3 } from 'lucide-react-native';
+import { BarChart3, Bell, BellOff, ChevronLeft, ChevronRight, Crown, FileText, Play, Search, Settings, Shield, ShieldAlert, Trash2, User, UserPlus, Users, UserX, X, Check, Mail, Edit3 } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,7 +24,11 @@ import { getMessages } from '@/src/services/messagesApi';
 import { getConversationDetail, leaveConversation, updateMember, removeMember, disbandConversation, updateMySettings } from '@/src/services/conversationsApi';
 import { MediaViewerModal } from './MediaViewerModal';
 import { ConversationInvitesModal } from './ConversationInvitesModal';
+import { CreatePollModal } from './CreatePollModal';
 import { useRouter } from 'expo-router';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
+import { useChatsStore } from '@/src/store/useChatsStore';
+import { useMessagesStore } from '@/src/store/useMessagesStore';
 
 interface ChatOptionsProps {
   visible: boolean;
@@ -63,6 +67,16 @@ interface MediaItem {
 
 const S3_BASE_URL = NETWORK_CONFIG.S3_BASE_URL;
 
+// ✅ FIX: Stable empty references to prevent infinite loops
+const EMPTY_MEMBERS: any[] = [];
+interface MySettings {
+  role: 'owner' | 'admin' | 'member';
+  nickname?: string;
+  isMuted?: boolean;
+  isPinned?: boolean;
+}
+const DEFAULT_SETTINGS: MySettings = { role: 'member' };
+
 export function ChatOptions({
   visible,
   onClose,
@@ -90,8 +104,23 @@ export function ChatOptions({
   const theme = useTheme();
   const { t } = useTranslation();
 
+  // ✅ FIX: Subscribe to store with stable empty references
+  const cacheEntry = useConversationDetailStore(
+    (state) => state.cache[chatId]
+  );
+  const members = cacheEntry?.members || EMPTY_MEMBERS;
+  const mySettings = cacheEntry?.mySettings || DEFAULT_SETTINGS;
+  const cachedConversation = cacheEntry?.conversation;
+  const storeFetchConversationDetail = useConversationDetailStore(
+    (state) => state.fetchConversationDetail
+  );
+
+  const myRole = mySettings.role;
+  const myNickname = mySettings.nickname || '';
+  // Use cached member count if available, otherwise fallback to prop
+  const memberCount = cachedConversation?.memberCount ?? memberCountProp;
+
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const memberCount = memberCountProp;
   
   // Media states
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
@@ -102,14 +131,6 @@ export function ChatOptions({
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
 
-  // Members modal state
-  const [membersModalVisible, setMembersModalVisible] = useState(false);
-  const [members, setMembers] = useState<any[]>([]);
-  const [membersLoading, setMembersLoading] = useState(false);
-  const [memberSearchQuery, setMemberSearchQuery] = useState('');
-  const [myRole, setMyRole] = useState<string>('member');
-  const [myRoleLoaded, setMyRoleLoaded] = useState(false);
-
   // Role selection modal state
   const [roleSelectionVisible, setRoleSelectionVisible] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
@@ -117,30 +138,25 @@ export function ChatOptions({
   const [roleUpdating, setRoleUpdating] = useState(false);
   const [conversationInvitesModalVisible, setConversationInvitesModalVisible] = useState(false);
 
+  // Create Poll modal state
+  const [createPollModalVisible, setCreatePollModalVisible] = useState(false);
+
   // Nickname edit modal state
   const [nicknameModalVisible, setNicknameModalVisible] = useState(false);
-  const [myNickname, setMyNickname] = useState<string>('');
   const [nicknameInput, setNicknameInput] = useState<string>('');
   const [nicknameUpdating, setNicknameUpdating] = useState(false);
 
   const router = useRouter();
 
-  // Reset myRoleLoaded when modal opens/closes
+  // ✅ FIX: No need to reset local state - store is source of truth
+  // Fetch data when modal opens
   useEffect(() => {
-    if (!visible) {
-      setMyRoleLoaded(false);
-      setMyRole('member');
-    }
-  }, [visible]);
-
-  useEffect(() => {
-    if (visible) {
-      // Fetch media when modal opens
+    if (visible && chatId) {
       fetchConversationMedia();
-      // Fetch conversation details to get my role and nickname
-      fetchConversationDetails();
+      // Use store action to fetch and cache conversation details
+      storeFetchConversationDetail(chatId).catch(() => {});
     }
-  }, [visible, chatId, isGroup]);
+  }, [visible, chatId, isGroup, storeFetchConversationDetail]);
 
   // Fetch media from conversation messages
   const fetchConversationMedia = useCallback(async () => {
@@ -188,7 +204,7 @@ export function ChatOptions({
       setMediaLoading(false);
     }
   }, [chatId, currentUserId, t]);
-  
+
   // Helper to determine media type from MIME type
   const getMediaTypeFromMime = (mimeType?: string): MediaItem['type'] => {
     if (!mimeType) return 'document';
@@ -216,66 +232,81 @@ export function ChatOptions({
     });
   };
 
-  // Fetch conversation details (members)
-  const fetchConversationDetails = useCallback(async () => {
+  // ✅ FIX: Refresh conversation details from API, store auto-updates via subscription
+  const refreshConversationDetails = useCallback(async () => {
     if (!chatId) return;
 
-    setMembersLoading(true);
     try {
-      const response = await getConversationDetail(chatId);
-      const data = response.data?.data;
-      if (data) {
-        setMembers(data.members || []);
-        // Backend bug: mySettings.role is inconsistent with members array
-        // Use role from members list as fallback
-        const myMemberEntry = data.members?.find((m: any) => m.userId === currentUserId);
-        const roleFromMembers = myMemberEntry?.role || 'member';
-        const roleFromSettings = data.mySettings?.role || 'member';
-        
-        // Use role from members list if it differs from mySettings (backend bug workaround)
-        const actualRole = (roleFromMembers !== roleFromSettings) ? roleFromMembers : roleFromSettings;
-        
-        setMyRole(actualRole);
-        setMyNickname(myMemberEntry?.nickname || data.mySettings?.nickname || '');
-        setMyRoleLoaded(true);
-      } else {
-        setMyRoleLoaded(true);
-      }
+      // Store action will update cache and trigger re-render via subscription
+      await storeFetchConversationDetail(chatId, true); // force refresh
     } catch (error: any) {
-      setMyRoleLoaded(true);
-    } finally {
-      setMembersLoading(false);
+      // Error handled silently - store maintains previous state
     }
-  }, [chatId]);
+  }, [chatId, storeFetchConversationDetail]);
 
-  // Handle view members - open modal and fetch data
+  // Navigate to dedicated members screen
   const handleViewMembers = () => {
-    setMembersModalVisible(true);
-    fetchConversationDetails();
+    router.push({
+      pathname: '/groupMembers',
+      params: {
+        conversationId: chatId,
+        chatName: chatName,
+        currentUserId: currentUserId,
+        myRole: myRole,
+      },
+    } as any);
+    onClose(); // Close ChatOptions modal
+  };
+
+  // Handle close role selection modal - reset selection
+  const handleCloseRoleSelectionModal = () => {
+    setRoleSelectionVisible(false);
+    setSelectedMember(null);
+    setSelectedRole('member');
   };
 
   // Handle leave group with direct API call
   const handleLeaveGroup = async () => {
     const isGroupOwner = myRole === 'owner';
     Alert.alert(
-      isGroupOwner ? t('chat_options.delete_group') : t('chat_options.leave_group'),
+      isGroupOwner ? t('chat_options.leave_group') : t('chat_options.leave_group'),
       isGroupOwner
-        ? t('chat_options.delete_group_confirm')
+        ? t('chat_options.leave_group_owner_confirm')
         : t('chat_options.leave_group_confirm'),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
-          text: isGroupOwner ? t('chat_options.delete') : t('chat_options.leave'),
+          text: t('chat_options.leave'),
           style: 'destructive',
           onPress: async () => {
             try {
-              if (isGroupOwner) {
-                // Owner should disband the group instead of leaving
-                await disbandConversation(chatId);
-              } else {
-                // Regular members leave the group
-                await leaveConversation(chatId);
-              }
+              // Both owner and regular members can leave (owner transfers ownership)
+              await leaveConversation(chatId);
+              onClose();
+              onLeaveSuccess?.();
+              router.back();
+            } catch (error: any) {
+              Alert.alert(t('common.error'), error.message || t('chat_options.leave_group_failed'));
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Handle disband group (owner only)
+  const handleDisbandGroup = async () => {
+    Alert.alert(
+      t('chat_options.delete_group'),
+      t('chat_options.delete_group_confirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('chat_options.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await disbandConversation(chatId);
               onClose();
               onLeaveSuccess?.();
               router.back();
@@ -305,7 +336,13 @@ export function ChatOptions({
     setNicknameModalVisible(true);
   };
 
-  // Handle save nickname
+  // Handle close nickname modal - reset input
+  const handleCloseNicknameModal = () => {
+    setNicknameModalVisible(false);
+    setNicknameInput('');
+  };
+
+  // ✅ FIX: Update store directly via API, UI auto-updates via subscription
   const handleSaveNickname = async () => {
     const trimmedNickname = nicknameInput.trim();
 
@@ -317,12 +354,9 @@ export function ChatOptions({
     setNicknameUpdating(true);
     try {
       await updateMySettings(chatId, { nickname: trimmedNickname || undefined });
-      setMyNickname(trimmedNickname);
-      setNicknameModalVisible(false);
+      // Store auto-updates via subscription - no need to setMyNickname locally
+      handleCloseNicknameModal();
       Alert.alert(t('common.success'), t('chat_options.nickname_updated'));
-
-      // Refresh conversation details to update the UI
-      await fetchConversationDetails();
 
       // Notify parent to refresh conversation list
       onNicknameChanged?.();
@@ -352,10 +386,10 @@ export function ChatOptions({
       await updateMember(chatId, selectedMember.userId, { role: selectedRole });
 
       Alert.alert(t('common.success'), t('member_role.role_updated'));
-      setRoleSelectionVisible(false);
+      handleCloseRoleSelectionModal();
 
       // Fetch fresh data to update both members list and myRole
-      await fetchConversationDetails();
+      await refreshConversationDetails();
     } catch (error: any) {
       Alert.alert(t('common.error'), error.message || t('member_role.update_failed'));
     } finally {
@@ -363,7 +397,7 @@ export function ChatOptions({
     }
   };
 
-  // Handle remove member
+  // ✅ FIX: Remove member - store auto-updates via socket event or manual refresh
   const handleRemoveMemberPress = (item: any) => {
     Alert.alert(
       t('chat_options.remove_member'),
@@ -376,10 +410,7 @@ export function ChatOptions({
           onPress: async () => {
             try {
               await removeMember(chatId, item.userId);
-
-              // Update UI - remove from list
-              setMembers(prevMembers => prevMembers.filter(m => m.userId !== item.userId));
-
+              // ✅ No need to call setMembers - socket event or refresh will update store
               Alert.alert(t('common.success'), t('chat_options.remove_member_success'));
             } catch (error: any) {
               Alert.alert(t('common.error'), error.message || t('chat_options.remove_member_failed'));
@@ -560,15 +591,6 @@ export function ChatOptions({
 
   const canAddMemberFromAPI = myRole === 'admin' || myRole === 'owner';
 
-  const filteredMembers = useMemo(() => {
-    if (!memberSearchQuery.trim()) return members;
-    const query = memberSearchQuery.toLowerCase().trim();
-    return members.filter(m => 
-      (m.fullName || '').toLowerCase().includes(query) ||
-      (m.nickname || '').toLowerCase().includes(query)
-    );
-  }, [members, memberSearchQuery]);
-
   return (
     <Modal
       visible={visible}
@@ -668,6 +690,27 @@ export function ChatOptions({
                   onPress={handleEditNickname}
                 />
 
+                {/* Create Poll - Available for all group members */}
+                <OptionItem
+                  icon={BarChart3}
+                  title={t('chat_options.create_poll') || 'Bình chọn'}
+                  subtitle={t('chat_options.create_poll_desc') || 'Tạo bình chọn trong nhóm'}
+                  onPress={() => setCreatePollModalVisible(true)}
+                />
+
+                {/* View Polls - Available for all group members */}
+                <OptionItem
+                  icon={BarChart3}
+                  title={t('chat_options.view_polls') || 'Xem bình chọn'}
+                  subtitle={t('chat_options.view_polls_desc') || 'Xem tất cả bình chọn trong nhóm'}
+                  onPress={() => {
+                    router.push({
+                      pathname: '/conversationPolls',
+                      params: { conversationId: chatId, chatName }
+                    } as any);
+                  }}
+                />
+
                 {/* Add Member - Owner and Admin only */}
                 {(myRole === 'admin' || myRole === 'owner') && (
                   <OptionItem
@@ -718,13 +761,21 @@ export function ChatOptions({
                 {/* Leave Group */}
                 <OptionItem
                   icon={UserX}
-                  title={myRole === 'owner' ? t('chat_options.delete_group') : t('chat_options.leave_group')}
+                  title={t('chat_options.leave_group')}
                   onPress={handleLeaveGroup}
                 />
+
+                {/* Disband Group - Owner only */}
+                {myRole === 'owner' && (
+                  <OptionItem
+                    icon={Trash2}
+                    title={t('chat_options.disband_group')}
+                    onPress={handleDisbandGroup}
+                  />
+                )}
               </View>
             ) : null}
             <View style={[styles.mediaSectionHeader, { borderTopColor: theme.colors.border }]}>
-
               <Text style={[styles.mediaSectionTitle, { color: theme.colors.text }]}>
                 {t('chat_options.media_files_links')}
               </Text>
@@ -787,79 +838,20 @@ export function ChatOptions({
           onClose={() => setConversationInvitesModalVisible(false)}
         />
 
-        {/* Members Modal */}
-        <Modal
-          visible={membersModalVisible}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => setMembersModalVisible(false)}
-        >
-          <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>
-            <StatusBar style="light" />
-            <View style={[styles.header, { borderBottomColor: theme.colors.border, backgroundColor: theme.colors.statusBar }]}>
-              <View style={styles.headerLeft}>
-                <TouchableOpacity onPress={() => setMembersModalVisible(false)}>
-                  <ChevronLeft size={28} color={theme.colors.iconHeader} />
-                </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: theme.colors.iconHeader }]}>{t('chat_options.group_members')}</Text>
-              </View>
-            </View>
-            {/* Search input for members */}
-            <View style={[styles.searchContainer, { backgroundColor: theme.colors.background, borderBottomColor: theme.colors.border }]}>
-              <View style={[styles.searchInputContainer, { backgroundColor: theme.colors.card }]}>
-                <Search size={18} color={theme.colors.icon} style={styles.searchIcon} />
-                <TextInput
-                  style={[styles.searchInput, { color: theme.colors.text }]}
-                  placeholder={t('common.search') || 'Tìm kiếm...'}
-                  placeholderTextColor={theme.colors.icon}
-                  value={memberSearchQuery}
-                  onChangeText={setMemberSearchQuery}
-                />
-                {memberSearchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => setMemberSearchQuery('')}>
-                    <X size={18} color={theme.colors.icon} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-
-            <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-              {membersLoading ? (
-                <View style={styles.membersLoadingContainer}>
-                  <ActivityIndicator size="small" color={theme.colors.primary} />
-                </View>
-              ) : filteredMembers.length === 0 ? (
-                <View style={styles.membersLoadingContainer}>
-                  <Text style={[styles.noMembersText, { color: theme.colors.icon }]}>
-                    {memberSearchQuery ? t('chat_options.no_search_results') || 'Không tìm thấy thành viên' : t('chat_options.no_members')}
-                  </Text>
-                </View>
-              ) : (
-                <FlatList
-                  data={filteredMembers}
-                  keyExtractor={(item) => item.id}
-                  renderItem={renderMemberItem}
-                  contentContainerStyle={styles.membersList}
-                />
-              )}
-            </View>
-          </SafeAreaView>
-        </Modal>
-
         {/* Role Selection Modal */}
         <Modal
           transparent
           visible={roleSelectionVisible}
           animationType="fade"
-          onRequestClose={() => setRoleSelectionVisible(false)}
+          onRequestClose={handleCloseRoleSelectionModal}
         >
-          <Pressable style={styles.overlay} onPress={() => setRoleSelectionVisible(false)}>
+          <Pressable style={styles.overlay} onPress={handleCloseRoleSelectionModal}>
             <View style={[styles.roleSelectionContainer, { backgroundColor: theme.colors.card }]}>
               <View style={styles.roleSelectionHeader}>
                 <Text style={[styles.roleSelectionTitle, { color: theme.colors.text }]}>
                   {t('member_role.change_role_for', { name: selectedMember?.fullName })}
                 </Text>
-                <TouchableOpacity onPress={() => setRoleSelectionVisible(false)}>
+                <TouchableOpacity onPress={handleCloseRoleSelectionModal}>
                   <X size={24} color={theme.colors.text} />
                 </TouchableOpacity>
               </View>
@@ -877,7 +869,6 @@ export function ChatOptions({
                       },
                     ]}
                     onPress={() => {
-                      console.log('[ChatOptions] Selected role:', role);
                       setSelectedRole(role);
                     }}
                     disabled={roleUpdating}
@@ -910,7 +901,7 @@ export function ChatOptions({
               <View style={styles.roleSelectionFooter}>
                 <TouchableOpacity
                   style={[styles.cancelButton, { borderColor: theme.colors.border }]}
-                  onPress={() => setRoleSelectionVisible(false)}
+                  onPress={handleCloseRoleSelectionModal}
                   disabled={roleUpdating}
                 >
                   <Text style={[styles.cancelText, { color: theme.colors.text }]}>
@@ -941,11 +932,11 @@ export function ChatOptions({
           visible={nicknameModalVisible}
           animationType="slide"
           transparent={true}
-          onRequestClose={() => setNicknameModalVisible(false)}
+          onRequestClose={handleCloseNicknameModal}
         >
           <Pressable
             style={styles.modalOverlay}
-            onPress={() => setNicknameModalVisible(false)}
+            onPress={handleCloseNicknameModal}
           >
             <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
               <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
@@ -964,7 +955,7 @@ export function ChatOptions({
               <View style={styles.modalButtons}>
                 <TouchableOpacity
                   style={[styles.cancelButton, { borderColor: theme.colors.border }]}
-                  onPress={() => setNicknameModalVisible(false)}
+                  onPress={handleCloseNicknameModal}
                 >
                   <Text style={[styles.cancelText, { color: theme.colors.text }]}>
                     {t('common.cancel') || 'Cancel'}
@@ -988,6 +979,51 @@ export function ChatOptions({
             </View>
           </Pressable>
         </Modal>
+
+        {/* Create Poll Modal */}
+        <CreatePollModal
+          visible={createPollModalVisible}
+          onClose={() => setCreatePollModalVisible(false)}
+          conversationId={chatId}
+          onPollCreated={(pollId, messageId, question, options, metadata) => {
+            console.log('[ChatOptions] Poll created:', pollId, messageId);
+            const now = Date.now();
+            
+            // Update last message in chat list
+            useChatsStore.getState().updateLastMessage(
+              chatId,
+              `📊 ${question || 'Bình chọn'}`,
+              'poll',
+              now,
+              currentUserId,
+              undefined,
+              false // Don't increment unread for own message
+            );
+            
+            // Add optimistic poll message to conversation for real-time display
+            const pollMessage = {
+              id: messageId,
+              conversationId: chatId,
+              senderId: currentUserId || '',
+              senderName: 'Bạn',
+              type: 'poll' as const,
+              text: `📊 ${question || 'Bình chọn'}`,
+              timestamp: now,
+              status: 'sent' as const,
+              fromMe: true,
+              metadata: metadata,
+            };
+            useMessagesStore.getState().addMessage(chatId, pollMessage);
+            
+            // Navigate to poll list screen
+            setTimeout(() => {
+              router.push({
+                pathname: '/conversationPolls',
+                params: { conversationId: chatId, chatName }
+              } as any);
+            }, 300);
+          }}
+        />
 
       </SafeAreaView>
     </Modal>

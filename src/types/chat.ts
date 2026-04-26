@@ -1,4 +1,4 @@
-
+import type { PollMessageMetadata } from './dto/PollDTO';
 
 export type ConversationV2 = {
   conversationId: string;
@@ -28,7 +28,7 @@ export type ConversationV2 = {
   myNickname?: string;
 };
 
-export type MessageType = 'text' | 'image' | 'video' | 'file' | 'voice' | 'system';
+export type MessageType = 'text' | 'image' | 'video' | 'file' | 'voice' | 'system' | 'poll';
 
 export type SystemEventType =
   | 'member_added'
@@ -86,12 +86,12 @@ export type ReplyInfo = {
 };
 
 export type ForwardedFrom = {
-  source_message_id: string;
-  source_conversation_id: string;
-  source_sender_id: string;
-  source_sender_name_snapshot: string;
-  source_created_at: number;
-  source_type: 'text' | 'image' | 'file' | 'mixed';
+  sourceMessageId: string;
+  sourceConversationId: string;
+  sourceSenderId: string;
+  sourceSenderNameSnapshot: string;
+  sourceCreatedAt: number;
+  sourceType: 'text' | 'image' | 'file' | 'mixed';
 };
 
 export type ChatMessage = {
@@ -132,7 +132,7 @@ export type ChatMessage = {
   pinnedAt?: number;
 
   // System message fields
-  messageType?: 'user' | 'system';
+  messageType?: 'user' | 'system' | 'poll';
   systemEventType?: SystemEventType;
-  metadata?: SystemMessageMetadata;
+  metadata?: SystemMessageMetadata | PollMessageMetadata;
 };

@@ -1,61 +1,36 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { createSocket, disconnectSocket, getSocket } from '../services/socket';
-import { deleteMessage, editMessage, sendMessage, unreactMessage, toLegacyChatMessage, enrichReplyToDetails } from '../services/chatService';
+import { deleteMessage, editMessage, sendMessage, unreactMessage, toLegacyChatMessage, enrichReplyToDetails, isMessageProcessed, addProcessedMessageId } from '../services/chatService';
 import * as messagesApi from '../services/messagesApi';
 import { useChatStore } from '../store/chatStore';
 import { useChatsStore } from '../store/useChatsStore';
-import { useChatsStore as useConversationStore } from '../store/useChatsStore';
 import { useMessagesStore } from '../store/useMessagesStore';
 import { usePresenceStore } from '../store/usePresenceStore';
-import { mapSocketMessageEventToChatMessage } from '../types/mappers/DTOMappers';
 import type {
-    SocketChatDeletePayload,
-    SocketChatEditPayload,
-    SocketChatReactPayload,
-    SocketChatSendPayload,
+  SocketChatDeletePayload,
+  SocketChatEditPayload,
+  SocketChatReactPayload,
+  SocketChatSendPayload,
 } from '../types/dto/SocketDTO';
-import type { ChatMessage } from '../types/chat';
 
-
-
-// Track processed message IDs for duplicate prevention
-const processedMessageIds = new Set<string>();
-const MAX_PROCESSED_IDS = 1000;
-
-const addProcessedMessageId = (messageId: string) => {
-  processedMessageIds.add(messageId);
-  if (processedMessageIds.size > MAX_PROCESSED_IDS) {
-    const firstId = processedMessageIds.values().next().value;
-    if (firstId) {
-      processedMessageIds.delete(firstId);
-    }
-  }
-};
-
-const isMessageProcessed = (messageId: string): boolean => {
-  return processedMessageIds.has(messageId);
-};
-
+/**
+ * useChatSocket - DEPRECATED
+ * This hook is now replaced by initChat() function pattern from Frontend_web
+ * to avoid duplicate socket listener registration.
+ * Socket listeners are now registered via ChatSocketBridge component calling initChat().
+ *
+ * This hook is kept for backward compatibility but should not be used in new code.
+ */
 export const useChatSocket = () => {
-  const { user: authUser } = useAuth();
-  const {
-    addMessage,
-    updateMessage,
-    deleteMessage: deleteMessageFromStore,
-    addReaction: addReactionChatStore,
-    removeReaction: removeReactionFromStore,
-    updatePresence
-  } = useChatStore();
-  const { updateLastMessage, chats, resetUnreadCount } = useChatsStore();
-  const addReactionMessageStore = useMessagesStore((state) => state.addReaction);
-  const updatePresenceMap = usePresenceStore((state) => state.updatePresence);
-  const addPinnedMessage = useMessagesStore((state) => state.addPinnedMessage);
-  const removePinnedMessage = useMessagesStore((state) => state.removePinnedMessage);
+  console.warn('[useChatSocket] This hook is deprecated. Use initChat() instead via ChatSocketBridge component.');
+
+  const { user } = useAuth();
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const token = authUser?.tokens?.accessToken;
-    const userId = authUser?.id;
+    const token = user?.tokens?.accessToken;
+    const userId = user?.id;
 
     if (!token || !userId) return;
 
@@ -63,122 +38,145 @@ export const useChatSocket = () => {
     createSocket().then((socket) => {
       // Setup event listeners and get cleanup function
       const cleanup = setupEventListeners(socket);
-      
-      return cleanup;
+
+      // Store cleanup function for useEffect cleanup
+      cleanupRef.current = cleanup;
     }).then((cleanup) => {
       // Store cleanup function for useEffect cleanup
       return cleanup;
     });
 
     return () => {
-      const socket = getSocket();
-      if (socket) {
-        // Remove all listeners to prevent duplicates
-        socket.off('connect');
-        socket.off('disconnect');
-        socket.off('connect_error');
-        socket.off('chat:join:ack');
-        socket.off('chat:read');
-        socket.off('chat:message');
-        socket.off('chat:message:updated');
-        socket.off('chat:message:deleted');
-        socket.off('chat:reaction:added');
-        socket.off('chat:reaction:removed');
-        socket.off('chat.system_message');
-        socket.off('chat:message:pinned');
-        socket.off('chat:message:unpinned');
-        socket.off('presence:update');
-        socket.off('chat:ack');
-        socket.off('ws:error');
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
       }
       disconnectSocket();
     };
-  }, [authUser?.tokens?.accessToken, authUser?.id]);
+  }, [user?.tokens?.accessToken, user?.id]);
+
+  // ✅ FIX 1: Hàm đồng bộ conversation khi có tin nhắn mới
+  const syncConversationWithNewMessage = (payload: any, enrichedMessage: any) => {
+    const conversationId = payload?.conversation_id || payload?.conversationId;
+    const body = payload?.body || enrichedMessage?.text || '';
+    const createdAt = typeof payload?.created_at === 'number' ? payload?.created_at :
+                      typeof payload?.createdAt === 'number' ? payload?.createdAt :
+                      typeof payload?.ts === 'number' ? payload?.ts :
+                      typeof enrichedMessage?.timestamp === 'number' ? enrichedMessage?.timestamp : Date.now();
+    
+    if (!conversationId) return;
+    
+    // ✅ Cập nhật useChatsStore để Home screen re-render
+    useChatsStore.getState().updateLastMessage(
+      conversationId,
+      body,
+      payload?.type || enrichedMessage?.type || 'text',
+      createdAt,
+      payload?.sender_id || payload?.senderId || enrichedMessage?.senderId,
+      payload?.sender_name || payload?.senderName || enrichedMessage?.senderName,
+      true // ✅ Tăng unread count
+    );
+    
+    // ✅ Cũng thêm vào useMessagesStore cho chat detail view
+    useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
+  };
 
   const setupEventListeners = (socket: any) => {
     // Define handler functions so they can be removed later
     const handleConnect = () => {
+      console.log('[Socket] Connected', socket.id);
     };
 
-    const handleDisconnect = () => {
+    const handleDisconnect = (reason: string) => {
+      console.log('[Socket] Disconnected', reason);
     };
 
     const handleConnectError = (error: any) => {
+      console.error('[Socket] Connect error', error);
     };
 
     const handleJoinAck = (payload: any) => {
+      console.log('[Socket] Join ACK', payload);
     };
 
     // Chat read - Sync unread count when other users read messages
     const handleChatRead = (payload: any) => {
+      console.log('[Socket] Chat read', payload);
       const conversationId = payload.conversation_id || payload.conversationId;
       const readerId = payload.user_id || payload.userId;
 
       // Only reset unread if someone else (not me) reads the conversation
-      if (conversationId && readerId && readerId !== authUser?.id) {
-        resetUnreadCount(conversationId);
+      if (conversationId && readerId && readerId !== user?.id) {
+        useChatStore.getState().resetUnreadCount(conversationId);
       }
     };
 
     // Message updated
     const handleMessageUpdated = (payload: any) => {
-      updateMessage(payload);
+      console.log('[Socket] Message updated', payload);
+      useChatStore.getState().updateMessage(payload);
     };
 
     // Message deleted
     const handleMessageDeleted = (payload: any) => {
-      deleteMessageFromStore(payload);
+      console.log('[Socket] Message deleted', payload);
+      useChatStore.getState().deleteMessage(payload);
     };
 
-    // Reaction added
+    // Reaction added - Update only useMessagesStore (single source of truth)
     const handleReactionAdded = (payload: any) => {
-      addReactionChatStore(payload);
-      // Also update useMessagesStore for UI consistency
-      addReactionMessageStore(
+      console.log('[Socket] Reaction added', payload);
+      useChatStore.getState().addReaction({
+        conversation_id: payload.conversation_id,
+        message_id: payload.message_id,
+        user_id: payload.user_id,
+        reaction_type: payload.reaction_type,
+      });
+    };
+
+    // Reaction removed - Update only useMessagesStore (single source of truth)
+    const handleReactionRemoved = (payload: any) => {
+      console.log('[Socket] Reaction removed', payload);
+      useMessagesStore.getState().removeReaction(
         payload.conversation_id,
         payload.message_id,
-        payload.user_id,
-        payload.reaction_type
+        payload.user_id
       );
-    };
-
-    // Reaction removed
-    const handleReactionRemoved = (payload: any) => {
-      removeReactionFromStore(payload);
     };
 
     // System message - USE DEDUPLICATION
     const handleSystemMessage = (payload: any) => {
+      console.log('[Socket] System message', payload);
       const messageId = payload?.id || payload?.message_id || payload?.messageId;
-      
+
       // Check if message already processed to prevent duplicates
       if (messageId && isMessageProcessed(String(messageId))) {
-        console.log('[useChatSocket] System message already processed, skipping:', messageId);
         return;
       }
-      
+
       if (messageId) {
         addProcessedMessageId(String(messageId));
       }
-      
-      addMessage(payload);
+
+      useChatStore.getState().addMessage(payload);
     };
 
     // Chat message - Main message handler (moved from chatService)
     const handleMessage = async (payload: any) => {
+      console.log('[Socket] Chat message received', payload);
       const conversationId = payload?.conversation_id || payload?.conversationId;
       const messageId = payload?.id || payload?.message_id;
       const createdAt =
         payload?.created_at ?? payload?.createdAt ?? payload?.ts ?? payload?.timestamp;
 
       const messageKey = String(messageId || "");
-      
+
       // Deduplication: Check if message already processed
       if (messageKey && isMessageProcessed(messageKey)) {
-        console.log('[useChatSocket] Message already processed, skipping:', messageId);
+        console.log('[Socket] Message already processed, skipping', messageKey);
         return;
       }
-      
+
       if (messageKey) {
         addProcessedMessageId(messageKey);
       }
@@ -195,7 +193,13 @@ export const useChatSocket = () => {
       if (!requiresDetails) {
         const uiMessage = toLegacyChatMessage(payload);
         const enrichedMessage = await enrichReplyToDetails(uiMessage);
-        addMessage(enrichedMessage);
+        
+        // ✅ FIX 1: Cập nhật message store
+        useChatStore.getState().addMessage(enrichedMessage);
+        
+        // ✅ FIX 1: Đồng bộ với useChatsStore để cập nhật conversation list
+        syncConversationWithNewMessage(payload, enrichedMessage);
+        
         return;
       }
 
@@ -208,22 +212,34 @@ export const useChatSocket = () => {
         const fullMessage = detailsResp?.data || payload;
         const uiMessage = toLegacyChatMessage(fullMessage);
         const enrichedMessage = await enrichReplyToDetails(uiMessage);
-        addMessage(enrichedMessage);
+        
+        // ✅ FIX 1: Cập nhật message store
+        useChatStore.getState().addMessage(enrichedMessage);
+        
+        // ✅ FIX 1: Đồng bộ với useChatsStore
+        syncConversationWithNewMessage(payload, enrichedMessage);
       } catch (e) {
+        console.error('[Socket] Error fetching message details', e);
         const uiMessage = toLegacyChatMessage(payload);
         const enrichedMessage = await enrichReplyToDetails(uiMessage);
-        addMessage(enrichedMessage);
+        
+        // ✅ FIX 1: Cập nhật message store
+        useChatStore.getState().addMessage(enrichedMessage);
+        
+        // ✅ FIX 1: Đồng bộ với useChatsStore
+        syncConversationWithNewMessage(payload, enrichedMessage);
       }
     };
 
     // Message pinned
     const handleMessagePinned = (payload: any) => {
+      console.log('[Socket] Message pinned', payload);
       const conversationId = payload.conversation_id || payload.conversationId;
       const messageId = payload.message_id || payload.messageId;
-      
+
       // Update store with pinned status
-      addPinnedMessage(conversationId, messageId);
-      
+      useMessagesStore.getState().addPinnedMessage(conversationId, messageId);
+
       // Update message with pinned status (chatStore format)
       // Note: chatStore's Message type doesn't have isPinned field, so we update useMessagesStore instead
       // The pinned status is tracked in useMessagesStore's pinnedMessagesByChatId
@@ -231,36 +247,39 @@ export const useChatSocket = () => {
 
     // Message unpinned
     const handleMessageUnpinned = (payload: any) => {
+      console.log('[Socket] Message unpinned', payload);
       const conversationId = payload.conversation_id || payload.conversationId;
       const messageId = payload.message_id || payload.messageId;
-      
+
       // Update store with unpinned status
-      removePinnedMessage(conversationId, messageId);
-      
+      useMessagesStore.getState().removePinnedMessage(conversationId, messageId);
+
       // Update message with unpinned status (chatStore format)
       // Note: chatStore's Message type doesn't have isPinned field, so we update useMessagesStore instead
       // The pinned status is tracked in useMessagesStore's pinnedMessagesByChatId
     };
 
-    // Presence update - Sync to both stores for single source of truth
+    // Presence update - Update only usePresenceStore (single source of truth)
     const handlePresenceUpdate = (payload: any) => {
-      // Update chatStore for backward compatibility
-      updatePresence(payload.user_id, payload.status, payload.last_seen_at, payload.expires_at);
-      // Update usePresenceStore as single source of truth
-      updatePresenceMap(payload.user_id, payload);
+      console.log('[Socket] Presence update', payload);
+      usePresenceStore.getState().updatePresence(payload.user_id, payload);
     };
 
     // Ack (for sent messages)
     const handleAck = (payload: any) => {
+      console.log('[Socket] ACK', payload);
       if (payload.status === 'rejected') {
+        console.error('[Socket] Message rejected', payload);
       }
     };
 
     // Error handling
     const handleWsError = (error: any) => {
+      console.error('[Socket] WS error', error);
     };
 
     // Register all listeners
+    console.log('[Socket] Registering listeners');
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('connect_error', handleConnectError);
@@ -280,6 +299,7 @@ export const useChatSocket = () => {
 
     // Return cleanup function
     return () => {
+      console.log('[Socket] Removing listeners');
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
       socket.off('connect_error', handleConnectError);
@@ -328,13 +348,12 @@ export const useChatSocket = () => {
   }, []);
 
   const handleAddReaction = useCallback((payload: SocketChatReactPayload) => {
-    addReactionChatStore(payload);
-    addReactionMessageStore(
-      payload.conversation_id,
-      payload.message_id,
-      payload.user_id,
-      payload.reaction_type
-    );
+    useChatStore.getState().addReaction({
+      conversation_id: payload.conversation_id,
+      message_id: payload.message_id,
+      user_id: payload.user_id,
+      reaction_type: payload.reaction_type,
+    });
   }, []);
 
   const handleRemoveReaction = useCallback((messageId: string, conversationId: string) => {

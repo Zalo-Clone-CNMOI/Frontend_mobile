@@ -18,10 +18,17 @@ export function useUserProfiles() {
     if (!userId || userId === 'user-me' || userId === 'undefined' || userId === 'null') {
       return null;
     }
-    
-    if (profiles[userId] || loading[userId]) return profiles[userId];
 
-    setLoading((prev) => ({ ...prev, [userId]: true }));
+    let shouldFetch = false;
+    setLoading((prev) => {
+      if (prev[userId]) {
+        return prev;
+      }
+      shouldFetch = true;
+      return { ...prev, [userId]: true };
+    });
+
+    if (!shouldFetch) return null;
 
     try {
       const data = await getUserProfile(userId);
@@ -38,7 +45,7 @@ export function useUserProfiles() {
     } finally {
       setLoading((prev) => ({ ...prev, [userId]: false }));
     }
-  }, [profiles, loading]);
+  }, []);
 
   const getAvatarUrl = useCallback((userId: string): string | null => {
     const profile = profiles[userId];

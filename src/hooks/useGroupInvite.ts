@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useGroupInviteStore } from '../store/useGroupInviteStore';
 import { 
   sendGroupInvites, 
@@ -79,12 +79,23 @@ export const useGroupInvite = (options: UseGroupInviteOptions = {}): UseGroupInv
     reset,
   } = useGroupInviteStore();
 
+  // ✅ FIX 5: Reset store khi user thay đổi để tránh stale data
+  const lastUserIdRef = useRef<string | undefined>(userId);
+  
+  useEffect(() => {
+    if (lastUserIdRef.current && lastUserIdRef.current !== userId) {
+      console.log('[useGroupInvite] User changed, resetting store');
+      reset();
+    }
+    lastUserIdRef.current = userId;
+  }, [userId, reset]);
+
   // Auto-fetch on mount
   useEffect(() => {
-    if (autoFetch) {
+    if (autoFetch && userId) {
       storeFetchPending({ force: false });
     }
-  }, [autoFetch]); // Remove storeFetchPending from dependencies
+  }, [autoFetch, userId]); // ✅ Thêm userId vào dependencies
 
   // Auto-subscribe to socket events
   useEffect(() => {

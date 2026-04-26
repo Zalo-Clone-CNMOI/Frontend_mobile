@@ -44,8 +44,6 @@ export function useNotifications() {
         await registerAndSyncToken(tokenToSend);
         registeredRef.current = true;
       } catch (e) {
-        const err: any = e;
-        console.error('[useNotifications] Failed to register device token:', err);
         // deviceTokenService handles pending token storage internally
       }
     })();

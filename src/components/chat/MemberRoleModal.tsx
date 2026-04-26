@@ -1,9 +1,10 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { Shield, ShieldCheck, ShieldAlert, Trash2, X, Check } from 'lucide-react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { updateMember, removeMember, getConversationDetail } from '@/src/services/conversationsApi';
+import { updateMember, removeMember } from '@/src/services/conversationsApi';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 
 type MemberRole = 'owner' | 'admin' | 'member';
 
@@ -22,9 +23,39 @@ interface MemberRoleModalProps {
   conversationId: string;
   members: Member[];
   currentUserId: string;
-  isOwner?: boolean; // Deprecated - kept for compatibility
-  myRole?: MemberRole; // Deprecated - kept for compatibility
 }
+
+// ===== Pure permission functions (simple, testable) =====
+const canUpdateMemberRole = (
+  myRole: MemberRole | undefined,
+  memberRole: MemberRole | undefined,
+  isSelf: boolean
+): boolean => {
+  if (!myRole || !memberRole) return false;
+  if (isSelf) return false;
+  // Only owner can change roles
+  if (myRole === 'owner') {
+    return memberRole === 'admin' || memberRole === 'member';
+  }
+  return false;
+};
+
+const canRemoveMember = (
+  myRole: MemberRole | undefined,
+  memberRole: MemberRole | undefined,
+  isSelf: boolean
+): boolean => {
+  if (!myRole || !memberRole) return false;
+  if (isSelf) return false;
+
+  if (myRole === 'owner') {
+    return memberRole === 'admin' || memberRole === 'member';
+  }
+  if (myRole === 'admin') {
+    return memberRole === 'member';
+  }
+  return false;
+};
 
 export function MemberRoleModal({
   visible,
@@ -32,8 +63,6 @@ export function MemberRoleModal({
   conversationId,
   members,
   currentUserId,
-  isOwner,
-  myRole,
 }: MemberRoleModalProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -41,40 +70,14 @@ export function MemberRoleModal({
   const [roleSelectionVisible, setRoleSelectionVisible] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [selectedRole, setSelectedRole] = useState<MemberRole>('member');
-  const [apiMyRole, setApiMyRole] = useState<MemberRole>('member'); // Fetch from API
 
-  const fetchConversationDetails = async () => {
-    if (visible && conversationId) {
-      getConversationDetail(conversationId)
-        .then((response) => {
-          const data = response.data?.data;
-          if (data) {
-            // Backend bug: mySettings.role is inconsistent with members array
-            // Use role from members list as fallback
-            const myMemberEntry = data.members?.find((m: any) => m.userId === currentUserId);
-            const roleFromMembers = myMemberEntry?.role || 'member';
-            const roleFromSettings = data.mySettings?.role || 'member';
+  // Get my role from store (simple, no complex workaround)
+  const myRole = useConversationDetailStore((state) =>
+    conversationId ? state.cache[conversationId]?.mySettings?.role : undefined
+  );
 
-            // Use role from members list if it differs from mySettings (backend bug workaround)
-            const actualRole = (roleFromMembers !== roleFromSettings) ? roleFromMembers : roleFromSettings;
-
-            setApiMyRole(actualRole);
-          }
-        })
-        .catch((error) => {
-          setApiMyRole('member'); // Fallback to member if API fails
-        });
-    }
-  };
-
-  useEffect(() => {
-    if (visible && conversationId) {
-      fetchConversationDetails();
-    }
-  }, [visible, conversationId, fetchConversationDetails]);
-
-  // Use API-fetched role for authorization
-  const isGroupOwner = apiMyRole === 'owner';
+  const isGroupOwner = myRole === 'owner';
+  const isGroupAdmin = myRole === 'admin';
 
   const getRoleIcon = (role: MemberRole) => {
     switch (role) {
@@ -98,25 +101,12 @@ export function MemberRoleModal({
     }
   };
 
-  const canChangeRole = (member: Member) => {
-    // Only owner can change roles (matching backend API permission)
-    if (!isGroupOwner) return false;
-    // Cannot change own role
-    if (member.userId === currentUserId) return false;
-    // Cannot change other owners
-    if (member.role === 'owner') return false;
-    return true;
-  };
+  // Helper to check permissions using pure functions
+  const memberCanChangeRole = (member: Member) =>
+    canUpdateMemberRole(myRole, member.role, member.userId === currentUserId);
 
-  const canRemoveMember = (member: Member) => {
-    // Only owner can remove members
-    if (!isGroupOwner) return false;
-    // Cannot remove yourself
-    if (member.userId === currentUserId) return false;
-    // Cannot remove other owners
-    if (member.role === 'owner') return false;
-    return true;
-  };
+  const memberCanBeRemoved = (member: Member) =>
+    canRemoveMember(myRole, member.role, member.userId === currentUserId);
 
   const handleRoleChange = async (member: Member, newRole: MemberRole) => {
     if (member.role === newRole) return;
@@ -125,18 +115,10 @@ export function MemberRoleModal({
     try {
       await updateMember(conversationId, member.userId, { role: newRole });
       Alert.alert(t('common.success'), t('member_role.role_updated'));
-      
-      // Fetch fresh data to update myRole in case user changed their own role
-      const response = await getConversationDetail(conversationId);
-      const data = response.data?.data;
-      if (data) {
-        const myMemberEntry = data.members?.find((m: any) => m.userId === currentUserId);
-        const roleFromMembers = myMemberEntry?.role || 'member';
-        const roleFromSettings = data.mySettings?.role || 'member';
-        const actualRole = (roleFromMembers !== roleFromSettings) ? roleFromMembers : roleFromSettings;
-        setApiMyRole(actualRole);
-      }
-      
+
+      // Store will be automatically updated via socket event (conversation:member:role:updated)
+      // No need to manually fetch - component re-renders when store updates
+
       onClose();
     } catch (error: any) {
       Alert.alert(t('common.error'), error.message || t('member_role.update_failed'));
@@ -175,7 +157,7 @@ export function MemberRoleModal({
   };
 
   const showRoleOptions = (member: Member) => {
-    if (!canChangeRole(member)) return;
+    if (!memberCanChangeRole(member)) return;
 
     setSelectedMember(member);
     setSelectedRole(member.role);
@@ -217,9 +199,6 @@ export function MemberRoleModal({
               <Text style={[styles.title, { color: theme.colors.text }]}>
                 {t('member_role.manage_roles')}
               </Text>
-              <TouchableOpacity onPress={onClose}>
-                <X size={24} color={theme.colors.text} />
-              </TouchableOpacity>
             </View>
 
             <View style={styles.content}>
@@ -231,11 +210,11 @@ export function MemberRoleModal({
                     {
                       backgroundColor: theme.colors.background,
                       borderBottomColor: theme.colors.border,
-                      opacity: canChangeRole(member) || canRemoveMember(member) ? 1 : 0.6,
+                      opacity: memberCanChangeRole(member) || memberCanBeRemoved(member) ? 1 : 0.6,
                     },
                   ]}
                   onPress={() => showRoleOptions(member)}
-                  disabled={!canChangeRole(member) || loading}
+                  disabled={!memberCanChangeRole(member) || loading}
                 >
                   <View style={styles.memberInfo}>
                     <View style={[styles.avatar, { backgroundColor: theme.colors.primary + '20' }]}>
@@ -256,12 +235,12 @@ export function MemberRoleModal({
                     </View>
                   </View>
                   <View style={styles.actionsContainer}>
-                    {canChangeRole(member) && (
+                    {memberCanChangeRole(member) && (
                       <Text style={[styles.changeText, { color: theme.colors.primary }]}>
                         {t('member_role.change')}
                       </Text>
                     )}
-                    {canRemoveMember(member) && (
+                    {memberCanBeRemoved(member) && (
                       <TouchableOpacity
                         style={styles.removeButton}
                         onPress={(e) => {

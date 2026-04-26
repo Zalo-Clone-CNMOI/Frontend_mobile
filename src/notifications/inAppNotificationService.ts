@@ -29,7 +29,7 @@ class InAppNotificationService {
         trigger: null, // Show immediately
       });
     } catch (error) {
-      console.error('[InAppNotificationService] Failed to show notification:', error);
+      // Failed to show notification
     }
   }
 

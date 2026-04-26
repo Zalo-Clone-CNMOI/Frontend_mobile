@@ -26,6 +26,8 @@ interface MessageActionMenuProps {
   onPin?: (message: ChatMessage) => void;
   onUnpin?: (message: ChatMessage) => void;
   isPinned?: boolean;
+  conversationType?: 'direct' | 'group';
+  userRole?: 'owner' | 'admin' | 'member';
 }
 
 const REACTIONS = [
@@ -50,6 +52,8 @@ export function MessageActionMenu({
   onPin,
   onUnpin,
   isPinned,
+  conversationType = 'direct',
+  userRole = 'member',
 }: MessageActionMenuProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -80,6 +84,8 @@ export function MessageActionMenu({
   const isMe = Boolean(message.fromMe);
   const hasImageAttachment = message.attachments?.some((a: any) => a.type === 'image') || message.type === 'image';
   const canEdit = isMe && !message.isRevoked && !hasImageAttachment;
+  // Only owner/admin can pin in group conversations, anyone can pin in direct
+  const canPin = conversationType === 'direct' || userRole === 'owner' || userRole === 'admin';
 
   return (
     <Modal
@@ -163,7 +169,7 @@ export function MessageActionMenu({
               <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.forward', { defaultValue: 'Chuyển tiếp' })}</Text>
             </TouchableOpacity>
 
-            {isPinned ? (
+            {canPin && (isPinned ? (
               <TouchableOpacity style={styles.gridItem} onPress={() => { onUnpin?.(message); onClose(); }}>
                 <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
                   <Pin size={24} color="#8b5cf6" />
@@ -177,7 +183,7 @@ export function MessageActionMenu({
                 </View>
                 <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.pin', { defaultValue: 'Ghim' })}</Text>
               </TouchableOpacity>
-            )}
+            ))}
 
             {canEdit && (
               <TouchableOpacity style={styles.gridItem} onPress={() => { onEdit?.(message); onClose(); }}>

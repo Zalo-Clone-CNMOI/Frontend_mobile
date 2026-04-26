@@ -150,7 +150,7 @@ export function MediaViewerModal({
         ]
       );
     } catch (error: any) {
-      console.error('Share error:', error);
+      // Share error
     }
   };
 

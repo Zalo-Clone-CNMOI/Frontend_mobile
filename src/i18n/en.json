@@ -1,5 +1,6 @@
 {
   "common": {
+    "view_all":"View all",
     "close":"close",
     "ok": "OK",
     "cancel": "Cancel",
@@ -20,7 +21,8 @@
     "user": "User",
     "conversation": "Conversation",
     "adding": "Adding",
-    "creating": "Creating"
+    "creating": "Creating",
+    "updating": "Updating..."
   },
 
   "navigation": {
@@ -215,7 +217,28 @@
     "nickname_too_long": "Nickname cannot exceed 100 characters",
     "nickname_updated": "Nickname updated successfully",
     "nickname_update_failed": "Failed to update nickname",
-    "enter_nickname": "Enter nickname"
+    "enter_nickname": "Enter nickname",
+    "no_permission": "You don't have permission to perform this action",
+    "create_poll": "Create Poll",
+    "create_poll_desc": "Create a poll in this group",
+    "view_polls": "View Polls",
+    "view_polls_desc": "View all polls in this group"
+  },
+
+  "polls_screen": {
+    "title": "Group Board",
+    "tab_active": "Active",
+    "tab_closed": "Closed",
+    "no_active": "No active polls",
+    "no_closed": "No closed polls",
+    "create_cta": "Create polls to help the group decide faster",
+    "create_button": "CREATE POLL",
+    "status_active": "Active",
+    "status_expired": "Expired",
+    "status_closed": "Closed",
+    "options_count": "{{count}} options",
+    "vote_button": "Vote",
+    "results_button": "View Results"
   },
 
   "member_role": {
@@ -234,7 +257,9 @@
     "change": "Change",
     "change_role_title": "Change Role",
     "change_role_confirm": "Are you sure you want to change {{name}}'s role?",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "admin_description": "Can manage members and group settings",
+    "member_description": "Regular member with basic permissions"
   },
 
   "reactions": {
@@ -518,5 +543,64 @@
     "my_qr_code": "My QR Code",
     "security": "Security",
     "password": "Password"
+  },
+
+  "poll": {
+    "label": "POLL",
+    "multiple": "Multiple choice",
+    "single": "Single choice",
+    "votes": "votes",
+    "voters": "voters",
+    "closed": "Closed",
+    "expired": "Expired",
+    "expiresIn": "Expires in",
+    "close": "Close",
+    "closePoll": "Close Poll",
+    "closeConfirmTitle": "Close poll?",
+    "closeConfirmMessage": "The poll will end and no more votes can be cast.",
+    "closedByCreator": "Closed by creator",
+    "closedByAdmin": "Closed by admin",
+    "pollClosed": "Poll has ended",
+    "createTitle": "Create Poll",
+    "createError": "Failed to create poll",
+    "question": "Question",
+    "questionPlaceholder": "Ask something...",
+    "questionRequired": "Please enter a question",
+    "questionTooLong": "Question cannot exceed 500 characters",
+    "options": "Options",
+    "optionPlaceholder": "Enter option",
+    "addOption": "Add option",
+    "removeOption": "Remove option",
+    "minOptionsError": "Minimum 2 options required",
+    "maxOptionsError": "Maximum 20 options allowed",
+    "duplicateOptions": "Options must be unique",
+    "optionTooLong": "Option cannot exceed 200 characters",
+    "settings": "Settings",
+    "allowMultiple": "Allow multiple choices",
+    "allowMultipleDesc": "Participants can select multiple answers",
+    "allowAddOption": "Allow adding options",
+    "allowAddOptionDesc": "Members can add new options",
+    "expiry": "Expires in",
+    "noExpiry": "No expiry",
+    "invalidExpiry": "Expiry must be between 1-168 hours",
+    "discardTitle": "Discard poll?",
+    "discardMessage": "Your changes will be lost.",
+    "createdAt": "Created at",
+    "detailTitle": "Poll Details",
+    "finalResults": "Final Results",
+    "hideResults": "Hide results",
+    "showResults": "Show results",
+    "vote": "Vote",
+    "voteError": "Failed to cast vote",
+    "editError": "Failed to edit poll",
+    "addOptionError": "Failed to add option",
+    "removeOptionError": "Failed to remove option",
+    "removeOptionTitle": "Remove option?",
+    "removeOptionMessage": "This option will be permanently deleted.",
+    "manageOptions": "Manage Options",
+    "creatorHint": "Tap trash icon to remove option (only if no votes)",
+    "addNewOption": "Add new option",
+    "multiSelectHint": "Select one or more",
+    "singleSelectHint": "Select one answer"
   }
 }

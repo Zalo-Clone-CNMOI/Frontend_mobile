@@ -12,27 +12,48 @@ let socket: Socket | null = null;
 const withBearer = (token: string | null) => (token ? `Bearer ${token}` : "");
 
 export const createSocket = async (): Promise<Socket> => {
-  if (socket) {
+  if (socket && socket.connected) {
+    console.log('[Socket] Reusing existing socket', socket.id);
+    return socket;
+  }
+
+  if (socket && !socket.connected) {
+    console.log('[Socket] Reconnecting existing socket');
+    socket.connect();
     return socket;
   }
 
   const accessToken = await getCurrentToken();
   const bearerToken = withBearer(accessToken);
 
+  console.log('[Socket] Creating new socket connection to', WS_URL);
+
   socket = io(WS_URL, {
     auth: { token: bearerToken },
     extraHeaders: accessToken ? { Authorization: bearerToken } : {},
     transports: ["websocket", "polling"],
     reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: Infinity,
     path: "/socket.io",
   });
 
+  socket.on("connect", () => {
+    console.log('[Socket] Connected successfully', socket?.id);
+  });
+
+  socket.on("disconnect", (reason) => {
+    console.log('[Socket] Disconnected', reason);
+  });
+
   socket.on("connect_error", async (err: any) => {
-    console.error('[socket] ❌ Socket connect error:', err);
+    console.error('[Socket] Connect error', err);
     const message = String(err?.message || "").toLowerCase();
     if (!message.includes("unauthorized")) return;
 
     try {
+      console.log('[Socket] Attempting token refresh');
       const newToken = await refreshAccessToken();
       if (!newToken || !socket) return;
 
@@ -42,9 +63,10 @@ export const createSocket = async (): Promise<Socket> => {
         socket.io.opts.extraHeaders.Authorization = newBearer;
       }
 
+      console.log('[Socket] Reconnecting with new token');
       socket.connect();
     } catch (refreshErr) {
-      console.error('[socket] ❌ Failed to refresh token:', refreshErr);
+      console.error('[Socket] Token refresh failed', refreshErr);
     }
   });
 
@@ -55,6 +77,7 @@ export const getSocket = (): Socket | null => socket;
 
 export const disconnectSocket = () => {
   if (socket) {
+    console.log('[Socket] Disconnecting socket');
     socket.disconnect();
     socket = null;
   }
