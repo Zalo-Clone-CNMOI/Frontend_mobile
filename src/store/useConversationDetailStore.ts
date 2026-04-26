@@ -70,6 +70,13 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
       const response = await getConversationDetail(conversationId);
       const data = response.data?.data || response.data;
 
+      console.log('[useConversationDetailStore] Fetch conversation detail:', {
+        conversationId,
+        forceRefresh,
+        data,
+        mySettings: data?.mySettings,
+      });
+
       if (!data) {
         set({ isLoading: false });
         return;
@@ -81,8 +88,11 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
 
         // If cache is still valid and not forcing refresh, don't update
         if (!forceRefresh && existing && now - existing.cachedAt < CACHE_TTL) {
+          console.log('[useConversationDetailStore] Using cache, TTL valid');
           return { isLoading: false };
         }
+
+        console.log('[useConversationDetailStore] Updating cache, forceRefresh:', forceRefresh);
 
         const conversation: ConversationDetail = {
           id: data.id,
@@ -106,12 +116,20 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
           leftAt: m.leftAt,
         }));
 
+        console.log('[useConversationDetailStore] Members list:', members.map(m => ({
+          userId: m.userId,
+          fullName: m.fullName,
+          role: m.role,
+        })));
+
         const mySettings: MySettings = {
           role: data.mySettings?.role || 'member',
           nickname: data.mySettings?.nickname,
           isMuted: data.mySettings?.isMuted,
           isPinned: data.mySettings?.isPinned,
         };
+
+        console.log('[useConversationDetailStore] New mySettings:', mySettings);
 
         return {
           cache: {

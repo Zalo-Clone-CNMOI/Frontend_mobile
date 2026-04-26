@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { fetchConversations } from '../services/chatService';
 import type { ConversationV2 } from '../types/chat';
+import { formatPreviewContent } from '../utils/messagePreviewFormatter';
 // TODO: Migrate to new Conversation type from '../types/interface/chat-interface' when ready
 
 interface ChatsState {
@@ -17,6 +18,7 @@ interface ChatsState {
   addChat: (chat: ConversationV2) => void;
   deleteChat: (chatId: string) => void;
   updateChat: (chatId: string, updates: Partial<ConversationV2>) => void;
+  updateConversationRole: (conversationId: string, role: 'owner' | 'admin' | 'member') => void;
   updateLastMessage: (conversationId: string, content: string, type: string, timestamp: number, senderId?: string, senderName?: string, shouldIncrementUnread?: boolean) => void;
   incrementUnreadCount: (conversationId: string) => void;
   resetUnreadCount: (conversationId: string) => void;
@@ -94,17 +96,42 @@ export const useChatsStore = create<ChatsState>((set) => ({
     }));
   },
 
+  updateConversationRole: (conversationId: string, role: 'owner' | 'admin' | 'member') => {
+    set((state) => ({
+      chats: state.chats.map((c) =>
+        c.conversationId === conversationId ? { ...c, myRole: role } : c
+      ),
+      filteredChats: state.filteredChats.map((c) =>
+        c.conversationId === conversationId ? { ...c, myRole: role } : c
+      ),
+    }));
+  },
+
   updateLastMessage: (conversationId: string, content: string, type: string, timestamp: number, senderId?: string, senderName?: string, shouldIncrementUnread?: boolean) => {
     set((state) => {
       const updateConversation = (chat: ConversationV2) => {
         if (chat.conversationId === conversationId) {
+          // Format preview content based on type
+          let previewContent = content;
+          if (type === 'image') {
+            previewContent = 'Đã gửi 1 ảnh';
+          } else if (type === 'video') {
+            previewContent = 'Đã gửi 1 video';
+          } else if (type === 'file') {
+            previewContent = 'Đã gửi 1 tệp đính kèm';
+          } else if (type === 'voice') {
+            previewContent = '__VOICE__';
+          } else if (type === 'deleted' || type === 'revoked') {
+            previewContent = 'Tin nhắn đã được thu hồi';
+          }
+
           // Only increment unread if message is not from current user
           const currentUnread = chat.unreadCount || 0;
           const newUnread = shouldIncrementUnread ? currentUnread + 1 : currentUnread;
           return {
             ...chat,
             lastMessage: {
-              content,
+              content: previewContent,
               type: type as any,
               timestamp,
               senderId,

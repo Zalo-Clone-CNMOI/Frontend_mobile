@@ -115,7 +115,8 @@
     "forward_source_not_found_desc": "The original message no longer exists",
     "forward_failed": "Forward failed",
     "rate_limited": "Too many requests",
-    "rate_limited_desc": "Please try again later"
+    "rate_limited_desc": "Please try again later",
+    "you": "You"
   },
 
   "group_errors": {
@@ -222,7 +223,12 @@
     "create_poll": "Create Poll",
     "create_poll_desc": "Create a poll in this group",
     "view_polls": "View Polls",
-    "view_polls_desc": "View all polls in this group"
+    "view_polls_desc": "View all polls in this group",
+    "poll_message": "📊 {{question}}"
+  },
+
+  "chat": {
+    "you": "You"
   },
 
   "polls_screen": {
@@ -545,6 +551,43 @@
     "password": "Password"
   },
 
+  "forward": {
+    "title": "Share",
+    "selectedCount": "Selected: {{count}}",
+    "searchPlaceholder": "Search",
+    "newGroup": "New Group",
+    "otherApps": "Other Apps",
+    "recent": "Recent",
+    "groups": "Chat Groups",
+    "viewMore": "View More",
+    "loading": "Loading...",
+    "noConversations": "No conversations found",
+    "message": "Message",
+    "messagePlaceholder": "Enter message"
+  },
+  "messageType": {
+    "sentMultipleImages": "sent multiple images",
+    "sentImage": "sent 1 image",
+    "sentVideo": "sent 1 video",
+    "sentFile": "sent 1 file",
+    "sentVoice": "sent 1 voice message",
+    "youPrefix": "You: "
+  },
+  "pollDetail": {
+    "title": "Poll Details",
+    "loading": "Loading...",
+    "multipleChoice": "Multiple choice allowed",
+    "addOption": "Add option",
+    "addOptionPlaceholder": "Enter new option...",
+    "vote": "VOTE",
+    "unknownUser": "Unknown user"
+  },
+  "timeAgo": {
+    "days": "{{count}} days ago",
+    "hours": "{{count}} hours ago",
+    "minutes": "{{count}} minutes ago",
+    "justNow": "Just now"
+  },
   "poll": {
     "label": "POLL",
     "multiple": "Multiple choice",

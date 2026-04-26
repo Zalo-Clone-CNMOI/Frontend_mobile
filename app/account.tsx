@@ -78,7 +78,8 @@ export default function AccountScreen() {
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.colors.textHeader }]}>
             {t('account_security.title') || 'Tài khoản và bảo mật'}
-          </Text>                </View>
+          </Text>
+        </View>
       </View>
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <ScrollView style={styles.content}>

@@ -1,7 +1,5 @@
 import React, { createContext, ReactNode, useContext } from 'react';
-import { useThemeManager } from './themeManager';
-
-type AppTheme = ReturnType<typeof useThemeManager>['theme'];
+import { useThemeManager, type AppTheme } from './themeManager';
 
 const ThemeContext = createContext<AppTheme | null>(null);
 

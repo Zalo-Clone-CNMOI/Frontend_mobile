@@ -3,6 +3,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { initChat } from '../../services/chatService';
 import { fetchRuntimeFriendSnapshot } from '../../services/realtime/runtimeFriendService';
 import { useRealtimeStore } from '../../store/useRealtimeStore';
+import { useChatsStore } from '../../store/useChatsStore';
+import { getSocket } from '../../services/socket';
 
 /**
  * ChatSocketBridge - Component to initialize chat socket listeners
@@ -25,6 +27,41 @@ export function ChatSocketBridge() {
     // Initialize chat socket listeners using initChat function
     // This registers all socket event listeners in chatService.ts
     initChat();
+
+    // ✅ Auto-join all conversations to receive messages without opening them
+    const joinAllConversations = async () => {
+      try {
+        // Wait for conversations to load
+        await useChatsStore.getState().initializeChats();
+        
+        const conversations = useChatsStore.getState().chats;
+        const socket = getSocket();
+        
+        // Limit to top 50 most recent conversations to avoid overload
+        const MAX_AUTO_JOIN = 50;
+        const conversationsToJoin = conversations.slice(0, MAX_AUTO_JOIN);
+        
+        if (socket && conversationsToJoin.length > 0) {
+          console.log(`[ChatSocketBridge] Auto-joining ${conversationsToJoin.length}/${conversations.length} conversations (limited to ${MAX_AUTO_JOIN})`);
+          
+          // Join each conversation room
+          conversationsToJoin.forEach((chat) => {
+            if (chat.conversationId) {
+              socket.emit('chat:join', { conversation_id: chat.conversationId });
+            }
+          });
+          
+          console.log('[ChatSocketBridge] Auto-join completed');
+        }
+      } catch (error) {
+        console.error('[ChatSocketBridge] Failed to auto-join conversations:', error);
+      }
+    };
+
+    // Delay auto-join to ensure socket is connected
+    setTimeout(() => {
+      joinAllConversations();
+    }, 1000);
 
     // ✅ FIX 2: Hydrate realtime store khi app start (với retry logic)
     const MAX_RETRIES = 3;

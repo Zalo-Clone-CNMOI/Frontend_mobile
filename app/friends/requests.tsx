@@ -177,10 +177,25 @@ export default function FriendRequestsScreen() {
           </View>
         ) : (
           list.map((request, index) => {
+            // Handle different possible data structures
             const profile = (request as any).user
-              || (activeTab === 'received' ? request.requester : request.target);
-            const isBusy = processingId === request.id;
+              || (activeTab === 'received' ? (request as any).requester : (request as any).target)
+              || request;
+            
+            const fullName = profile?.fullName 
+              || profile?.name 
+              || (request as any).requesterName
+              || (request as any).targetName
+              || 'Người dùng';
+            
+            const phone = profile?.phone 
+              || profile?.phoneNumber 
+              || (request as any).requesterPhone
+              || (request as any).targetPhone;
+            
             const avatarUrl = normalizeAvatarUrl(profile?.avatarUrl);
+            const isBusy = processingId === request.id;
+            
             return (
               <View
                 key={request.id || `req-${index}`}
@@ -192,7 +207,7 @@ export default function FriendRequestsScreen() {
                     style={styles.avatar}
                   />
                 ) : (
-                  <AvatarWithInitials name={profile?.fullName || 'User'} size={56} style={styles.avatar} />
+                  <AvatarWithInitials name={fullName} size={56} style={styles.avatar} />
                 )}
 
                 <View style={styles.cardBody}>
@@ -201,16 +216,16 @@ export default function FriendRequestsScreen() {
                       style={[styles.name, { color: theme.colors.text }]}
                       numberOfLines={1}
                     >
-                      {profile?.fullName || 'Người dùng'}
+                      {fullName}
                     </Text>
                     <Text style={[styles.time, { color: theme.colors.icon }]}>
                       {formatTime(request.createdAt)}
                     </Text>
                   </View>
 
-                  {profile?.phone && (
+                  {phone && (
                     <Text style={[styles.phone, { color: theme.colors.icon }]}>
-                      {profile.phone}
+                      {phone}
                     </Text>
                   )}
 

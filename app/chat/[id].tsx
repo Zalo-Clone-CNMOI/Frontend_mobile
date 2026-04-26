@@ -43,9 +43,9 @@ export default function ChatDetailScreen() {
   const router = useRouter();
   const { user: authUser } = useAuth();
   const { notification, showInfo, showSuccess, showError, hideNotification } = useInAppNotification();
-  const getMembers = useConversationDetailStore((state) => state.getMembers);
   const fetchConversationDetail = useConversationDetailStore((state) => state.fetchConversationDetail);
   const getMySettings = useConversationDetailStore((state) => state.getMySettings);
+  const getMembers = useConversationDetailStore((state) => state.getMembers);
   const setMessageReactions = useMessagesStore((state) => state.setMessageReactions);
   const deleteChat = useChatsStore((state) => state.deleteChat);
   const { pinMessage, unpinMessage, isMessagePinned } = useMessagePin();
@@ -121,6 +121,27 @@ export default function ChatDetailScreen() {
     jumpToMessage,
   } = useChatDetailScreenLogic();
 
+  // Local state for members to avoid infinite loop - initialized after chatId is available
+  const [members, setMembers] = useState(() => getMembers(chatId));
+  
+  // Sync members from store when cache changes using Zustand subscription
+  useEffect(() => {
+    // Initial sync
+    setMembers(getMembers(chatId));
+    
+    // Subscribe to store changes
+    const unsubscribe = useConversationDetailStore.subscribe((state) => {
+      const newMembers = state.cache[chatId]?.members || [];
+      setMembers(prev => {
+        if (JSON.stringify(prev) !== JSON.stringify(newMembers)) {
+          return newMembers;
+        }
+        return prev;
+      });
+    });
+    
+    return unsubscribe;
+  }, [chatId]);
 
   // Group management state
   const [showGroupInfoModal, setShowGroupInfoModal] = useState(false);
@@ -366,6 +387,7 @@ export default function ChatDetailScreen() {
   };
 
   const handleOpenSearch = () => {
+    setShowChatOptions(false);
     toggleSearchMode();
   };
 
@@ -550,7 +572,6 @@ export default function ChatDetailScreen() {
   const presenceStatus = getPresenceStatus();
 
   const renderItem = React.useCallback(({ item }: { item: any }) => {
-    const members = getMembers(chatId);
     return (
       <MessageBubble
         item={item}
@@ -605,7 +626,7 @@ export default function ChatDetailScreen() {
     searchQuery,
     chatId,
     isMessagePinned,
-    getMembers,
+    members,
   ]);
 
   return (
@@ -858,7 +879,9 @@ export default function ChatDetailScreen() {
           }}
           onNicknameChanged={() => {
             // Refresh conversation list to show updated nickname
-            router.replace('/(tabs)/home' as any);
+            // Note: Conversation detail already refreshed by ChatOptions
+            // UI updates automatically via store subscription
+            console.log('[ChatDetail] Nickname changed, UI updated via store');
           }}
         />
         

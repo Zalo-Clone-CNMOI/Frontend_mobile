@@ -231,18 +231,31 @@ export const subscribeToGroupEvents = () => {
     // Idempotency check
     const id = eventId || `role-updated:${payload.conversation_id}:${payload.user_id}:${payload.updated_at}`;
     if (isEventProcessed(id)) return;
-    
+
     if (payload.user_id === currentUserId) {
       // Current user's role was updated
-      // Update mySettings in cache
+      console.log('[groupEventsHandler] Role updated for current user:', {
+        conversationId: payload.conversation_id,
+        previousRole: payload.previous_role,
+        newRole: payload.current_role,
+        userId: currentUserId,
+      });
+
+      // Update role in conversation list (for future reference)
+      useChatsStore.getState().updateConversationRole(
+        payload.conversation_id,
+        payload.current_role
+      );
+
+      // Update cache (used by ChatOptions)
       conversationDetailStore.updateMySettings(payload.conversation_id, {
         role: payload.current_role,
       });
 
-      // TODO: Refresh permission UI
+      // Invalidate cache to force refresh next time ChatOptions opens
+      conversationDetailStore.invalidateCache(payload.conversation_id);
     } else {
       // Another member's role was updated
-      // Update member in cache
       conversationDetailStore.updateMember(payload.conversation_id, payload.user_id, {
         role: payload.current_role,
       });

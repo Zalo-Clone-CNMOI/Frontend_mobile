@@ -205,7 +205,8 @@
     "create_poll": "Tạo bình chọn",
     "create_poll_desc": "Tạo bình chọn trong nhóm",
     "view_polls": "Xem bình chọn",
-    "view_polls_desc": "Xem tất cả bình chọn trong nhóm"
+    "view_polls_desc": "Xem tất cả bình chọn trong nhóm",
+    "poll_message": "📊 {{question}}"
   },
 
   "polls_screen": {
@@ -252,7 +253,8 @@
     "forward_source_not_found_desc": "Tin nhắn gốc không còn tồn tại",
     "forward_failed": "Chuyển tiếp thất bại",
     "rate_limited": "Quá nhiều yêu cầu",
-    "rate_limited_desc": "Vui lòng thử lại sau"
+    "rate_limited_desc": "Vui lòng thử lại sau",
+    "you": "Bạn"
   },
 
   "group_errors": {
@@ -382,7 +384,10 @@
     "revoked": "Tin nhắn đã thu hồi",
     "replying_to": "Đang trả lời",
     "replied_message": "Tin nhắn đã trả lời",
-    "empty": "Chưa có cuộc trò chuyện nào"
+    "empty": "Chưa có cuộc trò chuyện nào",
+    "edited": "Đã chỉnh sửa",
+    "view_original_message": "Xem tin nhắn gốc",
+    "image_not_available": "Ảnh không khả dụng"
   },
 
   "add_friend": {
@@ -539,6 +544,43 @@
     "default_country": "Việt Nam"
   },
 
+  "forward": {
+    "title": "Chia sẻ",
+    "selectedCount": "Đã chọn: {{count}}",
+    "searchPlaceholder": "Tìm kiếm",
+    "newGroup": "Nhóm mới",
+    "otherApps": "App khác",
+    "recent": "Gần đây",
+    "groups": "Nhóm trò chuyện",
+    "viewMore": "Xem thêm",
+    "loading": "Đang tải...",
+    "noConversations": "Không tìm thấy cuộc trò chuyện nào",
+    "message": "Tin nhắn",
+    "messagePlaceholder": "Nhập tin nhắn"
+  },
+  "messageType": {
+    "sentMultipleImages": "đã gửi nhiều ảnh",
+    "sentImage": "đã gửi 1 ảnh",
+    "sentVideo": "đã gửi 1 video",
+    "sentFile": "đã gửi 1 tệp",
+    "sentVoice": "đã gửi 1 tin nhắn thoại",
+    "youPrefix": "Bạn: "
+  },
+  "pollDetail": {
+    "title": "Chi tiết bình chọn",
+    "loading": "Đang tải...",
+    "multipleChoice": "Chọn được nhiều phương án",
+    "addOption": "Thêm phương án",
+    "addOptionPlaceholder": "Nhập phương án mới...",
+    "vote": "BÌNH CHỌN",
+    "unknownUser": "Người dùng"
+  },
+  "timeAgo": {
+    "days": "{{count}} ngày trước",
+    "hours": "{{count}} giờ trước",
+    "minutes": "{{count}} phút trước",
+    "justNow": "Vừa xong"
+  },
   "poll": {
     "label": "BÌNH CHỌN",
     "multiple": "Chọn nhiều",

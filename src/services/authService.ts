@@ -185,6 +185,17 @@ export const clearAuthData = async () => {
     authCache.accessToken = null;
     authCache.refreshToken = null;
     authCache.loaded = true;
+
+    // Clear all stores to prevent data leakage between accounts
+    const { useChatsStore } = await import('../store/useChatsStore');
+    const { useConversationDetailStore } = await import('../store/useConversationDetailStore');
+    const { useMessagesStore } = await import('../store/useMessagesStore');
+    const { useGroupInviteStore } = await import('../store/useGroupInviteStore');
+
+    useChatsStore.getState().reset();
+    useConversationDetailStore.getState().reset();
+    useMessagesStore.getState().reset();
+    useGroupInviteStore.getState().reset();
   } catch (error) {
   }
 };

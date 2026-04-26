@@ -7,6 +7,7 @@ import { useChatStore } from '../store/chatStore';
 import { useChatsStore } from '../store/useChatsStore';
 import { useMessagesStore } from '../store/useMessagesStore';
 import { usePresenceStore } from '../store/usePresenceStore';
+import { detectPreviewTypeFromMessage, formatPreviewContent } from '../utils/messagePreviewFormatter';
 import type {
   SocketChatDeletePayload,
   SocketChatEditPayload,
@@ -58,7 +59,6 @@ export const useChatSocket = () => {
   // ✅ FIX 1: Hàm đồng bộ conversation khi có tin nhắn mới
   const syncConversationWithNewMessage = (payload: any, enrichedMessage: any) => {
     const conversationId = payload?.conversation_id || payload?.conversationId;
-    const body = payload?.body || enrichedMessage?.text || '';
     const createdAt = typeof payload?.created_at === 'number' ? payload?.created_at :
                       typeof payload?.createdAt === 'number' ? payload?.createdAt :
                       typeof payload?.ts === 'number' ? payload?.ts :
@@ -66,11 +66,15 @@ export const useChatSocket = () => {
     
     if (!conversationId) return;
     
+    // Format preview content based on message type
+    const previewContent = formatPreviewContent(enrichedMessage);
+    const previewType = detectPreviewTypeFromMessage(enrichedMessage);
+    
     // ✅ Cập nhật useChatsStore để Home screen re-render
     useChatsStore.getState().updateLastMessage(
       conversationId,
-      body,
-      payload?.type || enrichedMessage?.type || 'text',
+      previewContent,
+      previewType,
       createdAt,
       payload?.sender_id || payload?.senderId || enrichedMessage?.senderId,
       payload?.sender_name || payload?.senderName || enrichedMessage?.senderName,

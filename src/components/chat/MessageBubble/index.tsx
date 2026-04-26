@@ -1,13 +1,19 @@
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { SystemMessageBanner } from '@/src/components/chat/SystemMessageBanner';
 import { PollCard } from '@/src/components/chat/PollCard';
+import { ForwardedHeader } from './components/ForwardedHeader';
+import { ReplyPreview } from './components/ReplyPreview';
+import { MessageReactions } from './components/MessageReactions';
 import { useAuth } from '@/src/contexts/AuthContext';
 import * as mediaService from '@/src/services/mediaService';
 import { useTheme } from '@/src/theme/themeContext';
-import type { ChatMessage } from '@/src/types/chat';
+import { NETWORK_CONFIG } from '@/src/config/network';
+import type { ChatMessage, Attachment } from '@/src/types/chat';
 import type { PollMessageMetadata } from '@/src/types/dto/PollDTO';
+import type { FileVisibility } from '@/src/types/media';
+import type { ConversationMember } from '@/src/types/interface/chat-interface';
 import { Check, CheckCheck, FileArchive, FileAudio, FileText, FileVideo, Forward, Pin, Play, RotateCcw } from 'lucide-react-native';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Image,
@@ -17,7 +23,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useUserProfiles } from '../../hooks/useUserProfiles';
+import { useUserProfiles } from '@/src/hooks/useUserProfiles';
 
 // ─── Helper: HighlightText Component ─────────────────────────────────────────
 // Highlights search terms in message text like Zalo
@@ -79,7 +85,7 @@ type MessageBubbleProps = {
   onNavigateToForwarded?: (forwardedFrom: ChatMessage['forwardedFrom']) => void; // Navigate to original conversation
   highlightText?: string; // For search highlighting
   isPinned?: boolean; // Whether message is pinned
-  conversationMembers?: Array<{ userId: string; nickname?: string | null; fullName?: string | null }>; // Conversation members for nickname lookup
+  conversationMembers?: ConversationMember[]; // Conversation members for nickname lookup
   currentUserRole?: 'owner' | 'admin' | 'member';
 };
 
@@ -110,9 +116,10 @@ export const MessageBubble = React.memo(
   const [attachmentUrl, setAttachmentUrl] = useState<string>('');
   const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
+  const fetchedUrlsRef = useRef(false);
 
-  const attachments = (item as any).attachments || [];
-  const imageAttachments = attachments.filter((a: any) => a.type === 'image' || a.content_type?.startsWith('image/'));
+  const attachments: Attachment[] = item.attachments || [];
+  const imageAttachments = attachments.filter((a: Attachment) => a.type === 'image' || a.content_type?.startsWith('image/'));
   const hasMultipleImages = imageAttachments.length > 1;
   const previewImages = attachmentUrls.slice(0, 6);
 
@@ -181,40 +188,73 @@ export const MessageBubble = React.memo(
     return null;
   }, [isGroup, item.fromMe, item.senderId, profiles]);
 
+  const conversationMember = useMemo(() => {
+    if (item.senderId && conversationMembers) {
+      return conversationMembers.find(m => m.userId === item.senderId);
+    }
+    return null;
+  }, [item.senderId, conversationMembers]);
+
+  const normalizeAvatarUrl = (avatarUrl: string | null | undefined): string | undefined => {
+    if (!avatarUrl) return undefined;
+    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+      const regex = /https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/;
+      return avatarUrl.replace(regex, NETWORK_CONFIG.S3_BASE_URL);
+    }
+    return `${NETWORK_CONFIG.S3_BASE_URL}/${avatarUrl.replace(/^\//, '')}`;
+  };
+
   const avatar = useMemo(() => {
     if (item.fromMe) return undefined;
-    if (isGroup) {
-      if (userProfile?.avatarUrl) {
-        return getAvatarUrl(item.senderId || '');
-      }
-      const avatarUrl = item.senderAvatar || (item as any).sender?.avatarUrl || (item as any).sender?.avatar;
-      return avatarUrl;
+    
+    // Try conversation member avatar first
+    if (conversationMember?.avatarUrl) {
+      return normalizeAvatarUrl(conversationMember.avatarUrl);
     }
-    const avatarUrl = item.senderAvatar || (item as any).sender?.avatarUrl || (item as any).sender?.avatar;
-    return avatarUrl;
-  }, [item.fromMe, item.senderId, item.senderAvatar, isGroup, userProfile, getAvatarUrl]);
+    
+    // Try userProfile avatar
+    if (userProfile?.avatarUrl) {
+      return getAvatarUrl(item.senderId || '');
+    }
+    
+    // Fallback to item fields
+    const avatarUrl = item.senderAvatar || item.sender?.avatarUrl || item.sender?.avatar;
+    return avatarUrl ? normalizeAvatarUrl(avatarUrl) : undefined;
+  }, [item.fromMe, item.senderId, item.senderAvatar, isGroup, userProfile, conversationMember, getAvatarUrl]);
 
   const senderName = useMemo(() => {
-    if (item.fromMe) return 'Bạn';
-    if (isGroup && item.senderId) {
+    if (item.fromMe) return t('chat.you');
+    
+    if (item.senderId) {
       // First, try to get nickname from conversation members (conversation-specific)
-      const member = conversationMembers?.find(m => m.userId === item.senderId);
-      if (member?.nickname) {
-        return member.nickname;
+      if (conversationMember?.nickname) {
+        return conversationMember.nickname;
       }
-      // Fallback to member.fullName or userProfile.fullName
-      if (member?.fullName) {
-        return member.fullName;
+      // Fallback to member.fullName
+      if (conversationMember?.fullName) {
+        return conversationMember.fullName;
       }
+      // Try userProfile.fullName
       if (userProfile?.fullName) {
         return userProfile.fullName;
       }
+      // Fallback to item fields
+      if (item.senderName) {
+        return item.senderName;
+      }
+      if (item.sender?.name) {
+        return item.sender.name;
+      }
+      if (item.sender?.fullName) {
+        return item.sender.fullName;
+      }
     }
+    
     if (isGroup && item.senderId && loading[item.senderId]) {
-      return 'Đang tải...';
+      return t('common.loading');
     }
-    return item.senderName || (item as any).senderName || (item as any).sender?.name || (item as any).sender?.fullName || 'User';
-  }, [item.fromMe, item.senderName, item.senderId, isGroup, userProfile, loading, conversationMembers]);
+    return 'User';
+  }, [item.fromMe, item.senderName, item.senderId, isGroup, userProfile, loading, conversationMember]);
 
   const formatTime = (dateProp: any) => {
     const d = dateProp ? new Date(dateProp) : new Date();
@@ -226,14 +266,14 @@ export const MessageBubble = React.memo(
   };
 
   const isImage =
-    ((item as any).type === 'image' || (item as any).fileInfo?.mimeType?.startsWith('image/')) ||
-    ((item as any).text && typeof (item as any).text === 'string' && (item as any).text.includes('image/')) ||
-    ((item as any).content && typeof (item as any).content === 'string' && (item as any).content.includes('image/'));
+    (item.type === 'image' || item.fileInfo?.mimeType?.startsWith('image/')) ||
+    (item.text && typeof item.text === 'string' && item.text.includes('image/')) ||
+    (item.content && typeof item.content === 'string' && item.content.includes('image/'));
   const isVideo =
-    ((item as any).type === 'video' || (item as any).fileInfo?.mimeType?.startsWith('video/')) ||
-    ((item as any).text && typeof (item as any).text === 'string' && (item as any).text.includes('video/')) ||
-    ((item as any).content && typeof (item as any).content === 'string' && (item as any).content.includes('video/'));
-  const isFile = ((item as any).type === 'file' || ((item as any).fileInfo && !isImage && !isVideo));
+    (item.type === 'video' || item.fileInfo?.mimeType?.startsWith('video/')) ||
+    (item.text && typeof item.text === 'string' && item.text.includes('video/')) ||
+    (item.content && typeof item.content === 'string' && item.content.includes('video/'));
+  const isFile = (item.type === 'file' || (item.fileInfo && !isImage && !isVideo));
 
   useEffect(() => {
     if (isGroup && !item.fromMe && item.senderId) {
@@ -244,14 +284,23 @@ export const MessageBubble = React.memo(
   useEffect(() => {
     if (!isImage && !isVideo) return;
 
+    // Reset fetch flag when message changes
+    const messageId = item.messageId || item.id;
+    if (fetchedUrlsRef.current) {
+      fetchedUrlsRef.current = false;
+    }
+
     const fetchUrls = async () => {
+      if (fetchedUrlsRef.current) return;
+      fetchedUrlsRef.current = true;
+
       try {
         if (hasMultipleImages) {
           const urls = await Promise.all(
-            imageAttachments.map(async (attachment: any) => {
+            imageAttachments.map(async (attachment: Attachment) => {
               if (attachment?.key) {
                 return await mediaService.getAttachmentUrl(
-                  { key: attachment.key, visibility: attachment.visibility || 'public', url: attachment.url },
+                  { key: attachment.key, visibility: (attachment.visibility || 'public') as FileVisibility, url: attachment.url },
                   authUser?.id || ''
                 );
               }
@@ -261,10 +310,10 @@ export const MessageBubble = React.memo(
           setAttachmentUrls(urls);
           setAttachmentUrl(urls[0] || '');
         } else {
-          const attachment = (item as any).attachment || (item as any).attachments?.[0];
+          const attachment = item.attachment || item.attachments?.[0];
           if (attachment?.key) {
             const url = await mediaService.getAttachmentUrl(
-              { key: attachment.key, visibility: attachment.visibility || 'public', url: attachment.url },
+              { key: attachment.key, visibility: (attachment.visibility || 'public') as FileVisibility, url: attachment.url },
               authUser?.id || ''
             );
             setAttachmentUrl(url);
@@ -272,26 +321,26 @@ export const MessageBubble = React.memo(
             const tKey = attachment.thumbnailKey || attachment.thumbnail_key;
             if (tKey) {
               const tUrl = await mediaService.getAttachmentUrl(
-                { key: tKey, visibility: attachment.visibility || 'public', url: attachment.thumbnailUrl || attachment.thumbnail_url },
+                { key: tKey, visibility: (attachment.visibility || 'public') as FileVisibility, url: attachment.thumbnailUrl || attachment.thumbnail_url },
                 authUser?.id || ''
               );
               setThumbnailUrl(tUrl);
             }
           } else {
-            const fallbackUri = (item as any).fileInfo?.uri || '';
+            const fallbackUri = item.fileInfo?.uri || '';
             setAttachmentUrl(fallbackUri);
           }
         }
       } catch (error) {
-        setAttachmentUrl((item as any).fileInfo?.uri || '');
+        setAttachmentUrl(item.fileInfo?.uri || '');
       }
     };
 
     fetchUrls();
-  }, [item, isImage, isVideo, authUser?.id, hasMultipleImages, imageAttachments]);
+  }, [item.messageId || item.id, isImage, isVideo]);
 
-  const messageText = (item as any).text || (item as any).content || '';
-  const isMe = (item as any).fromMe || ((item as any).sender && (item as any).sender.me === true);
+  const messageText = item.text || item.content || '';
+  const isMe = Boolean(item.fromMe) || Boolean(item.sender?.me);
 
   
   const replySenderName = item.replyTo?.senderName || t('messages.replying_to');
@@ -405,123 +454,24 @@ export const MessageBubble = React.memo(
         >
           {/* ── Reply preview ──────────────────────────────────────────────── */}
           {item.replyTo && (
-            <Pressable
+            <ReplyPreview
+              replyTo={item.replyTo}
+              isMe={isMe ?? false}
+              myTextColor={myTextColor}
+              theirTextColor={theirTextColor}
               onPress={() => onPressReply?.(item)}
-              style={({ pressed }) => ([
-                styles.replyWrap,
-                {
-                  backgroundColor: isMe ? myReplyOverlayBg : theirReplyOverlayBg,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ])}
-            >
-              <View
-                style={[
-                  styles.replyBar,
-                  { backgroundColor: theme.colors.primary },
-                ]}
-              />
-              <View style={styles.replyContent}>
-                <Text
-                  style={[
-                    styles.replyName,
-                    { color: isMe ? myTextColor : theme.colors.primary },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {replySenderName}
-                </Text>
-                <Text
-                  style={[
-                    styles.replyText,
-                    { color: isMe ? myTextColor : theirTextColor, opacity: 0.7 },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {replyText}
-                </Text>
-              </View>
-            </Pressable>
+            />
           )}
 
           
           
           {/* ── Forwarded header ───────────────────────────────────────────── */}
-          {item.forwardedFrom && (isImage || isVideo || isFile) && (                              
-            <TouchableOpacity
-              style={[
-                styles.forwardedHeader,
-                {
-                  backgroundColor: isMe
-                    ? 'rgba(255,255,255,0.15)'  // Subtle white for my messages
-                    : theme.colors.primary + '15',  // Subtle primary for their messages
-                  borderWidth: 1,
-                  borderColor: theme.colors.primary + '40',
-                  borderRadius: 12,
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  marginBottom: 6,
-                },
-              ]}
-              onPress={() => {
-                // Navigate to original conversation to view the original message
-                onNavigateToForwarded?.(item.forwardedFrom);
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={styles.forwardedHeaderContent}>
-                <View
-                  style={[
-                    styles.forwardedAvatarContainer,
-                    {
-                      backgroundColor: theme.colors.primary + '25',
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      marginRight: 10,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.forwardedAvatarText, { 
-                    color: theme.colors.primary, 
-                    fontSize: 12,
-                    fontWeight: '600'
-                  }]}>
-                    {item.forwardedFrom.source_sender_name_snapshot?.charAt(0).toUpperCase() || 'U'}
-                  </Text>
-                </View>
-                <View style={styles.forwardedContent}>
-                  <Text
-                    style={[
-                      styles.forwardedHeaderText,
-                      { 
-                        color: theme.colors.text, 
-                        fontSize: 13,
-                        fontWeight: '500',
-                        lineHeight: 16
-                      },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {t('chat.forwarded_from', { defaultValue: 'Đã chuyển tiếp' })} {item.forwardedFrom.source_sender_name_snapshot || 'Unknown'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.forwardedSubText,
-                      { 
-                        color: theme.colors.text, 
-                        fontSize: 11,
-                        opacity: 0.6,
-                        marginTop: 1
-                      },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    Xem tin nhắn gốc
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
+          {item.forwardedFrom && (isImage || isVideo || isFile) && (
+            <ForwardedHeader
+              forwardedFrom={item.forwardedFrom}
+              isMe={isMe ?? false}
+              onPress={() => onNavigateToForwarded?.(item.forwardedFrom)}
+            />
           )}
 
           {/* ── Content ────────────────────────────────────────────────────── */}
@@ -663,42 +613,19 @@ export const MessageBubble = React.memo(
                         borderColor: imageBorderColor,
                       }]}>
                         <Text style={{ color: isDark ? 'rgba(255,255,255,0.4)' : '#999', fontSize: 12 }}>
-                          Image not available
+                          {t('messages.image_not_available', { defaultValue: 'Image not available' })}
                         </Text>
                       </View>
                     )}
                     {/* Reactions on image */}
                     {item.reactions && Object.keys(item.reactions).length > 0 && (
-                      <View style={[styles.reactionButtonAbsolute, isMe ? styles.reactionButtonRight : styles.reactionButtonLeft]}>
-                        {Object.entries(item.reactions).map(([reactionType, userIds]) => {
-                          const hasMyReaction = userIds.includes(authUser?.id || '');
-                          const emoji = getReactionEmoji(reactionType);
-                          return (
-                            <TouchableOpacity
-                              key={reactionType}
-                              style={[
-                                styles.reactionPill,
-                                {
-                                  backgroundColor: reactionPillBg,
-                                  borderColor: reactionPillBorder,
-                                },
-                                hasMyReaction && {
-                                  backgroundColor: reactionPillActiveBg,
-                                  borderColor: reactionPillActiveBorder,
-                                },
-                              ]}
-                              onPress={() => hasMyReaction && onReactionPress?.(item.serverMessageId || item.id, reactionType)}
-                            >
-                              <Text style={styles.reactionPillEmoji}>{emoji}</Text>
-                              {userIds.length > 1 && (
-                                <Text style={[styles.reactionPillCount, { color: reactionCountColor }]}>
-                                  {userIds.length}
-                                </Text>
-                              )}
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
+                      <MessageReactions
+                        reactions={item.reactions}
+                        currentUserId={authUser?.id || ''}
+                        onReactionPress={(reactionType) => onReactionPress?.(item.serverMessageId || item.id, reactionType)}
+                        isAbsolute={true}
+                        isMe={isMe ?? false}
+                      />
                     )}
                   </View>
                 </View>
@@ -723,78 +650,11 @@ export const MessageBubble = React.memo(
             >
               {/* Forwarded header for video messages */}
               {item.forwardedFrom && (
-                <TouchableOpacity
-                  style={[
-                    styles.forwardedHeader,
-                    {
-                      backgroundColor: isMe
-                        ? 'rgba(255,255,255,0.15)'  // Subtle white for my messages
-                        : theme.colors.primary + '15',  // Subtle primary for their messages
-                      borderWidth: 1,
-                      borderColor: theme.colors.primary + '40',
-                      borderRadius: 12,
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      marginBottom: 6,
-                    },
-                  ]}
-                  // onPress={() => {
-                  //   // Navigate to original conversation to view the original message
-                  //   onNavigateToForwarded?.(item.forwardedFrom);
-                  // }}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.forwardedHeaderContent}>
-                    <View
-                      style={[
-                        styles.forwardedAvatarContainer,
-                        {
-                          backgroundColor: theme.colors.primary + '25',
-                          width: 24,
-                          height: 24,
-                          borderRadius: 12,
-                          marginRight: 10,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.forwardedAvatarText, { 
-                        color: theme.colors.primary, 
-                        fontSize: 12,
-                        fontWeight: '600'
-                      }]}>{item.forwardedFrom.source_sender_name_snapshot?.charAt(0).toUpperCase() || 'U'}</Text>
-                    </View>
-                    <View style={styles.forwardedContent}>
-                      <Text
-                        style={[
-                          styles.forwardedHeaderText,
-                          { 
-                            color: theme.colors.text, 
-                            fontSize: 13,
-                            fontWeight: '500',
-                            lineHeight: 16
-                          },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {t('chat.forwarded_from', { defaultValue: 'Tin nhắn' })} {item.forwardedFrom.source_sender_name_snapshot || 'Unknown'}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.forwardedSubText,
-                          { 
-                            color: theme.colors.text, 
-                            fontSize: 11,
-                            opacity: 0.6,
-                            marginTop: 1
-                          },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        Xem tin nhắn gốc
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
+                <ForwardedHeader
+                  forwardedFrom={item.forwardedFrom}
+                  isMe={isMe ?? false}
+                  onPress={() => onNavigateToForwarded?.(item.forwardedFrom)}
+                />
               )}
 
               {/* Regular video card with forward button */}
@@ -916,7 +776,7 @@ export const MessageBubble = React.memo(
             <>
               {item.isEdited ? (
                 <Text style={[styles.edited, { color: isMe ? myMetaColor : theirMetaColor }]}>
-                  (Đã chỉnh sửa)
+                  ({t('messages.edited', { defaultValue: 'Đã chỉnh sửa' })})
                 </Text>
               ) : null}
               <Text style={[styles.timestamp, { color: isMe ? myMetaColor : theirMetaColor }]}>
@@ -944,36 +804,13 @@ export const MessageBubble = React.memo(
 
         {/* ── Reactions row ─────────────────────────────────────────────────── */}
         {item.reactions && Object.keys(item.reactions).length > 0 && (
-          <View style={styles.reactionsContainer}>
-            {Object.entries(item.reactions).map(([reactionType, userIds]) => {
-              const hasMyReaction = userIds.includes(authUser?.id || '');
-              const emoji = getReactionEmoji(reactionType);
-              return (
-                <TouchableOpacity
-                  key={reactionType}
-                  style={[
-                    styles.reactionPill,
-                    {
-                      backgroundColor: reactionPillBg,
-                      borderColor: reactionPillBorder,
-                    },
-                    hasMyReaction && {
-                      backgroundColor: reactionPillActiveBg,
-                      borderColor: reactionPillActiveBorder,
-                    },
-                  ]}
-                  onPress={() => hasMyReaction && onReactionPress?.(item.serverMessageId || item.id, reactionType)}
-                >
-                  <Text style={styles.reactionPillEmoji}>{emoji}</Text>
-                  {userIds.length > 1 && (
-                    <Text style={[styles.reactionPillCount, { color: reactionCountColor }]}>
-                      {userIds.length}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <MessageReactions
+            reactions={item.reactions}
+            currentUserId={authUser?.id || ''}
+            onReactionPress={(reactionType) => onReactionPress?.(item.serverMessageId || item.id, reactionType)}
+            isAbsolute={true}
+            isMe={isMe ?? false}
+          />
         )}
       </View>
 
@@ -984,18 +821,6 @@ export const MessageBubble = React.memo(
     </View>
   );
 });
-
-const getReactionEmoji = (type: string): string => {
-  const emojis: Record<string, string> = {
-    love: '❤️',
-    like: '👍',
-    haha: '😂',
-    wow: '😲',
-    sad: '😢',
-    angry: '😡',
-  };
-  return emojis[type] || '❓';
-};
 
 // ── File helper functions ──────────────────────────────────────────────────────
 const getFileExt = (name?: string): string => {
@@ -1013,23 +838,6 @@ const getFileIcon = (name: string | undefined, color: string) => {
   if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext))
     return <FileArchive size={26} color={color} />;
   return <FileText size={26} color={color} />;
-};
-
-const getFileIconBg = (
-  name: string | undefined,
-  isMe: boolean,
-  primary: string,
-  isDark: boolean,
-): string => {
-  if (isMe) return 'rgba(255,255,255,0.18)';
-  const ext = getFileExt(name).toLowerCase();
-  if (['mp3', 'aac', 'wav', 'ogg', 'm4a', 'flac'].includes(ext))
-    return isDark ? '#1A2A3A' : '#E8F4FF';
-  if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext))
-    return isDark ? '#1A2A1A' : '#EAF7EA';
-  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext))
-    return isDark ? '#2A2010' : '#FFF5E0';
-  return isDark ? '#1A1A2E' : primary + '15';
 };
 
 const styles = StyleSheet.create({
@@ -1260,15 +1068,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  reactionButtonAbsolute: {
-    position: 'absolute',
-    bottom: -10,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  reactionButtonRight: { right: -10 },
-  reactionButtonLeft: { left: -10 },
-
   // Revoked
   revoked: {
     fontSize: 14,
@@ -1307,23 +1106,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
-  // Reply preview
-  replyWrap: {
-    flexDirection: 'row',
-    borderRadius: 8,
-    marginBottom: 6,
-    overflow: 'hidden',
-    alignSelf: 'stretch',
-  },
-  replyBar: { width: 3 },
-  replyContent: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    flex: 1,
-  },
-  replyName: { fontSize: 12, fontWeight: '700' },
-  replyText: { fontSize: 12, marginTop: 1 },
-
   bubbleWithReply: {
     paddingTop: 8,
     minWidth: 220,
@@ -1331,48 +1113,6 @@ const styles = StyleSheet.create({
   bubbleWithForwarded: {
     paddingTop: 4,
     paddingBottom: 8,
-  },
-
-  // Forwarded header - Made more prominent
-  forwardedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    alignSelf: 'stretch', // Take full width of bubble
-    marginHorizontal: 4,
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  forwardedHeaderContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  forwardedAvatarContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  forwardedAvatarText: { fontSize: 12, fontWeight: '600' },
-  forwardedHeaderText: { fontSize: 13, fontWeight: '500' },
-  forwardedContent: {
-    flex: 1,
-    flexDirection: 'column',
-    justifyContent: 'center',
-    marginLeft: 4,
-  },
-  forwardedSubText: {
-    fontSize: 10,
-    marginTop: 2,
-    opacity: 0.8,
-  },
-  forwardedArrow: {
-    fontSize: 20,
-    fontWeight: '400',
-    marginLeft: 4,
   },
 
   // Link preview card
@@ -1439,85 +1179,5 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
 
-  // Reactions
-  reactionsContainer: {
-    position: 'absolute',
-    bottom: -12,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  reactionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 2,
-    elevation: 2,
-    borderWidth: 0.5,
-  },
-  reactionPillEmoji: { fontSize: 13 },
-  reactionPillCount: { fontSize: 11, fontWeight: '600' },
 
-  // ── File card styles ────────────────────────────────────────────────────────
-  fileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 0.5,
-    minWidth: 240,
-    maxWidth: 280,
-    overflow: 'hidden',
-  },
-  fileCardIconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  fileCardBody: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-  },
-  fileCardName: {
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 18,
-  },
-  fileCardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 3,
-    gap: 3,
-  },
-  fileCardSize: { fontSize: 11 },
-  fileCardDot: { fontSize: 11 },
-  fileCardExt: { fontSize: 11, textTransform: 'uppercase' },
-  fileCardAction: {
-    width: 44,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderLeftWidth: 0.5,
-  },
-  fileForwardBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 6,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  fileForwardLabel: {
-    fontSize: 12,
-  },
 });

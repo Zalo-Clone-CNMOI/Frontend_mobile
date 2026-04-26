@@ -3,7 +3,7 @@ import { useColorScheme } from 'react-native';
 import { ThemeMode, ThemeService } from '../services/themeService';
 import { ZaloDarkTheme, ZaloLightTheme } from './customColor';
 
-type AppTheme = typeof ZaloLightTheme;
+export type AppTheme = typeof ZaloLightTheme;
 
 interface ThemeManagerContextType {
   theme: AppTheme;
