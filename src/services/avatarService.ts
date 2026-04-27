@@ -141,9 +141,6 @@ export async function uploadAvatar(
   const validation = validateAvatarFile(file);
 
   if (!validation.valid) {
-
-    console.error('[avatarService] Validation failed:', validation.error);
-
     throw new MediaError(400, validation.error || 'Invalid avatar file');
   }
 
@@ -152,27 +149,14 @@ export async function uploadAvatar(
 
     return uploadResult;
   } catch (error) {
-
-    console.error('[avatarService] Upload failed:', error);
-
     if (error instanceof MediaError) {
-
-      console.error('[avatarService] MediaError:', error.status, error.message);
-
       throw error;
-
     }
 
-    console.error('[avatarService] Generic error:', error instanceof Error ? error.message : String(error));
-
     throw new MediaError(
-
       0,
-
       `Avatar upload failed: ${error instanceof Error ? error.message : String(error)}`,
-
     );
-
   }
 
 }
@@ -252,8 +236,6 @@ async function updateSsoAvatar(
 
 
     const message = errorData?.message || errorText || `SSO profile update failed`;
-
-    console.error('[updateSsoAvatar] Error response:', { status: response.status, message, errorData });
 
 
 

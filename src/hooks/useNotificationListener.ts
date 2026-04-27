@@ -5,6 +5,7 @@ import { useInAppNotification } from '../notifications/useInAppNotification';
 import { getSocket } from '../services/socket';
 import { WsEvents } from '../realtime/events';
 import { useRoute } from '@react-navigation/native';
+import { subscribeToPollEvents, setPollEventCallbacks, setPollCurrentUserId } from '../services/pollEventsHandler';
 
 export function useNotificationListener() {
   const { user: authUser } = useAuth();
@@ -13,6 +14,13 @@ export function useNotificationListener() {
   const route = useRoute() as any;
   const currentConversationId = useRef<string | null>(null);
   const userId = (authUser as any)?.id;
+
+  // Set current user ID for poll events
+  useEffect(() => {
+    if (userId) {
+      setPollCurrentUserId(userId);
+    }
+  }, [userId]);
 
   // Track current conversation ID
   useEffect(() => {
@@ -93,6 +101,47 @@ export function useNotificationListener() {
     socket.on(WsEvents.ChatMessage, handleMessage);
     socket.on(WsEvents.GroupInviteSent, handleGroupInvite);
     socket.on(WsEvents.ConversationMemberAdded, handleMemberAdded);
+
+    // Register poll event callbacks for notifications
+    setPollEventCallbacks({
+      onPollCreated: (payload) => {
+        const conversationId = payload.conversation_id;
+        const question = payload.question;
+
+        // Don't show if I'm the creator or in the conversation
+        if (payload.creator_id === userId) return;
+        if (conversationId === currentConversationId.current) return;
+
+        showInfo(
+          'Bình chọn mới',
+          question,
+          {
+            onPress: () => {
+              router.push(`/chat/${conversationId}` as any);
+            },
+          }
+        );
+      },
+      onPollClosed: (payload) => {
+        const conversationId = payload.conversation_id;
+
+        // Don't show if I'm in the conversation
+        if (conversationId === currentConversationId.current) return;
+
+        showInfo(
+          'Bình chọn đã kết thúc',
+          'Bình chọn đã đóng',
+          {
+            onPress: () => {
+              router.push(`/chat/${conversationId}` as any);
+            },
+          }
+        );
+      },
+    });
+
+    // Subscribe to poll events
+    subscribeToPollEvents();
 
     return () => {
       socket.off(WsEvents.ChatMessage, handleMessage);

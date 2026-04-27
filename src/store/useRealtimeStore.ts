@@ -9,7 +9,9 @@ type RealtimeStoreState = {
   receivedRequests: FriendRequestRecord[];
   sentRequests: FriendRequestRecord[];
   isHydrating: boolean;
+  hydrationError: string | null;
   setHydrating: (value: boolean) => void;
+  setHydrationError: (error: string | null) => void;
   setFriendSnapshot: (payload: {
     friends: FriendRecord[];
     receivedRequests: FriendRequestRecord[];
@@ -36,7 +38,9 @@ export const useRealtimeStore = create<RealtimeStoreState>((set) => ({
   receivedRequests: [],
   sentRequests: [],
   isHydrating: false,
+  hydrationError: null,
   setHydrating: (value) => set({ isHydrating: value }),
+  setHydrationError: (error) => set({ hydrationError: error }),
   setFriendSnapshot: ({ friends, receivedRequests, sentRequests }) =>
     set({
       friends: dedupeById(friends),
@@ -70,6 +74,7 @@ export const useRealtimeStore = create<RealtimeStoreState>((set) => ({
       receivedRequests: [],
       sentRequests: [],
       isHydrating: false,
+      hydrationError: null,
     }),
 }));
 

@@ -5,8 +5,9 @@ import { fetchRuntimeFriendSnapshot } from '@/src/services/realtime/runtimeFrien
 import { usePresenceStore } from '@/src/store/usePresenceStore';
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
 import type { ContactListItem } from '@/src/types/contacts';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const normalizeAvatar = (avatar?: string): string | null => {
   if (!avatar) return null;
@@ -106,6 +107,14 @@ export function useContactsScreenLogic() {
     setLoading(true);
     refreshFriends().finally(() => setLoading(false));
   }, [refreshFriends]);
+
+  // ✅ FIX 1: Auto-refresh khi screen được focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[ContactsScreen] Focused, refreshing friends');
+      refreshFriends();
+    }, [refreshFriends])
+  );
 
   const filteredFriends = useMemo(() => {
     if (usersFilterType === 'recent') {

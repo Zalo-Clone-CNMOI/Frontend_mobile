@@ -1,7 +1,8 @@
 import { useTheme } from '@/src/theme/themeContext';
-import type { ChatMessage } from '@/src/types/chat';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
+import type { PinnedMessageItem } from '@/src/types/mappers/DTOMappers';
 import { MessageCircle, ChevronDown } from 'lucide-react-native';
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,22 +10,19 @@ import {
   View,
 } from 'react-native';
 
-interface PinnedMessageItem {
-  message: ChatMessage;
-  pinnedBy: string;
-  pinnedAt: number;
-}
-
 interface PinnedPreviewBarProps {
   pinnedMessages: PinnedMessageItem[];
   onPress: () => void;
+  conversationId?: string;
 }
 
 export const PinnedPreviewBar: React.FC<PinnedPreviewBarProps> = ({
   pinnedMessages,
   onPress,
+  conversationId,
 }) => {
   const theme = useTheme();
+  const getMembers = useConversationDetailStore((state) => state.getMembers);
 
   if (pinnedMessages.length === 0) {
     return null;
@@ -32,16 +30,25 @@ export const PinnedPreviewBar: React.FC<PinnedPreviewBarProps> = ({
 
   const latestMessage = pinnedMessages[0];
   const message = latestMessage.message;
-  const messageText = (message as any).body || message.text || '';
+  const messageText = message.text || '';
   const hasAttachments = message.attachments && message.attachments.length > 0;
-  
+
   let previewText = messageText;
   if (!previewText) {
     if (hasAttachments) previewText = '📎 Tệp';
     else previewText = 'Tin nhắn';
   }
-  
-  const senderName = message.senderName || 'Người dùng';
+
+  const senderName = useMemo(() => {
+    const senderId = message.senderId;
+    if (!senderId || !conversationId) {
+      return message.senderName || 'Người dùng';
+    }
+    // Get sender name from conversation members
+    const members = getMembers(conversationId);
+    const member = members?.find((m) => m.userId === senderId);
+    return member?.nickname || member?.fullName || message.senderName || 'Người dùng';
+  }, [message, conversationId, getMembers]);
 
   return (
     <TouchableOpacity

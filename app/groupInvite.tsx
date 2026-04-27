@@ -1,6 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { X, Clock, Send, AlertCircle, ChevronLeft, UserX } from 'lucide-react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -17,7 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
 import { getConversationDetail } from '@/src/services/conversationsApi';
-import { getFriends } from '@/src/services/friendsApi';
 import { useGroupInvite } from '@/src/hooks/useGroupInvite';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -47,11 +46,16 @@ export default function GroupInviteScreen() {
     autoSubscribeSocket: false, // Already subscribed globally
   });
   
+  // ✅ FIX 4: Dùng realtimeFriends trực tiếp từ store, không copy vào local state
   const realtimeFriends = useRealtimeStore((state) => state.friends);
-  const [friends, setFriends] = useState(realtimeFriends);
-  const [loadingFriends, setLoadingFriends] = useState(false);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  
+  // ✅ FIX 4: Tính toán availableFriends từ realtimeFriends với useMemo
+  const availableFriends = useMemo(() => {
+    const memberIds = new Set(groupMembers.map((m) => m.userId || m.id));
+    return realtimeFriends.filter((friend) => !memberIds.has(friend.id));
+  }, [realtimeFriends, groupMembers]);
   
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState('');
@@ -73,39 +77,10 @@ export default function GroupInviteScreen() {
     }
   };
 
-  const fetchFriends = async () => {
-    setLoadingFriends(true);
-    try {
-      const response = await getFriends({ limit: 100 });
-      if (response.data?.data) {
-        // Filter out friends who are already in the group
-        const memberIds = new Set(groupMembers.map((m) => m.userId || m.id));
-        const filteredFriends = response.data.data.filter((friend: any) => !memberIds.has(friend.id));
-        setFriends(filteredFriends);
-      }
-    } catch (error) {
-      console.error('Failed to fetch friends:', error);
-    } finally {
-      setLoadingFriends(false);
-    }
-  };
-
-  // Fetch group members and friends
+  // ✅ FIX 4: Chỉ fetch group members, friends đến từ realtime store
   useEffect(() => {
     fetchGroupMembers();
-    if (realtimeFriends.length === 0) {
-      fetchFriends();
-    }
-  }, [realtimeFriends]);
-
-  // Filter friends when group members change
-  useEffect(() => {
-    if (groupMembers.length > 0) {
-      const memberIds = new Set(groupMembers.map((m) => m.userId || m.id));
-      const filteredFriends = friends.filter((friend) => !memberIds.has(friend.id));
-      setFriends(filteredFriends);
-    }
-  }, [groupMembers]);
+  }, []);
 
   // Fetch conversation invites when switching to 'sent' tab
   useEffect(() => {
@@ -259,8 +234,8 @@ export default function GroupInviteScreen() {
   };
 
   const renderSentInviteItem = ({ item }: { item: Invite }) => {
-    // Find friend info from friends list
-    const invitedFriend = friends.find((f) => f.id === item.invitedUserId);
+    // ✅ FIX 4: Find friend info from realtimeFriends
+    const invitedFriend = realtimeFriends.find((f: any) => f.id === item.invitedUserId);
     const displayName = invitedFriend?.fullName || item.invitedUserId;
 
     return (
@@ -435,11 +410,8 @@ export default function GroupInviteScreen() {
               </Text>
             </View>
 
-            {loadingFriends ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-              </View>
-            ) : friends.length === 0 ? (
+            {/* ✅ FIX 4: Dùng availableFriends từ useMemo */}
+            {availableFriends.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={[styles.emptyText, { color: theme.colors.icon }]}>
                   {t('contacts.no_contacts') || 'No friends'}
@@ -447,7 +419,7 @@ export default function GroupInviteScreen() {
               </View>
             ) : (
               <View style={styles.friendsList}>
-                {friends.map((friend) => (
+                {availableFriends.map((friend: any) => (
                   <View key={friend.id} style={styles.friendItemWrapper}>
                     {renderFriendItem({
                       friendId: friend.id,

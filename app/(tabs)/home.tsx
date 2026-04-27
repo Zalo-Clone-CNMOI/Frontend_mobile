@@ -1,6 +1,6 @@
 import { ChatListItem } from '@/src/components/chat/ChatListItem';
 import { ChatSearchHeader } from '@/src/components/chat/ChatSearchHeader';
-import { useChatSocket } from '@/src/hooks/useChatSocket';
+// ✅ FIX 2: Xóa useChatSocket import vì đã deprecated, ChatSocketBridge xử lý socket
 import { useHomeScreenLogic } from '@/src/hooks/screens/useHomeScreen';
 import { useGroupInviteStore } from '@/src/store/useGroupInviteStore';
 import { useTheme } from '@/src/theme/themeContext';
@@ -19,7 +19,7 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const { listData, onRefresh, openChat, refreshing } = useHomeScreenLogic();
   const pendingInvitesCount = useGroupInviteStore((state) => state.unreadCount);
-  useChatSocket(); // Initialize socket for real-time updates
+  // ✅ FIX 2: Xóa useChatSocket() - ChatSocketBridge trong _layout.tsx đã xử lý socket
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.statusBar }]} edges={['top']}>

@@ -1,4 +1,4 @@
-
+import type { PollMessageMetadata } from './dto/PollDTO';
 
 export type ConversationV2 = {
   conversationId: string;
@@ -28,7 +28,7 @@ export type ConversationV2 = {
   myNickname?: string;
 };
 
-export type MessageType = 'text' | 'image' | 'video' | 'file' | 'voice' | 'system';
+export type MessageType = 'text' | 'image' | 'video' | 'file' | 'voice' | 'system' | 'poll';
 
 export type SystemEventType =
   | 'member_added'
@@ -78,6 +78,27 @@ export type FileInfo = {
   mimeType?: string;
 };
 
+export type Attachment = {
+  key?: string;
+  url?: string;
+  thumbnailKey?: string;
+  thumbnail_key?: string;
+  thumbnailUrl?: string;
+  thumbnail_url?: string;
+  visibility?: string;
+  content_type?: string;
+  type?: string;
+};
+
+export type Sender = {
+  id?: string;
+  name?: string;
+  fullName?: string;
+  avatarUrl?: string;
+  avatar?: string;
+  me?: boolean;
+};
+
 export type ReplyInfo = {
   id?: string;
   senderId?: string;
@@ -86,16 +107,18 @@ export type ReplyInfo = {
 };
 
 export type ForwardedFrom = {
-  source_message_id: string;
-  source_conversation_id: string;
-  source_sender_id: string;
-  source_sender_name_snapshot: string;
-  source_created_at: number;
-  source_type: 'text' | 'image' | 'file' | 'mixed';
+  sourceMessageId: string;
+  sourceConversationId: string;
+  sourceSenderId: string;
+  sourceSenderNameSnapshot: string;
+  source_sender_name_snapshot?: string; // Alternative field name from API
+  sourceCreatedAt: number;
+  sourceType: 'text' | 'image' | 'file' | 'mixed';
 };
 
 export type ChatMessage = {
   id: string;
+  messageId?: string; // Alternative to id
   serverMessageId?: string;
   conversationId?: string;
   senderId?: string;
@@ -103,13 +126,16 @@ export type ChatMessage = {
 
   type: MessageType;
   text?: string;
+  content?: string; // Alternative to text
   fileInfo?: FileInfo;
   caption?: string;
 
   timestamp: number;
 
   replyTo?: ReplyInfo;
-  forwardedFrom?: ForwardedFrom;
+  forwardedFrom?: ForwardedFrom & {
+    source_sender_name_snapshot?: string;
+  };
 
   reactions?: Record<string, string[]>;
 
@@ -122,7 +148,9 @@ export type ChatMessage = {
   revokedBackupText?: string;
   revokeRestoreUntil?: number;
 
-  attachments?: any[];
+  attachment?: Attachment;
+  attachments?: Attachment[];
+  sender?: Sender;
   senderAvatar?: string | null;
   senderName?: string;
 
@@ -132,7 +160,7 @@ export type ChatMessage = {
   pinnedAt?: number;
 
   // System message fields
-  messageType?: 'user' | 'system';
+  messageType?: 'user' | 'system' | 'poll';
   systemEventType?: SystemEventType;
-  metadata?: SystemMessageMetadata;
+  metadata?: SystemMessageMetadata | PollMessageMetadata;
 };

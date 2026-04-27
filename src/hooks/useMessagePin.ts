@@ -63,11 +63,8 @@ export const useMessagePin = () => {
    */
   const unpinMessage = useCallback(
     async (conversationId: string, createdAt: number, messageId: string) => {
-      console.log('[useMessagePin unpinMessage] conversationId:', conversationId, 'createdAt:', createdAt, 'messageId:', messageId);
-      
       // Check if not pinned to avoid unnecessary call
       if (!isMessagePinned(conversationId, messageId)) {
-        console.log('[useMessagePin unpinMessage] Message not pinned, skipping');
         return;
       }
 
@@ -79,13 +76,10 @@ export const useMessagePin = () => {
       });
 
       try {
-        console.log('[useMessagePin unpinMessage] Calling API...');
         await unpinMessageApi(conversationId, createdAt, messageId);
-        console.log('[useMessagePin unpinMessage] API success');
         // Success - socket will emit chat:message:unpinned
         // No additional action needed - socket handler will sync
       } catch (error) {
-        console.error('[useMessagePin unpinMessage] API error:', error);
         // Revert optimistic update
         addPinnedMessage(conversationId, messageId);
         updateMessage(conversationId, messageId, {

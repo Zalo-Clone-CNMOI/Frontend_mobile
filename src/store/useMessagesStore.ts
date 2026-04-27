@@ -9,15 +9,17 @@ interface MessagesState {
 
   // Track tempId → serverId mapping for optimistic updates
   tempIdToServerId: Map<string, string>;
+  // Track cleanup timers to prevent memory leaks
+  tempIdCleanupTimers: Map<string, ReturnType<typeof setTimeout>>;
 
-  // Track pinned messages per conversation
+  // Track pinned messages per conversation (message IDs only)
   pinnedMessagesByChatId: Record<string, Set<string>>;
 
   initializeMessages: () => Promise<void>;
   getMessagesByChatId: (chatId: string) => ChatMessage[];
   sendMessage: (chatId: string, message: Omit<ChatMessage, 'id'>) => void;
   addMessage: (chatId: string, message: ChatMessage) => void;
-  setMessagesForChat: (chatId: string, messages: ChatMessage[]) => void;
+  setMessagesForChat: (chatId: string, messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
   updateMessage: (chatId: string, messageId: string, updates: Partial<ChatMessage>) => void;
   deleteMessage: (chatId: string, messageId: string) => void;
   revokeMessage: (chatId: string, messageId: string) => void;
@@ -61,6 +63,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   isLoading: false,
   error: null,
   tempIdToServerId: new Map<string, string>(),
+  tempIdCleanupTimers: new Map<string, ReturnType<typeof setTimeout>>(),
   pinnedMessagesByChatId: {},
 
   /**
@@ -105,7 +108,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       const incomingId = String(message.id || '').trim();
       const incomingServerId = String(message.serverMessageId || '').trim();
 
-      // Check for tempId → serverId merge (optimistic UI)
+      // ✅ FIX 4: Check for tempId → serverId merge (optimistic UI reconciliation)
       const tempIdMatch = Array.from(state.tempIdToServerId.entries())
         .find(([tempId, srvId]) => srvId === incomingServerId || tempId === incomingId);
 
@@ -116,7 +119,12 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
         if (targetIndex >= 0) {
           // Merge with existing temp message - replace tempId with serverId
           const updated = [...existing];
-          updated[targetIndex] = { ...updated[targetIndex], ...message, id: serverId };
+          updated[targetIndex] = { 
+            ...updated[targetIndex], 
+            ...message, 
+            id: serverId,
+            status: 'sent', // ✅ Auto update status khi reconcile
+          };
 
           const newMapping = new Map(state.tempIdToServerId);
           newMapping.delete(tempId);
@@ -131,66 +139,77 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
         }
       }
 
-      // Simplified deduplication: Trust server message_id (server echoes client's message_id)
+      // ✅ FIX 4: Tự động reconcile optimistic message dựa trên serverMessageId hoặc status
+      const optimisticMatchIndex = existing.findIndex(m => 
+        // Match by serverMessageId
+        (incomingServerId && m.serverMessageId === incomingServerId) ||
+        // Match by ID nếu đang sending và có serverMessageId mới
+        (m.id === incomingId && m.status === 'sending' && incomingServerId) ||
+        // Match temp message khi incoming message là confirmation
+        (m.status === 'sending' && m.serverMessageId === incomingServerId)
+      );
+
+      if (optimisticMatchIndex >= 0) {
+        const updated = [...existing];
+        const existingMsg = updated[optimisticMatchIndex];
+        
+        // Merge và update status
+        updated[optimisticMatchIndex] = {
+          ...existingMsg,
+          ...message,
+          id: incomingServerId || existingMsg.id,
+          status: message.status === 'sent' || !existingMsg.serverMessageId ? 'sent' : existingMsg.status,
+        };
+
+        return {
+          messagesByChatId: {
+            ...state.messagesByChatId,
+            [chatId]: sortMessagesAscending(updated),
+          },
+        };
+      }
+
+      // Idempotent update: Check if message already exists by ID
       const normalizedMessageId = String(message.id || '').trim();
       const dedupeIndexById = normalizedMessageId
         ? existing.findIndex((m) => String(m.id || '').trim() === normalizedMessageId)
         : -1;
 
-      // If message already exists by ID, merge with it
+      // If message already exists by ID, perform idempotent merge (update only)
       if (dedupeIndexById >= 0) {
         const updated = [...existing];
         const existingMsg = updated[dedupeIndexById];
         const merged = { ...existingMsg, ...message };
 
-        // Preserve revoked state from existing message
+        // Preserve critical state from existing message
         if (existingMsg.isRevoked && !message.isRevoked) {
           merged.isRevoked = true;
         }
-        // Preserve backup text from existing message
         if (existingMsg.revokedBackupText && !message.revokedBackupText) {
           merged.revokedBackupText = existingMsg.revokedBackupText;
         }
-
         if (existingMsg.fromMe === true && message.fromMe !== true) {
           merged.fromMe = true;
         }
-        if (!message.senderId && existingMsg.senderId) {
-          merged.senderId = existingMsg.senderId;
-        }
-        if (!message.replyTo && existingMsg.replyTo) {
-          merged.replyTo = existingMsg.replyTo;
-        }
-        if (!message.fileInfo && existingMsg.fileInfo) {
-          merged.fileInfo = existingMsg.fileInfo;
-        }
-        if (!message.serverMessageId && existingMsg.serverMessageId) {
-          merged.serverMessageId = existingMsg.serverMessageId;
-        }
-        // Preserve senderAvatar from existing message
-        if (!message.senderAvatar && existingMsg.senderAvatar) {
-          merged.senderAvatar = existingMsg.senderAvatar;
-        }
-        // Preserve senderName from existing message
-        if (!message.senderName && existingMsg.senderName) {
-          merged.senderName = existingMsg.senderName;
-        }
-        // Preserve reactions from existing message
-        if (existingMsg.reactions && !message.reactions) {
-          merged.reactions = existingMsg.reactions;
-        }
+        // Preserve fields from existing if not in incoming
+        const fieldsToPreserve = ['senderId', 'replyTo', 'fileInfo', 'serverMessageId', 'senderAvatar', 'senderName', 'reactions'];
+        fieldsToPreserve.forEach(field => {
+          if (!message[field as keyof ChatMessage] && existingMsg[field as keyof ChatMessage]) {
+            (merged as any)[field] = existingMsg[field as keyof ChatMessage];
+          }
+        });
+
         // Merge reactions if both exist
         if (existingMsg.reactions && message.reactions) {
           const mergedReactions: Record<string, string[]> = {};
-          Object.keys({ ...existingMsg.reactions, ...message.reactions }).forEach(key => {
+          const allKeys = Array.from(new Set([...Object.keys(existingMsg.reactions), ...Object.keys(message.reactions)]));
+          allKeys.forEach(key => {
             const existingUsers = existingMsg.reactions?.[key] || [];
             const newUsers = message.reactions?.[key] || [];
-            mergedReactions[key] = [...new Set([...existingUsers, ...newUsers])];
+            mergedReactions[key] = Array.from(new Set([...existingUsers, ...newUsers]));
           });
           merged.reactions = mergedReactions;
         }
-
-        // Preserve reactions from existing message
 
         updated[dedupeIndexById] = merged;
         return {
@@ -200,6 +219,8 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
           },
         };
       }
+
+      // Message doesn't exist - append new message
       return {
         messagesByChatId: {
           ...state.messagesByChatId,
@@ -209,14 +230,20 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     });
   },
 
-  setMessagesForChat: (chatId, messages) => {
-
-    set((state) => ({
-      messagesByChatId: {
-        ...state.messagesByChatId,
-        [chatId]: sortMessagesAscending(dedupeMessages(messages)),
-      },
-    }));
+  setMessagesForChat: (chatId, messagesOrUpdater) => {
+    set((state) => {
+      const existing = state.messagesByChatId[chatId] || [];
+      // Support functional updates like React useState
+      const messages = typeof messagesOrUpdater === 'function'
+        ? (messagesOrUpdater as (prev: ChatMessage[]) => ChatMessage[])(existing)
+        : messagesOrUpdater;
+      return {
+        messagesByChatId: {
+          ...state.messagesByChatId,
+          [chatId]: sortMessagesAscending(dedupeMessages(messages)),
+        },
+      };
+    });
   },
 
   updateMessage: (chatId, messageId, updates) => {
@@ -350,11 +377,38 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     });
   },
 
+  // ✅ FIX 5: mergeMessageId với proper timer tracking và auto-cleanup
   mergeMessageId: (tempId, serverId) => {
     set((state) => {
+      // Cancel existing timer for this tempId if any
+      const existingTimer = state.tempIdCleanupTimers.get(tempId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
       const newMapping = new Map(state.tempIdToServerId);
       newMapping.set(tempId, serverId);
-      return { tempIdToServerId: newMapping };
+
+      // Create new cleanup timer
+      const TEMP_ID_TTL_MS = 60000;
+      const newTimer = setTimeout(() => {
+        set((s) => {
+          const cleanupMapping = new Map(s.tempIdToServerId);
+          const cleanupTimers = new Map(s.tempIdCleanupTimers);
+          cleanupMapping.delete(tempId);
+          cleanupTimers.delete(tempId);
+          // Chỉ update nếu map thực sự thay đổi
+          if (cleanupMapping.size !== s.tempIdToServerId.size) {
+            return { tempIdToServerId: cleanupMapping, tempIdCleanupTimers: cleanupTimers };
+          }
+          return s;
+        });
+      }, TEMP_ID_TTL_MS);
+
+      const newTimers = new Map(state.tempIdCleanupTimers);
+      newTimers.set(tempId, newTimer);
+
+      return { tempIdToServerId: newMapping, tempIdCleanupTimers: newTimers };
     });
   },
 
@@ -402,11 +456,16 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   },
 
   reset: () => {
+    // Clear all pending cleanup timers
+    const state = get();
+    state.tempIdCleanupTimers.forEach((timer) => clearTimeout(timer));
+    
     set({
       messagesByChatId: {},
       isLoading: false,
       error: null,
       tempIdToServerId: new Map(),
+      tempIdCleanupTimers: new Map(),
       pinnedMessagesByChatId: {},
     });
   },

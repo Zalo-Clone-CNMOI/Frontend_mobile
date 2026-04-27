@@ -57,7 +57,6 @@ export function ConversationInvitesModal({
       const items = response.data?.data?.items || [];
       setInvites(items);
     } catch (error: any) {
-      console.error('Failed to fetch conversation invites:', error);
       Alert.alert(t('common.error'), error.message || 'Failed to load invites');
     } finally {
       setLoading(false);

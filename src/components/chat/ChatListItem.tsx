@@ -106,6 +106,9 @@ export function ChatListItem({
       case 'voice':
         messageContent = 'đã gửi tin nhắn thoại';
         break;
+      case 'poll':
+        messageContent = content || 'Bình chọn';
+        break;
       default:
         messageContent = content || '';
     }

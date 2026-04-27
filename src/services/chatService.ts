@@ -11,7 +11,7 @@ import * as conversationsApi from "./conversationsApi";
 import * as friendsApi from "./friendsApi";
 import { buildAttachmentDto, uploadMedia } from "./mediaService";
 import * as messagesApi from "./messagesApi";
-import { connectSocket, getSocket } from "./socket";
+import { connectSocket, getSocket, createSocket } from "./socket";
 
 // Normalize ID to string, handles null/undefined values
 const normalizeId = (value: unknown): string => String(value ?? "").trim();
@@ -96,12 +96,13 @@ export function toLegacyChatMessage(apiMessage: any): ChatMessage {
     ? apiMessage.attachments[0]
     : undefined;
 
-  const senderId = apiMessage?.senderId;
+  // Handle both snake_case (socket payload) and camelCase (API response)
+  const senderId = apiMessage?.senderId || apiMessage?.sender_id;
   const body = apiMessage?.body ?? "";
-  const createdAtRaw = apiMessage?.createdAt ?? Date.now();
-  const editedAtRaw = apiMessage?.editedAt ?? null;
+  const createdAtRaw = apiMessage?.createdAt ?? apiMessage?.created_at ?? apiMessage?.ts ?? apiMessage?.timestamp ?? Date.now();
+  const editedAtRaw = apiMessage?.editedAt ?? apiMessage?.edited_at ?? null;
   const attachmentType = firstAttachment?.type;
-  const serverMessageId = normalizeId(apiMessage?.messageId);
+  const serverMessageId = normalizeId(apiMessage?.messageId || apiMessage?.message_id || apiMessage?.id);
   const messageType =
     attachmentType === "document"
       ? "file"
@@ -109,26 +110,27 @@ export function toLegacyChatMessage(apiMessage: any): ChatMessage {
         ? "voice"
       : attachmentType || "text";
 
-
   return {
     id: buildStableMessageId(apiMessage),
     serverMessageId: serverMessageId || undefined,
-    conversationId: apiMessage?.conversationId,
+    conversationId: apiMessage?.conversationId || apiMessage?.conversation_id,
     fromMe: isCurrentActor(senderId),
     senderId: senderId,
-    type: apiMessage?.messageType === 'system' ? 'system' : messageType,
+    senderName: apiMessage?.senderName || apiMessage?.sender?.name || apiMessage?.sender?.fullName,
+    senderAvatar: apiMessage?.senderAvatar || apiMessage?.sender?.avatarUrl || apiMessage?.sender?.avatar,
+    type: apiMessage?.messageType === 'system' ? 'system' : apiMessage?.messageType === 'poll' ? 'poll' : messageType,
     text: body,
     timestamp: toTimestampMs(createdAtRaw),
     fileInfo: firstAttachment
       ? {
-          uri: firstAttachment.url || firstAttachment.key || "",
+          uri: firstAttachment.key || firstAttachment.url || "",
           name: firstAttachment.name || "File",
           size: firstAttachment.size || 0,
           mimeType: firstAttachment.contentType || firstAttachment.type || "",
         }
       : undefined,
-    replyTo: apiMessage?.replyToMessageId
-      ? { id: apiMessage.replyToMessageId }
+    replyTo: apiMessage?.replyToMessageId || apiMessage?.reply_to_message_id
+      ? { id: apiMessage.replyToMessageId || apiMessage.reply_to_message_id }
       : undefined,
     forwardedFrom: apiMessage?.forwarded_from || apiMessage?.forwardedFrom,
     reactions: apiMessage?.reactions,
@@ -139,7 +141,7 @@ export function toLegacyChatMessage(apiMessage: any): ChatMessage {
     attachments: Array.isArray(apiMessage?.attachments) ? apiMessage.attachments : undefined,
     // System message fields
     messageType: apiMessage?.messageType,
-    systemEventType: apiMessage?.systemEventType,
+    systemEventType: apiMessage?.systemEventType || apiMessage?.system_event_type,
     metadata: apiMessage?.metadata,
   };
 }
@@ -168,6 +170,7 @@ export async function enrichReplyToDetails(message: ChatMessage): Promise<ChatMe
         },
       };
     }
+    return message;
   } catch (error) {
     return message;
   }
@@ -260,7 +263,26 @@ let registeredSocketId: string | null = null;
 
 // NOTE: Heartbeat is now handled by usePresenceHeartbeat hook to avoid duplicate timers
 
-// Cache of recent message IDs to prevent duplicate processing
+// Unified deduplication cache - single source of truth for message deduplication
+const processedMessageIds = new Set<string>();
+const MAX_PROCESSED_IDS = 1000;
+
+// Export deduplication functions for use in useChatSocket.ts
+export const addProcessedMessageId = (messageId: string) => {
+  processedMessageIds.add(messageId);
+  if (processedMessageIds.size > MAX_PROCESSED_IDS) {
+    const firstId = processedMessageIds.values().next().value;
+    if (firstId) {
+      processedMessageIds.delete(firstId);
+    }
+  }
+};
+
+export const isMessageProcessed = (messageId: string): boolean => {
+  return processedMessageIds.has(messageId);
+};
+
+// Legacy cache - kept for backward compatibility, will be removed after migration
 const recentMessageIds: string[] = [];
 const RECENT_MESSAGE_CACHE_SIZE = 200;
 
@@ -623,16 +645,17 @@ function registerSocketListeners() {
   };
 
   const handleMessage = async (payload: any) => {
+    console.log('[handleMessage] Processing message', payload);
     const conversationId = payload?.conversation_id || payload?.conversationId;
     const messageId = payload?.id || payload?.message_id;
     const createdAt =
       payload?.created_at ?? payload?.createdAt ?? payload?.ts ?? payload?.timestamp;
 
     const messageKey = String(messageId || "");
-    
-    // Deduplication: Check recent cache first
-    if (messageKey && recentMessageIds.includes(messageKey)) {
-      console.log('[chatService] Message already in recent cache, skipping:', messageId);
+
+    // Unified deduplication: Check global cache first
+    if (messageKey && isMessageProcessed(messageKey)) {
+      console.log('[handleMessage] Message already processed (cache)', messageKey);
       return;
     }
 
@@ -642,16 +665,14 @@ function registerSocketListeners() {
       const existingMessages = useMessagesStore.getState().messagesByChatId[conversationId] || [];
       const messageExists = existingMessages.some(m => m.id === messageKey || m.serverMessageId === messageKey);
       if (messageExists) {
-        console.log('[chatService] Message already exists in store, skipping:', messageId);
+        console.log('[handleMessage] Message already exists in store', messageKey);
         return;
       }
     }
 
+    // Add to unified deduplication cache
     if (messageKey) {
-      recentMessageIds.push(messageKey);
-      if (recentMessageIds.length > RECENT_MESSAGE_CACHE_SIZE) {
-        recentMessageIds.shift();
-      }
+      addProcessedMessageId(messageKey);
     }
 
     const hasAttachmentsInPayload =
@@ -666,7 +687,12 @@ function registerSocketListeners() {
     if (!requiresDetails) {
       const uiMessage = toLegacyChatMessage(payload);
       const enrichedMessage = await enrichReplyToDetails(uiMessage);
-      _handlers.onMessage?.(enrichedMessage);
+      console.log('[handleMessage] Adding message to store (no details)', enrichedMessage);
+      // Directly add to store instead of relying on _handlers
+      const { useMessagesStore } = await import('../store/useMessagesStore');
+      useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
+      // Update conversation list with last message
+      await updateConversationLastMessage(enrichedMessage, payload);
       return;
     }
 
@@ -679,11 +705,22 @@ function registerSocketListeners() {
       const fullMessage = detailsResp?.data || payload;
       const uiMessage = toLegacyChatMessage(fullMessage);
       const enrichedMessage = await enrichReplyToDetails(uiMessage);
-      _handlers.onMessage?.(enrichedMessage);
+      console.log('[handleMessage] Adding message to store (with details)', enrichedMessage);
+      // Directly add to store instead of relying on _handlers
+      const { useMessagesStore } = await import('../store/useMessagesStore');
+      useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
+      // Update conversation list with last message
+      await updateConversationLastMessage(enrichedMessage, payload);
     } catch (e) {
+      console.error('[handleMessage] Error fetching message details', e);
       const uiMessage = toLegacyChatMessage(payload);
       const enrichedMessage = await enrichReplyToDetails(uiMessage);
-      _handlers.onMessage?.(enrichedMessage);
+      console.log('[handleMessage] Adding message to store (fallback)', enrichedMessage);
+      // Directly add to store instead of relying on _handlers
+      const { useMessagesStore } = await import('../store/useMessagesStore');
+      useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
+      // Update conversation list with last message
+      await updateConversationLastMessage(enrichedMessage, payload);
     }
   };
 
@@ -729,15 +766,45 @@ function registerSocketListeners() {
     });
   };
 
+  const handleSystemMessage = async (payload: any) => {
+    console.log('[handleSystemMessage] Processing system message', payload);
+    const conversationId = payload?.conversation_id || payload?.conversationId;
+    const messageId = payload?.message_id || payload?.messageId || payload?.id;
+
+    const messageKey = String(messageId || "");
+
+    // Deduplication: Check if already processed
+    if (messageKey && isMessageProcessed(messageKey)) {
+      console.log('[handleSystemMessage] Message already processed', messageKey);
+      return;
+    }
+
+    if (messageKey) {
+      addProcessedMessageId(messageKey);
+    }
+
+    // Convert to UI message format
+    const uiMessage = toLegacyChatMessage(payload);
+    const enrichedMessage = await enrichReplyToDetails(uiMessage);
+
+    // Add to store
+    const { useMessagesStore } = await import('../store/useMessagesStore');
+    useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
+
+    // Update conversation list
+    await updateConversationLastMessage(enrichedMessage, payload);
+  };
+
   // Register all listeners
-  // NOTE: chat:message is now handled by useChatSocket.ts to avoid duplicate handlers
+  // NOTE: chat:message is now handled here directly (useChatSocket is deprecated)
   s.on("connect", handleConnect);
   s.on("chat:ack", handleAck);
-  // s.on("chat:message", handleMessage); // MOVED to useChatSocket.ts
+  s.on("chat:message", handleMessage);
   s.on("chat:message:updated", handleMessageUpdated);
   s.on("chat:message:deleted", handleMessageDeleted);
   s.on("chat:reaction:added", handleReactionAdded);
   s.on("chat:reaction:removed", handleReactionRemoved);
+  s.on("chat.system_message", handleSystemMessage);
 
   listenersRegistered = true;
 
@@ -745,11 +812,12 @@ function registerSocketListeners() {
   return () => {
     s.off("connect", handleConnect);
     s.off("chat:ack", handleAck);
-    // s.off("chat:message", handleMessage); // MOVED to useChatSocket.ts
+    s.off("chat:message", handleMessage);
     s.off("chat:message:updated", handleMessageUpdated);
     s.off("chat:message:deleted", handleMessageDeleted);
     s.off("chat:reaction:added", handleReactionAdded);
     s.off("chat:reaction:removed", handleReactionRemoved);
+    s.off("chat.system_message", handleSystemMessage);
     listenersRegistered = false;
   };
 }
@@ -891,6 +959,7 @@ export async function forwardMessage(
 export function resetChatRuntime() {
   openConversations.clear();
   recentMessageIds.splice(0, recentMessageIds.length);
+  processedMessageIds.clear(); // Clear unified deduplication cache
   pendingAcks.forEach((p) => p.reject({ error: "runtime reset" }));
   pendingAcks.clear();
   _handlers = {};
@@ -1083,6 +1152,82 @@ export async function fetchContacts(): Promise<{ users: UserV2[] }> {
   } catch (e) {
     return { users: [] };
   }
+}
+
+// Update conversation list with last message preview
+async function updateConversationLastMessage(enrichedMessage: any, payload: any) {
+  const { detectPreviewTypeFromMessage, formatPreviewContent } = await import('../utils/messagePreviewFormatter');
+  const { useChatsStore } = await import('../store/useChatsStore');
+  
+  const conversationId = payload?.conversation_id || payload?.conversationId || enrichedMessage?.conversationId;
+  const createdAt = typeof payload?.created_at === 'number' ? payload?.created_at :
+                    typeof payload?.createdAt === 'number' ? payload?.createdAt :
+                    typeof payload?.ts === 'number' ? payload?.ts :
+                    typeof enrichedMessage?.timestamp === 'number' ? enrichedMessage?.timestamp : Date.now();
+  
+  if (!conversationId) return;
+  
+  // Format preview content based on message type
+  const previewContent = formatPreviewContent(enrichedMessage);
+  const previewType = detectPreviewTypeFromMessage(enrichedMessage);
+  
+  // Check if message is from me
+  const isFromMe = enrichedMessage?.fromMe === true || enrichedMessage?.sender?.me === true;
+  
+  // Update conversation list
+  useChatsStore.getState().updateLastMessage(
+    conversationId,
+    previewContent,
+    previewType,
+    createdAt,
+    payload?.sender_id || payload?.senderId || enrichedMessage?.senderId,
+    payload?.sender_name || payload?.senderName || enrichedMessage?.senderName,
+    !isFromMe // Increment unread if not from me
+  );
+}
+
+// Initialize chat socket listeners - similar to Frontend_web pattern
+// This function registers all socket event listeners for chat functionality
+// It should be called when user authenticates
+export async function initChat() {
+  console.log('[initChat] Initializing chat socket');
+
+  // Ensure socket is connected
+  const socket = await createSocket();
+  if (!socket) {
+    console.log('[initChat] Failed to create socket');
+    return;
+  }
+
+  console.log('[initChat] Socket connected, registering listeners');
+
+  // Remove all existing listeners to prevent duplicates
+  socket.off('connect');
+  socket.off('disconnect');
+  socket.off('connect_error');
+  socket.off('chat:join:ack');
+  socket.off('chat:read');
+  socket.off('chat:message');
+  socket.off('chat:message:updated');
+  socket.off('chat:message:deleted');
+  socket.off('chat:reaction:added');
+  socket.off('chat:reaction:removed');
+  socket.off('chat.system_message');
+  socket.off('chat:message:pinned');
+  socket.off('chat:message:unpinned');
+  socket.off('presence:update');
+  socket.off('chat:ack');
+  socket.off('ws:error');
+
+  // Register socket listeners
+  registerSocketListeners();
+
+  // ✅ FIX 3: Subscribe to group invite events để cập nhật badge real-time
+  const { subscribeToGroupInviteEvents } = await import('./groupInviteSocketHandler');
+  subscribeToGroupInviteEvents();
+  console.log('[initChat] Group invite listeners registered');
+
+  console.log('[initChat] Chat socket listeners registered');
 }
 
 export async function getMessageReactions(

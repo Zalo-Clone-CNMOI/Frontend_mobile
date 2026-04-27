@@ -1,11 +1,13 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { Bell, Check, X, Clock, ChevronLeft } from 'lucide-react-native';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useGroupInvite } from '@/src/hooks/useGroupInvite';
+import { useGroupInviteStore } from '@/src/store/useGroupInviteStore';
 import { GroupInviteDTO as Invite } from '@/src/types/dto/ApiDTO';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { Users } from 'lucide-react-native';
@@ -19,8 +21,7 @@ export default function InviteCenterScreen() {
   const router = useRouter();
   const { user } = useAuth();
   
-  // Use hook with autoFetch and autoSubscribeSocket enabled
-  // Socket subscription is global (via AppRealtimeBridge) but we enable it here for safety
+  // ✅ FIX 1: Tắt autoSubscribeSocket vì initChat đã xử lý global subscription
   const {
     receivedInvites,
     unreadCount,
@@ -31,8 +32,17 @@ export default function InviteCenterScreen() {
   } = useGroupInvite({
     userId: user?.id,
     autoFetch: true,
-    autoSubscribeSocket: true,
+    autoSubscribeSocket: false, // Global subscription via initChat
   });
+
+  // ✅ FIX 2: Reset unread count và refresh khi screen được focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[InviteCenter] Screen focused, resetting unread count');
+      useGroupInviteStore.getState().setUnreadCount(0);
+      fetchPendingInvites(true); // Force refresh
+    }, [fetchPendingInvites])
+  );
 
   const [activeTab, setActiveTab] = React.useState<TabType>('pending');
 

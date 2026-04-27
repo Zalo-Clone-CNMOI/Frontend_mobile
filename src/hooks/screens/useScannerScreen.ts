@@ -115,8 +115,6 @@ export function useScannerScreenLogic() {
         ],
       );
     } catch (error: any) {
-      console.error('[QR] Confirm error:', error);
-      
       let errorMessage = 'Lỗi kết nối, thử lại';
       
       if (error.response) {
@@ -157,7 +155,6 @@ export function useScannerScreenLogic() {
       setQrStatus('rejected');
       Alert.alert('Đã từ chối', 'Bạn đã từ chối yêu cầu đăng nhập');
     } catch (error: any) {
-      console.error('[QR] Reject error:', error);
       // Don't show error on reject - user already declined
     } finally {
       setLoading(false);

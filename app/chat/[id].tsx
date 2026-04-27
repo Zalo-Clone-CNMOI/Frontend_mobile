@@ -16,13 +16,14 @@ import { useMessagePin } from '@/src/hooks/useMessagePin';
 import { getMessageReactions } from '@/src/services/chatService';
 import * as mediaService from '@/src/services/mediaService';
 import { lookupMessage, getPinnedMessages } from '@/src/services/messagesApi';
+import { mapPinnedMessagesListFromApi } from '@/src/types/mappers/DTOMappers';
 import { searchUsers } from '@/src/services/usersApi';
 import { useChatStore } from '@/src/store/chatStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { FlashList } from '@shopify/flash-list';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { Bell, ChevronDown, ChevronUp, Circle, List, Phone, Search, X } from 'lucide-react-native';
 import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
@@ -42,8 +43,9 @@ export default function ChatDetailScreen() {
   const router = useRouter();
   const { user: authUser } = useAuth();
   const { notification, showInfo, showSuccess, showError, hideNotification } = useInAppNotification();
-  const getMembers = useConversationDetailStore((state) => state.getMembers);
   const fetchConversationDetail = useConversationDetailStore((state) => state.fetchConversationDetail);
+  const getMySettings = useConversationDetailStore((state) => state.getMySettings);
+  const getMembers = useConversationDetailStore((state) => state.getMembers);
   const setMessageReactions = useMessagesStore((state) => state.setMessageReactions);
   const deleteChat = useChatsStore((state) => state.deleteChat);
   const { pinMessage, unpinMessage, isMessagePinned } = useMessagePin();
@@ -119,6 +121,27 @@ export default function ChatDetailScreen() {
     jumpToMessage,
   } = useChatDetailScreenLogic();
 
+  // Local state for members to avoid infinite loop - initialized after chatId is available
+  const [members, setMembers] = useState(() => getMembers(chatId));
+  
+  // Sync members from store when cache changes using Zustand subscription
+  useEffect(() => {
+    // Initial sync
+    setMembers(getMembers(chatId));
+    
+    // Subscribe to store changes
+    const unsubscribe = useConversationDetailStore.subscribe((state) => {
+      const newMembers = state.cache[chatId]?.members || [];
+      setMembers(prev => {
+        if (JSON.stringify(prev) !== JSON.stringify(newMembers)) {
+          return newMembers;
+        }
+        return prev;
+      });
+    });
+    
+    return unsubscribe;
+  }, [chatId]);
 
   // Group management state
   const [showGroupInfoModal, setShowGroupInfoModal] = useState(false);
@@ -142,12 +165,15 @@ export default function ChatDetailScreen() {
           console.log('[Pinned Messages API Response]:', response);
           const items = response?.data?.items || [];
           console.log('[Pinned Messages Items]:', items);
-          setPinnedMessagesList(items);
-          setShowPinnedSection(items.length > 0);
-          
+
+          // Map API response to ChatMessage format
+          const mappedItems = mapPinnedMessagesListFromApi(items, authUser?.id);
+          setPinnedMessagesList(mappedItems);
+          setShowPinnedSection(mappedItems.length > 0);
+
           // Populate store with pinned message IDs
           const setPinnedMessagesInStore = useMessagesStore.getState().setPinnedMessages;
-          const pinnedIds = items.map((item: any) => item.message.messageId || item.message.id);
+          const pinnedIds = mappedItems.map((item) => item.message.id);
           setPinnedMessagesInStore(chatId, pinnedIds);
         })
         .catch((err) => {
@@ -238,7 +264,10 @@ export default function ChatDetailScreen() {
       
       let downloadUrl: string;
       
-      if (visibility === 'public') {
+      // If key is already a full URL (starts with http), use it directly
+      if (key.startsWith('http://') || key.startsWith('https://')) {
+        downloadUrl = key;
+      } else if (visibility === 'public') {
         downloadUrl = mediaService.resolveMediaUrl(key);
       } else {
         downloadUrl = await mediaService.getAttachmentUrl(
@@ -246,6 +275,8 @@ export default function ChatDetailScreen() {
           authUser.id
         );
       }
+
+      console.log('[handleFilePress] Download URL:', downloadUrl);
 
       // Open file in browser for download
       try {
@@ -259,6 +290,7 @@ export default function ChatDetailScreen() {
         }
       }
     } catch (error) {
+      console.error('[handleFilePress] Error:', error);
       Alert.alert('Lỗi', 'Không thể tải tệp');
     }
   };
@@ -287,8 +319,9 @@ export default function ChatDetailScreen() {
       // Refresh pinned messages list
       const response = await getPinnedMessages(chatId, 20);
       const items = response?.data?.items || [];
-      setPinnedMessagesList(items);
-      setShowPinnedSection(items.length > 0);
+      const mappedItems = mapPinnedMessagesListFromApi(items, authUser?.id);
+      setPinnedMessagesList(mappedItems);
+      setShowPinnedSection(mappedItems.length > 0);
     } catch (error: any) {
       Alert.alert('Lỗi', error.message || 'Không thể ghim tin nhắn');
     }
@@ -304,8 +337,9 @@ export default function ChatDetailScreen() {
       // Refresh pinned messages list
       const response = await getPinnedMessages(chatId, 20);
       const items = response?.data?.items || [];
-      setPinnedMessagesList(items);
-      setShowPinnedSection(items.length > 0);
+      const mappedItems = mapPinnedMessagesListFromApi(items, authUser?.id);
+      setPinnedMessagesList(mappedItems);
+      setShowPinnedSection(mappedItems.length > 0);
     } catch (error: any) {
       console.error('[Unpin Message] Error:', error);
       Alert.alert('Lỗi', error.message || 'Không thể bỏ ghim tin nhắn');
@@ -359,6 +393,7 @@ export default function ChatDetailScreen() {
   };
 
   const handleOpenSearch = () => {
+    setShowChatOptions(false);
     toggleSearchMode();
   };
 
@@ -543,11 +578,13 @@ export default function ChatDetailScreen() {
   const presenceStatus = getPresenceStatus();
 
   const renderItem = React.useCallback(({ item }: { item: any }) => {
-    const members = getMembers(chatId);
     return (
       <MessageBubble
         item={item}
+        conversationId={chatId}
         isGroup={currentChat?.isGroup}
+        currentUserRole={currentChat?.myRole}
+        conversationMembers={members}
         highlightText={isSearchMode ? searchQuery : undefined}
         onLongPress={openMessageActions}
         onReuseRevoked={handleReuseRevokedMessage}
@@ -574,7 +611,6 @@ export default function ChatDetailScreen() {
         onForwardPress={handleForwardAction}
         onNavigateToForwarded={handleNavigateToForwarded}
         isPinned={isMessagePinned(chatId, item.id)}
-        conversationMembers={members}
       />
     );
   }, [
@@ -596,7 +632,7 @@ export default function ChatDetailScreen() {
     searchQuery,
     chatId,
     isMessagePinned,
-    getMembers,
+    members,
   ]);
 
   return (
@@ -673,7 +709,7 @@ export default function ChatDetailScreen() {
                   <TouchableOpacity style={styles.callButton} onPress={handleOpenSearch}>
                     <Search size={20} color={theme.colors.iconHeader} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.callButton} onPress={() => setShowChatOptions(true)}>
+                  <TouchableOpacity style={styles.callButton} onPress={() => router.push({ pathname: `/chatOptions/${chatId}`, params: { name: title, isGroup: currentChat?.isGroup ? 'true' : 'false' } })}>
                     <List size={20} color={theme.colors.iconHeader} />
                   </TouchableOpacity>
                 </>
@@ -694,6 +730,7 @@ export default function ChatDetailScreen() {
             pinnedMessages={pinnedMessages}
             onPressMessage={handlePinMessagePress}
             onUnpinMessage={handleUnpinAction}
+            conversationId={chatId}
           />
         )}
 
@@ -848,7 +885,9 @@ export default function ChatDetailScreen() {
           }}
           onNicknameChanged={() => {
             // Refresh conversation list to show updated nickname
-            router.replace('/(tabs)/home' as any);
+            // Note: Conversation detail already refreshed by ChatOptions
+            // UI updates automatically via store subscription
+            console.log('[ChatDetail] Nickname changed, UI updated via store');
           }}
         />
         
@@ -865,6 +904,8 @@ export default function ChatDetailScreen() {
           onPin={handlePinAction}
           onUnpin={handleUnpinAction}
           isPinned={selectedActionMessage ? isMessagePinned(chatId, selectedActionMessage.id) : false}
+          conversationType={currentChat?.isGroup ? 'group' : 'direct'}
+          userRole={getMySettings(chatId)?.role || 'member'}
         />
 
         <ForwardModal
@@ -881,7 +922,7 @@ export default function ChatDetailScreen() {
           conversationId={chatId}
           currentName={title}
           currentAvatar={currentChat?.avatar || null}
-          myRole={(currentChat as any)?.myRole || 'member'}
+          myRole={getMySettings(chatId)?.role || 'member'}
         />
 
         <MemberRoleModal

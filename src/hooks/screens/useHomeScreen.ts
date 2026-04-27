@@ -1,6 +1,9 @@
 import { useChatsStore } from '@/src/store/useChatsStore';
+import { useMessagesStore } from '@/src/store/useMessagesStore';
+import { useChatStore } from '@/src/store/chatStore';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export function useHomeScreenLogic() {
@@ -10,11 +13,24 @@ export function useHomeScreenLogic() {
   const [refreshing, setRefreshing] = useState(false);
   const lastLoadedUserKeyRef = useRef<string>('');
 
+  // ✅ FIX 4: Cleanup stores khi user thay đổi để tránh stale data
   useEffect(() => {
     const userKey = `${user?.id || ''}:${user?.phone || ''}`;
+    
+    // Nếu userKey thay đổi (logout/login), reset stores
+    if (lastLoadedUserKeyRef.current && lastLoadedUserKeyRef.current !== userKey) {
+      console.log('[HomeScreen] User changed, resetting stores');
+      useChatsStore.getState().reset();
+      useMessagesStore.getState().reset();
+      useChatStore.getState().reset();
+    }
+    
     if (userKey === lastLoadedUserKeyRef.current) return;
     lastLoadedUserKeyRef.current = userKey;
-    useChatsStore.getState().initializeChats();
+    
+    if (user?.id) {
+      useChatsStore.getState().initializeChats();
+    }
   }, [user?.id, user?.phone]);
 
   const onRefresh = useCallback(async () => {
@@ -45,6 +61,14 @@ export function useHomeScreenLogic() {
       }
     },
     [router],
+  );
+
+  // ✅ FIX 5: Auto-refresh khi screen được focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[HomeScreen] Focused, refreshing chats');
+      useChatsStore.getState().initializeChats();
+    }, [])
   );
 
   const listData = useMemo(() => chats || [], [chats]);
