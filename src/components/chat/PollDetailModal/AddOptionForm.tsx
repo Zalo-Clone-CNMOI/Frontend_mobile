@@ -35,12 +35,6 @@ export const AddOptionForm: React.FC<AddOptionFormProps> = ({
 
   const canSubmit = value.trim().length > 0 && !isLoading;
 
-  console.log('[AddOptionForm] Debug:', {
-    value,
-    canSubmit,
-    isLoading,
-  });
-
   return (
     <View style={styles.addOptionInputContainer}>
       <TextInput
@@ -57,10 +51,7 @@ export const AddOptionForm: React.FC<AddOptionFormProps> = ({
           styles.addOptionConfirmButton,
           !canSubmit && styles.addOptionConfirmButtonDisabled,
         ]}
-        onPress={() => {
-          console.log('[AddOptionForm] Confirm button pressed');
-          onSubmit();
-        }}
+        onPress={onSubmit}
         disabled={!canSubmit}
       >
         <Text style={styles.addOptionConfirmText}>{t('common.confirm')}</Text>

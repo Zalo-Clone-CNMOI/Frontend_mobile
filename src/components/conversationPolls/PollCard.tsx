@@ -4,7 +4,7 @@ import { BarChart3 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { PollListItem } from '@/src/types/dto/PollDTO';
 import { formatTimeAgo } from '@/src/utils/formatTimeAgo';
-import { styles } from '../styles';
+import { styles } from './styles';
 
 interface PollCardProps {
   poll: PollListItem;

@@ -1,9 +1,9 @@
 import React from 'react';
 import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { FileText } from 'lucide-react-native';
-import { MediaItem } from '../hooks/useMediaGallery';
+import { MediaItem } from '@/src/hooks/media-gallery/useMediaGallery';
 import { formatFileSize, formatDate } from '@/src/utils/formatters';
-import { styles } from '../styles';
+import { styles } from './styles';
 
 interface MediaListProps {
   items: MediaItem[];

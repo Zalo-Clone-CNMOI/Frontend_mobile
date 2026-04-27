@@ -1,9 +1,9 @@
 import React from 'react';
 import { FlatList, Image, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { FileText } from 'lucide-react-native';
-import { MediaItem } from '../hooks/useMediaGallery';
+import { MediaItem } from '@/src/hooks/media-gallery/useMediaGallery';
 import { getAttachmentUrl } from '@/src/services/mediaService';
-import { styles } from '../styles';
+import { styles } from './styles';
 
 const GRID_SPACING = 2;
 const NUM_COLUMNS = 3;

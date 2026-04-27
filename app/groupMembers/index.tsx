@@ -14,11 +14,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '@/src/theme/themeContext';
-import { SearchBar } from './components/SearchBar';
-import { MemberItem } from './components/MemberItem';
-import { RoleSelectionModal } from './components/RoleSelectionModal';
-import { useGroupMembers } from './hooks/useGroupMembers';
-import { styles } from './styles';
+import { SearchBar } from '@/src/components/groupMembers/SearchBar';
+import { MemberItem } from '@/src/components/groupMembers/MemberItem';
+import { RoleSelectionModal } from '@/src/components/groupMembers/RoleSelectionModal';
+import { useGroupMembers } from '@/src/hooks/groupMembers/useGroupMembers';
+import { styles } from '@/src/components/groupMembers/styles';
 import { toast } from '@/src/services/toastService';
 
 export default function GroupMembersScreen() {

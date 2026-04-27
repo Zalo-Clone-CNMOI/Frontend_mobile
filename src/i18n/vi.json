@@ -637,6 +637,10 @@
     "creatorHint": "Chạm vào thùng rác để xóa lựa chọn (chỉ khi chưa có phiếu bầu)",
     "addNewOption": "Thêm lựa chọn mới",
     "multiSelectHint": "Chọn một hoặc nhiều",
-    "singleSelectHint": "Chọn một đáp án"
+    "singleSelectHint": "Chọn một đáp án",
+    "expiredAlertTitle": "Bình chọn đã hết hạn",
+    "expiredAlertMessage": "Bình chọn này đã kết thúc và không thể bình chọn thêm.",
+    "viewResults": "Xem kết quả",
+    "voteButton": "BÌNH CHỌN"
   }
 }

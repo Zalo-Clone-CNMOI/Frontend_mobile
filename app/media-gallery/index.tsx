@@ -13,14 +13,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MediaViewerModal } from '@/src/components/chat/MediaViewerModal';
-import { SearchHeader } from './components/SearchHeader';
-import { FilterTabs } from './components/FilterTabs';
-import { ViewModeToggle } from './components/ViewModeToggle';
-import { MediaGrid } from './components/MediaGrid';
-import { MediaList } from './components/MediaList';
-import { LinkList } from './components/LinkList';
-import { useMediaGallery, MediaItem, LinkItem } from './hooks/useMediaGallery';
-import { styles } from './styles';
+import { SearchHeader } from '@/src/components/media-gallery/SearchHeader';
+import { FilterTabs } from '@/src/components/media-gallery/FilterTabs';
+import { ViewModeToggle } from '@/src/components/media-gallery/ViewModeToggle';
+import { MediaGrid } from '@/src/components/media-gallery/MediaGrid';
+import { MediaList } from '@/src/components/media-gallery/MediaList';
+import { LinkList } from '@/src/components/media-gallery/LinkList';
+import { useMediaGallery, MediaItem, LinkItem } from '@/src/hooks/media-gallery/useMediaGallery';
+import { styles } from '@/src/components/media-gallery/styles';
 
 export default function MediaGalleryScreen() {
   const theme = useTheme();

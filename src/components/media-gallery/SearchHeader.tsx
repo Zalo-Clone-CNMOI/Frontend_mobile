@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, TextInput, View } from 'react-native';
 import { Search } from 'lucide-react-native';
-import { styles } from '../styles';
+import { styles } from './styles';
 
 interface SearchHeaderProps {
   searchQuery: string;

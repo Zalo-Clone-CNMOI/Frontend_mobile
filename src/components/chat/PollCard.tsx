@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import type { PollMessageMetadata } from '@/src/types/dto/PollDTO';
 import { usePollStore } from '@/src/store/usePollStore';
@@ -29,6 +31,7 @@ export function PollCard({
   onViewDetail,
   onVote,
 }: PollCardProps) {
+  const { t } = useTranslation();
   const pollStore = usePollStore();
 
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
@@ -42,10 +45,22 @@ export function PollCard({
       setSelectedOptions(poll.my_vote || []);
       setHasVoted((poll.my_vote?.length || 0) > 0);
     }
-  }, [metadata.poll_id, pollStore]);
+  }, [metadata.poll_id]);
 
   const isClosed = metadata.status === 'closed';
   const isExpired = metadata.expires_at && Date.now() > metadata.expires_at;
+
+  const handleCardPress = () => {
+    if (isClosed || isExpired) {
+      Alert.alert(
+        t('poll.expiredAlertTitle'),
+        t('poll.expiredAlertMessage'),
+        [{ text: t('poll.viewResults'), onPress: () => setShowDetailModal(true) }]
+      );
+      return;
+    }
+    setShowDetailModal(true);
+  };
 
   const handleToggleOption = async (optionId: string) => {
     if (isClosed || isExpired) return;
@@ -96,7 +111,7 @@ export function PollCard({
     <>
       <TouchableOpacity
         style={styles.container}
-        onPress={() => setShowDetailModal(true)}
+        onPress={handleCardPress}
         activeOpacity={0.9}
       >
         {/* Question */}
@@ -144,7 +159,7 @@ export function PollCard({
               styles.voteButtonText,
               selectedOptions.length === 0 ? styles.voteButtonTextDisabled : null,
             ]}>
-              BÌNH CHỌN
+              {t('poll.voteButton')}
             </Text>
           </TouchableOpacity>
         ) : (
@@ -152,20 +167,32 @@ export function PollCard({
           <View style={styles.footer}>
             <View style={styles.divider} />
             <Text style={styles.voteCount}>
-              {metadata.total_votes || 0} lượt bình chọn
+              {metadata.total_votes || 0} {t('poll.votes')}
             </Text>
           </View>
         )}
       </TouchableOpacity>
 
-      {/* Detail Modal */}
-      <PollDetailModal
-        visible={showDetailModal}
-        onClose={() => setShowDetailModal(false)}
-        conversationId={conversationId}
-        pollId={metadata.poll_id}
-        currentUserId={currentUserId}
-      />
+      {/* Detail Modal - Only render when showDetailModal is true */}
+      {showDetailModal && (
+        <PollDetailModal
+          visible={showDetailModal}
+          onClose={() => {
+            setShowDetailModal(false);
+            // Force refresh to get latest poll data
+            const poll = pollStore.getPollById(metadata.poll_id);
+            if (poll && 'my_vote' in poll && Array.isArray(poll.my_vote)) {
+              setSelectedOptions(poll.my_vote || []);
+              setHasVoted((poll.my_vote?.length || 0) > 0);
+            }
+          }}
+          conversationId={conversationId}
+          pollId={metadata.poll_id}
+          currentUserId={currentUserId}
+          userRole={userRole}
+          onVoteSuccess={() => setShowDetailModal(false)}
+        />
+      )}
     </>
   );
 }

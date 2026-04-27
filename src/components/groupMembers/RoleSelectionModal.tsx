@@ -2,8 +2,8 @@ import React from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { X, Shield, ShieldAlert } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { Member } from '../hooks/useGroupMembers';
-import { styles } from '../styles';
+import { Member } from '@/src/hooks/groupMembers/useGroupMembers';
+import { styles } from './styles';
 import { type AppTheme } from '@/src/theme/themeManager';
 
 interface RoleSelectionModalProps {

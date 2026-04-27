@@ -45,6 +45,7 @@ const ZALO_BLUE = '#0068FF';
 const ZALO_BLUE_LIGHT = '#E8F2FF';
 
 const EXPIRY_OPTIONS = [
+  { value: 0,   label: 'Không giới hạn' },
   { value: 1,   label: '1 giờ' },
   { value: 6,   label: '6 giờ' },
   { value: 12,  label: '12 giờ' },
@@ -57,6 +58,7 @@ const EXPIRY_OPTIONS = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function expiryLabel(hours: number): string {
+  if (hours === 0) return 'Không giới hạn';
   return EXPIRY_OPTIONS.find(o => o.value === hours)?.label ?? `${hours}h`;
 }
 
@@ -265,7 +267,7 @@ export function CreatePollModal({
   ]);
   const [allowMultiple, setAllowMultiple]   = useState(false);
   const [allowAddOption, setAllowAddOption] = useState(false);
-  const [expiresInHours, setExpiresInHours] = useState(24);
+  const [expiresInHours, setExpiresInHours] = useState(0);
 
   // UI state
   const [showExpiry, setShowExpiry]   = useState(false);
@@ -286,7 +288,7 @@ export function CreatePollModal({
     setOptions([makeOption('1'), makeOption('2')]);
     setAllowMultiple(false);
     setAllowAddOption(false);
-    setExpiresInHours(24);
+    setExpiresInHours(0);
     nextId.current = 3;
   }, []);
 
@@ -353,7 +355,7 @@ export function CreatePollModal({
         options: validOptions.map(o => ({ label: o.label.trim() })),
         allow_multiple:   allowMultiple,
         allow_add_option: allowAddOption,
-        expires_in_hours: expiresInHours,
+        expires_in_hours: expiresInHours > 0 ? expiresInHours : undefined,
       });
       
       // Build options with generated IDs (server will provide real IDs via WebSocket)
@@ -378,7 +380,7 @@ export function CreatePollModal({
         allow_multiple: allowMultiple,
         allow_add_option: allowAddOption,
         status: 'active' as const,
-        expires_at: expiresInHours ? Date.now() + expiresInHours * 3600000 : null,
+        expires_at: expiresInHours > 0 ? Date.now() + expiresInHours * 3600000 : null,
         closed_at: null,
         closed_reason: null,
       };

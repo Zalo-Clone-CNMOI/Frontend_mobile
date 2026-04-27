@@ -1,7 +1,7 @@
 import React from 'react';
 import { Grid3X3, LayoutList } from 'lucide-react-native';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
-import { styles } from '../styles';
+import { styles } from './styles';
 
 interface ViewModeToggleProps {
   viewMode: 'grid' | 'list';

@@ -1,9 +1,9 @@
 import React from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Link as LinkIcon } from 'lucide-react-native';
-import { LinkItem } from '../hooks/useMediaGallery';
+import { LinkItem } from '@/src/hooks/media-gallery/useMediaGallery';
 import { formatDate } from '@/src/utils/formatters';
-import { styles } from '../styles';
+import { styles } from './styles';
 
 interface LinkListProps {
   items: LinkItem[];

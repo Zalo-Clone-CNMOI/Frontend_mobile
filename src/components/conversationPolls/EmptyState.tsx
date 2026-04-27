@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BarChart3 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { styles } from '../styles';
+import { styles } from './styles';
 
 interface EmptyStateProps {
   activeTab: 'active' | 'closed';

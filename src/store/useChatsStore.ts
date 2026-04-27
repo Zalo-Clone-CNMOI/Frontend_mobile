@@ -123,6 +123,8 @@ export const useChatsStore = create<ChatsState>((set) => ({
             previewContent = '__VOICE__';
           } else if (type === 'deleted' || type === 'revoked') {
             previewContent = 'Tin nhắn đã được thu hồi';
+          } else if (type === 'poll') {
+            previewContent = content || 'Bình chọn';
           }
 
           // Only increment unread if message is not from current user

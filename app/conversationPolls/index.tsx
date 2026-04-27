@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { ChevronLeft, Plus } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -16,10 +16,10 @@ import { usePollStore } from '@/src/store/usePollStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { PollListItem } from '@/src/types/dto/PollDTO';
 import { CreatePollModal } from '@/src/components/chat/CreatePollModal';
-import { PollCard } from './components/PollCard';
-import { TabBar } from './components/TabBar';
-import { EmptyState } from './components/EmptyState';
-import { styles } from './styles';
+import { PollCard } from '@/src/components/conversationPolls/PollCard';
+import { TabBar } from '@/src/components/conversationPolls/TabBar';
+import { EmptyState } from '@/src/components/conversationPolls/EmptyState';
+import { styles } from '@/src/components/conversationPolls/styles';
 
 export default function ConversationPollsScreen() {
   const router = useRouter();
@@ -37,30 +37,47 @@ export default function ConversationPollsScreen() {
   const pollsStore = usePollStore();
   const polls = pollsStore.getPollsForConversation(conversationId);
 
-  const filteredPolls = polls.filter(p => 
-    activeTab === 'active' ? p.status === 'active' : p.status === 'closed'
-  );
+  const filteredPolls = polls.filter(p => {
+    const isExpired = p.expires_at && p.expires_at < Date.now();
+    const isActive = p.status === 'active' && !isExpired;
+    const isClosed = p.status === 'closed' || isExpired;
+
+    if (activeTab === 'active') {
+      return isActive;
+    } else {
+      return isClosed;
+    }
+  });
 
   const fetchPolls = useCallback(async () => {
     setIsLoading(true);
     try {
-      await pollsStore.fetchPolls(conversationId, { 
-        status: activeTab,
-        page: 1, 
-        limit: 20 
+      // Fetch all polls without status filter - filter on frontend
+      await pollsStore.fetchPolls(conversationId, {
+        page: 1,
+        limit: 20
       });
     } catch (error) {
       console.error('[ConversationPolls] Failed to fetch polls:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [conversationId, activeTab, pollsStore]);
+  }, [conversationId]);
 
   useEffect(() => {
     if (conversationId) {
       fetchPolls();
     }
   }, [conversationId, activeTab]);
+
+  // Refresh polls when screen comes into focus (after closing poll modal)
+  useFocusEffect(
+    useCallback(() => {
+      if (conversationId) {
+        fetchPolls();
+      }
+    }, [conversationId])
+  );
 
   const handleVote = useCallback((pollId: string) => {
     router.push({
@@ -90,7 +107,7 @@ export default function ConversationPollsScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <StatusBar style="light" />
       
       {/* Header */}

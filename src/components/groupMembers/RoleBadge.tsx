@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Crown, Shield, ShieldAlert } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { styles } from '../styles';
+import { styles } from './styles';
 import { type AppTheme } from '@/src/theme/themeManager';
 
 interface RoleBadgeProps {

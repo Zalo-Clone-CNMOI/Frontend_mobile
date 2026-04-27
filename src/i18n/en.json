@@ -644,6 +644,10 @@
     "creatorHint": "Tap trash icon to remove option (only if no votes)",
     "addNewOption": "Add new option",
     "multiSelectHint": "Select one or more",
-    "singleSelectHint": "Select one answer"
+    "singleSelectHint": "Select one answer",
+    "expiredAlertTitle": "Poll Expired",
+    "expiredAlertMessage": "This poll has ended and no more votes can be cast.",
+    "viewResults": "View Results",
+    "voteButton": "VOTE"
   }
 }

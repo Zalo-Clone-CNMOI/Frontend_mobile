@@ -24,7 +24,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
@@ -44,7 +44,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
     color: '#000',
   },
@@ -54,7 +54,7 @@ export const styles = StyleSheet.create({
     marginTop: 2,
   },
   headerRight: {
-    padding: 4,
+    padding: 8,
   },
   content: {
     flex: 1,
@@ -100,44 +100,216 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
   },
   optionsContainer: {
-    gap: 8,
+    gap: 12,
   },
-  option: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
+  // Modern option container with large border-radius
+  optionContainer: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
     paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    marginBottom: 0,
   },
   optionSelected: {
     backgroundColor: '#EBF4FF',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#0068FF',
   },
-  optionText: {
-    fontSize: 18,
-    color: '#000',
+  optionWithResult: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  optionContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  // Radio/Checkbox icon
+  selectionIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#BDBDBD',
+    marginRight: 12,
+    marginTop: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectionIconSelected: {
+    borderColor: '#0068FF',
+    backgroundColor: '#0068FF',
+  },
+  selectionIconSquare: {
+    borderRadius: 4,
+  },
+  selectionIconInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#0068FF',
+  },
+  selectionIconInnerEmpty: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'transparent',
+  },
+  checkmark: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  // Option label container
+  optionLabelContainer: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  optionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  // Option label
+  optionLabel: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  optionLabelWithResult: {
+    color: '#333',
+  },
+  optionLabelVoted: {
+    color: '#0068FF',
     fontWeight: '600',
   },
-  optionTextSelected: {
+  // Vote count badge
+  voteCountBadge: {
+    fontSize: 13,
+    color: '#888',
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  // Progress section
+  progressSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
+  // Percentage badge
+  percentageBadge: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#666',
+    minWidth: 45,
+    textAlign: 'right',
+  },
+  percentageBadgeVoted: {
     color: '#0068FF',
   },
-  optionDisabled: {
-    opacity: 0.6,
+  // Voter avatars stack
+  voterAvatars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    marginLeft: -8,
+  },
+  avatarFirst: {
+    marginLeft: 0,
+  },
+  avatarMore: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E5E5E5',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    marginLeft: -8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarMoreText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+  },
+  // Result info
+  resultInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  percentageText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  percentageTextVoted: {
+    color: '#0068FF',
+  },
+  voteCountText: {
+    fontSize: 13,
+    color: '#999',
+    marginLeft: 4,
+  },
+  voteCountTextVoted: {
+    color: '#0068FF',
+  },
+  // Progress bar
+  progressBarContainer: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#E8F2FF',
+    borderRadius: 4,
+  },
+  progressBarVoted: {
+    backgroundColor: '#0068FF',
+  },
+  // Remove Option Button
+  removeOptionButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  removeOptionText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#666',
+    lineHeight: 20,
   },
   addOptionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 16,
     marginTop: 8,
   },
   addOptionIcon: {
-    fontSize: 20,
-    color: '#888',
+    fontSize: 24,
+    color: '#0068FF',
     marginRight: 8,
   },
   addOptionText: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 15,
+    color: '#0068FF',
     fontWeight: '600',
   },
   addOptionInputContainer: {
@@ -149,17 +321,17 @@ export const styles = StyleSheet.create({
   addOptionInput: {
     flex: 1,
     backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     fontSize: 15,
     color: '#000',
   },
   addOptionConfirmButton: {
     backgroundColor: '#0068FF',
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   addOptionConfirmButtonDisabled: {
     backgroundColor: '#E5E5E5',
@@ -172,14 +344,14 @@ export const styles = StyleSheet.create({
   bottomBar: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#E5E5E5',
   },
   voteButton: {
     backgroundColor: '#0068FF',
-    borderRadius: 25,
-    paddingVertical: 14,
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: 'center',
   },
   voteButtonDisabled: {

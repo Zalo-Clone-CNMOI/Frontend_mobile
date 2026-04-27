@@ -1,8 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { MediaType } from '../hooks/useMediaGallery';
-import { styles } from '../styles';
+import { MediaType } from '@/src/hooks/media-gallery/useMediaGallery';
+import { styles } from './styles';
 
 interface FilterTabsProps {
   activeTab: MediaType;

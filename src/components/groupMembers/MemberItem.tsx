@@ -3,10 +3,10 @@ import { Alert, Image, StyleSheet, Text, TouchableOpacity, View, ActivityIndicat
 import { Trash2 } from 'lucide-react-native';
 import Animated, { FadeOutRight, FadeInRight, Layout } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
-import { Member } from '../hooks/useGroupMembers';
-import { getAvatarUrl } from '../utils/avatarUrl';
+import { Member } from '@/src/hooks/groupMembers/useGroupMembers';
+import { getAvatarUrl } from '@/src/utils/groupMembers/avatarUrl';
 import { RoleBadge } from './RoleBadge';
-import { styles } from '../styles';
+import { styles } from './styles';
 import { type AppTheme } from '@/src/theme/themeManager';
 
 interface MemberItemProps {

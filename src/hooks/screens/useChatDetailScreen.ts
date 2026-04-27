@@ -40,9 +40,11 @@ export function useChatDetailScreenLogic() {
     id?: string | string[];
     name?: string | string[];
     jumpToMessageId?: string | string[];
+    highlightPollId?: string | string[];
   }>();
   const chatId = getSingleRouteParam(params?.id).trim();
   const jumpToMessageId = getSingleRouteParam(params?.jumpToMessageId).trim() || undefined;
+  const highlightPollId = getSingleRouteParam(params?.highlightPollId).trim() || undefined;
   const { t } = useTranslation();
   const { user } = useAuth();
   const headerHeight = useHeaderHeight();
@@ -194,6 +196,29 @@ export function useChatDetailScreenLogic() {
               flashListRef.current?.scrollToEnd({ animated: false });
             }, 50);
           }
+        } else if (highlightPollId && messagesWithAvatar.length > 0) {
+          // Handle highlightPollId - find message containing the poll
+          const messageIndex = messagesWithAvatar.findIndex(m =>
+            (m.metadata as any)?.poll_id === highlightPollId
+          );
+
+          if (messageIndex >= 0) {
+            // Found poll message, scroll to it
+            setTimeout(() => {
+              flashListRef.current?.scrollToIndex({
+                index: messageIndex,
+                animated: true,
+                viewPosition: 0.5,
+              });
+              setHighlightedMessageId(messagesWithAvatar[messageIndex].id);
+              setTimeout(() => setHighlightedMessageId(null), 2000);
+            }, 100);
+          } else {
+            // Poll message not in current list, scroll to end
+            setTimeout(() => {
+              flashListRef.current?.scrollToEnd({ animated: false });
+            }, 50);
+          }
         } else {
           // Normal case - scroll to end
           setTimeout(() => {
@@ -212,7 +237,7 @@ export function useChatDetailScreenLogic() {
     return () => {
       active = false;
     };
-  }, [chatId, currentChat?.conversationId, jumpToMessageId]); // Remove setMessagesForChat from dependencies
+  }, [chatId, currentChat?.conversationId, jumpToMessageId, highlightPollId]); // Remove setMessagesForChat from dependencies
 
   const handleLoadMore = useCallback(async () => {
     if (!chatId || !hasMore || !nextCursor || isLoadingMore) return;
