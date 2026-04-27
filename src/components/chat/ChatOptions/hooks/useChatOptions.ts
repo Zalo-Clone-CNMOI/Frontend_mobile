@@ -37,6 +37,7 @@ interface UseChatOptionsReturn {
   memberCount: number;
   myRole: 'owner' | 'admin' | 'member';
   myNickname: string;
+  chatAvatar: string | null | undefined;
 
   // Media
   media: ReturnType<typeof useMediaGallery>;
@@ -91,6 +92,7 @@ export const useChatOptions = ({
   const myRole = currentMember?.role || mySettings.role;
   const myNickname = mySettings.nickname || '';
   const memberCount = cachedConversation?.memberCount ?? memberCountProp;
+  const chatAvatar = cachedConversation?.avatarUrl || undefined;
 
   // Debug log
   console.log('[useChatOptions] Role debug:', {
@@ -290,6 +292,7 @@ export const useChatOptions = ({
     memberCount,
     myRole,
     myNickname,
+    chatAvatar,
 
     // Sub-hooks
     media,

@@ -23,7 +23,7 @@ import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { FlashList } from '@shopify/flash-list';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { Bell, ChevronDown, ChevronUp, Circle, List, Phone, Search, X } from 'lucide-react-native';
 import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
@@ -264,7 +264,10 @@ export default function ChatDetailScreen() {
       
       let downloadUrl: string;
       
-      if (visibility === 'public') {
+      // If key is already a full URL (starts with http), use it directly
+      if (key.startsWith('http://') || key.startsWith('https://')) {
+        downloadUrl = key;
+      } else if (visibility === 'public') {
         downloadUrl = mediaService.resolveMediaUrl(key);
       } else {
         downloadUrl = await mediaService.getAttachmentUrl(
@@ -272,6 +275,8 @@ export default function ChatDetailScreen() {
           authUser.id
         );
       }
+
+      console.log('[handleFilePress] Download URL:', downloadUrl);
 
       // Open file in browser for download
       try {
@@ -285,6 +290,7 @@ export default function ChatDetailScreen() {
         }
       }
     } catch (error) {
+      console.error('[handleFilePress] Error:', error);
       Alert.alert('Lỗi', 'Không thể tải tệp');
     }
   };
@@ -703,7 +709,7 @@ export default function ChatDetailScreen() {
                   <TouchableOpacity style={styles.callButton} onPress={handleOpenSearch}>
                     <Search size={20} color={theme.colors.iconHeader} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.callButton} onPress={() => setShowChatOptions(true)}>
+                  <TouchableOpacity style={styles.callButton} onPress={() => router.push({ pathname: `/chatOptions/${chatId}`, params: { name: title, isGroup: currentChat?.isGroup ? 'true' : 'false' } })}>
                     <List size={20} color={theme.colors.iconHeader} />
                   </TouchableOpacity>
                 </>

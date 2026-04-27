@@ -206,7 +206,12 @@
     "create_poll_desc": "Tạo bình chọn trong nhóm",
     "view_polls": "Xem bình chọn",
     "view_polls_desc": "Xem tất cả bình chọn trong nhóm",
-    "poll_message": "📊 {{question}}"
+    "poll_message": "📊 {{question}}",
+    "disband_title": "Giải tán nhóm",
+    "disband_confirm": "Bạn có chắc muốn giải tán nhóm này? Hành động này không thể hoàn tác.",
+    "disband": "Giải tán",
+    "disband_group": "Giải tán nhóm",
+    "leave_title": "Rời nhóm"
   },
 
   "polls_screen": {

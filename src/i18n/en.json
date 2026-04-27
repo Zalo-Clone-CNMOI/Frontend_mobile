@@ -224,11 +224,12 @@
     "create_poll_desc": "Create a poll in this group",
     "view_polls": "View Polls",
     "view_polls_desc": "View all polls in this group",
-    "poll_message": "📊 {{question}}"
-  },
-
-  "chat": {
-    "you": "You"
+    "poll_message": "📊 {{question}}",
+    "disband_title": "Disband Group",
+    "disband_confirm": "Are you sure you want to disband this group? This action cannot be undone.",
+    "disband": "Disband",
+    "disband_group": "Disband Group",
+    "leave_title": "Leave Group"
   },
 
   "polls_screen": {

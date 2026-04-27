@@ -25,12 +25,14 @@ export default function GroupMembersScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { t } = useTranslation();
-  const { conversationId, chatName, currentUserId, myRole: myRoleParam } = useLocalSearchParams<{
+  const { conversationId, chatName, currentUserId, myRole: myRoleParam, isGroup: isGroupParam } = useLocalSearchParams<{
     conversationId: string;
     chatName: string;
     currentUserId: string;
     myRole: 'owner' | 'admin' | 'member';
+    isGroup?: string;
   }>();
+  const isGroup = isGroupParam !== 'false'; // Default to true for groupMembers
 
   const myRole = (myRoleParam || 'member') as 'owner' | 'admin' | 'member';
 

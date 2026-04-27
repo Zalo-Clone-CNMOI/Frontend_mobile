@@ -4,11 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 import { styles } from './styles';
 import { GroupInfoModal } from '../GroupInfoModal';
+import { getAvatarUrl } from '@/src/utils/groupMembers/avatarUrl';
 
 interface ProfileSectionProps {
   theme: any;
   chatName: string;
-  chatAvatar?: string;
+  chatAvatar?: string | null;
   isGroup?: boolean;
   chatId?: string;
   myRole?: 'owner' | 'admin' | 'member';
@@ -37,7 +38,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
   const { t } = useTranslation();
   const [editModalVisible, setEditModalVisible] = React.useState(false);
 
-  const avatarUrl = chatAvatar || DEFAULT_AVATAR;
+  const avatarUrl = getAvatarUrl(chatAvatar);
 
   const handleEditGroupInfo = () => {
     if (isGroup && chatId) {

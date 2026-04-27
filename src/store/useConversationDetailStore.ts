@@ -5,8 +5,8 @@ export interface ConversationMember {
   id: string;
   userId: string;
   fullName: string;
-  nickname?: string | null;
-  avatarUrl?: string | null;
+  nickname: string | null;
+  avatarUrl: string | null;
   role: 'owner' | 'admin' | 'member';
   joinedAt: string;
   leftAt: string | null;

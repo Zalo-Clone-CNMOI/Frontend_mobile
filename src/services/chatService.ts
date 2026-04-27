@@ -123,7 +123,7 @@ export function toLegacyChatMessage(apiMessage: any): ChatMessage {
     timestamp: toTimestampMs(createdAtRaw),
     fileInfo: firstAttachment
       ? {
-          uri: firstAttachment.url || firstAttachment.key || "",
+          uri: firstAttachment.key || firstAttachment.url || "",
           name: firstAttachment.name || "File",
           size: firstAttachment.size || 0,
           mimeType: firstAttachment.contentType || firstAttachment.type || "",
@@ -766,6 +766,35 @@ function registerSocketListeners() {
     });
   };
 
+  const handleSystemMessage = async (payload: any) => {
+    console.log('[handleSystemMessage] Processing system message', payload);
+    const conversationId = payload?.conversation_id || payload?.conversationId;
+    const messageId = payload?.message_id || payload?.messageId || payload?.id;
+
+    const messageKey = String(messageId || "");
+
+    // Deduplication: Check if already processed
+    if (messageKey && isMessageProcessed(messageKey)) {
+      console.log('[handleSystemMessage] Message already processed', messageKey);
+      return;
+    }
+
+    if (messageKey) {
+      addProcessedMessageId(messageKey);
+    }
+
+    // Convert to UI message format
+    const uiMessage = toLegacyChatMessage(payload);
+    const enrichedMessage = await enrichReplyToDetails(uiMessage);
+
+    // Add to store
+    const { useMessagesStore } = await import('../store/useMessagesStore');
+    useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
+
+    // Update conversation list
+    await updateConversationLastMessage(enrichedMessage, payload);
+  };
+
   // Register all listeners
   // NOTE: chat:message is now handled here directly (useChatSocket is deprecated)
   s.on("connect", handleConnect);
@@ -775,6 +804,7 @@ function registerSocketListeners() {
   s.on("chat:message:deleted", handleMessageDeleted);
   s.on("chat:reaction:added", handleReactionAdded);
   s.on("chat:reaction:removed", handleReactionRemoved);
+  s.on("chat.system_message", handleSystemMessage);
 
   listenersRegistered = true;
 
@@ -787,6 +817,7 @@ function registerSocketListeners() {
     s.off("chat:message:deleted", handleMessageDeleted);
     s.off("chat:reaction:added", handleReactionAdded);
     s.off("chat:reaction:removed", handleReactionRemoved);
+    s.off("chat.system_message", handleSystemMessage);
     listenersRegistered = false;
   };
 }
