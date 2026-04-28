@@ -64,7 +64,7 @@ export default function HomeScreen() {
         {
           options: [
             t('common.cancel'),
-            conversation.pinned ? 'Bỏ ghim' : 'Ghim hội thoại',
+            conversation.pinned ? (t('chat_options.unpin') || 'Bỏ ghim') : (t('chat_options.pin') || 'Ghim hội thoại'),
           ],
           cancelButtonIndex: 0,
           destructiveButtonIndex: undefined,
@@ -106,12 +106,12 @@ export default function HomeScreen() {
     
     try {
       await leaveConversation(selectedConversation.conversationId);
-      toast.success('Đã rời hội thoại');
+      toast.success(t('conversation.leave_success') || 'Đã rời hội thoại');
       handleCloseMenu();
       // Refresh conversation list
       onRefresh();
     } catch (error) {
-      toast.error('Không thể rời hội thoại');
+      toast.error(t('conversation.leave_error') || 'Không thể rời hội thoại');
     }
   };
 
@@ -126,19 +126,19 @@ export default function HomeScreen() {
     let messageContent = '';
     switch (type) {
       case 'image':
-        messageContent = 'đã gửi ảnh';
+        messageContent = t('message.sent_image') || 'đã gửi ảnh';
         break;
       case 'video':
-        messageContent = 'đã gửi video';
+        messageContent = t('message.sent_video') || 'đã gửi video';
         break;
       case 'file':
-        messageContent = 'đã gửi tệp';
+        messageContent = t('message.sent_file') || 'đã gửi tệp';
         break;
       case 'voice':
-        messageContent = 'đã gửi tin nhắn thoại';
+        messageContent = t('message.sent_voice') || 'đã gửi tin nhắn thoại';
         break;
       case 'poll':
-        messageContent = content || 'Bình chọn';
+        messageContent = content || (t('message.poll') || 'Bình chọn');
         break;
       default:
         messageContent = content || '';
@@ -147,13 +147,13 @@ export default function HomeScreen() {
     // Determine prefix based on sender and chat type
     let prefix = '';
     if (fromMe) {
-      prefix = 'Bạn: ';
+      prefix = (t('common.you') || 'Bạn') + ': ';
     } else {
       const senderName = (conversation.lastMessage as any)?.senderName || '';
       prefix = senderName ? `${senderName}: ` : '';
     }
 
-    return prefix + messageContent || 'Không có tin nhắn';
+    return prefix + messageContent || (t('message.no_message') || 'Không có tin nhắn');
   };
 
   // Close menu
@@ -236,7 +236,7 @@ export default function HomeScreen() {
                   )}
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={{ color: theme.colors.text, fontWeight: '600', fontSize: 16 }}>
-                      {selectedConversation.name || 'Unknown'}
+                      {selectedConversation.name || t('common.unknown') || 'Unknown'}
                     </Text>
                     <Text style={{ color: theme.colors.icon, fontSize: 14 }}>
                       {formatLastMessage(selectedConversation, authUser?.id)}
@@ -252,14 +252,14 @@ export default function HomeScreen() {
                     <>
                       <PinOff size={22} color={theme.colors.text} />
                       <Text style={[menuStyles.menuText, { color: theme.colors.text }]}>
-                        Bỏ ghim
+                        {t('chat_options.unpin') || 'Bỏ ghim'}
                       </Text>
                     </>
                   ) : (
                     <>
                       <Pin size={22} color={theme.colors.text} style={{ transform: [{ rotate: '45deg' }] }} />
                       <Text style={[menuStyles.menuText, { color: theme.colors.text }]}>
-                        Ghim hội thoại
+                        {t('chat_options.pin') || 'Ghim hội thoại'}
                       </Text>
                     </>
                   )}
@@ -280,7 +280,7 @@ export default function HomeScreen() {
                   <TouchableOpacity style={menuStyles.menuItem} onPress={handleLeaveConversation}>
                     <LogOut size={20} color={theme.colors.text} />
                     <Text style={[menuStyles.menuText, { color: theme.colors.text }]}>
-                      Rời hội thoại
+                      {t('conversation.leave') || 'Rời hội thoại'}
                     </Text>
                   </TouchableOpacity>
                 )}

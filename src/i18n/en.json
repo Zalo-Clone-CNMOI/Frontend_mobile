@@ -24,7 +24,9 @@
     "creating": "Creating",
     "updating": "Updating...",
     "accept": "Accept",
-    "reject": "Reject"
+    "reject": "Reject",
+    "you": "You",
+    "unknown": "Unknown"
   },
 
   "navigation": {
@@ -280,7 +282,26 @@
     "disband_confirm": "Are you sure you want to disband this group? This action cannot be undone.",
     "disband": "Disband",
     "disband_group": "Disband Group",
-    "leave_title": "Leave Group"
+    "leave_title": "Leave Group",
+    "pin": "Pin Conversation",
+    "unpin": "Unpin",
+    "pin_success": "Conversation pinned",
+    "unpin_success": "Conversation unpinned"
+  },
+
+  "conversation": {
+    "leave": "Leave conversation",
+    "leave_success": "Left conversation",
+    "leave_error": "Failed to leave conversation"
+  },
+
+  "message": {
+    "sent_image": "sent an image",
+    "sent_video": "sent a video",
+    "sent_file": "sent a file",
+    "sent_voice": "sent a voice message",
+    "poll": "Poll",
+    "no_message": "No messages"
   },
 
   "polls_screen": {
