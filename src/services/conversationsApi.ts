@@ -299,6 +299,14 @@ export const updateConversation = async (
 export const disbandConversation = (conversationId: string) =>
   request('POST', `/conversations/${encodeURIComponent(conversationId)}/disband`);
 
+// Pin conversation for current user
+export const pinConversation = (conversationId: string) =>
+  request('POST', `/conversations/${encodeURIComponent(conversationId)}/pin`);
+
+// Unpin conversation for current user
+export const unpinConversation = (conversationId: string) =>
+  request('DELETE', `/conversations/${encodeURIComponent(conversationId)}/pin`);
+
 // Send group invites
 export const sendInvites = (
   conversationId: string,
@@ -426,6 +434,8 @@ export default {
   updateMySettings,
   updateConversation,
   disbandConversation,
+  pinConversation,
+  unpinConversation,
   sendInvites,
   getPendingInvites,
   getConversationInvites,

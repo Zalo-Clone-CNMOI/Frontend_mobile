@@ -1,5 +1,5 @@
 import { useTheme } from '@/src/theme/themeContext';
-import { Bell, BellOff, ChevronLeft, FileText, List, Search, UserPlus } from 'lucide-react-native';
+import { Bell, BellOff, ChevronLeft, FileText, List, Pin, Search, UserPlus } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,6 +24,8 @@ import { useChatOptions } from '@/src/components/chat/ChatOptions/hooks/useChatO
 import { styles as chatOptionsStyles } from '@/src/components/chat/ChatOptions/styles';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { toast } from '@/src/services/toastService';
+import { useChatsStore } from '@/src/store/useChatsStore';
+import { pinConversation, unpinConversation } from '@/src/services/conversationsApi';
 
 export default function ChatOptionsScreen() {
   const theme = useTheme();
@@ -82,6 +84,27 @@ export default function ChatOptionsScreen() {
 
   const handleClose = () => {
     router.back();
+  };
+
+  // Pin conversation state and handler
+  const updateConversationPinStatus = useChatsStore((state) => state.updateConversationPinStatus);
+  const currentChat = useChatsStore((state) => state.chats.find((c) => c.conversationId === chatId));
+  const isPinned = currentChat?.pinned || false;
+
+  const handleTogglePinConversation = async () => {
+    try {
+      if (isPinned) {
+        await unpinConversation(chatId);
+        updateConversationPinStatus(chatId, false);
+        toast.success(t('chat_options.unpin_success') || 'Đã bỏ ghim hội thoại');
+      } else {
+        await pinConversation(chatId);
+        updateConversationPinStatus(chatId, true);
+        toast.success(t('chat_options.pin_success') || 'Đã ghim hội thoại');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Không thể thực hiện thao tác');
+    }
   };
 
   const handleRoleChangePress = (member: any) => {
@@ -206,6 +229,37 @@ export default function ChatOptionsScreen() {
               thumbColor={notificationsEnabled ? theme.colors.primary : '#f4f3f4'}
             />
           </View>
+
+          {/* Pin/Unpin Conversation */}
+          <TouchableOpacity
+            style={[chatOptionsStyles.optionItem, { borderBottomColor: theme.colors.border }]}
+            onPress={handleTogglePinConversation}
+          >
+            <View style={chatOptionsStyles.optionLeft}>
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  backgroundColor: isPinned ? `${theme.colors.primary}15` : theme.colors.primary + '15',
+                }}
+              >
+                <Pin size={18} color={isPinned ? theme.colors.primary : theme.colors.primary} style={{ transform: [{ rotate: isPinned ? '45deg' : '0deg' }] }} />
+              </View>
+              <View style={chatOptionsStyles.optionTextContainer}>
+                <Text style={[chatOptionsStyles.optionTitle, { color: theme.colors.text }]}>
+                  {isPinned ? (t('chat_options.unpin_conversation') || 'Bỏ ghim hội thoại') : (t('chat_options.pin_conversation') || 'Ghim hội thoại')}
+                </Text>
+                <Text style={[chatOptionsStyles.optionSubtitle, { color: theme.colors.icon }]}>
+                  {isPinned
+                    ? (t('chat_options.unpin_desc') || 'Hội thoại đã được ghim lên đầu danh sách')
+                    : (t('chat_options.pin_desc') || 'Ghim hội thoại lên đầu danh sách')}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
 
           {/* Create Poll (Group only) */}
           {isGroup && (
