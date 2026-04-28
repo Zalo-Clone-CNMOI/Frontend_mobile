@@ -1,6 +1,5 @@
 import { useTheme } from '@/src/theme/themeContext';
-import { StatusBar } from 'expo-status-bar';
-import { Bell, BellOff, ChevronLeft, FileText, List } from 'lucide-react-native';
+import { Bell, BellOff, ChevronLeft, FileText, List, Search, UserPlus } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -12,9 +11,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MediaViewerModal } from '@/src/components/chat/MediaViewerModal';
-import { ConversationInvitesModal } from '@/src/components/chat/ConversationInvitesModal';
 import { CreatePollModal } from '@/src/components/chat/CreatePollModal';
 import { MediaSection } from '@/src/components/chat/ChatOptions/MediaSection';
 import { MembersSection } from '@/src/components/chat/ChatOptions/MembersSection';
@@ -43,7 +42,6 @@ export default function ChatOptionsScreen() {
   const {
     notificationsEnabled,
     createPollModalVisible,
-    conversationInvitesModalVisible,
     viewerVisible,
     viewerInitialIndex,
     roleSelectionVisible,
@@ -57,7 +55,6 @@ export default function ChatOptionsScreen() {
     nickname,
     setNotificationsEnabled,
     setCreatePollModalVisible,
-    setConversationInvitesModalVisible,
     setViewerVisible,
     setRoleSelectionVisible,
     handleLeaveGroup,
@@ -271,6 +268,40 @@ export default function ChatOptionsScreen() {
               </View>
             </TouchableOpacity>
           )}
+
+          {/* Group Invites Center (Group only, admin/owner) - Invite and view invites */}
+          {isGroup && myRole !== 'member' && (
+            <TouchableOpacity
+              style={[chatOptionsStyles.optionItem, { borderBottomColor: theme.colors.border }]}
+              onPress={() => router.push({
+                pathname: '/groupInviteCenter/[id]',
+                params: { id: chatId, name: chatName },
+              } as any)}
+            >
+              <View style={chatOptionsStyles.optionLeft}>
+                <View
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: theme.colors.primary + '15',
+                  }}
+                >
+                  <UserPlus size={18} color={theme.colors.primary} />
+                </View>
+                <View style={chatOptionsStyles.optionTextContainer}>
+                  <Text style={[chatOptionsStyles.optionTitle, { color: theme.colors.text }]}>
+                    {t('chat_options.group_invites') || 'Group Invites'}
+                  </Text>
+                  <Text style={[chatOptionsStyles.optionSubtitle, { color: theme.colors.icon }]}>
+                    {t('chat_options.group_invites_desc') || 'Invite members and view invites'}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Leave/Disband Group */}
@@ -328,14 +359,6 @@ export default function ChatOptionsScreen() {
         conversationId={chatId}
         onPollCreated={handlePollCreated}
       />
-
-      {/* TODO: Fix ConversationInvitesModal props
-      <ConversationInvitesModal
-        visible={conversationInvitesModalVisible}
-        onClose={() => setConversationInvitesModalVisible(false)}
-        conversationId={chatId}
-        conversationName={chatName}
-      /> */}
 
       {/* TODO: Fix MediaViewerModal props
       <MediaViewerModal

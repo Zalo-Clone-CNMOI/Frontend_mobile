@@ -1,6 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { X, Clock, Send, AlertCircle } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -12,15 +12,18 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
 import { sendInvites } from '@/src/services/conversationsApi';
+import { getFriends } from '@/src/services/friendsApi';
 
 interface GroupInviteModalProps {
   visible: boolean;
   conversationId: string;
   conversationName: string;
+  existingMemberIds?: string[]; // Friend IDs to exclude (already members)
   onClose: () => void;
   onInviteSent?: () => void;
 }
@@ -29,17 +32,55 @@ export function GroupInviteModal({
   visible,
   conversationId,
   conversationName,
+  existingMemberIds = [],
   onClose,
   onInviteSent,
 }: GroupInviteModalProps) {
   const theme = useTheme();
   const { t } = useTranslation();
   const friends = useRealtimeStore((state) => state.friends);
-  
+  const setFriendSnapshot = useRealtimeStore((state) => state.setFriendSnapshot);
+
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState('');
   const [expiresInHours, setExpiresInHours] = useState(168); // Default 7 days
   const [loading, setLoading] = useState(false);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+
+  // Fetch friends when modal opens
+  useEffect(() => {
+    if (visible) {
+      fetchFriends();
+    }
+  }, [visible]);
+
+  const fetchFriends = async () => {
+    setFriendsLoading(true);
+    try {
+      const response = await getFriends({ limit: 100 });
+      
+      const friendsData = response.data?.data || response.data || [];
+      
+      // Convert to FriendRecord format for useRealtimeStore
+      const friendRecords = friendsData.map((friend: any) => ({
+        id: friend.id || friend._id || friend.userId,
+        fullName: friend.name || friend.fullName || `${friend.firstName || ''} ${friend.lastName || ''}`.trim(),
+        avatarUrl: friend.avatarUrl || null,
+        userId: friend.userId || friend.id || friend._id,
+      }));
+
+      setFriendSnapshot({
+        friends: friendRecords,
+        receivedRequests: [],
+        sentRequests: [],
+      });
+    } catch (error: any) {
+      console.error('Failed to fetch friends:', error);
+      Alert.alert(t('common.error'), error.message || 'Failed to load friends');
+    } finally {
+      setFriendsLoading(false);
+    }
+  };
 
   const toggleFriendSelection = (friendId: string) => {
     setSelectedFriends((prev) => {
@@ -101,9 +142,9 @@ export function GroupInviteModal({
     }
   };
 
-  const renderFriendItem = ({ friendId, fullName, avatarUrl }: { friendId: string; fullName: string; avatarUrl?: string | null }) => {
+  const renderFriendItem = ({ friendId, fullName, avatarUrl, isMember }: { friendId: string; fullName: string; avatarUrl?: string | null; isMember?: boolean }) => {
     const isSelected = isFriendSelected(friendId);
-    
+
     return (
       <TouchableOpacity
         style={[
@@ -111,29 +152,40 @@ export function GroupInviteModal({
           {
             backgroundColor: isSelected ? theme.colors.primary + '15' : theme.colors.card,
             borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+            opacity: isMember ? 0.5 : 1,
           },
         ]}
-        onPress={() => toggleFriendSelection(friendId)}
-        activeOpacity={0.7}
+        onPress={() => !isMember && toggleFriendSelection(friendId)}
+        activeOpacity={isMember ? 1 : 0.7}
+        disabled={isMember}
       >
         <AvatarWithInitials
           name={fullName}
           size={44}
         />
-        <Text style={[styles.friendName, { color: theme.colors.text }]} numberOfLines={1}>
-          {fullName}
-        </Text>
-        <View
-          style={[
-            styles.checkbox,
-            {
-              backgroundColor: isSelected ? theme.colors.primary : 'transparent',
-              borderColor: isSelected ? theme.colors.primary : theme.colors.border,
-            },
-          ]}
-        >
-          {isSelected && <X size={14} color="#fff" />}
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={[styles.friendName, { color: theme.colors.text }]} numberOfLines={1}>
+            {fullName}
+          </Text>
+          {isMember && (
+            <Text style={[styles.memberLabel, { color: '#34C759' }]}>
+              {t('chat_options.already_member') || 'Already a member'}
+            </Text>
+          )}
         </View>
+        {!isMember && (
+          <View
+            style={[
+              styles.checkbox,
+              {
+                backgroundColor: isSelected ? theme.colors.primary : 'transparent',
+                borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+              },
+            ]}
+          >
+            {isSelected && <X size={14} color="#fff" />}
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -238,21 +290,42 @@ export function GroupInviteModal({
               {t('group_errors.select_friends') || 'Select Friends'}
             </Text>
             <Text style={[styles.selectedCount, { color: theme.colors.icon }]}>
-              {selectedFriends.size} {t('group_errors.selected') || 'selected'}
+              {selectedFriends.size} {t('group_errors.selected') || 'selected'} | Total: {friends.length}
             </Text>
           </View>
 
-          <ScrollView style={styles.friendsList} showsVerticalScrollIndicator={false}>
-            {friends.map((friend) => (
-              <View key={friend.id} style={styles.friendItemWrapper}>
-                {renderFriendItem({
-                  friendId: friend.id,
-                  fullName: friend.fullName || '',
-                  avatarUrl: friend.avatarUrl,
-                })}
+          <View style={[styles.friendsList, { backgroundColor: theme.colors.background }]}>
+            {friendsLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <Text style={[styles.loadingText, { color: theme.colors.icon }]}>
+                  {t('common.loading') || 'Loading friends...'}
+                </Text>
               </View>
-            ))}
-          </ScrollView>
+            ) : friends.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={[styles.emptyText, { color: theme.colors.icon }]}>
+                  {t('group_errors.no_friends') || 'No friends found'}
+                </Text>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {friends.map((friend) => {
+                  const isMember = existingMemberIds.includes(friend.id);
+                  return (
+                    <View key={friend.id} style={styles.friendItemWrapper}>
+                      {renderFriendItem({
+                        friendId: friend.id,
+                        fullName: friend.fullName || '',
+                        avatarUrl: friend.avatarUrl,
+                        isMember,
+                      })}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
 
           {/* Footer */}
           <View style={styles.footer}>
@@ -311,6 +384,7 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
     borderRadius: 16,
     padding: 20,
+    justifyContent: 'space-between',
   },
   header: {
     flexDirection: 'row',
@@ -386,6 +460,8 @@ const styles = StyleSheet.create({
   friendsList: {
     flex: 1,
     marginBottom: 20,
+    minHeight: 100,
+    maxHeight: 300,
   },
   friendItemWrapper: {
     marginBottom: 8,
@@ -401,7 +477,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     flex: 1,
-    marginLeft: 12,
+  },
+  memberLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
   },
   checkbox: {
     width: 24,
@@ -443,5 +523,22 @@ const styles = StyleSheet.create({
   sendText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    marginTop: 12,
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 15,
   },
 });

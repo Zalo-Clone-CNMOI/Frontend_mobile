@@ -28,7 +28,7 @@ export type ConversationV2 = {
   myNickname?: string;
 };
 
-export type MessageType = 'text' | 'image' | 'video' | 'file' | 'voice' | 'system' | 'poll';
+export type MessageType = 'text' | 'image' | 'video' | 'file' | 'voice' | 'system' | 'poll' | 'invite';
 
 export type SystemEventType =
   | 'member_added'
@@ -69,6 +69,19 @@ export interface SystemMessageMetadata {
   changed_by_name?: string;
   previous_nickname?: string;
   new_nickname?: string;
+}
+
+export interface InviteMessageMetadata {
+  invite_id?: string;
+  group_id?: string;
+  group_name?: string;
+  group_avatar_url?: string;
+  inviter_id?: string;
+  inviter_name?: string;
+  status?: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'expired';
+  invited_user_id?: string;
+  member_count?: number;
+  message?: string;
 }
 
 export type FileInfo = {
@@ -160,7 +173,7 @@ export type ChatMessage = {
   pinnedAt?: number;
 
   // System message fields
-  messageType?: 'user' | 'system' | 'poll';
+  messageType?: 'user' | 'system' | 'poll' | 'invite';
   systemEventType?: SystemEventType;
-  metadata?: SystemMessageMetadata | PollMessageMetadata;
+  metadata?: SystemMessageMetadata | PollMessageMetadata | InviteMessageMetadata;
 };

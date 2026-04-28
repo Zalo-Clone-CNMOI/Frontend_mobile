@@ -3,7 +3,7 @@
 # dependencies
 node_modules/
 SkillAgent
-repomix-output
+repomix-output.xml
 
 # Expo
 .expo/

@@ -314,7 +314,9 @@ export const getCurrentUser = async (): Promise<UserInfo | null> => {
 export const apiCallWithRefresh = async (
   url: string,
   options: RequestInit = {},
+  timeoutMs = 15000,
 ): Promise<Response> => {
+  console.log(`[API Request] ${options.method || 'GET'} ${url} (timeout: ${timeoutMs}ms)`);
   try {
     let accessToken = await getCurrentToken();
 
@@ -335,10 +337,16 @@ export const apiCallWithRefresh = async (
       baseHeaders["Content-Type"] = "application/json";
     }
 
+    // Add timeout to prevent infinite loading
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     const response = await fetch(url, {
       ...options,
       headers: baseHeaders,
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     if (response.status === 401) {
       const newAccessToken = await refreshAccessToken();
@@ -346,17 +354,25 @@ export const apiCallWithRefresh = async (
         throw new Error("Failed to refresh token after 401");
       }
 
-      return fetch(url, {
+      const retryController = new AbortController();
+      const retryTimeoutId = setTimeout(() => retryController.abort(), timeoutMs);
+      const retryResponse = await fetch(url, {
         ...options,
         headers: {
           ...baseHeaders,
           Authorization: `Bearer ${newAccessToken}`,
         },
+        signal: retryController.signal,
       });
+      clearTimeout(retryTimeoutId);
+      return retryResponse;
     }
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeoutMs}ms`);
+    }
     throw error;
   }
 };
