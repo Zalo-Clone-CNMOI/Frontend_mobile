@@ -372,7 +372,11 @@ export type ApiConversationDTO = {
 
   isMuted?: boolean;
 
-  pinned?: boolean;
+  isPinned?: boolean;  // Backend returns isPinned
+
+  pinned?: boolean;  // Legacy field for compatibility
+
+  pinnedAt?: string | number | null;  // Backend returns pinnedAt timestamp
 
   muted?: boolean;
 

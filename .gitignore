@@ -10,7 +10,6 @@ repomix-output.xml
 dist/
 web-build/
 expo-env.d.ts
-.env
 .env*.local
 
 # Native

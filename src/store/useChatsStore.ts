@@ -20,6 +20,7 @@ interface ChatsState {
   updateChat: (chatId: string, updates: Partial<ConversationV2>) => void;
   updateConversationRole: (conversationId: string, role: 'owner' | 'admin' | 'member') => void;
   updateLastMessage: (conversationId: string, content: string, type: string, timestamp: number, senderId?: string, senderName?: string, shouldIncrementUnread?: boolean) => void;
+  updateConversationPinStatus: (conversationId: string, isPinned: boolean) => void;
   incrementUnreadCount: (conversationId: string) => void;
   resetUnreadCount: (conversationId: string) => void;
   reset: () => void;
@@ -37,11 +38,19 @@ export const useChatsStore = create<ChatsState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const conversations = await fetchConversations();
-      // Sort by lastMessageAt descending (newest first)
+      // Sort: pinned conversations first, then by pinnedAt/lastMessageAt
       const sortedConversations = [...conversations].sort((a, b) => {
-        const timeA = a.lastMessageAt || 0;
-        const timeB = b.lastMessageAt || 0;
-        return timeB - timeA;
+        // Pinned items come first
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+
+        // Both pinned: sort by pinnedAt (newest first)
+        if (a.pinned && b.pinned) {
+          return (b.pinnedAt || 0) - (a.pinnedAt || 0);
+        }
+
+        // Both unpinned: sort by lastMessageAt (newest first)
+        return (b.lastMessageAt || 0) - (a.lastMessageAt || 0);
       });
       set({ chats: sortedConversations, filteredChats: sortedConversations, isLoading: false });
     } catch (err) {
@@ -71,10 +80,31 @@ export const useChatsStore = create<ChatsState>((set) => ({
   },
 
   addChat: (chat: ConversationV2) => {
-    set((state) => ({
-      chats: [chat, ...state.chats],
-      filteredChats: [chat, ...state.filteredChats],
-    }));
+    set((state) => {
+      // Insert pinned chats at beginning, unpinned after all pinned
+      const insertChat = (chats: ConversationV2[]) => {
+        if (chat.pinned) {
+          // Insert at beginning for pinned chats
+          return [chat, ...chats];
+        } else {
+          // Insert after all pinned chats for unpinned
+          const firstUnpinnedIndex = chats.findIndex(c => !c.pinned);
+          if (firstUnpinnedIndex === -1) {
+            return [...chats, chat]; // All are pinned, append at end
+          }
+          return [
+            ...chats.slice(0, firstUnpinnedIndex),
+            chat,
+            ...chats.slice(firstUnpinnedIndex),
+          ];
+        }
+      };
+
+      return {
+        chats: insertChat(state.chats),
+        filteredChats: insertChat(state.filteredChats),
+      };
+    });
   },
 
   deleteChat: (chatId: string) => {
@@ -146,22 +176,64 @@ export const useChatsStore = create<ChatsState>((set) => ({
         return chat;
       };
 
-      const updatedChats = state.chats.map(updateConversation);
-      // Move updated conversation to top (if found)
-      const updatedChat = updatedChats.find(c => c.conversationId === conversationId);
-      const sortedChats = updatedChat
-        ? [updatedChat, ...updatedChats.filter(c => c.conversationId !== conversationId)]
-        : updatedChats;
+      // Sort helper: pinned first, then by pinnedAt/lastMessageAt
+      const sortChats = (chats: ConversationV2[]) => {
+        return [...chats].sort((a, b) => {
+          if (a.pinned && !b.pinned) return -1;
+          if (!a.pinned && b.pinned) return 1;
+          if (a.pinned && b.pinned) {
+            return (b.pinnedAt || 0) - (a.pinnedAt || 0);
+          }
+          return (b.lastMessageAt || 0) - (a.lastMessageAt || 0);
+        });
+      };
 
+      const updatedChats = state.chats.map(updateConversation);
       const updatedFiltered = state.filteredChats.map(updateConversation);
-      const updatedFilteredChat = updatedFiltered.find(c => c.conversationId === conversationId);
-      const sortedFiltered = updatedFilteredChat
-        ? [updatedFilteredChat, ...updatedFiltered.filter(c => c.conversationId !== conversationId)]
-        : updatedFiltered;
 
       return {
-        chats: sortedChats,
-        filteredChats: sortedFiltered,
+        chats: sortChats(updatedChats),
+        filteredChats: sortChats(updatedFiltered),
+      };
+    });
+  },
+
+  updateConversationPinStatus: (conversationId: string, isPinned: boolean) => {
+    set((state) => {
+      const updatePin = (chat: ConversationV2) => {
+        if (chat.conversationId === conversationId) {
+          return {
+            ...chat,
+            pinned: isPinned,
+            pinnedAt: isPinned ? Date.now() : undefined,
+          };
+        }
+        return chat;
+      };
+
+      // Sort: pinned conversations first, then by pinnedAt/lastMessageAt (same as Frontend_web)
+      const sortChats = (chats: ConversationV2[]) => {
+        return [...chats].sort((a, b) => {
+          // Pinned items come first
+          if (a.pinned && !b.pinned) return -1;
+          if (!a.pinned && b.pinned) return 1;
+
+          // Both pinned: sort by pinnedAt (newest first)
+          if (a.pinned && b.pinned) {
+            return (b.pinnedAt || 0) - (a.pinnedAt || 0);
+          }
+
+          // Both unpinned: sort by lastMessageAt (newest first)
+          return (b.lastMessageAt || 0) - (a.lastMessageAt || 0);
+        });
+      };
+
+      const updatedChats = state.chats.map(updatePin);
+      const updatedFiltered = state.filteredChats.map(updatePin);
+
+      return {
+        chats: sortChats(updatedChats),
+        filteredChats: sortChats(updatedFiltered),
       };
     });
   },

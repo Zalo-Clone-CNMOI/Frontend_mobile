@@ -9,6 +9,7 @@ import { NETWORK_CONFIG } from '@/src/config/network';
 import React, { useMemo } from 'react';
 
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pin } from 'lucide-react-native';
 
 import { useTheme } from '../../theme/themeContext';
 
@@ -26,25 +27,20 @@ const normalizeAvatarUrl = (avatar?: string): string | null => {
 };
 
 export function ChatListItem({
-
   item,
-
   onPress,
-
+  onLongPress,
+  isPressed,
 }: {
-
   item: ConversationV2;
-
   onPress: () => void;
-
+  onLongPress?: (yPosition: number, itemHeight: number) => void;
+  isPressed?: boolean;
 }) {
-
+  const itemRef = React.useRef<View>(null);
   const theme = useTheme();
-
   const { presenceMap } = usePresenceStore();
-
   const { user: authUser } = useAuth();
-
   const messageTime = item.lastMessage?.timestamp || item.lastMessageAt;
 
   // Get presence status for the other user (not for groups)
@@ -129,7 +125,23 @@ export function ChatListItem({
 
   return (
 
-    <TouchableOpacity style={[styles.chatItem, { borderBottomColor: theme.colors.border }]} onPress={onPress}>
+    <View ref={itemRef} style={{ width: '100%' }}>
+      <TouchableOpacity
+        style={[
+          styles.chatItem,
+          { borderBottomColor: theme.colors.border },
+          isPressed && { backgroundColor: theme.colors.border + '40' }
+        ]}
+        onPress={onPress}
+        onLongPress={() => {
+          if (onLongPress && itemRef.current) {
+            itemRef.current.measure((x, y, width, height, pageX, pageY) => {
+              onLongPress(pageY, height);
+            });
+          }
+        }}
+        delayLongPress={500}
+      >
 
       <View>
 
@@ -165,6 +177,10 @@ export function ChatListItem({
 
             </Text>
 
+            {item.pinned && (
+              <Pin size={14} color="#8e8e93" style={{ transform: [{ rotate: '45deg' }], marginTop: 4 }} />
+            )}
+
             {(item.unreadCount ?? 0) > 0 && (
 
               <View style={styles.unreadBadge}>
@@ -194,6 +210,8 @@ export function ChatListItem({
 
 
     </TouchableOpacity>
+
+    </View>
 
   );
 

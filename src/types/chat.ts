@@ -17,7 +17,9 @@ export type ConversationV2 = {
   };
   lastMessageAt?: number;
   unreadCount?: number;
-  pinned?: boolean;
+  pinned?: boolean; // Client-side computed
+  isPinned?: boolean; // From API response
+  pinnedAt?: number;
   isMuted?: boolean;
   muted?: boolean;
   memberCount?: number;

@@ -436,7 +436,9 @@ export const mapApiConversationToConversationV2 = (
 
     unreadCount: Number(dto.unreadCount ?? 0),
 
-    pinned: Boolean(dto.pinned),
+    pinned: Boolean(dto.isPinned || dto.pinned),  // Backend returns isPinned
+
+    pinnedAt: toOptionalTimestamp(dto.pinnedAt),  // Backend returns pinnedAt timestamp
 
     isMuted: muted,
 
