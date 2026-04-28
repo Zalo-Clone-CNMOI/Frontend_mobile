@@ -243,15 +243,39 @@ export const usePollStore = create<PollState>((set, get) => ({
     if (validationError) {
       throw new Error(validationError);
     }
-    
+
     set({ isLoading: true, error: null });
     try {
       await editPoll(conversationId, pollId, payload);
-      
-      // Refresh poll detail after edit
-      await get().fetchPollDetail(conversationId, pollId, true);
-      
+
+      // Optimistically update poll detail cache with edited data
+      set((state) => {
+        const existing = state.pollDetails.get(pollId);
+        if (existing) {
+          const updated = { ...existing };
+          if (payload.question !== undefined) updated.question = payload.question;
+          if (payload.allow_multiple !== undefined) updated.allow_multiple = payload.allow_multiple;
+          if (payload.allow_add_option !== undefined) updated.allow_add_option = payload.allow_add_option;
+          if (payload.expires_at !== undefined) updated.expires_at = payload.expires_at;
+          if (payload.edited_option_labels) {
+            updated.options = updated.options.map(opt => {
+              const edited = payload.edited_option_labels?.find(
+                e => e.option_id === opt.option_id
+              );
+              return edited ? { ...opt, label: edited.label } : opt;
+            });
+          }
+          const newDetails = new Map(state.pollDetails);
+          newDetails.set(pollId, updated);
+          return { pollDetails: newDetails };
+        }
+        return state;
+      });
+
       set({ isLoading: false });
+
+      // Background refresh - don't await to avoid blocking UI
+      get().fetchPollDetail(conversationId, pollId, true).catch(console.error);
     } catch (err: any) {
       set({ error: err.message || 'Failed to edit poll', isLoading: false });
       throw err;
@@ -262,18 +286,34 @@ export const usePollStore = create<PollState>((set, get) => ({
     set({ isVoting: true, error: null });
     try {
       const response = await castVote(conversationId, pollId, { option_ids: optionIds });
-      
-      // Optimistically update user votes
+
+      // Optimistically update user votes and vote counts
       set((state) => {
         const newUserVotes = new Map(state.userVotes);
         newUserVotes.set(pollId, optionIds);
-        return { userVotes: newUserVotes, isVoting: false };
+
+        // Optimistically update poll detail vote counts
+        const newDetails = new Map(state.pollDetails);
+        const existing = newDetails.get(pollId);
+        if (existing) {
+          const updated = {
+            ...existing,
+            total_voters: (existing.total_voters || 0) + (existing.my_vote?.length === 0 ? 1 : 0),
+            my_vote: optionIds,
+          };
+          updated.options = updated.options.map(opt => ({
+            ...opt,
+            vote_count: opt.vote_count + (optionIds.includes(opt.option_id) ? 1 : 0) - (existing.my_vote?.includes(opt.option_id) ? 1 : 0),
+          }));
+          newDetails.set(pollId, updated);
+        }
+
+        return { userVotes: newUserVotes, pollDetails: newDetails, isVoting: false };
       });
-      
-      // Note: The vote counts will be updated via WebSocket event
-      // But we can also refetch to be sure
-      await get().fetchPollDetail(conversationId, pollId, true);
-      
+
+      // Background refresh - WebSocket will also update the data
+      get().fetchPollDetail(conversationId, pollId, true).catch(console.error);
+
     } catch (err: any) {
       set({ error: err.message || 'Failed to cast vote', isVoting: false });
       throw err;
@@ -284,17 +324,35 @@ export const usePollStore = create<PollState>((set, get) => ({
     set({ isVoting: true, error: null });
     try {
       await retractVote(conversationId, pollId);
-      
-      // Clear user votes
+
+      // Clear user votes and update vote counts optimistically
       set((state) => {
         const newUserVotes = new Map(state.userVotes);
+        const previousVotes = newUserVotes.get(pollId) || [];
         newUserVotes.set(pollId, []);
-        return { userVotes: newUserVotes, isVoting: false };
+
+        // Optimistically update poll detail
+        const newDetails = new Map(state.pollDetails);
+        const existing = newDetails.get(pollId);
+        if (existing && previousVotes.length > 0) {
+          const updated = {
+            ...existing,
+            total_voters: Math.max(0, (existing.total_voters || 0) - 1),
+            my_vote: [],
+          };
+          updated.options = updated.options.map(opt => ({
+            ...opt,
+            vote_count: Math.max(0, opt.vote_count - (previousVotes.includes(opt.option_id) ? 1 : 0)),
+          }));
+          newDetails.set(pollId, updated);
+        }
+
+        return { userVotes: newUserVotes, pollDetails: newDetails, isVoting: false };
       });
-      
-      // Refresh poll detail
-      await get().fetchPollDetail(conversationId, pollId, true);
-      
+
+      // Background refresh - WebSocket will also update the data
+      get().fetchPollDetail(conversationId, pollId, true).catch(console.error);
+
     } catch (err: any) {
       set({ error: err.message || 'Failed to retract vote', isVoting: false });
       throw err;
@@ -304,12 +362,31 @@ export const usePollStore = create<PollState>((set, get) => ({
   addOption: async (conversationId: string, pollId: string, label: string) => {
     set({ isLoading: true, error: null });
     try {
-      await addPollOption(conversationId, pollId, { label });
-      
-      // Refresh poll detail
-      await get().fetchPollDetail(conversationId, pollId, true);
-      
+      const response = await addPollOption(conversationId, pollId, { label });
+
+      // Optimistically add the new option to cache
+      set((state) => {
+        const newDetails = new Map(state.pollDetails);
+        const existing = newDetails.get(pollId);
+        if (existing && response.data.option_id) {
+          const updated = {
+            ...existing,
+            options: [...existing.options, {
+              option_id: response.data.option_id,
+              label: label,
+              vote_count: 0,
+              order_index: existing.options.length,
+            }],
+          };
+          newDetails.set(pollId, updated);
+        }
+        return { pollDetails: newDetails };
+      });
+
       set({ isLoading: false });
+
+      // Background refresh
+      get().fetchPollDetail(conversationId, pollId, true).catch(console.error);
     } catch (err: any) {
       set({ error: err.message || 'Failed to add option', isLoading: false });
       throw err;
@@ -320,11 +397,27 @@ export const usePollStore = create<PollState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await removePollOption(conversationId, pollId, optionId);
-      
-      // Refresh poll detail
-      await get().fetchPollDetail(conversationId, pollId, true);
-      
+
+      // Optimistically remove the option from cache
+      set((state) => {
+        const newDetails = new Map(state.pollDetails);
+        const existing = newDetails.get(pollId);
+        if (existing) {
+          const removedOption = existing.options.find(o => o.option_id === optionId);
+          const updated = {
+            ...existing,
+            options: existing.options.filter(o => o.option_id !== optionId),
+            total_votes: existing.total_votes - (removedOption?.vote_count || 0),
+          };
+          newDetails.set(pollId, updated);
+        }
+        return { pollDetails: newDetails };
+      });
+
       set({ isLoading: false });
+
+      // Background refresh
+      get().fetchPollDetail(conversationId, pollId, true).catch(console.error);
     } catch (err: any) {
       set({ error: err.message || 'Failed to remove option', isLoading: false });
       throw err;
@@ -335,11 +428,26 @@ export const usePollStore = create<PollState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await closePoll(conversationId, pollId);
-      
-      // Refresh poll detail
-      await get().fetchPollDetail(conversationId, pollId, true);
-      
+
+      // Optimistically update poll status
+      set((state) => {
+        const newDetails = new Map(state.pollDetails);
+        const existing = newDetails.get(pollId);
+        if (existing) {
+          const updated = {
+            ...existing,
+            status: 'closed' as const,
+            closed_at: Date.now(),
+          };
+          newDetails.set(pollId, updated);
+        }
+        return { pollDetails: newDetails };
+      });
+
       set({ isLoading: false });
+
+      // Background refresh
+      get().fetchPollDetail(conversationId, pollId, true).catch(console.error);
     } catch (err: any) {
       set({ error: err.message || 'Failed to close poll', isLoading: false });
       throw err;

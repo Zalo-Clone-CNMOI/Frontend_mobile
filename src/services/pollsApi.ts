@@ -305,6 +305,8 @@ export const editPoll = async (
     throw new Error(validationError);
   }
 
+  console.log('[pollsApi] editPoll payload:', JSON.stringify(payload, null, 2));
+
   const result = await request(
     'PATCH',
     `/conversations/${encodeURIComponent(conversationId)}/polls/${encodeURIComponent(pollId)}`,

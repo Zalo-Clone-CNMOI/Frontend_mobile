@@ -75,7 +75,6 @@ const OptionItem: React.FC<OptionItemProps> = ({
 
   return (
     <TouchableOpacity
-      key={option.option_id}
       style={[
         styles.optionContainer,
         !showResults && isSelected && styles.optionSelected,

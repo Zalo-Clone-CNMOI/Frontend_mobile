@@ -1,6 +1,7 @@
 import { apiCallWithRefresh } from './authService';
 import { NETWORK_CONFIG } from '../config/network';
 import { ApiResponseDTO, ApiListResponseDTO, ApiMetaDTO } from '../types/dto/ApiDTO';
+import { getConversationDetail } from './conversationsApi';
 
 const API_BASE_URL = NETWORK_CONFIG.API_BASE_URL;
 
@@ -111,6 +112,7 @@ export const sendGroupInvites = async (
 /**
  * Get pending invites for current user
  * GET /conversations/invites/pending
+ * Note: User may not be member yet, so we skip enrich to avoid 403
  */
 export const getPendingInvites = async (
   params?: GetPendingInvitesParams
@@ -125,7 +127,34 @@ export const getPendingInvites = async (
     status,
   });
 
-  return request('GET', `/conversations/invites/pending?${queryParams.toString()}`);
+  const response = await request('GET', `/conversations/invites/pending?${queryParams.toString()}`);
+  
+  // Backend returns GroupInviteItemDto without nested objects
+  // We skip enrich here because user may not be member yet (will get 403)
+  // Frontend will use basic data from invite itself
+  if (response.data?.items) {
+    const invites = response.data.items;
+    
+    // Basic transform without fetching conversation details
+    const enrichedInvites = invites.map((item: any) => ({
+      ...item,
+      conversation: {
+        id: item.conversationId,
+        name: null, // Will be filled from message metadata
+        avatarUrl: null,
+        memberCount: 0, // Will be filled from message metadata
+      },
+      inviter: {
+        id: item.inviterUserId,
+        fullName: null,
+        avatarUrl: null,
+      },
+    }));
+    
+    response.data.items = enrichedInvites;
+  }
+  
+  return response;
 };
 
 /**
@@ -146,7 +175,59 @@ export const getConversationInvites = async (
     status,
   });
 
-  return request('GET', `/conversations/${encodeURIComponent(conversationId)}/invites?${queryParams.toString()}`);
+  const response = await request('GET', `/conversations/${encodeURIComponent(conversationId)}/invites?${queryParams.toString()}`);
+  
+  // Backend returns GroupInviteItemDto without nested objects
+  // Frontend expects GroupInviteDTO with conversation and inviter objects
+  // We need to transform the response to match Frontend types
+  if (response.data?.items) {
+    const invites = response.data.items;
+    
+    // Fetch conversation details for each invite to get name and member count
+    const enrichedInvites = await Promise.all(
+      invites.map(async (item: any) => {
+        try {
+          const convResponse = await getConversationDetail(item.conversationId);
+          const conversation = convResponse.data;
+          
+          return {
+            ...item,
+            conversation: {
+              id: item.conversationId,
+              name: conversation?.name || null,
+              avatarUrl: conversation?.avatarUrl || null,
+              memberCount: conversation?.members?.length || 0,
+            },
+            inviter: {
+              id: item.inviterUserId,
+              fullName: conversation?.members?.find((m: any) => m.userId === item.inviterUserId)?.fullName || null,
+              avatarUrl: conversation?.members?.find((m: any) => m.userId === item.inviterUserId)?.avatarUrl || null,
+            },
+          };
+        } catch (error) {
+          // Fallback if conversation fetch fails
+          return {
+            ...item,
+            conversation: {
+              id: item.conversationId,
+              name: null,
+              avatarUrl: null,
+              memberCount: 0,
+            },
+            inviter: {
+              id: item.inviterUserId,
+              fullName: null,
+              avatarUrl: null,
+            },
+          };
+        }
+      })
+    );
+    
+    response.data.items = enrichedInvites;
+  }
+  
+  return response;
 };
 
 /**

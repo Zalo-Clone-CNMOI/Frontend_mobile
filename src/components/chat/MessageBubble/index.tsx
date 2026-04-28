@@ -1,6 +1,7 @@
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { SystemMessageBanner } from '@/src/components/chat/SystemMessageBanner';
 import { PollCard } from '@/src/components/chat/PollCard';
+import { InviteMessageBubble } from '@/src/components/chat/InviteMessageBubble';
 import { ForwardedHeader } from './components/ForwardedHeader';
 import { ReplyPreview } from './components/ReplyPreview';
 import { MessageReactions } from './components/MessageReactions';
@@ -399,6 +400,81 @@ export const MessageBubble = React.memo(
           conversationId={conversationId}
           currentUserId={authUser?.id || ''}
         />
+      </View>
+    );
+  }
+
+  // Check if this is an invite message
+  const isInviteMessage = item.messageType === 'invite' || item.type === 'invite';
+  const inviteMetadata = item.metadata as {
+    invite_id?: string;
+    group_id?: string;
+    group_name?: string;
+    inviter_id?: string;
+    inviter_name?: string;
+    status?: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'expired';
+  } | undefined;
+
+  if (isInviteMessage || inviteMetadata?.invite_id) {
+    return (
+      <View
+        style={[
+          styles.container,
+          isMe ? styles.rowRight : styles.rowLeft,
+        ]}
+      >
+        {/* Left avatar (other user) */}
+        {!isMe && (
+          avatar && avatar.trim() !== '' ? (
+            <Image source={{ uri: avatar }} style={styles.avatar} />
+          ) : (
+            <AvatarWithInitials name={senderName} size={36} style={styles.avatar} />
+          )
+        )}
+
+        <View style={[styles.bubbleWrapper, { alignItems: isMe ? 'flex-end' : 'flex-start' }]}>
+          {/* Sender name for group chats */}
+          {isGroup && !isMe && (
+            <Text style={[styles.senderNameText, { color: senderNameColor }]}>
+              {senderName}
+            </Text>
+          )}
+
+          <InviteMessageBubble
+            item={item}
+            isMe={isMe}
+            onAccept={(inviteId) => {
+              // TODO: Handle accept invite
+              console.log('Accept invite:', inviteId);
+            }}
+            onReject={(inviteId) => {
+              // TODO: Handle reject invite
+              console.log('Reject invite:', inviteId);
+            }}
+            onViewInvite={(inviteId) => {
+              // TODO: Navigate to group
+              console.log('View invite:', inviteId);
+            }}
+          />
+
+          {/* Time row */}
+          <View style={[styles.timeRow, { alignSelf: 'flex-end' }]}>
+            <Text style={[styles.timestamp, { color: isMe ? myMetaColor : theirMetaColor }]}>
+              {formatTime(item.timestamp)}
+            </Text>
+
+            {isPinned && (
+              <View style={styles.pinIcon}>
+                <Pin size={12} color={isMe ? myMetaColor : theirMetaColor} fill={isMe ? myMetaColor : theirMetaColor} />
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Right avatar (shown for sent messages – optional) */}
+        {isMe && avatar && avatar.trim() !== '' && (
+          <Image source={{ uri: avatar }} style={styles.avatar} />
+        )}
       </View>
     );
   }

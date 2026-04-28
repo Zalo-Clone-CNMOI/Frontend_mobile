@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, ScrollView, Text, View, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, ScrollView, Text, View, Alert, KeyboardAvoidingView } from 'react-native';
 import { formatTimeAgoSafe } from '@/src/utils/timeAgo';
 import { usePollStore } from '@/src/store/usePollStore';
 import { canClosePoll, canEditPoll } from '@/src/services/pollsApi';
@@ -121,12 +121,30 @@ export const PollDetailModal: React.FC<PollDetailModalProps> = ({
       setShowEditModal(false);
       // Refresh poll detail in background (don't await to avoid blocking UI)
       loadPollDetail();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to edit poll:', error);
-      Alert.alert(
-        t('common.error', 'Lỗi'),
-        t('pollDetail.editPollError', 'Không thể chỉnh sửa bình chọn. Vui lòng thử lại.')
-      );
+
+      // Handle specific error codes with user-friendly messages
+      const errorCode = error?.code || error?.response?.data?.error?.code;
+      let errorMessage = t('pollDetail.editPollError', 'Không thể chỉnh sửa bình chọn. Vui lòng thử lại.');
+
+      if (errorCode === 'POLL_CANNOT_EDIT_MULTIPLE_WITH_VOTES') {
+        errorMessage = t(
+          'pollDetail.cannotEditMultipleWithVotes',
+          'Không thể thay đổi chế độ chọn nhiều đáp án vì đã có người bình chọn. Bạn vẫn có thể sửa câu hỏi, thêm đáp án hoặc đóng bình chọn.'
+        );
+      } else if (errorCode === 'POLL_CANNOT_EDIT_OPTION_WITH_VOTES') {
+        errorMessage = t(
+          'pollDetail.cannotEditOptionWithVotes',
+          'Không thể sửa lựa chọn đã có người bình chọn.'
+        );
+      } else if (errorCode === 'POLL_PERMISSION_DENIED') {
+        errorMessage = t('pollDetail.permissionDenied', 'Bạn không có quyền chỉnh sửa bình chọn này.');
+      } else if (errorCode === 'POLL_CLOSED') {
+        errorMessage = t('pollDetail.pollClosed', 'Bình chọn đã kết thúc, không thể chỉnh sửa.');
+      }
+
+      Alert.alert(t('common.error', 'Lỗi'), errorMessage);
     } finally {
       setIsEditing(false);
     }
@@ -185,7 +203,7 @@ export const PollDetailModal: React.FC<PollDetailModalProps> = ({
   const displayCreatorName = creatorName;
   const createdAt = (poll as any).created_at;
   const timeAgo = formatTimeAgoSafe(createdAt, t);
-  const showAddOption = poll.allow_add_option && isActive && !hasVoted;
+  const showAddOption = poll.allow_add_option && isActive;
   const showVoteButton = isActive;
 
   return (
@@ -198,8 +216,8 @@ export const PollDetailModal: React.FC<PollDetailModalProps> = ({
       <View style={styles.overlay}>
         <KeyboardAvoidingView
           style={styles.container}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          behavior="padding"
+          keyboardVerticalOffset={0}
         >
           <PollHeader
             groupName={groupName}
@@ -213,7 +231,14 @@ export const PollDetailModal: React.FC<PollDetailModalProps> = ({
             isClosing={isClosing}
           />
 
-          <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            style={styles.content}
+            keyboardShouldPersistTaps="handled"
+            maintainVisibleContentPosition={{
+              minIndexForVisible: 0,
+              autoscrollToTopThreshold: undefined,
+            }}
+          >
             {/* Question */}
             <Text style={styles.question}>{poll.question}</Text>
 

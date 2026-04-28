@@ -6,6 +6,7 @@ import { getSocket } from '../services/socket';
 import { WsEvents } from '../realtime/events';
 import { useRoute } from '@react-navigation/native';
 import { subscribeToPollEvents, setPollEventCallbacks, setPollCurrentUserId } from '../services/pollEventsHandler';
+import { usePollStore } from '../store/usePollStore';
 
 export function useNotificationListener() {
   const { user: authUser } = useAuth();
@@ -102,13 +103,16 @@ export function useNotificationListener() {
     socket.on(WsEvents.GroupInviteSent, handleGroupInvite);
     socket.on(WsEvents.ConversationMemberAdded, handleMemberAdded);
 
-    // Register poll event callbacks for notifications
+    // Register poll event callbacks for notifications and store updates
     setPollEventCallbacks({
       onPollCreated: (payload) => {
         const conversationId = payload.conversation_id;
         const question = payload.question;
 
-        // Don't show if I'm the creator or in the conversation
+        // Update poll store
+        usePollStore.getState().handlePollCreated(payload);
+
+        // Don't show notification if I'm the creator or in the conversation
         if (payload.creator_id === userId) return;
         if (conversationId === currentConversationId.current) return;
 
@@ -122,10 +126,29 @@ export function useNotificationListener() {
           }
         );
       },
+      onPollEdited: (payload) => {
+        // Update poll store
+        usePollStore.getState().handlePollEdited(payload);
+      },
+      onPollVoteUpdated: (payload) => {
+        // Update poll store
+        usePollStore.getState().handlePollVoteUpdated(payload);
+      },
+      onPollOptionAdded: (payload) => {
+        // Update poll store
+        usePollStore.getState().handlePollOptionAdded(payload);
+      },
+      onPollOptionRemoved: (payload) => {
+        // Update poll store
+        usePollStore.getState().handlePollOptionRemoved(payload);
+      },
       onPollClosed: (payload) => {
         const conversationId = payload.conversation_id;
 
-        // Don't show if I'm in the conversation
+        // Update poll store
+        usePollStore.getState().handlePollClosed(payload);
+
+        // Don't show notification if I'm in the conversation
         if (conversationId === currentConversationId.current) return;
 
         showInfo(

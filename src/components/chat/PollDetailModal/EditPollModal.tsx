@@ -38,6 +38,9 @@ export const EditPollModal: React.FC<EditPollModalProps> = ({
   const [allowAddOption, setAllowAddOption] = useState(poll?.allow_add_option ?? false);
   const [editedOptionLabels, setEditedOptionLabels] = useState<{ option_id: string; label: string }[]>([]);
 
+  // Check if poll has any votes (to disable allow_multiple toggle)
+  const hasVotes = poll?.total_votes > 0 || poll?.options.some(o => o.vote_count > 0);
+
   // Reset form when modal opens
   React.useEffect(() => {
     if (visible && poll) {
@@ -155,10 +158,16 @@ export const EditPollModal: React.FC<EditPollModalProps> = ({
                   <Text style={styles.settingDesc}>
                     {t('pollDetail.allowMultipleDesc', 'Người dùng có thể chọn nhiều lựa chọn')}
                   </Text>
+                  {hasVotes && (
+                    <Text style={styles.settingWarning}>
+                      {t('pollDetail.cannotChangeMultiple', 'Không thể thay đổi vì đã có người bình chọn')}
+                    </Text>
+                  )}
                 </View>
                 <Switch
                   value={allowMultiple}
                   onValueChange={setAllowMultiple}
+                  disabled={hasVotes}
                   trackColor={{ false: '#D0D3DA', true: '#0068FF80' }}
                   thumbColor={allowMultiple ? '#0068FF' : '#FFFFFF'}
                 />
@@ -336,6 +345,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#888',
     marginTop: 2,
+  },
+  settingWarning: {
+    fontSize: 12,
+    color: '#E53935',
+    marginTop: 4,
   },
   divider: {
     height: 1,

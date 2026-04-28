@@ -115,6 +115,39 @@ export const usePollDetail = ({
     }
   }, [visible, pollId]); // Remove loadPollDetail from deps to prevent loop
 
+  // Subscribe to poll store changes for real-time updates from socket
+  useEffect(() => {
+    if (!pollId || !visible) return;
+
+    // Check store for updates every time pollId changes
+    const checkStoreUpdates = () => {
+      const storePoll = pollStore.getPollById(pollId) as PollDetail | null;
+      if (storePoll) {
+        // Update local state if store has newer data
+        setPoll(storePoll);
+        const myVote = storePoll.my_vote || [];
+        setSelectedOptions(myVote);
+        setHasVoted(myVote.length > 0);
+      }
+    };
+
+    // Initial check
+    checkStoreUpdates();
+
+    // Subscribe to store changes using Zustand's subscribe
+    const unsubscribe = usePollStore.subscribe((state) => {
+      const updatedPoll = state.pollDetails.get(pollId) as PollDetail | undefined;
+      if (updatedPoll) {
+        setPoll(updatedPoll);
+        const myVote = updatedPoll.my_vote || [];
+        setSelectedOptions(myVote);
+        setHasVoted(myVote.length > 0);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [pollId, visible]);
+
   const toggleOption = useCallback((optionId: string) => {
     console.log('[toggleOption] isActive:', isActive, 'isClosed:', isClosed, 'isExpired:', isExpired, 'optionId:', optionId);
     if (!isActive) return;
@@ -155,7 +188,8 @@ export const usePollDetail = ({
       try {
         await pollStore.retractVote(conversationId, pollId);
         setHasVoted(false);
-        await loadPollDetail(true);
+        // Background refresh - don't await to avoid blocking UI
+        loadPollDetail(true).catch(console.error);
       } catch (error) {
         console.error('Failed to retract vote:', error);
         throw error;
@@ -171,7 +205,8 @@ export const usePollDetail = ({
     try {
       await pollStore.castVote(conversationId, pollId, selectedOptions);
       setHasVoted(true);
-      await loadPollDetail(true); // Skip vote check to preserve local hasVoted state
+      // Background refresh - don't await to avoid blocking UI
+      loadPollDetail(true).catch(console.error);
     } catch (error) {
       console.error('Failed to cast vote:', error);
       throw error;
@@ -185,7 +220,8 @@ export const usePollDetail = ({
       await pollStore.retractVote(conversationId, pollId);
       setHasVoted(false);
       setSelectedOptions([]);
-      await loadPollDetail(true); // Skip vote check to preserve local hasVoted state
+      // Background refresh - don't await to avoid blocking UI
+      loadPollDetail(true).catch(console.error);
     } catch (error) {
       console.error('Failed to retract vote:', error);
       throw error;
@@ -202,13 +238,15 @@ export const usePollDetail = ({
     try {
       await pollStore.addOption(conversationId, pollId, label);
       setNewOptionLabel('');
-      setIsAddingOption(false);
-      await loadPollDetail(true); // Skip vote check to preserve local hasVoted state
+      // Background refresh - don't await to avoid blocking UI
+      loadPollDetail(true).catch(console.error);
     } catch (err) {
       console.error('Failed to add option:', err);
       throw err;
     } finally {
       setIsSubmitting(false);
+      // Only close form after successful submission
+      setIsAddingOption(false);
     }
   }, [newOptionLabel, poll, conversationId, pollId, pollStore, loadPollDetail]);
 
@@ -217,7 +255,8 @@ export const usePollDetail = ({
 
     try {
       await pollStore.removeOption(conversationId, pollId, optionId);
-      await loadPollDetail(true); // Skip vote check to preserve local hasVoted state
+      // Background refresh - don't await to avoid blocking UI
+      loadPollDetail(true).catch(console.error);
     } catch (err) {
       console.error('Failed to remove option:', err);
       throw err;
