@@ -24,7 +24,10 @@
     "creating": "Creating",
     "updating": "Updating...",
     "accept": "Accept",
-    "reject": "Reject"
+    "reject": "Reject",
+    "you": "You",
+    "unknown": "Unknown",
+    "select_all": "Select All"
   },
 
   "navigation": {
@@ -102,6 +105,9 @@
     "no_messages": "No messages",
     "default_title": "Chat",
     "file": "File",
+    "image": "Image",
+    "video": "Video",
+    "voice": "Voice message",
     "location": "Location",
     "contact": "Contact",
     "document": "Document",
@@ -280,7 +286,29 @@
     "disband_confirm": "Are you sure you want to disband this group? This action cannot be undone.",
     "disband": "Disband",
     "disband_group": "Disband Group",
-    "leave_title": "Leave Group"
+    "leave_title": "Leave Group",
+    "pin": "Pin Conversation",
+    "unpin": "Unpin",
+    "pin_success": "Conversation pinned",
+    "unpin_success": "Conversation unpinned",
+    "unpin_convestion":"Unpin convestion ",
+    "unpin_desc":"Unpin this convestion",
+    "pin_desc":"Pin this convestion"
+  },
+
+  "conversation": {
+    "leave": "Leave conversation",
+    "leave_success": "Left conversation",
+    "leave_error": "Failed to leave conversation"
+  },
+
+  "message": {
+    "sent_image": "sent an image",
+    "sent_video": "sent a video",
+    "sent_file": "sent a file",
+    "sent_voice": "sent a voice message",
+    "poll": "Poll",
+    "no_message": "No messages"
   },
 
   "polls_screen": {
@@ -615,16 +643,12 @@
     "loading": "Loading...",
     "noConversations": "No conversations found",
     "message": "Message",
-    "messagePlaceholder": "Enter message"
-  },
-  "messageType": {
-    "sentMultipleImages": "sent multiple images",
-    "sentImage": "sent 1 image",
-    "sentVideo": "sent 1 video",
-    "sentFile": "sent 1 file",
-    "sentVoice": "sent 1 voice message",
+    "messages": "messages",
+    "messagePlaceholder": "Enter message",
+    "multiple_messages": "Multiple messages selected",
     "youPrefix": "You: "
   },
+
   "pollDetail": {
     "title": "Poll Details",
     "loading": "Loading...",

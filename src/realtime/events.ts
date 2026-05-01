@@ -20,7 +20,7 @@ export const WsEvents = {
   ChatLeave: 'chat:leave',
   ChatSend: 'chat:send',
   ChatMessage: 'chat:message',
-  ChatSystemMessage: 'chat.system_message',
+  ChatSystemMessage: 'chat:system-message',
   ChatEdit: 'chat:edit',
   ChatMessageUpdated: 'chat:message:updated',
   ChatDelete: 'chat:delete',

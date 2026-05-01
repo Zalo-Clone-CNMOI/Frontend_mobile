@@ -1,6 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, BellOff, FileText, UserPlus, Settings } from 'lucide-react-native';
+import { Bell, BellOff, FileText, UserPlus, Settings, SettingsIcon } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -351,7 +351,7 @@ export const ChatOptions: React.FC<ChatOptionsProps> = ({
                       backgroundColor: '#FF3B30' + '15',
                     }}
                   >
-                    <Settings size={18} color="#FF3B30" />
+                    <SettingsIcon size={18} color="#FF3B30" />
                   </View>
                   <View style={styles.optionTextContainer}>
                     <Text style={[styles.optionTitle, { color: '#FF3B30' }]}>
@@ -379,7 +379,7 @@ export const ChatOptions: React.FC<ChatOptionsProps> = ({
                       backgroundColor: '#FF3B30' + '15',
                     }}
                   >
-                    <Settings size={18} color="#FF3B30" />
+                    <SettingsIcon size={18} color="#FF3B30" />
                   </View>
                   <View style={styles.optionTextContainer}>
                     <Text style={[styles.optionTitle, { color: '#FF3B30' }]}>

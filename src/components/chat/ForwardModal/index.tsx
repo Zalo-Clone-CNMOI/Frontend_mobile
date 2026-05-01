@@ -17,10 +17,16 @@ const MAX_SELECTION_COUNT = 20;
 
 interface ForwardModalProps {
   visible: boolean;
-  message: ChatMessage | null;
+  message?: ChatMessage | null;
+  messages?: ChatMessage[];
   onClose: () => void;
   onForward: (
     message: ChatMessage,
+    conversationIds: string[],
+    optionalMessage?: string
+  ) => void;
+  onBatchForward?: (
+    messages: ChatMessage[],
     conversationIds: string[],
     optionalMessage?: string
   ) => void;
@@ -29,8 +35,10 @@ interface ForwardModalProps {
 export const ForwardModal: React.FC<ForwardModalProps> = ({
   visible,
   message,
+  messages,
   onClose,
   onForward,
+  onBatchForward,
 }) => {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,8 +55,11 @@ export const ForwardModal: React.FC<ForwardModalProps> = ({
   useEffect(() => {
     if (message) {
       setLocalMessage(message);
+    } else if (messages && messages.length > 0) {
+      // For batch forward, use the first message as the primary one
+      setLocalMessage(messages[0]);
     }
-  }, [message]);
+  }, [message, messages]);
 
   // Clear selections when modal closes
   useEffect(() => {
@@ -83,15 +94,27 @@ export const ForwardModal: React.FC<ForwardModalProps> = ({
   }, []);
 
   const handleSend = useCallback(() => {
-    const messageToForward = localMessage || message;
-    if (!messageToForward || selectedIds.size === 0) {
+    const messagesToForward = messages && messages.length > 0 ? messages : (localMessage || message ? [localMessage || message!] : []);
+    if (messagesToForward.length === 0 || selectedIds.size === 0) {
       return;
     }
-    onForward(
-      messageToForward,
-      Array.from(selectedIds),
-      optionalMessage.trim() || undefined
-    );
+    
+    // Use batch forward if multiple messages and onBatchForward is provided
+    if (messagesToForward.length > 1 && onBatchForward) {
+      onBatchForward(
+        messagesToForward,
+        Array.from(selectedIds),
+        optionalMessage.trim() || undefined
+      );
+    } else if (messagesToForward.length === 1) {
+      // Single message forward
+      onForward(
+        messagesToForward[0],
+        Array.from(selectedIds),
+        optionalMessage.trim() || undefined
+      );
+    }
+    
     onClose();
     // Reset state after sending
     setSearchQuery('');
@@ -101,9 +124,11 @@ export const ForwardModal: React.FC<ForwardModalProps> = ({
   }, [
     localMessage,
     message,
+    messages,
     selectedIds,
     optionalMessage,
     onForward,
+    onBatchForward,
     onClose,
   ]);
 
@@ -136,6 +161,7 @@ export const ForwardModal: React.FC<ForwardModalProps> = ({
 
         <FilePreview
           message={localMessage}
+          messages={messages}
           optionalMessage={optionalMessage}
           onOptionalMessageChange={setOptionalMessage}
           selectedCount={selectedIds.size}

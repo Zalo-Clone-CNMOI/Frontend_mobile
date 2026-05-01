@@ -41,12 +41,13 @@ export const useRealtimeStore = create<RealtimeStoreState>((set) => ({
   hydrationError: null,
   setHydrating: (value) => set({ isHydrating: value }),
   setHydrationError: (error) => set({ hydrationError: error }),
-  setFriendSnapshot: ({ friends, receivedRequests, sentRequests }) =>
+  setFriendSnapshot: ({ friends, receivedRequests, sentRequests }) => {
     set({
       friends: dedupeById(friends),
       receivedRequests: dedupeById(receivedRequests),
       sentRequests: dedupeById(sentRequests),
-    }),
+    });
+  },
   upsertFriend: (friend) =>
     set((state) => ({
       friends: dedupeById([friend, ...state.friends]),

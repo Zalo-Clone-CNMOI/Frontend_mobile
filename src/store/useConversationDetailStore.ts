@@ -31,17 +31,14 @@ export interface MySettings {
 }
 
 interface ConversationDetailState {
-  // Cache structure: { [conversationId]: { conversation, members, mySettings, cachedAt } }
   cache: Record<string, {
     conversation: ConversationDetail;
     members: ConversationMember[];
     mySettings: MySettings;
     cachedAt: number;
   }>;
-  
   isLoading: boolean;
   error: string | null;
-
   fetchConversationDetail: (conversationId: string, forceRefresh?: boolean) => Promise<void>;
   fetchConversationMembers: (conversationId: string) => Promise<void>;
   updateConversation: (conversationId: string, updates: Partial<ConversationDetail>) => void;
@@ -57,7 +54,7 @@ interface ConversationDetailState {
   reset: () => void;
 }
 
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 5 * 60 * 1000;
 
 export const useConversationDetailStore = create<ConversationDetailState>((set, get) => ({
   cache: {},
@@ -69,31 +66,16 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
     try {
       const response = await getConversationDetail(conversationId);
       const data = response.data?.data || response.data;
-
-      console.log('[useConversationDetailStore] Fetch conversation detail:', {
-        conversationId,
-        forceRefresh,
-        data,
-        mySettings: data?.mySettings,
-      });
-
       if (!data) {
         set({ isLoading: false });
         return;
       }
-
       set((state) => {
         const existing = state.cache[conversationId];
         const now = Date.now();
-
-        // If cache is still valid and not forcing refresh, don't update
         if (!forceRefresh && existing && now - existing.cachedAt < CACHE_TTL) {
-          console.log('[useConversationDetailStore] Using cache, TTL valid');
           return { isLoading: false };
         }
-
-        console.log('[useConversationDetailStore] Updating cache, forceRefresh:', forceRefresh);
-
         const conversation: ConversationDetail = {
           id: data.id,
           type: data.type,
@@ -104,7 +86,6 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
           updatedAt: data.updatedAt,
           memberCount: data.memberCount || data.members?.length || 0,
         };
-
         const members: ConversationMember[] = (data.members || []).map((m: any) => ({
           id: m.id,
           userId: m.userId,
@@ -115,31 +96,16 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
           joinedAt: m.joinedAt,
           leftAt: m.leftAt,
         }));
-
-        console.log('[useConversationDetailStore] Members list:', members.map(m => ({
-          userId: m.userId,
-          fullName: m.fullName,
-          role: m.role,
-        })));
-
         const mySettings: MySettings = {
           role: data.mySettings?.role || 'member',
           nickname: data.mySettings?.nickname,
           isMuted: data.mySettings?.isMuted,
           isPinned: data.mySettings?.isPinned,
         };
-
-        console.log('[useConversationDetailStore] New mySettings:', mySettings);
-
         return {
           cache: {
             ...state.cache,
-            [conversationId]: {
-              conversation,
-              members,
-              mySettings,
-              cachedAt: now,
-            },
+            [conversationId]: { conversation, members, mySettings, cachedAt: now },
           },
           isLoading: false,
         };
@@ -151,8 +117,6 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
   },
 
   fetchConversationMembers: async (conversationId: string) => {
-    // Members are included in conversation detail response
-    // Just call fetchConversationDetail to get members
     return get().fetchConversationDetail(conversationId);
   },
 
@@ -160,16 +124,12 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
     set((state) => {
       const existing = state.cache[conversationId];
       if (!existing) return {};
-
       return {
         cache: {
           ...state.cache,
           [conversationId]: {
             ...existing,
-            conversation: {
-              ...existing.conversation,
-              ...updates,
-            },
+            conversation: { ...existing.conversation, ...updates },
             cachedAt: Date.now(),
           },
         },
@@ -181,7 +141,6 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
     set((state) => {
       const existing = state.cache[conversationId];
       if (!existing) return {};
-
       return {
         cache: {
           ...state.cache,
@@ -201,7 +160,6 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
     set((state) => {
       const existing = state.cache[conversationId];
       if (!existing) return {};
-
       return {
         cache: {
           ...state.cache,
@@ -223,11 +181,7 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
     set((state) => {
       const existing = state.cache[conversationId];
       if (!existing) return {};
-
-      const filteredMembers = existing.members.filter(
-        (m) => m.id !== memberId && m.userId !== memberId
-      );
-
+      const filteredMembers = existing.members.filter((m) => m.id !== memberId && m.userId !== memberId);
       return {
         cache: {
           ...state.cache,
@@ -249,16 +203,12 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
     set((state) => {
       const existing = state.cache[conversationId];
       if (!existing) return {};
-
       return {
         cache: {
           ...state.cache,
           [conversationId]: {
             ...existing,
-            mySettings: {
-              ...existing.mySettings,
-              ...updates,
-            },
+            mySettings: { ...existing.mySettings, ...updates },
             cachedAt: Date.now(),
           },
         },
@@ -274,30 +224,13 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
     });
   },
 
-  invalidateAllCache: () => {
-    set({ cache: {} });
-  },
+  invalidateAllCache: () => set({ cache: {} }),
 
-  getConversationDetail: (conversationId: string) => {
-    const state = get();
-    return state.cache[conversationId]?.conversation || null;
-  },
+  getConversationDetail: (conversationId: string) => get().cache[conversationId]?.conversation || null,
 
-  getMembers: (conversationId: string) => {
-    const state = get();
-    return state.cache[conversationId]?.members || [];
-  },
+  getMembers: (conversationId: string) => get().cache[conversationId]?.members || [],
 
-  getMySettings: (conversationId: string) => {
-    const state = get();
-    return state.cache[conversationId]?.mySettings || null;
-  },
+  getMySettings: (conversationId: string) => get().cache[conversationId]?.mySettings || null,
 
-  reset: () => {
-    set({
-      cache: {},
-      isLoading: false,
-      error: null,
-    });
-  },
+  reset: () => set({ cache: {}, isLoading: false, error: null }),
 }));

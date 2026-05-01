@@ -27,6 +27,20 @@ export const InviteMessageBubble: React.FC<InviteMessageBubbleProps> = ({
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   // Log received data
+  // Extract invite metadata from message - MUST be before any hooks that use it
+  const metadata = item.metadata as {
+    invite_id?: string;
+    group_id?: string;
+    group_name?: string;
+    group_avatar_url?: string;
+    inviter_id?: string;
+    inviter_name?: string;
+    status?: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'expired';
+    invited_user_id?: string;
+    member_count?: number;
+    message?: string;
+  } | undefined;
+
   useEffect(() => {
     console.log('=== InviteMessageBubble Received Data ===');
     console.log('item (ChatMessage):', JSON.stringify(item, null, 2));
@@ -81,20 +95,6 @@ export const InviteMessageBubble: React.FC<InviteMessageBubbleProps> = ({
       return;
     }
   };
-
-  // Extract invite metadata from message
-  const metadata = item.metadata as {
-    invite_id?: string;
-    group_id?: string;
-    group_name?: string;
-    group_avatar_url?: string;
-    inviter_id?: string;
-    inviter_name?: string;
-    status?: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'expired';
-    invited_user_id?: string;
-    member_count?: number;
-    message?: string;
-  } | undefined;
 
   const inviteId = metadata?.invite_id || item.id;
   const groupName = metadata?.group_name || item.text || t('group_errors.group');

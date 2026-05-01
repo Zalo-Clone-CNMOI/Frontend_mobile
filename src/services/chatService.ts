@@ -12,6 +12,7 @@ import * as friendsApi from "./friendsApi";
 import { buildAttachmentDto, uploadMedia } from "./mediaService";
 import * as messagesApi from "./messagesApi";
 import { connectSocket, getSocket, createSocket } from "./socket";
+import { getDeduplicationService } from "./deduplicationService";
 
 // Normalize ID to string, handles null/undefined values
 const normalizeId = (value: unknown): string => String(value ?? "").trim();
@@ -118,7 +119,9 @@ export function toLegacyChatMessage(apiMessage: any): ChatMessage {
     senderId: senderId,
     senderName: apiMessage?.senderName || apiMessage?.sender?.name || apiMessage?.sender?.fullName,
     senderAvatar: apiMessage?.senderAvatar || apiMessage?.sender?.avatarUrl || apiMessage?.sender?.avatar,
-    type: apiMessage?.messageType === 'system' ? 'system' : apiMessage?.messageType === 'poll' ? 'poll' : messageType,
+    type: (apiMessage?.messageType === 'system' || apiMessage?.message_type === 'system' || apiMessage?.type === 'system') ? 'system' :
+           (apiMessage?.messageType === 'poll' || apiMessage?.message_type === 'poll' || apiMessage?.type === 'poll') ? 'poll' :
+           (apiMessage?.messageType === 'invite' || apiMessage?.message_type === 'invite' || apiMessage?.type === 'invite') ? 'invite' : messageType,
     text: body,
     timestamp: toTimestampMs(createdAtRaw),
     fileInfo: firstAttachment
@@ -251,7 +254,7 @@ export const hydrateReplyMessages = (messages: ChatMessage[]): ChatMessage[] => 
 const openConversations = new Set<string>();
 
 // Map of pending ACK callbacks (resolve/reject) for sent messages
-const pendingAcks = new Map<
+export const pendingAcks = new Map<
   string,
   { resolve: (msg: any) => void; reject: (err: any) => void }
 >();
@@ -263,24 +266,14 @@ let registeredSocketId: string | null = null;
 
 // NOTE: Heartbeat is now handled by usePresenceHeartbeat hook to avoid duplicate timers
 
-// Unified deduplication cache - single source of truth for message deduplication
-const processedMessageIds = new Set<string>();
-const MAX_PROCESSED_IDS = 1000;
+// Deduplication service instance
+const dedupService = getDeduplicationService();
 
-// Export deduplication functions for use in useChatSocket.ts
-export const addProcessedMessageId = (messageId: string) => {
-  processedMessageIds.add(messageId);
-  if (processedMessageIds.size > MAX_PROCESSED_IDS) {
-    const firstId = processedMessageIds.values().next().value;
-    if (firstId) {
-      processedMessageIds.delete(firstId);
-    }
-  }
-};
-
-export const isMessageProcessed = (messageId: string): boolean => {
-  return processedMessageIds.has(messageId);
-};
+// Re-export for backward compatibility (will be deprecated)
+export const addProcessedMessageId = (messageId: string) =>
+  dedupService.markProcessed(messageId);
+export const isMessageProcessed = (messageId: string): boolean =>
+  dedupService.isProcessed(messageId);
 
 // Legacy cache - kept for backward compatibility, will be removed after migration
 const recentMessageIds: string[] = [];
@@ -645,7 +638,8 @@ function registerSocketListeners() {
   };
 
   const handleMessage = async (payload: any) => {
-    console.log('[handleMessage] Processing message', payload);
+    console.log('[handleMessage] Raw payload:', JSON.stringify(payload, null, 2));
+    console.log('[handleMessage] type:', payload?.type, 'message_type:', payload?.message_type, 'sender_id:', payload?.sender_id);
     const conversationId = payload?.conversation_id || payload?.conversationId;
     const messageId = payload?.id || payload?.message_id;
     const createdAt =
@@ -653,26 +647,21 @@ function registerSocketListeners() {
 
     const messageKey = String(messageId || "");
 
-    // Unified deduplication: Check global cache first
-    if (messageKey && isMessageProcessed(messageKey)) {
-      console.log('[handleMessage] Message already processed (cache)', messageKey);
-      return;
-    }
-
-    // Additional deduplication: Check store directly for existing message
-    if (messageKey && conversationId) {
-      const { useMessagesStore } = await import('../store/useMessagesStore');
-      const existingMessages = useMessagesStore.getState().messagesByChatId[conversationId] || [];
-      const messageExists = existingMessages.some(m => m.id === messageKey || m.serverMessageId === messageKey);
-      if (messageExists) {
-        console.log('[handleMessage] Message already exists in store', messageKey);
+    // Unified deduplication with store check
+    if (messageKey) {
+      const isDuplicate = await dedupService.checkAndMark(messageKey, {
+        conversationId,
+        checkStore: async () => {
+          if (!conversationId) return false;
+          const { useMessagesStore } = await import('../store/useMessagesStore');
+          const existingMessages = useMessagesStore.getState().messagesByChatId[conversationId] || [];
+          return existingMessages.some(m => m.id === messageKey || m.serverMessageId === messageKey);
+        },
+      });
+      if (isDuplicate) {
+        console.log('[handleMessage] Message already processed', messageKey);
         return;
       }
-    }
-
-    // Add to unified deduplication cache
-    if (messageKey) {
-      addProcessedMessageId(messageKey);
     }
 
     const hasAttachmentsInPayload =
@@ -767,24 +756,33 @@ function registerSocketListeners() {
   };
 
   const handleSystemMessage = async (payload: any) => {
-    console.log('[handleSystemMessage] Processing system message', payload);
+    console.log('[handleSystemMessage] Raw payload:', JSON.stringify(payload, null, 2));
+    console.log('[handleSystemMessage] type:', payload?.type, 'message_type:', payload?.message_type, 'messageType:', payload?.messageType);
     const conversationId = payload?.conversation_id || payload?.conversationId;
     const messageId = payload?.message_id || payload?.messageId || payload?.id;
 
     const messageKey = String(messageId || "");
 
-    // Deduplication: Check if already processed
-    if (messageKey && isMessageProcessed(messageKey)) {
-      console.log('[handleSystemMessage] Message already processed', messageKey);
-      return;
-    }
-
+    // Unified deduplication with store check
     if (messageKey) {
-      addProcessedMessageId(messageKey);
+      const isDuplicate = await dedupService.checkAndMark(messageKey, {
+        conversationId,
+        checkStore: async () => {
+          if (!conversationId) return false;
+          const { useMessagesStore } = await import('../store/useMessagesStore');
+          const existingMessages = useMessagesStore.getState().messagesByChatId[conversationId] || [];
+          return existingMessages.some(m => m.id === messageKey || m.serverMessageId === messageKey);
+        },
+      });
+      if (isDuplicate) {
+        console.log('[handleSystemMessage] Message already processed', messageKey);
+        return;
+      }
     }
 
     // Convert to UI message format
     const uiMessage = toLegacyChatMessage(payload);
+    console.log('[handleSystemMessage] Converted uiMessage:', { type: uiMessage.type, messageType: uiMessage.messageType, senderId: uiMessage.senderId });
     const enrichedMessage = await enrichReplyToDetails(uiMessage);
 
     // Add to store
@@ -804,7 +802,7 @@ function registerSocketListeners() {
   s.on("chat:message:deleted", handleMessageDeleted);
   s.on("chat:reaction:added", handleReactionAdded);
   s.on("chat:reaction:removed", handleReactionRemoved);
-  s.on("chat.system_message", handleSystemMessage);
+  s.on("chat:system-message", handleSystemMessage);
 
   listenersRegistered = true;
 
@@ -817,7 +815,7 @@ function registerSocketListeners() {
     s.off("chat:message:deleted", handleMessageDeleted);
     s.off("chat:reaction:added", handleReactionAdded);
     s.off("chat:reaction:removed", handleReactionRemoved);
-    s.off("chat.system_message", handleSystemMessage);
+    s.off("chat:system-message", handleSystemMessage);
     listenersRegistered = false;
   };
 }
@@ -959,7 +957,7 @@ export async function forwardMessage(
 export function resetChatRuntime() {
   openConversations.clear();
   recentMessageIds.splice(0, recentMessageIds.length);
-  processedMessageIds.clear(); // Clear unified deduplication cache
+  dedupService.clear(); // Clear unified deduplication cache
   pendingAcks.forEach((p) => p.reject({ error: "runtime reset" }));
   pendingAcks.clear();
   _handlers = {};
@@ -1212,7 +1210,7 @@ export async function initChat() {
   socket.off('chat:message:deleted');
   socket.off('chat:reaction:added');
   socket.off('chat:reaction:removed');
-  socket.off('chat.system_message');
+  socket.off('chat:system-message');
   socket.off('chat:message:pinned');
   socket.off('chat:message:unpinned');
   socket.off('presence:update');

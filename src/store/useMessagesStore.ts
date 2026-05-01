@@ -192,7 +192,8 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
           merged.fromMe = true;
         }
         // Preserve fields from existing if not in incoming
-        const fieldsToPreserve = ['senderId', 'replyTo', 'fileInfo', 'serverMessageId', 'senderAvatar', 'senderName', 'reactions'];
+        // NOTE: type and messageType should NOT be preserved - they can change (e.g., text -> system)
+        const fieldsToPreserve = ['replyTo', 'fileInfo', 'serverMessageId', 'senderAvatar', 'senderName', 'reactions'];
         fieldsToPreserve.forEach(field => {
           if (!message[field as keyof ChatMessage] && existingMsg[field as keyof ChatMessage]) {
             (merged as any)[field] = existingMsg[field as keyof ChatMessage];

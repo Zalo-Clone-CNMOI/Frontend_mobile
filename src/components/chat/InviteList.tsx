@@ -13,14 +13,25 @@ import {
 } from 'react-native';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { useGroupInviteStore } from '@/src/store/useGroupInviteStore';
+import { useRealtimeStore } from '@/src/store/useRealtimeStore';
 import { GroupInviteDTO as Invite } from '@/src/types/dto/ApiDTO';
 import { useRouter } from 'expo-router';
+import { NETWORK_CONFIG } from '@/src/config/network';
+
+const normalizeAvatar = (avatar?: string | null): string | null => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
+  }
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
+};
 
 export function InviteList() {
   const theme = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
-  
+  const friends = useRealtimeStore((state) => state.friends);
+
   const {
     receivedInvites,
     isLoading,
@@ -78,12 +89,19 @@ export function InviteList() {
     return `${hours}h`;
   };
 
-  const renderInviteItem = ({ item }: { item: Invite }) => (
+  const renderInviteItem = ({ item }: { item: Invite }) => {
+    // Lookup inviter avatar from friends store (backend only returns inviterUserId, not inviter object)
+    const inviterFromFriends = friends.find(f => f.id === item.inviterUserId);
+    const inviterAvatarUrl = inviterFromFriends?.avatarUrl || null;
+    const normalizedAvatarUrl = normalizeAvatar(inviterAvatarUrl);
+
+    return (
     <View style={[styles.inviteItem, { backgroundColor: theme.colors.card, borderBottomColor: theme.colors.border }]}>
-      {/* Group Avatar */}
+      {/* Group Avatar - showing inviter avatar instead of group name */}
       <AvatarWithInitials
-        name={item.conversation?.name || 'Unknown'}
+        name={inviterFromFriends?.fullName || item.conversation?.name || 'Unknown'}
         size={50}
+        avatarUrl={normalizedAvatarUrl}
       />
 
       {/* Group Info */}
@@ -96,7 +114,7 @@ export function InviteList() {
             {t('group_errors.invited_by') || 'Invited by'}
           </Text>
           <Text style={[styles.inviterName, { color: theme.colors.text }]}>
-            {item.inviter?.fullName || 'Unknown'}
+            {inviterFromFriends?.fullName || 'Unknown'}
           </Text>
         </View>
         {item.message && (
@@ -134,7 +152,7 @@ export function InviteList() {
         </TouchableOpacity>
       </View>
     </View>
-  );
+  );};
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>

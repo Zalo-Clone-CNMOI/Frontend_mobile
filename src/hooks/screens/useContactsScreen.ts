@@ -4,7 +4,8 @@ import { NETWORK_CONFIG } from '@/src/config/network';
 import { fetchRuntimeFriendSnapshot } from '@/src/services/realtime/runtimeFriendService';
 import { usePresenceStore } from '@/src/store/usePresenceStore';
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
-import type { ContactListItem } from '@/src/types/contacts';
+import type { ContactListItem as ContactListItemType } from '@/src/types/contacts';
+export type { ContactListItemType as ContactListItem };
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -18,7 +19,7 @@ const normalizeAvatar = (avatar?: string): string | null => {
   return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
 };
 
-const mapFriend = (friend: any): ContactListItem => ({
+const mapFriend = (friend: any): ContactListItemType => ({
   id: friend.id || friend._id,
   fullName: friend.fullName || friend.name || '',
   avatar: normalizeAvatar(friend.avatarUrl || friend.avatar),
