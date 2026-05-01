@@ -12,6 +12,7 @@ import {
   View,
   ActivityIndicator,
   FlatList,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
@@ -21,6 +22,17 @@ import { useGroupInvite } from '@/src/hooks/useGroupInvite';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { GroupInviteDTO as Invite } from '@/src/types/dto/ApiDTO';
+import { NETWORK_CONFIG } from '@/src/config/network';
+
+// Normalize avatar URL from friend data (same as searchStore and createGroup)
+const normalizeAvatarUrl = (avatar?: string | null): string | null => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    // Replace bucket name if URL from backend uses wrong bucket
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
+  }
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
+};
 
 export default function GroupInviteScreen() {
   const theme = useTheme();
@@ -71,7 +83,7 @@ export default function GroupInviteScreen() {
         setGroupMembers(data.members);
       }
     } catch (error) {
-      console.error('Failed to fetch group members:', error);
+      // Failed to fetch group members
     } finally {
       setLoadingMembers(false);
     }
@@ -198,6 +210,7 @@ export default function GroupInviteScreen() {
 
   const renderFriendItem = ({ friendId, fullName, avatarUrl }: { friendId: string; fullName: string; avatarUrl?: string | null }) => {
     const isSelected = isFriendSelected(friendId);
+    const normalizedAvatarUrl = normalizeAvatarUrl(avatarUrl);
     
     return (
       <TouchableOpacity
@@ -211,10 +224,14 @@ export default function GroupInviteScreen() {
         onPress={() => toggleFriendSelection(friendId)}
         activeOpacity={0.7}
       >
-        <AvatarWithInitials
-          name={fullName}
-          size={44}
-        />
+        {normalizedAvatarUrl ? (
+          <Image source={{ uri: normalizedAvatarUrl }} style={styles.friendAvatar} />
+        ) : (
+          <AvatarWithInitials
+            name={fullName}
+            size={44}
+          />
+        )}
         <Text style={[styles.friendName, { color: theme.colors.text }]} numberOfLines={1}>
           {fullName}
         </Text>
@@ -237,13 +254,18 @@ export default function GroupInviteScreen() {
     // ✅ FIX 4: Find friend info from realtimeFriends
     const invitedFriend = realtimeFriends.find((f: any) => f.id === item.invitedUserId);
     const displayName = invitedFriend?.fullName || item.invitedUserId;
+    const normalizedAvatarUrl = normalizeAvatarUrl(invitedFriend?.avatarUrl);
 
     return (
       <View style={[styles.sentInviteItem, { backgroundColor: theme.colors.card, borderBottomColor: theme.colors.border }]}>
-        <AvatarWithInitials
-          name={displayName}
-          size={44}
-        />
+        {normalizedAvatarUrl ? (
+          <Image source={{ uri: normalizedAvatarUrl }} style={styles.sentInviteAvatar} />
+        ) : (
+          <AvatarWithInitials
+            name={displayName}
+            size={44}
+          />
+        )}
         <View style={styles.sentInviteInfo}>
           <Text style={[styles.sentInviteName, { color: theme.colors.text }]} numberOfLines={1}>
             {displayName}
@@ -589,6 +611,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
   },
+  friendAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
   friendName: {
     fontSize: 15,
     fontWeight: '500',
@@ -689,6 +718,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderRadius: 8,
     borderWidth: 0.5,
+  },
+  sentInviteAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   sentInviteInfo: {
     flex: 1,

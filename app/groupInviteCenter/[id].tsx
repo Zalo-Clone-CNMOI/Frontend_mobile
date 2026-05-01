@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -24,6 +25,17 @@ import { GroupInviteDTO as Invite, GroupInviteStatus } from '@/src/types/dto/Api
 import { ChevronLeft } from 'lucide-react-native';
 import { subscribeToGroupInviteEvents, unsubscribeFromGroupInviteEvents } from '@/src/services/groupInviteSocketHandler';
 import { useAuth } from '@/src/contexts/AuthContext';
+import { NETWORK_CONFIG } from '@/src/config/network';
+
+// Normalize avatar URL from friend data (same as searchStore and createGroup)
+const normalizeAvatarUrl = (avatar?: string | null): string | null => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    // Replace bucket name if URL from backend uses wrong bucket
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
+  }
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
+};
 
 type TabType = 'invite' | 'view';
 type StatusFilter = 'all' | 'pending' | 'accepted' | 'rejected' | 'expired';
@@ -102,7 +114,7 @@ export default function GroupInviteCenterScreen() {
         sentRequests: [],
       });
     } catch (error: any) {
-      console.error('Failed to fetch friends:', error);
+      // Failed to fetch friends
       Alert.alert(t('common.error'), error.message || t('group_errors.failed_load_friends'));
     } finally {
       setFriendsLoading(false);
@@ -127,7 +139,7 @@ export default function GroupInviteCenterScreen() {
       });
       setPendingInviteUserIds(pendingUserIds);
     } catch (error: any) {
-      console.error('[GroupInviteCenter] Fetch pending invites for filter error:', error);
+      // Failed to fetch pending invites for filter
     }
   };
 
@@ -145,7 +157,7 @@ export default function GroupInviteCenterScreen() {
       
       setMemberUserIds(memberIds);
     } catch (error: any) {
-      console.error('[GroupInviteCenter] Fetch conversation members error:', error);
+      // Failed to fetch conversation members
     } finally {
       setMembersLoading(false);
     }
@@ -192,7 +204,7 @@ export default function GroupInviteCenterScreen() {
           });
           
         } catch (err) {
-          console.error('[GroupInviteCenter] Failed to enrich invites:', err);
+          // Failed to enrich invites
         }
       }
       
@@ -209,7 +221,7 @@ export default function GroupInviteCenterScreen() {
       
       setInvites(items);
     } catch (error: any) {
-      console.error('[GroupInviteCenter] Fetch invites error:', error);
+      // Failed to fetch invites
       Alert.alert(t('common.error'), error.message || t('group_errors.failed_load_invites'));
     } finally {
       setViewLoading(false);
@@ -434,10 +446,17 @@ export default function GroupInviteCenterScreen() {
                   activeOpacity={(hasPendingInvite || isMember) ? 1 : 0.7}
                   disabled={hasPendingInvite || isMember}
                 >
-                  <AvatarWithInitials
-                    name={friend.fullName}
-                    size={44}
-                  />
+                  {(() => {
+                    const normalizedUrl = normalizeAvatarUrl(friend.avatarUrl);
+                    return normalizedUrl ? (
+                      <Image source={{ uri: normalizedUrl }} style={styles.friendAvatar} />
+                    ) : (
+                      <AvatarWithInitials
+                        name={friend.fullName}
+                        size={44}
+                      />
+                    );
+                  })()}
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text 
                       style={[
@@ -538,10 +557,17 @@ export default function GroupInviteCenterScreen() {
             
             return (
               <View key={invite.id} style={[styles.inviteItem, { backgroundColor: theme.colors.card, borderBottomColor: theme.colors.border }]}>
-                <AvatarWithInitials
-                  name={invitedName}
-                  size={44}
-                />
+                {(() => {
+                    const normalizedUrl = normalizeAvatarUrl(invitedFriend?.avatarUrl);
+                    return normalizedUrl ? (
+                      <Image source={{ uri: normalizedUrl }} style={styles.inviteAvatar} />
+                    ) : (
+                      <AvatarWithInitials
+                        name={invitedName}
+                        size={44}
+                      />
+                    );
+                  })()}
                 <View style={styles.inviteContent}>
                   <Text style={[styles.inviteName, { color: theme.colors.text }]}>
                     {invitedName}
@@ -551,7 +577,7 @@ export default function GroupInviteCenterScreen() {
                   </Text>
                   {invite.message && (
                     <Text style={[styles.inviteMessage, { color: theme.colors.icon }]} numberOfLines={2}>
-                      "{invite.message}"
+                      {invite.message}
                     </Text>
                   )}
                   <Text style={[styles.inviteDate, { color: theme.colors.icon }]}>
@@ -791,6 +817,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
   },
+  friendAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
   friendName: {
     fontSize: 15,
     fontWeight: '500',
@@ -849,6 +882,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderRadius: 8,
     borderBottomWidth: 1,
+  },
+  inviteAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   inviteContent: {
     flex: 1,

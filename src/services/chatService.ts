@@ -1187,14 +1187,14 @@ async function updateConversationLastMessage(enrichedMessage: any, payload: any)
 // Initialize chat socket listeners - similar to Frontend_web pattern
 // This function registers all socket event listeners for chat functionality
 // It should be called when user authenticates
-export async function initChat() {
+export async function initChat(): Promise<() => void> {
   console.log('[initChat] Initializing chat socket');
 
   // Ensure socket is connected
   const socket = await createSocket();
   if (!socket) {
     console.log('[initChat] Failed to create socket');
-    return;
+    return () => {};
   }
 
   console.log('[initChat] Socket connected, registering listeners');
@@ -1218,14 +1218,20 @@ export async function initChat() {
   socket.off('ws:error');
 
   // Register socket listeners
-  registerSocketListeners();
+  const cleanupSocketListeners = registerSocketListeners();
 
   // ✅ FIX 3: Subscribe to group invite events để cập nhật badge real-time
   const { subscribeToGroupInviteEvents } = await import('./groupInviteSocketHandler');
+  const { unsubscribeFromGroupInviteEvents } = await import('./groupInviteSocketHandler');
   subscribeToGroupInviteEvents();
   console.log('[initChat] Group invite listeners registered');
 
   console.log('[initChat] Chat socket listeners registered');
+
+  return () => {
+    cleanupSocketListeners();
+    unsubscribeFromGroupInviteEvents();
+  };
 }
 
 export async function getMessageReactions(

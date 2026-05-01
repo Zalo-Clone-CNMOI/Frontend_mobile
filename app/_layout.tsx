@@ -16,6 +16,7 @@ import { useNotificationListener } from '../src/hooks/useNotificationListener';
 import { ThemeProvider as AppThemeProvider } from '../src/theme/themeContext';
 import { ThemeManagerProvider, useThemeManager } from '../src/theme/themeManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppErrorBoundary } from '../src/components/app/AppErrorBoundary';
 
 function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
   const { theme } = useThemeManager();
@@ -65,7 +66,7 @@ function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
         setTimeout(() => router.replace('/(auth)'), 0);
       }
     }
-  }, [ready, authLoading, isAuthenticated, segments, isLogoutInProgress]);
+  }, [ready, authLoading, isAuthenticated, segments, isLogoutInProgress, router]);
 
   if (!ready || authLoading) {
     return (
@@ -93,19 +94,21 @@ function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   return (
-    <BottomSheetModalProvider>
-      <AuthProvider>
-        <ThemeManagerProvider>
-          <AppThemeProvider>
-            <NavigationThemeWrapper>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(tabs)" />
-              </Stack>
-            </NavigationThemeWrapper>
-          </AppThemeProvider>
-        </ThemeManagerProvider>
-      </AuthProvider>
-    </BottomSheetModalProvider>
+    <AppErrorBoundary>
+      <BottomSheetModalProvider>
+        <AuthProvider>
+          <ThemeManagerProvider>
+            <AppThemeProvider>
+              <NavigationThemeWrapper>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(auth)" />
+                  <Stack.Screen name="(tabs)" />
+                </Stack>
+              </NavigationThemeWrapper>
+            </AppThemeProvider>
+          </ThemeManagerProvider>
+        </AuthProvider>
+      </BottomSheetModalProvider>
+    </AppErrorBoundary>
   );
 }

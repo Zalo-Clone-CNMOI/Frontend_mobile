@@ -1,5 +1,6 @@
 import { BaseHandler } from "./BaseHandler";
 import { toLegacyChatMessage, enrichReplyToDetails, updateConversationLastMessage } from "../../chatUtils";
+import { getStringField, isChatMessageSocketPayload } from "../payloadGuards";
 
 /**
  * ChatSystemHandler - Handles system message events
@@ -12,15 +13,25 @@ export class ChatSystemHandler extends BaseHandler {
   readonly name = "ChatSystemHandler";
   readonly events = ["chat:system-message"];
 
-  protected createHandler(event: string): (...args: any[]) => void {
+  protected createHandler(event: string): (...args: unknown[]) => void {
     return this.handleSystemMessage.bind(this);
   }
 
-  private async handleSystemMessage(payload: any): Promise<void> {
+  private async handleSystemMessage(payload: unknown): Promise<void> {
+    if (!isChatMessageSocketPayload(payload)) {
+      this.error("Invalid system message payload", payload);
+      return;
+    }
+
     this.log("Processing system message", payload);
 
-    const conversationId = payload?.conversation_id || payload?.conversationId;
-    const messageId = payload?.message_id || payload?.messageId || payload?.id;
+    const conversationId = getStringField(payload, ['conversation_id', 'conversationId']);
+    const messageId = getStringField(payload, ['message_id', 'messageId', 'id']);
+    if (!conversationId || !messageId) {
+      this.error("Missing required system message identifiers", payload);
+      return;
+    }
+
     const messageKey = String(messageId || "");
 
     // Unified deduplication with store check

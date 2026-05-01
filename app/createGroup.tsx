@@ -54,6 +54,16 @@ import { FriendRecord } from '@/src/types/realtimeBff';
 
 import type { MediaFileInput } from '@/src/types/media';
 
+// Normalize avatar URL from friend data (same as searchStore)
+const normalizeAvatarUrl = (avatar?: string | null): string | null => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    // Replace bucket name if URL from backend uses wrong bucket
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
+  }
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
+};
+
 
 
 // Group member limit configuration
@@ -222,7 +232,7 @@ export default function CreateGroupScreen() {
 
           fullName: friend.fullName || '',
 
-          avatarUrl: friend.avatarUrl,
+          avatarUrl: normalizeAvatarUrl(friend.avatarUrl),
 
           phone: friend.phone,
 
@@ -664,7 +674,7 @@ export default function CreateGroupScreen() {
 
     const friendName = item.fullName || '';
 
-
+    const normalizedAvatarUrl = normalizeAvatarUrl(item.avatarUrl);
 
     return (
 
@@ -684,13 +694,14 @@ export default function CreateGroupScreen() {
 
       >
 
-        <AvatarWithInitials
-
-          name={friendName}
-
-          size={48}
-
-        />
+        {normalizedAvatarUrl ? (
+          <Image source={{ uri: normalizedAvatarUrl }} style={styles.friendAvatar} />
+        ) : (
+          <AvatarWithInitials
+            name={friendName}
+            size={48}
+          />
+        )}
 
         <View style={styles.friendInfo}>
 
@@ -1055,25 +1066,19 @@ export default function CreateGroupScreen() {
             {/* Selected friends */}
 
             {selectedFriends.map((friend) => (
-
               <View key={friend.id} style={styles.previewItem}>
-
-                <AvatarWithInitials
-
-                  name={friend.fullName}
-
-                  size={40}
-
-                />
-
+                {friend.avatarUrl ? (
+                  <Image source={{ uri: friend.avatarUrl }} style={styles.previewAvatar} />
+                ) : (
+                  <AvatarWithInitials
+                    name={friend.fullName}
+                    size={40}
+                  />
+                )}
                 <Text style={[styles.previewName, { color: theme.colors.text }]} numberOfLines={1}>
-
                   {friend.fullName}
-
                 </Text>
-
               </View>
-
             ))}
 
           </View>
@@ -1293,6 +1298,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
 
     marginBottom: 8,
+
+  },
+
+  friendAvatar: {
+
+    width: 48,
+
+    height: 48,
+
+    borderRadius: 24,
+
+    borderWidth: 1,
+
+    borderColor: 'rgba(0, 0, 0, 0.1)',
 
   },
 
@@ -1529,6 +1548,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
 
     width: 60,
+
+  },
+
+  previewAvatar: {
+
+    width: 40,
+
+    height: 40,
+
+    borderRadius: 20,
+
+    borderWidth: 1,
+
+    borderColor: 'rgba(0, 0, 0, 0.1)',
 
   },
 

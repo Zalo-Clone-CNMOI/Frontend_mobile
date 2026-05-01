@@ -38,7 +38,7 @@ export default function InviteCenterScreen() {
   // ✅ FIX 2: Reset unread count và refresh khi screen được focus
   useFocusEffect(
     useCallback(() => {
-      console.log('[InviteCenter] Screen focused, resetting unread count');
+      // Screen focused, resetting unread count
       useGroupInviteStore.getState().setUnreadCount(0);
       fetchPendingInvites(true); // Force refresh
     }, [fetchPendingInvites])
@@ -117,7 +117,7 @@ export default function InviteCenterScreen() {
           </View>
           {item.message && (
             <Text style={[styles.message, { color: theme.colors.icon }]} numberOfLines={1}>
-              "{item.message}"
+              {item.message}
             </Text>
           )}
           <View style={styles.metaRow}>

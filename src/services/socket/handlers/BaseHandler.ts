@@ -20,7 +20,7 @@ export abstract class BaseHandler {
   protected socket: Socket | null = null;
   protected dedupService = getDeduplicationService();
   protected registered = false;
-  protected handlerWrappers: Map<string, (...args: any[]) => void> = new Map();
+  protected handlerWrappers: Map<string, (...args: unknown[]) => void> = new Map();
 
   /**
    * Event names this handler listens to
@@ -78,7 +78,7 @@ export abstract class BaseHandler {
    * Create handler function for specific event
    * Override in subclass to implement event handling
    */
-  protected abstract createHandler(event: string): (...args: any[]) => void;
+  protected abstract createHandler(event: string): (...args: unknown[]) => void;
 
   /**
    * Lifecycle hook called after registration
@@ -123,14 +123,14 @@ export abstract class BaseHandler {
   /**
    * Log with handler name prefix
    */
-  protected log(...args: any[]): void {
+  protected log(...args: unknown[]): void {
     console.log(`[${this.name}]`, ...args);
   }
 
   /**
    * Log error with handler name prefix
    */
-  protected error(...args: any[]): void {
+  protected error(...args: unknown[]): void {
     console.error(`[${this.name}]`, ...args);
   }
 

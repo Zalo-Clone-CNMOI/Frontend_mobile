@@ -1,5 +1,5 @@
 import { BaseHandler } from "./BaseHandler";
-import { enrichReplyToDetails, toLegacyChatMessage } from "../../chatUtils";
+import { getStringField, isChatReactionSocketPayload } from "../payloadGuards";
 
 /**
  * ChatReactionHandler - Handles chat reaction events
@@ -13,7 +13,7 @@ export class ChatReactionHandler extends BaseHandler {
   readonly name = "ChatReactionHandler";
   readonly events = ["chat:reaction:added", "chat:reaction:removed"];
 
-  protected createHandler(event: string): (...args: any[]) => void {
+  protected createHandler(event: string): (...args: unknown[]) => void {
     switch (event) {
       case "chat:reaction:added":
         return this.handleReactionAdded.bind(this);
@@ -24,23 +24,33 @@ export class ChatReactionHandler extends BaseHandler {
     }
   }
 
-  private async handleReactionAdded(payload: any): Promise<void> {
+  private async handleReactionAdded(payload: unknown): Promise<void> {
+    if (!isChatReactionSocketPayload(payload)) {
+      this.error("Invalid reaction add payload", payload);
+      return;
+    }
+
     const { useMessagesStore } = await import("../../../store/useMessagesStore");
-    const conversationId = payload?.conversation_id;
-    const messageId = payload?.message_id;
-    const userId = payload?.user_id;
-    const reactionType = payload?.reaction_type;
+    const conversationId = getStringField(payload, ['conversation_id']);
+    const messageId = getStringField(payload, ['message_id']);
+    const userId = getStringField(payload, ['user_id']);
+    const reactionType = getStringField(payload, ['reaction_type']);
 
     if (conversationId && messageId && userId && reactionType) {
       useMessagesStore.getState().addReaction(conversationId, messageId, userId, reactionType);
     }
   }
 
-  private async handleReactionRemoved(payload: any): Promise<void> {
+  private async handleReactionRemoved(payload: unknown): Promise<void> {
+    if (!isChatReactionSocketPayload(payload)) {
+      this.error("Invalid reaction remove payload", payload);
+      return;
+    }
+
     const { useMessagesStore } = await import("../../../store/useMessagesStore");
-    const conversationId = payload?.conversation_id;
-    const messageId = payload?.message_id;
-    const userId = payload?.user_id;
+    const conversationId = getStringField(payload, ['conversation_id']);
+    const messageId = getStringField(payload, ['message_id']);
+    const userId = getStringField(payload, ['user_id']);
 
     if (conversationId && messageId && userId) {
       useMessagesStore.getState().removeReaction(conversationId, messageId, userId);

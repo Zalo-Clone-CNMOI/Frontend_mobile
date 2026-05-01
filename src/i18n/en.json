@@ -291,7 +291,7 @@
     "unpin": "Unpin",
     "pin_success": "Conversation pinned",
     "unpin_success": "Conversation unpinned",
-    "unpin_convestion":"Unpin convestion ",
+    "unpin_conversation":"Unpin convestion ",
     "unpin_desc":"Unpin this convestion",
     "pin_desc":"Pin this convestion"
   },

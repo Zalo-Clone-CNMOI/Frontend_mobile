@@ -1,6 +1,12 @@
 import { BaseHandler } from "./BaseHandler";
 import * as messagesApi from "../../messagesApi";
 import { toLegacyChatMessage, enrichReplyToDetails, updateConversationLastMessage } from "../../chatUtils";
+import {
+  getNumberField,
+  getStringField,
+  isChatMessageSocketPayload,
+} from "../payloadGuards";
+import { logError } from "../../errorService";
 
 /**
  * ChatMessageHandler - Handles chat:message socket events
@@ -19,7 +25,7 @@ export class ChatMessageHandler extends BaseHandler {
     "chat:message:deleted",
   ];
 
-  protected createHandler(event: string): (...args: any[]) => void {
+  protected createHandler(event: string): (...args: unknown[]) => void {
     switch (event) {
       case "chat:message":
         return this.handleMessage.bind(this);
@@ -32,13 +38,23 @@ export class ChatMessageHandler extends BaseHandler {
     }
   }
 
-  private async handleMessage(payload: any): Promise<void> {
+  private async handleMessage(payload: unknown): Promise<void> {
+    if (!isChatMessageSocketPayload(payload)) {
+      this.error("Invalid chat message payload", payload);
+      return;
+    }
+
     this.log("Processing message", payload);
     
-    const conversationId = payload?.conversation_id || payload?.conversationId;
-    const messageId = payload?.id || payload?.message_id;
+    const conversationId = getStringField(payload, ['conversation_id', 'conversationId']);
+    const messageId = getStringField(payload, ['id', 'message_id', 'messageId']);
     const createdAt =
-      payload?.created_at ?? payload?.createdAt ?? payload?.ts ?? payload?.timestamp;
+      getNumberField(payload, ['created_at', 'createdAt', 'ts', 'timestamp']);
+
+    if (!conversationId || !messageId) {
+      this.error("Missing required chat message identifiers", payload);
+      return;
+    }
 
     const messageKey = String(messageId || "");
 
@@ -67,7 +83,7 @@ export class ChatMessageHandler extends BaseHandler {
       conversationId &&
         messageId &&
         createdAt &&
-        (hasAttachmentsInPayload || payload?.attachment_key || payload?.fileKey)
+        (hasAttachmentsInPayload || payload.attachment_key || payload.fileKey)
     );
 
     if (!requiresDetails) {
@@ -84,7 +100,7 @@ export class ChatMessageHandler extends BaseHandler {
     try {
       const detailsResp = await messagesApi.getMessageDetails(
         conversationId,
-        createdAt,
+        createdAt as number,
         messageId
       );
       const fullMessage = detailsResp?.data || payload;
@@ -96,7 +112,7 @@ export class ChatMessageHandler extends BaseHandler {
       useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
       await updateConversationLastMessage(enrichedMessage, payload);
     } catch (e) {
-      this.error("Error fetching message details", e);
+      logError("ChatMessageHandler", e, { messageId, conversationId });
       const uiMessage = toLegacyChatMessage(payload);
       const enrichedMessage = await enrichReplyToDetails(uiMessage);
       
@@ -107,30 +123,40 @@ export class ChatMessageHandler extends BaseHandler {
     }
   }
 
-  private async handleMessageUpdated(payload: any): Promise<void> {
+  private async handleMessageUpdated(payload: unknown): Promise<void> {
+    if (!isChatMessageSocketPayload(payload)) {
+      this.error("Invalid message update payload", payload);
+      return;
+    }
+
     const uiMessage = toLegacyChatMessage({
-      id: payload?.message_id,
-      conversationId: payload?.conversation_id,
-      body: payload?.body,
-      editedAt: payload?.edited_at,
-      senderId: payload?.sender_id,
-      createdAt: payload?.created_at,
-      timestamp: payload?.timestamp,
+      id: getStringField(payload, ['message_id', 'messageId', 'id']),
+      conversationId: getStringField(payload, ['conversation_id', 'conversationId']),
+      body: payload.body,
+      editedAt: payload.edited_at,
+      senderId: payload.sender_id,
+      createdAt: payload.created_at,
+      timestamp: payload.timestamp,
     });
     const enrichedMessage = await enrichReplyToDetails(uiMessage);
     
     const { useMessagesStore } = await import("../../../store/useMessagesStore");
-    const conversationId = payload?.conversation_id || payload?.conversationId;
-    const messageId = payload?.message_id || payload?.id;
+    const conversationId = getStringField(payload, ['conversation_id', 'conversationId']);
+    const messageId = getStringField(payload, ['message_id', 'messageId', 'id']);
     if (conversationId && messageId) {
       useMessagesStore.getState().updateMessage(conversationId, messageId, enrichedMessage);
     }
   }
 
-  private handleMessageDeleted(payload: any): void {
-    const { useMessagesStore } = require("../../../store/useMessagesStore");
-    const conversationId = payload?.conversation_id;
-    const messageId = payload?.message_id;
+  private async handleMessageDeleted(payload: unknown): Promise<void> {
+    if (!isChatMessageSocketPayload(payload)) {
+      this.error("Invalid message delete payload", payload);
+      return;
+    }
+
+    const { useMessagesStore } = await import("../../../store/useMessagesStore");
+    const conversationId = getStringField(payload, ['conversation_id', 'conversationId']);
+    const messageId = getStringField(payload, ['message_id', 'messageId', 'id']);
     if (conversationId && messageId) {
       useMessagesStore.getState().deleteMessage(conversationId, messageId);
     }

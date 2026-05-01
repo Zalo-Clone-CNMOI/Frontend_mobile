@@ -8,6 +8,7 @@ import { useChatsStore } from '../store/useChatsStore';
 import { useMessagesStore } from '../store/useMessagesStore';
 import { usePresenceStore } from '../store/usePresenceStore';
 import { detectPreviewTypeFromMessage, formatPreviewContent } from '../utils/messagePreviewFormatter';
+import storeUpdateBatcher, { type StoreUpdate } from '../utils/storeUpdateBatcher';
 import type {
   SocketChatDeletePayload,
   SocketChatEditPayload,
@@ -54,9 +55,9 @@ export const useChatSocket = () => {
       }
       disconnectSocket();
     };
-  }, [user?.tokens?.accessToken, user?.id]);
+  }, [user?.id]); // ✅ Removed token dependency to prevent re-connect on token refresh
 
-  // ✅ FIX 1: Hàm đồng bộ conversation khi có tin nhắn mới
+  // ✅ FIX 1: Hàm đồng bộ conversation khi có tin nhắn mới (with batching)
   const syncConversationWithNewMessage = (payload: any, enrichedMessage: any) => {
     const conversationId = payload?.conversation_id || payload?.conversationId;
     const createdAt = typeof payload?.created_at === 'number' ? payload?.created_at :
@@ -70,19 +71,26 @@ export const useChatSocket = () => {
     const previewContent = formatPreviewContent(enrichedMessage);
     const previewType = detectPreviewTypeFromMessage(enrichedMessage);
     
-    // ✅ Cập nhật useChatsStore để Home screen re-render
-    useChatsStore.getState().updateLastMessage(
-      conversationId,
-      previewContent,
-      previewType,
-      createdAt,
-      payload?.sender_id || payload?.senderId || enrichedMessage?.senderId,
-      payload?.sender_name || payload?.senderName || enrichedMessage?.senderName,
-      true // ✅ Tăng unread count
-    );
-    
-    // ✅ Cũng thêm vào useMessagesStore cho chat detail view
-    useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
+    // ✅ Batch store updates để giảm re-renders
+    storeUpdateBatcher.addUpdate({
+      store: useChatsStore.getState(),
+      action: 'updateLastMessage',
+      payload: {
+        conversationId,
+        previewContent,
+        previewType,
+        createdAt,
+        senderId: payload?.sender_id || payload?.senderId || enrichedMessage?.senderId,
+        senderName: payload?.sender_name || payload?.senderName || enrichedMessage?.senderName,
+        shouldIncrementUnread: true
+      }
+    });
+
+    storeUpdateBatcher.addUpdate({
+      store: useMessagesStore.getState(),
+      action: 'addMessage',
+      payload: { conversationId, message: enrichedMessage }
+    });
   };
 
   const setupEventListeners = (socket: any) => {
