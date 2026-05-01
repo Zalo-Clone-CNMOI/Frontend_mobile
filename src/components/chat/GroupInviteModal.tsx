@@ -1,7 +1,4 @@
-import { useTheme } from '@/src/theme/themeContext';
-import { X, Clock, Send, AlertCircle } from 'lucide-react-native';
-import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useState } from 'react';
 import {
   Alert,
   Modal,
@@ -12,18 +9,27 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { X, Send } from 'lucide-react-native';
+import { useTheme } from '@/src/theme/themeContext';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
 import { sendInvites } from '@/src/services/conversationsApi';
-import { getFriends } from '@/src/services/friendsApi';
+import { NETWORK_CONFIG } from '@/src/config/network';
+
+const normalizeAvatar = (avatar?: string | null): string | null => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
+  }
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
+};
 
 interface GroupInviteModalProps {
   visible: boolean;
   conversationId: string;
   conversationName: string;
-  existingMemberIds?: string[]; // Friend IDs to exclude (already members)
   onClose: () => void;
   onInviteSent?: () => void;
 }
@@ -32,55 +38,21 @@ export function GroupInviteModal({
   visible,
   conversationId,
   conversationName,
-  existingMemberIds = [],
   onClose,
   onInviteSent,
 }: GroupInviteModalProps) {
+  console.log('[GroupInviteModal] Component called - visible:', visible);
+
   const theme = useTheme();
   const { t } = useTranslation();
   const friends = useRealtimeStore((state) => state.friends);
-  const setFriendSnapshot = useRealtimeStore((state) => state.setFriendSnapshot);
+
+  console.log('[GroupInviteModal] Friends from store:', friends.length);
 
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState('');
   const [expiresInHours, setExpiresInHours] = useState(168); // Default 7 days
   const [loading, setLoading] = useState(false);
-  const [friendsLoading, setFriendsLoading] = useState(false);
-
-  // Fetch friends when modal opens
-  useEffect(() => {
-    if (visible) {
-      fetchFriends();
-    }
-  }, [visible]);
-
-  const fetchFriends = async () => {
-    setFriendsLoading(true);
-    try {
-      const response = await getFriends({ limit: 100 });
-      
-      const friendsData = response.data?.data || response.data || [];
-      
-      // Convert to FriendRecord format for useRealtimeStore
-      const friendRecords = friendsData.map((friend: any) => ({
-        id: friend.id || friend._id || friend.userId,
-        fullName: friend.name || friend.fullName || `${friend.firstName || ''} ${friend.lastName || ''}`.trim(),
-        avatarUrl: friend.avatarUrl || null,
-        userId: friend.userId || friend.id || friend._id,
-      }));
-
-      setFriendSnapshot({
-        friends: friendRecords,
-        receivedRequests: [],
-        sentRequests: [],
-      });
-    } catch (error: any) {
-      console.error('Failed to fetch friends:', error);
-      Alert.alert(t('common.error'), error.message || 'Failed to load friends');
-    } finally {
-      setFriendsLoading(false);
-    }
-  };
 
   const toggleFriendSelection = (friendId: string) => {
     setSelectedFriends((prev) => {
@@ -117,8 +89,7 @@ export function GroupInviteModal({
 
       const response = await sendInvites(conversationId, payload);
       const result = response.data || response;
-
-      const { acceptedCount, skippedCount, inviteIds } = result;
+      const { acceptedCount, skippedCount } = result;
 
       let successMessage = t('group_errors.invites_sent') || 'Invites sent successfully';
       successMessage += `\n${t('group_errors.accepted') || 'Accepted'}: ${acceptedCount}`;
@@ -127,7 +98,6 @@ export function GroupInviteModal({
       }
 
       Alert.alert(t('common.success'), successMessage);
-      
       onInviteSent?.();
       onClose();
       
@@ -142,9 +112,9 @@ export function GroupInviteModal({
     }
   };
 
-  const renderFriendItem = ({ friendId, fullName, avatarUrl, isMember }: { friendId: string; fullName: string; avatarUrl?: string | null; isMember?: boolean }) => {
+  const renderFriendItem = ({ friendId, fullName, avatarUrl }: { friendId: string; fullName: string; avatarUrl?: string | null }) => {
     const isSelected = isFriendSelected(friendId);
-
+    const normalizedAvatarUrl = normalizeAvatar(avatarUrl);
     return (
       <TouchableOpacity
         style={[
@@ -152,58 +122,40 @@ export function GroupInviteModal({
           {
             backgroundColor: isSelected ? theme.colors.primary + '15' : theme.colors.card,
             borderColor: isSelected ? theme.colors.primary : theme.colors.border,
-            opacity: isMember ? 0.5 : 1,
           },
         ]}
-        onPress={() => !isMember && toggleFriendSelection(friendId)}
-        activeOpacity={isMember ? 1 : 0.7}
-        disabled={isMember}
+        onPress={() => toggleFriendSelection(friendId)}
+        activeOpacity={0.7}
       >
-        <AvatarWithInitials
-          name={fullName}
-          size={44}
-        />
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={[styles.friendName, { color: theme.colors.text }]} numberOfLines={1}>
-            {fullName}
-          </Text>
-          {isMember && (
-            <Text style={[styles.memberLabel, { color: '#34C759' }]}>
-              {t('chat_options.already_member') || 'Already a member'}
-            </Text>
-          )}
+        <AvatarWithInitials name={fullName} size={44} avatarUrl={normalizedAvatarUrl} />
+        <Text style={[styles.friendName, { color: theme.colors.text }]} numberOfLines={1}>
+          {fullName}
+        </Text>
+        <View
+          style={[
+            styles.checkbox,
+            {
+              backgroundColor: isSelected ? theme.colors.primary : 'transparent',
+              borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+            },
+          ]}
+        >
+          {isSelected && <X size={14} color="#fff" />}
         </View>
-        {!isMember && (
-          <View
-            style={[
-              styles.checkbox,
-              {
-                backgroundColor: isSelected ? theme.colors.primary : 'transparent',
-                borderColor: isSelected ? theme.colors.primary : theme.colors.border,
-              },
-            ]}
-          >
-            {isSelected && <X size={14} color="#fff" />}
-          </View>
-        )}
       </TouchableOpacity>
     );
   };
 
+  console.log('[GroupInviteModal] Render - visible:', visible, 'friends count:', friends.length);
+
   return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <TouchableOpacity
           activeOpacity={1}
           style={[styles.container, { backgroundColor: theme.colors.card }]}
-          onPress={(e: any) => e.stopPropagation()}
+          onPress={(e) => e.stopPropagation()}
         >
-          {/* Header */}
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.colors.text }]}>
               {t('group_errors.invite_to_group') || 'Invite to Group'}
@@ -213,7 +165,6 @@ export function GroupInviteModal({
             </TouchableOpacity>
           </View>
 
-          {/* Group Name */}
           <View style={[styles.groupInfo, { backgroundColor: theme.colors.background }]}>
             <Text style={[styles.groupLabel, { color: theme.colors.icon }]}>
               {t('group_errors.group') || 'Group'}
@@ -223,7 +174,6 @@ export function GroupInviteModal({
             </Text>
           </View>
 
-          {/* Message Input */}
           <View style={styles.inputSection}>
             <Text style={[styles.label, { color: theme.colors.text }]}>
               {t('group_errors.invite_message') || 'Message (optional)'}
@@ -231,11 +181,7 @@ export function GroupInviteModal({
             <TextInput
               style={[
                 styles.textInput,
-                {
-                  backgroundColor: theme.colors.background,
-                  color: theme.colors.text,
-                  borderColor: theme.colors.border,
-                },
+                { backgroundColor: theme.colors.background, color: theme.colors.text, borderColor: theme.colors.border },
               ]}
               placeholder={t('group_errors.invite_message_placeholder') || 'Add a message...'}
               placeholderTextColor={theme.colors.icon}
@@ -244,17 +190,14 @@ export function GroupInviteModal({
               maxLength={500}
               multiline
             />
-            <Text style={[styles.charCount, { color: theme.colors.icon }]}>
-              {message.length}/500
-            </Text>
+            <Text style={[styles.charCount, { color: theme.colors.icon }]}>{message.length}/500</Text>
           </View>
 
-          {/* Expiry Time */}
           <View style={styles.inputSection}>
             <Text style={[styles.label, { color: theme.colors.text }]}>
               {t('group_errors.expiry_time') || 'Expiry Time'}
             </Text>
-            <View style={styles.expiryOptions}>
+            <div style={styles.expiryOptions}>
               {[
                 { label: '24h', value: 24 },
                 { label: '3d', value: 72 },
@@ -271,79 +214,50 @@ export function GroupInviteModal({
                   ]}
                   onPress={() => setExpiresInHours(option.value)}
                 >
-                  <Text
-                    style={[
-                      styles.expiryOptionText,
-                      { color: expiresInHours === option.value ? '#fff' : theme.colors.text },
-                    ]}
-                  >
+                  <Text style={[styles.expiryOptionText, { color: expiresInHours === option.value ? '#fff' : theme.colors.text }]}>
                     {option.label}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </div>
           </View>
 
-          {/* Friends List */}
           <View style={styles.friendsSection}>
             <Text style={[styles.label, { color: theme.colors.text }]}>
               {t('group_errors.select_friends') || 'Select Friends'}
             </Text>
             <Text style={[styles.selectedCount, { color: theme.colors.icon }]}>
-              {selectedFriends.size} {t('group_errors.selected') || 'selected'} | Total: {friends.length}
+              {selectedFriends.size} {t('group_errors.selected') || 'selected'}
             </Text>
           </View>
 
-          <View style={[styles.friendsList, { backgroundColor: theme.colors.background }]}>
-            {friendsLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-                <Text style={[styles.loadingText, { color: theme.colors.icon }]}>
-                  {t('common.loading') || 'Loading friends...'}
-                </Text>
-              </View>
-            ) : friends.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyText, { color: theme.colors.icon }]}>
-                  {t('group_errors.no_friends') || 'No friends found'}
-                </Text>
-              </View>
-            ) : (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {friends.map((friend) => {
-                  const isMember = existingMemberIds.includes(friend.id);
-                  return (
-                    <View key={friend.id} style={styles.friendItemWrapper}>
-                      {renderFriendItem({
-                        friendId: friend.id,
-                        fullName: friend.fullName || '',
-                        avatarUrl: friend.avatarUrl,
-                        isMember,
-                      })}
-                    </View>
-                  );
-                })}
-              </ScrollView>
-            )}
-          </View>
+          <ScrollView style={styles.friendsList} showsVerticalScrollIndicator={false}>
+            {friends.map((friend) => {
+              console.log('[GroupInviteModal] Friend avatar:', { id: friend.id, fullName: friend.fullName, avatarUrl: friend.avatarUrl });
+              return (
+                <View key={friend.id} style={styles.friendItemWrapper}>
+                  {renderFriendItem({
+                    friendId: friend.id,
+                    fullName: friend.fullName || '',
+                    avatarUrl: friend.avatarUrl
+                  })}
+                </View>
+              );
+            })}
+          </ScrollView>
 
-          {/* Footer */}
           <View style={styles.footer}>
             <TouchableOpacity
               style={[styles.cancelButton, { borderColor: theme.colors.border }]}
               onPress={onClose}
               disabled={loading}
             >
-              <Text style={[styles.cancelText, { color: theme.colors.text }]}>
-                {t('common.cancel')}
-              </Text>
+              <Text style={[styles.cancelText, { color: theme.colors.text }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                {
-                  backgroundColor: selectedFriends.size > 0 && !loading ? theme.colors.primary : theme.colors.border,
-                },
+                { backgroundColor: selectedFriends.size > 0 && !loading ? theme.colors.primary : theme.colors.border },
               ]}
               onPress={handleSendInvites}
               disabled={selectedFriends.size === 0 || loading}
@@ -353,12 +267,7 @@ export function GroupInviteModal({
               ) : (
                 <View style={styles.sendButtonContent}>
                   <Send size={18} color={selectedFriends.size > 0 ? '#fff' : theme.colors.icon} />
-                  <Text
-                    style={[
-                      styles.sendText,
-                      { color: selectedFriends.size > 0 ? '#fff' : theme.colors.icon },
-                    ]}
-                  >
+                  <Text style={[styles.sendText, { color: selectedFriends.size > 0 ? '#fff' : theme.colors.icon }]}>
                     {t('group_errors.send_invites') || 'Send Invites'}
                   </Text>
                 </View>
@@ -384,7 +293,6 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
     borderRadius: 16,
     padding: 20,
-    justifyContent: 'space-between',
   },
   header: {
     flexDirection: 'row',
@@ -460,8 +368,6 @@ const styles = StyleSheet.create({
   friendsList: {
     flex: 1,
     marginBottom: 20,
-    minHeight: 100,
-    maxHeight: 300,
   },
   friendItemWrapper: {
     marginBottom: 8,
@@ -477,11 +383,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     flex: 1,
-  },
-  memberLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 2,
+    marginLeft: 12,
   },
   checkbox: {
     width: 24,
@@ -523,22 +425,5 @@ const styles = StyleSheet.create({
   sendText: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    fontSize: 14,
-    marginTop: 12,
-  },
-  emptyContainer: {
-    padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    fontSize: 15,
   },
 });

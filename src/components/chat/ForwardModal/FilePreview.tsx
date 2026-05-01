@@ -12,7 +12,8 @@ import type { ChatMessage } from '@/src/types/chat';
 import { styles } from './styles';
 
 interface FilePreviewProps {
-  message: ChatMessage | null;
+  message?: ChatMessage | null;
+  messages?: ChatMessage[];
   optionalMessage: string;
   onOptionalMessageChange: (text: string) => void;
   selectedCount: number;
@@ -29,11 +30,13 @@ const formatFileSize = (bytes: number | string): string => {
 
 export const FilePreview: React.FC<FilePreviewProps> = ({
   message,
+  messages,
   optionalMessage,
   onOptionalMessageChange,
   selectedCount,
   onSend,
 }) => {
+  const messageCount = messages?.length || (message ? 1 : 0);
   const { t } = useTranslation();
 
   const isSendDisabled = selectedCount === 0;
@@ -41,19 +44,21 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
   return (
     <SafeAreaView style={styles.footerContainer} edges={['bottom']}>
       {/* File Preview Box */}
-      {message && (
+      {messageCount > 0 && (
         <View style={styles.filePreviewBox}>
           <View style={styles.fileIconContainer}>
             <File size={24} color="#0068FF" />
           </View>
           <View style={styles.fileInfoContainer}>
             <Text style={styles.fileName} numberOfLines={1}>
-              {message.fileInfo?.name || t('forward.message')}
+              {messageCount > 1 
+                ? `${messageCount} ${t('forward.messages', { defaultValue: 'tin nhắn' })}`
+                : (message?.fileInfo?.name || t('forward.message'))}
             </Text>
             <Text style={styles.fileSize}>
-              {message.fileInfo?.size
-                ? formatFileSize(message.fileInfo.size)
-                : '20 KB'}
+              {messageCount > 1 
+                ? t('forward.multiple_messages', { defaultValue: 'Nhiều tin nhắn được chọn' })
+                : (message?.fileInfo?.size ? formatFileSize(message.fileInfo.size) : '20 KB')}
             </Text>
           </View>
         </View>

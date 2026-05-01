@@ -88,6 +88,12 @@ type MessageBubbleProps = {
   isPinned?: boolean; // Whether message is pinned
   conversationMembers?: ConversationMember[]; // Conversation members for nickname lookup
   currentUserRole?: 'owner' | 'admin' | 'member';
+  // Multi-select props
+  isMultiSelectMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelection?: (messageId: string) => void;
+  // Messages list for reply lookup
+  messages?: ChatMessage[];
 };
 
 export const MessageBubble = React.memo(
@@ -109,6 +115,10 @@ export const MessageBubble = React.memo(
     isPinned = false,
     conversationMembers,
     currentUserRole,
+    isMultiSelectMode = false,
+    isSelected = false,
+    onToggleSelection,
+    messages,
   }: MessageBubbleProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -479,15 +489,48 @@ export const MessageBubble = React.memo(
     );
   }
 
+  // Handle press - toggle selection in multi-select mode
+  const handlePress = () => {
+    if (isMultiSelectMode) {
+      onToggleSelection?.(item.id);
+    }
+  };
+
+  // Handle long press - enter multi-select mode and select current
+  const handleLongPress = () => {
+    if (!isMultiSelectMode) {
+      onLongPress?.(item);
+    }
+  };
+
   return (
     <View
       style={[
         styles.container,
         isMe ? styles.rowRight : styles.rowLeft,
+        isMultiSelectMode && styles.containerMultiSelect,
       ]}
     >
-      {/* Left avatar (other user) */}
-      {!isMe && (
+      {/* Checkbox for multi-select mode */}
+      {isMultiSelectMode && (
+        <TouchableOpacity
+          onPress={() => onToggleSelection?.(item.id)}
+          style={[
+            styles.checkbox,
+            isSelected ? styles.checkboxSelected : styles.checkboxUnselected,
+            { borderColor: theme.colors.primary },
+          ]}
+        >
+          {isSelected && (
+            <View style={[styles.checkboxInner, { backgroundColor: theme.colors.primary }]}>
+              <Check size={14} color="#FFFFFF" />
+            </View>
+          )}
+        </TouchableOpacity>
+      )}
+
+      {/* Left avatar (other user) - hidden in multi-select mode */}
+      {!isMultiSelectMode && !isMe && (
         avatar && avatar.trim() !== '' ? (
           <Image source={{ uri: avatar }} style={styles.avatar} />
         ) : (
@@ -502,17 +545,20 @@ export const MessageBubble = React.memo(
             alignItems: isMe ? 'flex-end' : 'flex-start',
             justifyContent: isMe ? 'flex-end' : 'flex-start',
           },
+          isMultiSelectMode && styles.bubbleWrapperMultiSelect,
         ]}
       >
         {/* Sender name for group chats */}
-        {isGroup && !isMe && (
+        {isGroup && !isMe && !isMultiSelectMode && (
           <Text style={[styles.senderNameText, { color: senderNameColor }]}>
             {senderName}
           </Text>
         )}
 
         <TouchableOpacity
-          onLongPress={() => onLongPress?.(item)}
+          onPress={handlePress}
+          onLongPress={handleLongPress}
+          disabled={isMultiSelectMode && false} // Enable press in multi-select mode
           style={[
             styles.bubble,
             {
@@ -529,13 +575,19 @@ export const MessageBubble = React.memo(
           ]}
         >
           {/* ── Reply preview ──────────────────────────────────────────────── */}
-          {item.replyTo && (
+          {item.replyTo && (() => {
+            // Check if original message exists and is not deleted
+            const originalMessage = messages?.find(m => m.id === item.replyTo?.id || m.messageId === item.replyTo?.id);
+            const isOriginalDeleted = originalMessage?.isRevoked;
+            return !isOriginalDeleted;
+          })() && (
             <ReplyPreview
               replyTo={item.replyTo}
               isMe={isMe ?? false}
               myTextColor={myTextColor}
               theirTextColor={theirTextColor}
               onPress={() => onPressReply?.(item)}
+              messages={messages}
             />
           )}
 
@@ -896,6 +948,32 @@ export const MessageBubble = React.memo(
       )}
     </View>
   );
+}, (prevProps, nextProps) => {
+  // Custom comparison: return true if props are equal (don't re-render)
+  const prev = prevProps.item;
+  const next = nextProps.item;
+
+  // Always re-render if item identity or critical fields changed
+  if (prev.id !== next.id) return false;
+  if (prev.type !== next.type) return false;
+  if (prev.messageType !== next.messageType) return false;
+  if (prev.status !== next.status) return false;
+  if (prev.text !== next.text) return false;
+  if (prev.timestamp !== next.timestamp) return false;
+  if (prev.isRevoked !== next.isRevoked) return false;
+  if (prev.isEdited !== next.isEdited) return false;
+  if (prev.isPinned !== next.isPinned) return false;
+  if (JSON.stringify(prev.reactions) !== JSON.stringify(next.reactions)) return false;
+
+  // Check other props
+  if (prevProps.isMultiSelectMode !== nextProps.isMultiSelectMode) return false;
+  if (prevProps.isSelected !== nextProps.isSelected) return false;
+  if (prevProps.highlightText !== nextProps.highlightText) return false;
+  if (prevProps.isPinned !== nextProps.isPinned) return false;
+  if (prevProps.currentUserRole !== nextProps.currentUserRole) return false;
+
+  // Props are equal, skip re-render
+  return true;
 });
 
 // ── File helper functions ──────────────────────────────────────────────────────
@@ -1255,5 +1333,35 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
 
+  // Multi-select styles
+  containerMultiSelect: {
+    paddingLeft: 8,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    marginRight: 8,
+    marginTop: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    borderWidth: 0,
+  },
+  checkboxUnselected: {
+    backgroundColor: 'transparent',
+  },
+  checkboxInner: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bubbleWrapperMultiSelect: {
+    maxWidth: '70%',
+  },
 
 });

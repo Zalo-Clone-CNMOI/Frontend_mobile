@@ -1,8 +1,9 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/src/theme/themeContext';
-import type { ReplyInfo } from '@/src/types/chat';
+import type { ChatMessage, ReplyInfo } from '@/src/types/chat';
+import { FileVideo, Image as ImageIcon } from 'lucide-react-native';
 
 interface ReplyPreviewProps {
   replyTo: ReplyInfo;
@@ -10,6 +11,7 @@ interface ReplyPreviewProps {
   myTextColor: string;
   theirTextColor: string;
   onPress: () => void;
+  messages?: ChatMessage[]; // For lookup original message
 }
 
 export const ReplyPreview: React.FC<ReplyPreviewProps> = ({
@@ -18,19 +20,58 @@ export const ReplyPreview: React.FC<ReplyPreviewProps> = ({
   myTextColor,
   theirTextColor,
   onPress,
+  messages,
 }) => {
   const theme = useTheme();
   const { t } = useTranslation();
 
-  const replySenderName = replyTo.senderName || t('messages.replying_to');
-  const replyText =
-    String(replyTo.text || '').trim() ||
-    t('messages.replied_message', { defaultValue: t('chat.reply') });
+  // Lookup original message from messages list
+  const originalMessage = useMemo(() => {
+    if (!messages || !replyTo.id) return null;
+    return messages.find(m => m.id === replyTo.id || m.messageId === replyTo.id);
+  }, [messages, replyTo.id]);
+
+  // Get sender name - prefer original message, fallback to replyTo
+  const replySenderName = originalMessage?.senderName || replyTo.senderName || t('messages.replying_to');
+  
+  // Get reply type - prefer original message type, fallback to replyTo.type
+  const replyType = originalMessage?.type || replyTo.type || 'text';
+  
+  // Get reply text based on type
+  let replyText = '';
+  
+  if (replyType === 'image') {
+    replyText = `[${t('chat.image', { defaultValue: 'Hình ảnh' })}]`;
+  } else if (replyType === 'video') {
+    replyText = `[${t('chat.video', { defaultValue: 'Video' })}]`;
+  } else if (replyType === 'file') {
+    replyText = `[${t('chat.file', { defaultValue: 'File' })}]`;
+  } else if (replyType === 'voice') {
+    replyText = `[${t('chat.voice', { defaultValue: 'Tin nhắn thoại' })}]`;
+  } else {
+    replyText = String(originalMessage?.text || replyTo.text || '').trim() ||
+      t('messages.replied_message', { defaultValue: t('chat.reply') });
+  }
 
   const myReplyOverlayBg = 'rgba(255,255,255,0.12)';
   const theirReplyOverlayBg = theme.dark
     ? 'rgba(255,255,255,0.06)'
     : 'rgba(0,0,0,0.05)';
+  
+  const isMedia = replyType === 'image' || replyType === 'video';
+  
+  // Get thumbnail URL from original message attachments
+  let thumbnailUrl: string | undefined;
+  let attachmentUrl: string | undefined;
+  
+  if (originalMessage?.attachments && originalMessage.attachments.length > 0) {
+    const attachment = originalMessage.attachments[0];
+    thumbnailUrl = attachment.thumbnailUrl || attachment.thumbnail_url;
+    attachmentUrl = attachment.url;
+  }
+  
+  // Fallback to replyTo if no original message found
+  const hasThumbnail = thumbnailUrl || attachmentUrl || replyTo.thumbnailUrl || replyTo.attachmentUrl;
 
   return (
     <Pressable
@@ -56,15 +97,34 @@ export const ReplyPreview: React.FC<ReplyPreviewProps> = ({
         >
           {replySenderName}
         </Text>
-        <Text
-          style={[
-            styles.replyText,
-            { color: isMe ? myTextColor : theirTextColor, opacity: 0.7 },
-          ]}
-          numberOfLines={1}
-        >
-          {replyText}
-        </Text>
+        <View style={styles.replyBody}>
+          {isMedia && hasThumbnail && (
+            <Image
+              source={{ uri: thumbnailUrl || attachmentUrl || replyTo.thumbnailUrl || replyTo.attachmentUrl }}
+              style={styles.replyThumbnail}
+              resizeMode="cover"
+            />
+          )}
+          {isMedia && !hasThumbnail && (
+            <View style={styles.replyIconContainer}>
+              {replyType === 'image' ? (
+                <ImageIcon size={20} color={isMe ? myTextColor : theirTextColor} />
+              ) : (
+                <FileVideo size={20} color={isMe ? myTextColor : theirTextColor} />
+              )}
+            </View>
+          )}
+          <Text
+            style={[
+              styles.replyText,
+              { color: isMe ? myTextColor : theirTextColor, opacity: 0.7 },
+              isMedia && styles.replyTextWithMedia,
+            ]}
+            numberOfLines={1}
+          >
+            {replyText}
+          </Text>
+        </View>
       </View>
     </Pressable>
   );
@@ -85,5 +145,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   replyName: { fontSize: 12, fontWeight: '700' },
-  replyText: { fontSize: 12, marginTop: 1 },
+  replyBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    gap: 6,
+  },
+  replyThumbnail: {
+    width: 40,
+    height: 40,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  replyIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  replyText: { fontSize: 12 },
+  replyTextWithMedia: {
+    flex: 1,
+  },
 });

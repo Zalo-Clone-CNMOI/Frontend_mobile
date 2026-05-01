@@ -26,7 +26,8 @@
     "accept": "Accept",
     "reject": "Reject",
     "you": "You",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "select_all": "Select All"
   },
 
   "navigation": {
@@ -104,6 +105,9 @@
     "no_messages": "No messages",
     "default_title": "Chat",
     "file": "File",
+    "image": "Image",
+    "video": "Video",
+    "voice": "Voice message",
     "location": "Location",
     "contact": "Contact",
     "document": "Document",
@@ -286,7 +290,10 @@
     "pin": "Pin Conversation",
     "unpin": "Unpin",
     "pin_success": "Conversation pinned",
-    "unpin_success": "Conversation unpinned"
+    "unpin_success": "Conversation unpinned",
+    "unpin_convestion":"Unpin convestion ",
+    "unpin_desc":"Unpin this convestion",
+    "pin_desc":"Pin this convestion"
   },
 
   "conversation": {
@@ -636,16 +643,12 @@
     "loading": "Loading...",
     "noConversations": "No conversations found",
     "message": "Message",
-    "messagePlaceholder": "Enter message"
-  },
-  "messageType": {
-    "sentMultipleImages": "sent multiple images",
-    "sentImage": "sent 1 image",
-    "sentVideo": "sent 1 video",
-    "sentFile": "sent 1 file",
-    "sentVoice": "sent 1 voice message",
+    "messages": "messages",
+    "messagePlaceholder": "Enter message",
+    "multiple_messages": "Multiple messages selected",
     "youPrefix": "You: "
   },
+
   "pollDetail": {
     "title": "Poll Details",
     "loading": "Loading...",

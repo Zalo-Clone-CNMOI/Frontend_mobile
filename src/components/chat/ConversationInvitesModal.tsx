@@ -17,6 +17,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { getConversationInvites, cancelInvite } from '@/src/services/conversationsApi';
 import { GroupInviteDTO as Invite, GroupInviteStatus } from '@/src/types/dto/ApiDTO';
+import { useRealtimeStore } from '@/src/store/useRealtimeStore';
+import { NETWORK_CONFIG } from '@/src/config/network';
+
+const normalizeAvatar = (avatar?: string | null): string | null => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
+  }
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
+};
 
 interface ConversationInvitesModalProps {
   visible: boolean;
@@ -35,6 +45,7 @@ export function ConversationInvitesModal({
 }: ConversationInvitesModalProps) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const friends = useRealtimeStore((state) => state.friends);
 
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(false);
@@ -118,16 +129,22 @@ export function ConversationInvitesModal({
 
   const renderInviteItem = (invite: Invite) => {
     const isPending = invite.status === 'pending';
-    
+
+    // Lookup inviter avatar from friends store (backend only returns inviterUserId, not inviter object)
+    const inviterFromFriends = friends.find(f => f.id === invite.inviterUserId);
+    const inviterAvatarUrl = inviterFromFriends?.avatarUrl || null;
+    const normalizedAvatarUrl = normalizeAvatar(inviterAvatarUrl);
+
     return (
       <View style={[styles.inviteItem, { backgroundColor: theme.colors.card, borderBottomColor: theme.colors.border }]}>
         <AvatarWithInitials
-          name={invite.inviter?.fullName || 'Unknown'}
+          name={inviterFromFriends?.fullName || 'Unknown'}
           size={44}
+          avatarUrl={normalizedAvatarUrl}
         />
         <View style={styles.inviteContent}>
           <Text style={[styles.inviteName, { color: theme.colors.text }]}>
-            {invite.inviter?.fullName || 'Unknown'}
+            {inviterFromFriends?.fullName || 'Unknown'}
           </Text>
           <Text style={[styles.inviteStatus, { color: getStatusColor(invite.status) }]}>
             {invite.status.charAt(0).toUpperCase() + invite.status.slice(1)}
