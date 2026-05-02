@@ -1,12 +1,27 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useInAppNotification } from '../notifications/useInAppNotification';
-import { getSocket } from '../services/socket';
+import { getRealtimeSocket } from '../services/realtime/defaultRealtimeClients';
 import { WsEvents } from '../realtime/events';
 import { useRoute } from '@react-navigation/native';
 import { subscribeToPollEvents, setPollEventCallbacks, setPollCurrentUserId } from '../services/pollEventsHandler';
 import { usePollStore } from '../store/usePollStore';
+import { useRealtimeStore } from '../store/useRealtimeStore';
+import { appStateService } from '../services/appStateService';
+import { localNotificationService } from '../services/localNotificationService';
+
+// Global ref to track current conversation across the app
+const currentConversationIdRef = { current: null as string | null };
+
+/**
+ * Set current conversation ID from ChatDetail screen
+ * Use this to suppress notifications for the current conversation
+ */
+export function setCurrentConversationId(conversationId: string | null) {
+  currentConversationIdRef.current = conversationId;
+  console.log('[NotificationListener] Current conversation set to:', conversationId);
+}
 
 export function useNotificationListener() {
   const { user: authUser } = useAuth();
@@ -15,6 +30,22 @@ export function useNotificationListener() {
   const route = useRoute() as any;
   const currentConversationId = useRef<string | null>(null);
   const userId = (authUser as any)?.id;
+  const friends = useRealtimeStore((state) => state.friends);
+
+  // Helper: Get sender name from friends store or fallback
+  const getSenderName = useCallback((senderId: string, payloadSenderName?: string): string => {
+    // 1. Try from payload first (if backend sends it)
+    if (payloadSenderName && payloadSenderName !== 'Người dùng') {
+      return payloadSenderName;
+    }
+    // 2. Try from friends store
+    const friend = friends.find((f) => f.id === senderId);
+    if (friend?.fullName) {
+      return friend.fullName;
+    }
+    // 3. Fallback
+    return 'Người dùng';
+  }, [friends]);
 
   // Set current user ID for poll events
   useEffect(() => {
@@ -32,144 +63,175 @@ export function useNotificationListener() {
     }
   }, [route?.params?.id]);
 
+  // Main notification listener effect
   useEffect(() => {
-    const socket = getSocket();
-    if (!socket || !userId) return;
+    let socket: any = null;
+    let isActive = true;
+    const handlers: { [key: string]: any } = {};
 
-    // Listen for new messages
-    const handleMessage = (payload: any) => {
-      const conversationId = payload?.conversation_id || payload?.conversationId;
-      const senderId = payload?.sender_id || payload?.senderId;
-      const senderName = payload?.sender_name || payload?.senderName || 'Người dùng';
-      const body = payload?.body || payload?.content || '';
+    const setupListeners = async () => {
+      try {
+        socket = await getRealtimeSocket();
+        if (!isActive) return;
 
-      // Don't show notification if:
-      // - Message is from me
-      // - I'm currently in this conversation
-      if (senderId === userId) return;
-      if (conversationId === currentConversationId.current) return;
+        console.log('[NotificationListener] Socket obtained:', socket?.id, 'connected:', socket?.connected, 'userId:', userId);
 
-      // Show notification
-      showInfo(
-        senderName,
-        body || 'Đã gửi một tin nhắn',
-        {
-          onPress: () => {
-            router.push(`/chat/${conversationId}` as any);
-          },
+        if (!socket || !userId) {
+          console.log('[NotificationListener] Skipping setup - socket or userId missing');
+          return;
         }
-      );
-    };
 
-    // Listen for group invites
-    const handleGroupInvite = (payload: any) => {
-      const inviterName = payload?.inviter_full_name || payload?.inviterName || 'Người dùng';
-      const conversationName = payload?.conversation_name || payload?.conversationName || 'nhóm';
+        // Listen for new messages
+        handlers.handleMessage = async (payload: any) => {
+          console.log('[NotificationListener] ChatMessage received:', payload);
+          const conversationId = payload?.conversation_id || payload?.conversationId;
+          const senderId = payload?.sender_id || payload?.senderId;
+          const payloadSenderName = payload?.sender_name || payload?.senderName;
+          const body = payload?.body || payload?.content || '';
+          const messageId = payload?.message_id || payload?.id;
 
-      showInfo(
-        'Lời mời tham gia nhóm',
-        `${inviterName} đã mời bạn vào nhóm ${conversationName}`,
-        {
-          onPress: () => {
-            router.push('/(tabs)' as any);
-          },
-        }
-      );
-    };
+          // Get sender name from friends store or payload
+          const senderName = getSenderName(senderId, payloadSenderName);
 
-    // Listen for member added to group
-    const handleMemberAdded = (payload: any) => {
-      const addedBy = payload?.added_by;
-      const members = payload?.members || [];
+          console.log('[NotificationListener] Parsed:', { conversationId, senderId, senderName, body, messageId, currentUserId: userId });
 
-      // Check if I was added
-      const wasIAmAdded = members.some((m: any) => m.user_id === userId);
-      if (wasIAmAdded) {
-        const conversationName = payload?.conversation_name || 'nhóm';
-        showInfo(
-          'Đã thêm vào nhóm',
-          `Bạn đã được thêm vào nhóm ${conversationName}`,
-          {
-            onPress: () => {
-              router.push(`/chat/${payload.conversation_id}` as any);
-            },
+          // Don't show notification if message is from me
+          if (senderId === userId) {
+            console.log('[NotificationListener] Message from self, skipping');
+            return;
           }
-        );
+
+          // Don't show if I'm currently in this conversation and app is active
+          const isInConversation = conversationId === currentConversationId.current ||
+                                   conversationId === currentConversationIdRef.current;
+          console.log('[NotificationListener] isInConversation:', isInConversation, 'appActive:', appStateService.isActive());
+
+          if (isInConversation && appStateService.isActive()) {
+            console.log('[NotificationListener] In conversation and app active, skipping notification');
+            return;
+          }
+
+          // Background: Show local push notification
+          if (appStateService.isBackground()) {
+            console.log('[NotificationListener] App in background, showing local notification');
+            if (conversationId && messageId) {
+              await localNotificationService.showMessageNotification(
+                senderName,
+                body,
+                conversationId,
+                messageId,
+                senderId || ''
+              );
+            }
+            return;
+          }
+
+          // Foreground: Show in-app notification
+          console.log('[NotificationListener] Showing in-app notification:', senderName, body);
+          showInfo(
+            senderName,
+            body || 'Đã gửi một tin nhắn',
+            {
+              onPress: () => {
+                router.push(`/chat/${conversationId}` as any);
+              },
+            }
+          );
+        };
+
+        // Listen for group invites
+        handlers.handleGroupInvite = async (payload: any) => {
+          const inviterName = payload?.inviter_full_name || payload?.inviterName || 'Người dùng';
+          const conversationName = payload?.conversation_name || payload?.conversationName || 'nhóm';
+          const conversationId = payload?.conversation_id || payload?.conversationId;
+
+          if (appStateService.isBackground()) {
+            if (conversationId) {
+              await localNotificationService.showGroupInviteNotification(
+                inviterName,
+                conversationName,
+                conversationId
+              );
+            }
+            return;
+          }
+
+          showInfo(
+            'Lời mời tham gia nhóm',
+            `${inviterName} đã mời bạn vào nhóm ${conversationName}`,
+            {
+              onPress: () => {
+                router.push('/(tabs)' as any);
+              },
+            }
+          );
+        };
+
+        // Listen for member added to group
+        handlers.handleMemberAdded = (payload: any) => {
+          const members = payload?.members || [];
+          const wasIAmAdded = members.some((m: any) => m.user_id === userId);
+          if (wasIAmAdded) {
+            const conversationName = payload?.conversation_name || 'nhóm';
+            showInfo(
+              'Đã thêm vào nhóm',
+              `Bạn đã được thêm vào nhóm ${conversationName}`,
+              {
+                onPress: () => {
+                  router.push(`/chat/${payload.conversation_id}` as any);
+                },
+              }
+            );
+          }
+        };
+
+        // Register listeners
+        console.log('[NotificationListener] Registering listeners for:', WsEvents.ChatMessage, WsEvents.GroupInviteSent);
+        socket.on(WsEvents.ChatMessage, handlers.handleMessage);
+        socket.on(WsEvents.GroupInviteSent, handlers.handleGroupInvite);
+        socket.on(WsEvents.ConversationMemberAdded, handlers.handleMemberAdded);
+        console.log('[NotificationListener] Listeners registered');
+
+        // Poll events
+        setPollEventCallbacks({
+          onPollCreated: (payload) => {
+            usePollStore.getState().handlePollCreated(payload);
+            if (payload.creator_id === userId) return;
+            if (payload.conversation_id === currentConversationId.current) return;
+            showInfo('Bình chọn mới', payload.question, {
+              onPress: () => router.push(`/chat/${payload.conversation_id}` as any),
+            });
+          },
+          onPollEdited: (payload) => usePollStore.getState().handlePollEdited(payload),
+          onPollVoteUpdated: (payload) => usePollStore.getState().handlePollVoteUpdated(payload),
+          onPollOptionAdded: (payload) => usePollStore.getState().handlePollOptionAdded(payload),
+          onPollOptionRemoved: (payload) => usePollStore.getState().handlePollOptionRemoved(payload),
+          onPollClosed: (payload) => {
+            usePollStore.getState().handlePollClosed(payload);
+            if (payload.conversation_id === currentConversationId.current) return;
+            showInfo('Bình chọn đã kết thúc', 'Bình chọn đã đóng', {
+              onPress: () => router.push(`/chat/${payload.conversation_id}` as any),
+            });
+          },
+        });
+        subscribeToPollEvents();
+
+      } catch (error) {
+        console.error('[NotificationListener] Setup error:', error);
       }
     };
 
-    // Register listeners
-    socket.on(WsEvents.ChatMessage, handleMessage);
-    socket.on(WsEvents.GroupInviteSent, handleGroupInvite);
-    socket.on(WsEvents.ConversationMemberAdded, handleMemberAdded);
+    setupListeners();
 
-    // Register poll event callbacks for notifications and store updates
-    setPollEventCallbacks({
-      onPollCreated: (payload) => {
-        const conversationId = payload.conversation_id;
-        const question = payload.question;
-
-        // Update poll store
-        usePollStore.getState().handlePollCreated(payload);
-
-        // Don't show notification if I'm the creator or in the conversation
-        if (payload.creator_id === userId) return;
-        if (conversationId === currentConversationId.current) return;
-
-        showInfo(
-          'Bình chọn mới',
-          question,
-          {
-            onPress: () => {
-              router.push(`/chat/${conversationId}` as any);
-            },
-          }
-        );
-      },
-      onPollEdited: (payload) => {
-        // Update poll store
-        usePollStore.getState().handlePollEdited(payload);
-      },
-      onPollVoteUpdated: (payload) => {
-        // Update poll store
-        usePollStore.getState().handlePollVoteUpdated(payload);
-      },
-      onPollOptionAdded: (payload) => {
-        // Update poll store
-        usePollStore.getState().handlePollOptionAdded(payload);
-      },
-      onPollOptionRemoved: (payload) => {
-        // Update poll store
-        usePollStore.getState().handlePollOptionRemoved(payload);
-      },
-      onPollClosed: (payload) => {
-        const conversationId = payload.conversation_id;
-
-        // Update poll store
-        usePollStore.getState().handlePollClosed(payload);
-
-        // Don't show notification if I'm in the conversation
-        if (conversationId === currentConversationId.current) return;
-
-        showInfo(
-          'Bình chọn đã kết thúc',
-          'Bình chọn đã đóng',
-          {
-            onPress: () => {
-              router.push(`/chat/${conversationId}` as any);
-            },
-          }
-        );
-      },
-    });
-
-    // Subscribe to poll events
-    subscribeToPollEvents();
-
+    // Cleanup
     return () => {
-      socket.off(WsEvents.ChatMessage, handleMessage);
-      socket.off(WsEvents.GroupInviteSent, handleGroupInvite);
-      socket.off(WsEvents.ConversationMemberAdded, handleMemberAdded);
+      isActive = false;
+      if (socket && handlers.handleMessage) {
+        socket.off(WsEvents.ChatMessage, handlers.handleMessage);
+        socket.off(WsEvents.GroupInviteSent, handlers.handleGroupInvite);
+        socket.off(WsEvents.ConversationMemberAdded, handlers.handleMemberAdded);
+        console.log('[NotificationListener] Listeners removed');
+      }
     };
-  }, [userId, showInfo, router]);
+  }, [userId, showInfo, router, getSenderName]);
 }

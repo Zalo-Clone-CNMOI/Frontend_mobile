@@ -43,6 +43,24 @@ export const createSocket = async (): Promise<Socket> => {
     console.log('[Socket] Connected successfully', socket?.id);
   });
 
+  // Debug: Log all incoming events
+  socket.onAny((eventName, ...args) => {
+    console.log(`[Socket] ⬇️ Incoming event: ${eventName}`, args);
+  });
+
+  // Debug: Log connection status changes
+  socket.io.on("reconnect", (attempt) => {
+    console.log('[Socket] Reconnected after', attempt, 'attempts');
+  });
+
+  socket.io.on("reconnect_attempt", (attempt) => {
+    console.log('[Socket] Reconnect attempt', attempt);
+  });
+
+  socket.io.on("error", (error) => {
+    console.error('[Socket] Error:', error);
+  });
+
   socket.on("disconnect", (reason) => {
     console.log('[Socket] Disconnected', reason);
   });

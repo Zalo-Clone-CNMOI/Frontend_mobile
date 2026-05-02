@@ -36,6 +36,7 @@ import { useTranslation } from 'react-i18next';
 import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import { useInAppNotification } from '@/src/notifications/useInAppNotification';
 import { NotificationBanner } from '@/src/components/notifications/NotificationBanner';
+import { setCurrentConversationId } from '@/src/hooks/useNotificationListener';
 
 export default function ChatDetailScreen() {
   const theme = useTheme();
@@ -192,6 +193,18 @@ export default function ChatDetailScreen() {
         })
         .catch((err) => {/* Mark as read failed */});
     }
+  }, [chatId]);
+
+  // Track current conversation for notification suppression
+  useEffect(() => {
+    if (chatId) {
+      setCurrentConversationId(chatId);
+      console.log('[ChatDetail] Set current conversation:', chatId);
+    }
+    return () => {
+      setCurrentConversationId(null);
+      console.log('[ChatDetail] Cleared current conversation');
+    };
   }, [chatId]);
 
   // Navigate to original conversation when clicking on forwarded message header
