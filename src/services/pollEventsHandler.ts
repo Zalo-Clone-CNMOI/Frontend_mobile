@@ -9,10 +9,10 @@ import {
   GroupPollClosedPayload,
 } from '../realtime/events';
 import { PollDetail, PollStatus, PollMessageMetadata, PollErrorCode } from '../types/dto/PollDTO';
+import { getDeduplicationService } from './deduplicationService';
 
-// Track processed events for idempotency
-const processedEvents = new Map<string, number>();
-const EVENT_ID_TTL = 5 * 60 * 1000; // 5 minutes
+// Deduplication service for event-level deduplication
+const dedupService = getDeduplicationService();
 
 // Cached user ID for use outside React context
 let cachedUserId: string | null = null;
@@ -27,25 +27,14 @@ const getCurrentUserId = (): string | null => {
   return cachedUserId;
 };
 
-// Cleanup expired event IDs
-const cleanupExpiredEventIds = () => {
-  const now = Date.now();
-  for (const [eventId, timestamp] of processedEvents.entries()) {
-    if (now - timestamp > EVENT_ID_TTL) {
-      processedEvents.delete(eventId);
-    }
-  }
-};
-
-// Check if event was already processed
+// Check if event was already processed (using deduplication service)
 const isEventProcessed = (eventId: string): boolean => {
-  cleanupExpiredEventIds();
-  return processedEvents.has(eventId);
+  return dedupService.isEventProcessed(eventId);
 };
 
-// Mark event as processed
+// Mark event as processed (using deduplication service)
 const markEventProcessed = (eventId: string) => {
-  processedEvents.set(eventId, Date.now());
+  dedupService.markEventProcessed(eventId);
 };
 
 // Event callbacks registry

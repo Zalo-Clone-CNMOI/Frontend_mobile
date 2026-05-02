@@ -210,7 +210,7 @@ export const mapApiMessageToChatMessage = (
 
     text: body,
 
-    timestamp: toNumberTimestamp(dto.createdAt, dto.timestamp, dto.sentAt),
+    timestamp: toNumberTimestamp(dto.createdAt, dto.timestamp, dto.sent_at),
 
     fileInfo: firstAttachment
 
@@ -238,23 +238,23 @@ export const mapApiMessageToChatMessage = (
 
       dto.replyTo ||
 
-      (dto.replyToMessageId ? { id: String(dto.replyToMessageId) } : undefined),
+      (dto.reply_to_message_id ? { id: String(dto.reply_to_message_id) } : undefined),
 
-    forwardedFrom: dto.forwardedFrom
+    forwardedFrom: dto.forwarded_from
 
       ? {
 
-          sourceMessageId: dto.forwardedFrom.sourceMessageId,
+          sourceMessageId: dto.forwarded_from.source_message_id,
 
-          sourceConversationId: dto.forwardedFrom.sourceConversationId,
+          sourceConversationId: dto.forwarded_from.source_conversation_id,
 
-          sourceSenderId: dto.forwardedFrom.sourceSenderId,
+          sourceSenderId: dto.forwarded_from.source_sender_id,
 
-          sourceSenderNameSnapshot: dto.forwardedFrom.sourceSenderNameSnapshot,
+          sourceSenderNameSnapshot: dto.forwarded_from.source_sender_name_snapshot,
 
-          sourceCreatedAt: dto.forwardedFrom.sourceCreatedAt,
+          sourceCreatedAt: dto.forwarded_from.source_created_at,
 
-          sourceType: dto.forwardedFrom.sourceType,
+          sourceType: dto.forwarded_from.source_type,
 
         }
 
@@ -318,21 +318,21 @@ export const mapSocketMessageEventToChatMessage = (
 
       createdAt: event.created_at ?? event.createdAt ?? event.timestamp ?? event.ts,
 
-      forwardedFrom: event.forwarded_from
+      forwarded_from: event.forwarded_from
 
         ? {
 
-            sourceMessageId: event.forwarded_from.source_message_id,
+            source_message_id: event.forwarded_from.source_message_id,
 
-            sourceConversationId: event.forwarded_from.source_conversation_id,
+            source_conversation_id: event.forwarded_from.source_conversation_id,
 
-            sourceSenderId: event.forwarded_from.source_sender_id,
+            source_sender_id: event.forwarded_from.source_sender_id,
 
-            sourceSenderNameSnapshot: event.forwarded_from.source_sender_name_snapshot,
+            source_sender_name_snapshot: event.forwarded_from.source_sender_name_snapshot,
 
-            sourceCreatedAt: event.forwarded_from.source_created_at,
+            source_created_at: event.forwarded_from.source_created_at,
 
-            sourceType: event.forwarded_from.source_type,
+            source_type: event.forwarded_from.source_type,
 
           }
 

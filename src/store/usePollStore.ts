@@ -256,7 +256,7 @@ export const usePollStore = create<PollState>((set, get) => ({
           if (payload.question !== undefined) updated.question = payload.question;
           if (payload.allow_multiple !== undefined) updated.allow_multiple = payload.allow_multiple;
           if (payload.allow_add_option !== undefined) updated.allow_add_option = payload.allow_add_option;
-          if (payload.expires_at !== undefined) updated.expires_at = payload.expires_at;
+          if (payload.expires_at !== undefined) updated.expires_at = typeof payload.expires_at === 'string' ? parseInt(payload.expires_at, 10) : payload.expires_at;
           if (payload.edited_option_labels) {
             updated.options = updated.options.map(opt => {
               const edited = payload.edited_option_labels?.find(

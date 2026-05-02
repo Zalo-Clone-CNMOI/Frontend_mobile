@@ -79,6 +79,55 @@ export function useChatDetailScreenLogic() {
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
 
   const messages = useMessagesStore((state) => state.messagesByChatId[chatId] || EMPTY_MESSAGES);
+
+  // Multi-select state for forwarding multiple messages
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
+
+  // Enter multi-select mode
+  const enterMultiSelectMode = useCallback(() => {
+    setIsMultiSelectMode(true);
+    setSelectedMessageIds(new Set());
+  }, []);
+
+  // Exit multi-select mode
+  const exitMultiSelectMode = useCallback(() => {
+    setIsMultiSelectMode(false);
+    setSelectedMessageIds(new Set());
+  }, []);
+
+  // Toggle message selection
+  const toggleMessageSelection = useCallback((messageId: string) => {
+    setSelectedMessageIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // Select all messages
+  const selectAllMessages = useCallback(() => {
+    const allIds = messages.map(m => m.id).filter(Boolean);
+    setSelectedMessageIds(new Set(allIds));
+  }, [messages]);
+
+  // Get selected messages data
+  const selectedMessages = useMemo(() => {
+    return messages.filter(m => selectedMessageIds.has(m.id));
+  }, [messages, selectedMessageIds]);
+
+  // Handle batch forward
+  const handleBatchForward = useCallback(() => {
+    if (selectedMessages.length === 0) return;
+    // Open forward modal with multiple messages
+    setIsForwardModalVisible(true);
+  }, [selectedMessages]);
+
+  // Handle batch forward for multiple messages
   const addMessage = useMessagesStore((state) => state.addMessage);
   const setMessagesForChat = useMessagesStore((state) => state.setMessagesForChat);
   const updateMessage = useMessagesStore((state) => state.updateMessage);
@@ -86,6 +135,74 @@ export function useChatDetailScreenLogic() {
   const revokeMessage = useMessagesStore((state) => state.revokeMessage);
   const addReaction = useMessagesStore((state) => state.addReaction);
   const removeReaction = useMessagesStore((state) => state.removeReaction);
+
+  // Handle batch forward for multiple messages
+  const handleBatchForwardMessages = useCallback(async (
+    messagesToForward: ChatMessage[],
+    targetConversationIds: string[],
+    optionalMessage?: string
+  ) => {
+    if (!messagesToForward || messagesToForward.length === 0 || !targetConversationIds || targetConversationIds.length === 0) {
+      console.log('[handleBatchForwardMessages] Invalid input');
+      return;
+    }
+    
+    try {
+      console.log('[handleBatchForwardMessages] Starting batch forward:', {
+        messageCount: messagesToForward.length,
+        targetCount: targetConversationIds.length,
+      });
+      
+      // Forward each message one by one
+      const results = [];
+      for (const message of messagesToForward) {
+        try {
+          const result = await forwardMessage(message, targetConversationIds);
+          results.push({ messageId: message.id, success: true, result });
+        } catch (error) {
+          console.error('[handleBatchForwardMessages] Failed to forward message:', message.id, error);
+          results.push({ messageId: message.id, success: false, error });
+        }
+      }
+      
+      // Send optional message if provided
+      if (optionalMessage && optionalMessage.trim()) {
+        const acceptedConversationIds = [...targetConversationIds];
+        
+        console.log('[handleBatchForwardMessages] Sending optional message to:', acceptedConversationIds);
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        for (const conversationId of acceptedConversationIds) {
+          try {
+            const { optimisticMessage, sendPromise } = await sendSocketMessage(
+              conversationId,
+              optionalMessage.trim(),
+              undefined,
+              undefined
+            );
+            addMessage(conversationId, optimisticMessage);
+            await sendPromise;
+            updateMessage(conversationId, optimisticMessage.id, { status: 'sent' });
+          } catch (error) {
+            console.error('[handleBatchForwardMessages] Failed to send optional message to:', conversationId, error);
+          }
+        }
+      }
+      
+      const successCount = results.filter(r => r.success).length;
+      Alert.alert(
+        t('chat.forward_success', { defaultValue: 'Đã chuyển tiếp tin nhắn' }),
+        `${successCount}/${messagesToForward.length} tin nhắn đến ${targetConversationIds.length} cuộc trò chuyện`
+      );
+    } catch (error: any) {
+      console.error('[handleBatchForwardMessages] Batch forward failed:', error?.message || error);
+      Alert.alert(
+        t('chat.forward_failed', { defaultValue: 'Chuyển tiếp thất bại' }),
+        error?.message || 'Không thể chuyển tiếp tin nhắn'
+      );
+    }
+  }, [addMessage, updateMessage, forwardMessage, sendSocketMessage, t]);
   const updateChat = useChatsStore((state) => state.updateChat);
   const updateLastMessage = useChatsStore((state) => state.updateLastMessage);
   const resetUnreadCount = useChatsStore((state) => state.resetUnreadCount);
@@ -382,6 +499,7 @@ export function useChatDetailScreenLogic() {
   }, [addMessage, chatId, replyingMessage, updateMessage]);
 
   const openMessageActions = useCallback((msg: ChatMessage) => {
+    // Show action menu on long press
     setSelectedActionMessage(msg);
     setIsMessageActionMenuVisible(true);
   }, []);
@@ -404,11 +522,11 @@ export function useChatDetailScreenLogic() {
   }, []);
 
   const handleForwardAction = useCallback((msg: ChatMessage) => {
-    setSelectedActionMessage(msg);
-    // Use setTimeout to ensure state update is processed before opening modal
-    setTimeout(() => {
-      setIsForwardModalVisible(true);
-    }, 0);
+    // Close action menu and enter multi-select mode
+    setIsMessageActionMenuVisible(false);
+    setIsMultiSelectMode(true);
+    setSelectedMessageIds(new Set([msg.id]));
+    // selectedActionMessage is kept for reference when forwarding
   }, []);
 
   const handleForward = useCallback(async (message: ChatMessage, targetConversationIds: string[], optionalMessage?: string) => {
@@ -825,6 +943,18 @@ export function useChatDetailScreenLogic() {
     isMessageActionMenuVisible,
     isForwardModalVisible,
     setIsForwardModalVisible,
+    // Multi-select exports
+    isMultiSelectMode,
+    setIsMultiSelectMode,
+    selectedMessageIds,
+    setSelectedMessageIds,
+    enterMultiSelectMode,
+    exitMultiSelectMode,
+    toggleMessageSelection,
+    selectAllMessages,
+    selectedMessages,
+    handleBatchForward,
+    handleBatchForwardMessages,
     editingMessage,
     handleCancelEdit,
     handleReuseRevokedMessage,

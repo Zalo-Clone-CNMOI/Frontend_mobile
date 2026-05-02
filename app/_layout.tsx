@@ -7,6 +7,7 @@ import * as SystemUI from 'expo-system-ui';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { AppRealtimeBridge } from '../src/components/app/AppRealtimeBridge';
+import { ChatSocketBridge } from '../src/components/app/ChatSocketBridge';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import { initializeLanguage } from '../src/i18n';
 import '../src/i18n/config';
@@ -82,6 +83,7 @@ function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
       />
       <Background style={{ flex: 1, backgroundColor: theme.colors.statusBar }}>
         <AppRealtimeBridge />
+        <ChatSocketBridge />
         {children}
       </Background>
     </NavigationThemeProvider>

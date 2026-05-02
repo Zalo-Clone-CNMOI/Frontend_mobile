@@ -24,7 +24,10 @@
     "creating": "Đang tạo",
     "updating": "Đang cập nhật...",
     "accept": "Chấp nhận",
-    "reject": "Từ chối"
+    "reject": "Từ chối",
+    "you": "Bạn",
+    "unknown": "Không xác định",
+    "select_all": "Chọn tất cả"
   },
 
   "navigation": {
@@ -219,7 +222,29 @@
     "disband_confirm": "Bạn có chắc muốn giải tán nhóm này? Hành động này không thể hoàn tác.",
     "disband": "Giải tán",
     "disband_group": "Giải tán nhóm",
-    "leave_title": "Rời nhóm"
+    "leave_title": "Rời nhóm",
+    "pin": "Ghim hội thoại",
+    "unpin": "Bỏ ghim",
+    "pin_success": "Đã ghim hội thoại",
+    "unpin_success": "Đã bỏ ghim hội thoại",
+    "unpin_convestion":"Bỏ ghim hội thoại",
+    "unpin_desc":"Bỏ ghim hội thoại này",
+    "pin_desc":"Ghim hội thoại này"
+  },
+
+  "conversation": {
+    "leave": "Rời hội thoại",
+    "leave_success": "Đã rời hội thoại",
+    "leave_error": "Không thể rời hội thoại"
+  },
+
+  "message": {
+    "sent_image": "đã gửi ảnh",
+    "sent_video": "đã gửi video",
+    "sent_file": "đã gửi tệp",
+    "sent_voice": "đã gửi tin nhắn thoại",
+    "poll": "Bình chọn",
+    "no_message": "Không có tin nhắn"
   },
 
   "polls_screen": {
@@ -255,6 +280,9 @@
     "contact": "Liên hệ",
     "document": "Tài liệu",
     "reply_to": "Trả lời",
+    "image": "Hình ảnh",
+    "video": "Video",
+    "voice": "Tin nhắn thoại",
     "pin": "Ghim",
     "unpin": "Bỏ ghim",
     "forward": "Chuyển tiếp",
@@ -612,8 +640,11 @@
     "loading": "Đang tải...",
     "noConversations": "Không tìm thấy cuộc trò chuyện nào",
     "message": "Tin nhắn",
-    "messagePlaceholder": "Nhập tin nhắn"
+    "messages": "tin nhắn",
+    "messagePlaceholder": "Nhập tin nhắn",
+    "multiple_messages": "Nhiều tin nhắn được chọn"
   },
+
   "messageType": {
     "sentMultipleImages": "đã gửi nhiều ảnh",
     "sentImage": "đã gửi 1 ảnh",

@@ -294,7 +294,7 @@ export const useChatSocket = () => {
     socket.on('chat:message:deleted', handleMessageDeleted);
     socket.on('chat:reaction:added', handleReactionAdded);
     socket.on('chat:reaction:removed', handleReactionRemoved);
-    socket.on('chat.system_message', handleSystemMessage);
+    socket.on('chat:system-message', handleSystemMessage);
     socket.on('chat:message:pinned', handleMessagePinned);
     socket.on('chat:message:unpinned', handleMessageUnpinned);
     socket.on('presence:update', handlePresenceUpdate);
@@ -314,7 +314,7 @@ export const useChatSocket = () => {
       socket.off('chat:message:deleted', handleMessageDeleted);
       socket.off('chat:reaction:added', handleReactionAdded);
       socket.off('chat:reaction:removed', handleReactionRemoved);
-      socket.off('chat.system_message', handleSystemMessage);
+      socket.off('chat:system-message', handleSystemMessage);
       socket.off('chat:message:pinned', handleMessagePinned);
       socket.off('chat:message:unpinned', handleMessageUnpinned);
       socket.off('presence:update', handlePresenceUpdate);

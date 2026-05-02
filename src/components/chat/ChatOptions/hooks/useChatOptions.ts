@@ -92,17 +92,12 @@ export const useChatOptions = ({
   const myRole = currentMember?.role || mySettings.role;
   const myNickname = mySettings.nickname || '';
   const memberCount = cachedConversation?.memberCount ?? memberCountProp;
-  const chatAvatar = cachedConversation?.avatarUrl || undefined;
-
-  // Debug log
-  console.log('[useChatOptions] Role debug:', {
-    chatId,
-    currentUserId,
-    currentMemberRole: currentMember?.role,
-    cacheRole: mySettings.role,
-    finalRole: myRole,
-    foundInMembers: !!currentMember,
-  });
+  // For 1-1 conversations, get avatar from other user in members list
+  // For groups, use conversation's avatarUrl
+  const otherUser = !isGroup ? members.find((m) => m.userId !== currentUserId) : null;
+  const chatAvatar = isGroup
+    ? (cachedConversation?.avatarUrl || undefined)
+    : (otherUser?.avatarUrl || cachedConversation?.avatarUrl || undefined);
 
   const storeFetchConversationDetail = useConversationDetailStore(
     (state) => state.fetchConversationDetail
@@ -129,7 +124,6 @@ export const useChatOptions = ({
       // Always force refresh for groups to get accurate role from API
       // API conversations list doesn't return myRole, so we need detail API
       if (isGroup) {
-        console.log('[useChatOptions] Force refresh conversation detail for group:', chatId);
         storeFetchConversationDetail(chatId, true).catch(() => {});
       } else {
         storeFetchConversationDetail(chatId).catch(() => {});

@@ -38,8 +38,7 @@ export type SystemEventType =
   | 'member_left'
   | 'role_changed'
   | 'owner_transferred'
-  | 'group_disbanded'
-  | 'nickname_changed';
+  | 'group_disbanded';
 
 export interface SystemMessageMetadata {
   added_by?: string;
@@ -119,6 +118,9 @@ export type ReplyInfo = {
   senderId?: string;
   senderName?: string;
   text?: string;
+  type?: MessageType;
+  thumbnailUrl?: string;
+  attachmentUrl?: string;
 };
 
 export type ForwardedFrom = {

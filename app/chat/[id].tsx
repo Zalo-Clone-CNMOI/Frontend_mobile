@@ -25,10 +25,10 @@ import { useTheme } from '@/src/theme/themeContext';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Bell, ChevronDown, ChevronUp, Circle, List, Phone, Search, X } from 'lucide-react-native';
+import { Bell, ChevronDown, ChevronUp, Circle, Forward, List, Phone, Search, X } from 'lucide-react-native';
 import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
 import { PresenceText } from '@/src/components/common/PresenceIndicator';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { leaveConversation, addMember, markAsRead, getConversationDetail, disbandConversation } from '@/src/services/conversationsApi';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -106,6 +106,18 @@ export default function ChatDetailScreen() {
     isMessageActionMenuVisible,
     isForwardModalVisible,
     setIsForwardModalVisible,
+    // Multi-select
+    isMultiSelectMode,
+    setIsMultiSelectMode,
+    selectedMessageIds,
+    setSelectedMessageIds,
+    enterMultiSelectMode,
+    exitMultiSelectMode,
+    toggleMessageSelection,
+    selectAllMessages,
+    selectedMessages,
+    handleBatchForward,
+    handleBatchForwardMessages,
     // Search
     isSearchMode,
     toggleSearchMode,
@@ -624,6 +636,12 @@ export default function ChatDetailScreen() {
         onForwardPress={handleForwardAction}
         onNavigateToForwarded={handleNavigateToForwarded}
         isPinned={isMessagePinned(chatId, item.id)}
+        // Multi-select props
+        isMultiSelectMode={isMultiSelectMode}
+        isSelected={selectedMessageIds.has(item.id)}
+        onToggleSelection={toggleMessageSelection}
+        // Messages for reply lookup
+        messages={messages}
       />
     );
   }, [
@@ -646,6 +664,10 @@ export default function ChatDetailScreen() {
     chatId,
     isMessagePinned,
     members,
+    isMultiSelectMode,
+    selectedMessageIds,
+    toggleMessageSelection,
+    messages,
   ]);
 
   return (
@@ -668,6 +690,19 @@ export default function ChatDetailScreen() {
           },
           headerTintColor: theme.colors.textHeader,
           headerTitle: () => {
+            // Multi-select mode header
+            if (isMultiSelectMode) {
+              return (
+                <View style={styles.headerTitleContainer}>
+                  <View style={styles.headerTextContainer}>
+                    <Text style={[styles.headerTitle, { color: theme.colors.textHeader }]}>
+                      {t('forward.selectedCount', { count: selectedMessageIds.size, defaultValue: `Đã chọn: ${selectedMessageIds.size}` })}
+                    </Text>
+                  </View>
+                </View>
+              );
+            }
+
             // Get other user info for direct chat
             const otherUserId = (currentChat as any)?.otherUserId ||
                    (currentChat as any)?.userId ||
@@ -711,7 +746,13 @@ export default function ChatDetailScreen() {
           },
           headerRight: () => (
             <View style={styles.headerRightContainer}>
-              {!isSearchMode && (
+              {isMultiSelectMode ? (
+                <TouchableOpacity style={styles.callButton} onPress={exitMultiSelectMode}>
+                  <Text style={[styles.cancelButtonText, { color: theme.colors.primary }]}>
+                    {t('common.cancel', { defaultValue: 'Hủy' })}
+                  </Text>
+                </TouchableOpacity>
+              ) : !isSearchMode && (
                 <>
                   <TouchableOpacity
                     style={styles.callButton}
@@ -722,7 +763,7 @@ export default function ChatDetailScreen() {
                   <TouchableOpacity style={styles.callButton} onPress={handleOpenSearch}>
                     <Search size={20} color={theme.colors.iconHeader} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.callButton} onPress={() => router.push({ pathname: `/chatOptions/${chatId}`, params: { name: title, isGroup: currentChat?.isGroup ? 'true' : 'false' } })}>
+                  <TouchableOpacity style={styles.callButton} onPress={() => router.push(`/chatOptions/${chatId}?name=${encodeURIComponent(title)}&isGroup=${currentChat?.isGroup ? 'true' : 'false'}` as any)}>
                     <List size={20} color={theme.colors.iconHeader} />
                   </TouchableOpacity>
                 </>
@@ -808,6 +849,7 @@ export default function ChatDetailScreen() {
         <FlashList
           ref={flashListRef}
           data={isSearchMode ? searchResults : messages}
+          extraData={messages} // Force re-render when messages array changes
           keyExtractor={(item, index) => String(item.id || `${item.conversationId || 'chat'}:${item.senderId || ''}:${item.timestamp || 0}:${item.text || ''}:${index}`)}
           contentContainerStyle={[styles.listContent, { paddingBottom: listBottomPadding }]}
           keyboardShouldPersistTaps="handled"
@@ -829,15 +871,40 @@ export default function ChatDetailScreen() {
           ) : null}
         />
 
+        {/* Multi-select action bar */}
+        {isMultiSelectMode && (
+          <View style={[styles.multiSelectBar, { backgroundColor: theme.colors.background, borderTopColor: theme.colors.border }]}>
+            <TouchableOpacity
+              style={styles.multiSelectAction}
+              onPress={selectAllMessages}
+            >
+              <Text style={[styles.multiSelectActionText, { color: theme.colors.primary }]}>
+                {t('common.select_all', { defaultValue: 'Chọn tất cả' })}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.multiSelectAction, selectedMessageIds.size === 0 && styles.multiSelectActionDisabled]}
+              onPress={handleBatchForward}
+              disabled={selectedMessageIds.size === 0}
+            >
+              <Forward size={24} color={selectedMessageIds.size === 0 ? theme.colors.icon : theme.colors.primary} />
+              <Text style={[styles.multiSelectActionText, { color: selectedMessageIds.size === 0 ? theme.colors.icon : theme.colors.primary }]}>
+                {t('forward.title', { defaultValue: 'Chia sẻ' })}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View>
-          {isTypingVisible ? <TypingIndicator text={typingText} /> : null}
-          <ChatComposer
-            value={input}
-            onChangeText={setInput}
-            onSend={onSend}
-            onSendFiles={handleSendFiles}
-            onTypingStart={handleTypingStart}
-            onTypingStop={handleTypingStop}
+          {isTypingVisible && !isMultiSelectMode ? <TypingIndicator text={typingText} /> : null}
+          {!isMultiSelectMode && (
+            <ChatComposer
+              value={input}
+              onChangeText={setInput}
+              onSend={onSend}
+              onSendFiles={handleSendFiles}
+              onTypingStart={handleTypingStart}
+              onTypingStop={handleTypingStop}
             editingTo={
               editingMessage
                 ? {
@@ -855,7 +922,8 @@ export default function ChatDetailScreen() {
                 : null
             }
             onCancelReply={() => setReplyingMessage(null)}
-          />
+            />
+          )}
         </View>
 
         <ImageViewer
@@ -924,8 +992,16 @@ export default function ChatDetailScreen() {
         <ForwardModal
           visible={isForwardModalVisible}
           message={selectedActionMessage}
-          onClose={() => setIsForwardModalVisible(false)}
+          messages={selectedMessages.length > 1 ? selectedMessages : undefined}
+          onClose={() => {
+            setIsForwardModalVisible(false);
+            // Exit multi-select mode when closing forward modal
+            if (isMultiSelectMode) {
+              exitMultiSelectMode();
+            }
+          }}
           onForward={handleForward}
+          onBatchForward={handleBatchForwardMessages}
         />
 
         {/* Group Management Modals */}
@@ -1067,5 +1143,31 @@ const styles = StyleSheet.create({
   highlightedMessage: {
     backgroundColor: 'rgba(255, 193, 7, 0.3)', // Yellow highlight like Zalo
     borderRadius: 8,
+  },
+  // Multi-select styles
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  multiSelectBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+  },
+  multiSelectAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  multiSelectActionDisabled: {
+    opacity: 0.5,
+  },
+  multiSelectActionText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
