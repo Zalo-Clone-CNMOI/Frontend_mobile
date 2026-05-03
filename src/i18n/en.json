@@ -27,7 +27,8 @@
     "reject": "Reject",
     "you": "You",
     "unknown": "Unknown",
-    "select_all": "Select All"
+    "select_all": "Select All",
+    "notice": "Notice"
   },
 
   "navigation": {
@@ -35,7 +36,7 @@
       "messages": "Messages",
       "contacts": "Contacts",
       "discover": "Discover",
-      "timeline": "Timeline",
+      "ai_chat": "AI Chat",
       "profile": "Profile"
     },
     "headers": {
@@ -88,8 +89,8 @@
     "slide1_subtitle": "Smooth video calls anytime, anywhere",
     "slide2_title": "Fast Messaging",
     "slide2_subtitle": "Send messages instantly with large file support",
-    "slide3_title": "Friends Timeline",
-    "slide3_subtitle": "Keep beautiful moments with family and friends"
+    "slide3_title": "AI Assistant",
+    "slide3_subtitle": "Get intelligent help with your conversations and tasks"
   },
 
   "chat": {
@@ -238,7 +239,6 @@
     "delete_group": "Delete Group",
     "change_nickname": "Change Nickname",
     "mark_best_friend": "Mark as Best Friend",
-    "shared_timeline": "Shared Timeline",
     "language": "Language",
     "view_all": "View All",
     "media_error": "Failed to load media",
@@ -373,16 +373,7 @@
     "unknown_user": "Unknown user"
   },
 
-  "timeline": {
-    "title": "Timeline",
-    "scan_qr": "Scan QR Code",
-    "add_friend": "Add Friend",
-    "minutes_ago": "{{count}} minutes",
-    "hours_ago": "{{count}} hours",
-    "days_ago": "{{count}} days",
-    "default_user": "User"
-  },
-
+  
   "settings": {
     "title": "Settings",
     "account": "Account & Security",
@@ -399,7 +390,6 @@
     "notifications_menu": "Notifications",
     "messages_menu": "Messages",
     "calls_menu": "Calls",
-    "timeline_menu": "Timeline",
     "contacts_menu": "Contacts"
   },
 
@@ -725,5 +715,18 @@
     "expiredAlertMessage": "This poll has ended and no more votes can be cast.",
     "viewResults": "View Results",
     "voteButton": "VOTE"
+  },
+
+  "ai_chat": {
+    "title": "AI Assistant",
+    "subtitle": "Smart Assistant",
+    "typing_text": "AI is typing...",
+    "suggestions_title": "Suggestions:",
+    "input_placeholder": "Type your message to AI...",
+    "welcome_message": "Hello! I'm your AI assistant. I can help you find information, answer questions, and assist with various tasks. What would you like to know?",
+    "error_message": "Unable to connect to AI. Please try again later.",
+    "error_title": "Error",
+    "file_upload_notice": "File upload feature will be available soon",
+    "ai_message_alert": "AI Message"
   }
 }

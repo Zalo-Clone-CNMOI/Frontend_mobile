@@ -62,16 +62,40 @@ class StoreUpdateBatcher {
 
     // Execute updates for each store
     updatesByStore.forEach((storeUpdates, store) => {
-      storeUpdates.forEach(update => {
-        try {
-          // Call the store action with the payload
-          if (typeof store[update.action] === 'function') {
-            store[update.action](update.payload);
+      // For updateLastMessage, only keep the latest update per conversation to prevent duplicates
+      if (storeUpdates.length > 0 && storeUpdates[0].action === 'updateLastMessage') {
+        const latestUpdatesByConversation = new Map<string, StoreUpdate>();
+        
+        storeUpdates.forEach(update => {
+          const conversationId = update.payload?.conversationId;
+          if (conversationId) {
+            // Keep only the latest update for each conversation
+            latestUpdatesByConversation.set(conversationId, update);
           }
-        } catch (error) {
-          console.error('[StoreUpdateBatcher] Error executing update:', error);
-        }
-      });
+        });
+
+        // Execute only the latest updates
+        latestUpdatesByConversation.forEach(update => {
+          try {
+            if (typeof store[update.action] === 'function') {
+              store[update.action](update.payload);
+            }
+          } catch (error) {
+            console.error('[StoreUpdateBatcher] Error executing update:', error);
+          }
+        });
+      } else {
+        // For other actions, execute all updates
+        storeUpdates.forEach(update => {
+          try {
+            if (typeof store[update.action] === 'function') {
+              store[update.action](update.payload);
+            }
+          } catch (error) {
+            console.error('[StoreUpdateBatcher] Error executing update:', error);
+          }
+        });
+      }
     });
   }
 

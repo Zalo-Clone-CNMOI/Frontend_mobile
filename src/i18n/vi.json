@@ -27,7 +27,8 @@
     "reject": "Từ chối",
     "you": "Bạn",
     "unknown": "Không xác định",
-    "select_all": "Chọn tất cả"
+    "select_all": "Chọn tất cả",
+    "notice": "Thông báo"
   },
 
   "navigation": {
@@ -35,7 +36,7 @@
       "messages": "Tin nhắn",
       "contacts": "Danh bạ",
       "discover": "Khám phá",
-      "timeline": "Nhật ký",
+      "ai_chat": "AI Chat",
       "profile": "Cá nhân"
     },
     "headers": {
@@ -174,7 +175,6 @@
     "delete_group": "Xóa nhóm",
     "change_nickname": "Đổi tên gợi nhớ",
     "mark_best_friend": "Đánh dấu bạn thân",
-    "shared_timeline": "Nhật ký chung",
     "language": "Ngôn ngữ",
     "view_all": "Xem tất cả",
     "media_error": "Không thể tải media",
@@ -430,16 +430,7 @@
     "unknown_user": "Người dùng không xác định"
   },
 
-  "timeline": {
-    "title": "Nhật ký",
-    "scan_qr": "Quét mã QR",
-    "add_friend": "Thêm bạn",
-    "minutes_ago": "{{count}} phút",
-    "hours_ago": "{{count}} giờ",
-    "days_ago": "{{count}} ngày",
-    "default_user": "Người dùng"
-  },
-
+  
   "settings": {
     "title": "Cài đặt",
     "account": "Tài khoản",
@@ -456,7 +447,6 @@
     "notifications_menu": "Thông báo",
     "messages_menu": "Tin nhắn",
     "calls_menu": "Cuộc gọi",
-    "timeline_menu": "Nhật ký",
     "contacts_menu": "Danh bạ"
   },
 
@@ -729,5 +719,18 @@
     "expiredAlertMessage": "Bình chọn này đã kết thúc và không thể bình chọn thêm.",
     "viewResults": "Xem kết quả",
     "voteButton": "BÌNH CHỌN"
+  },
+
+  "ai_chat": {
+    "title": "AI Assistant",
+    "subtitle": "Trợ lý thông minh",
+    "typing_text": "AI đang nhập...",
+    "suggestions_title": "Gợi ý:",
+    "input_placeholder": "Nhập tin nhắn cho AI...",
+    "welcome_message": "Xin chào! Tôi là trợ lý AI thông minh. Tôi có thể giúp bạn tìm kiếm thông tin, trả lời câu hỏi và hỗ trợ các tác vụ khác. Bạn muốn biết điều gì?",
+    "error_message": "Không thể kết nối với AI. Vui lòng thử lại sau.",
+    "error_title": "Lỗi",
+    "file_upload_notice": "Tính năng gửi file sẽ được triển khai sau",
+    "ai_message_alert": "Tin nhắn AI"
   }
 }

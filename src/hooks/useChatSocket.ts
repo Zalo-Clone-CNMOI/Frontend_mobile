@@ -71,6 +71,10 @@ export const useChatSocket = () => {
     const previewContent = formatPreviewContent(enrichedMessage);
     const previewType = detectPreviewTypeFromMessage(enrichedMessage);
     
+    // Only increment unread if message is not from current user
+    const senderId = payload?.sender_id || payload?.senderId || enrichedMessage?.senderId;
+    const shouldIncrementUnread = senderId !== user?.id;
+    
     // ✅ Batch store updates để giảm re-renders
     storeUpdateBatcher.addUpdate({
       store: useChatsStore.getState(),
@@ -80,9 +84,9 @@ export const useChatSocket = () => {
         previewContent,
         previewType,
         createdAt,
-        senderId: payload?.sender_id || payload?.senderId || enrichedMessage?.senderId,
+        senderId,
         senderName: payload?.sender_name || payload?.senderName || enrichedMessage?.senderName,
-        shouldIncrementUnread: true
+        shouldIncrementUnread
       }
     });
 

@@ -62,8 +62,8 @@ export function useChatInput({
 
       addMessage(chatId, optimisticMessage);
       
-      // Update last message in chat list
-      updateLastMessage(chatId, text, 'text', Date.now(), currentUserId, currentUserName);
+      // Update last message in chat list (don't increment unread for own messages)
+      updateLastMessage(chatId, text, 'text', Date.now(), currentUserId, currentUserName, false);
 
       await sendPromise;
       
@@ -100,7 +100,7 @@ export function useChatInput({
 
       addMessage(chatId, optimisticMessage);
       
-      updateLastMessage(chatId, fallbackLabel, 'file', Date.now(), currentUserId, currentUserName);
+      updateLastMessage(chatId, fallbackLabel, 'file', Date.now(), currentUserId, currentUserName, false);
 
       await sendPromise;
       
