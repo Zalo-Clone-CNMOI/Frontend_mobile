@@ -178,9 +178,7 @@ export default function ChatDetailScreen() {
 
       getPinnedMessages(chatId, 20)
         .then((response) => {
-          console.log('[Pinned Messages API Response]:', response);
           const items = response?.data?.items || [];
-          console.log('[Pinned Messages Items]:', items);
 
           // Map API response to ChatMessage format
           const mappedItems = mapPinnedMessagesListFromApi(items, authUser?.id);
@@ -214,16 +212,14 @@ export default function ChatDetailScreen() {
   useEffect(() => {
     if (chatId) {
       setCurrentConversationId(chatId);
-      console.log('[ChatDetail] Set current conversation:', chatId);
     }
     return () => {
       setCurrentConversationId(null);
-      console.log('[ChatDetail] Cleared current conversation');
     };
   }, [chatId]);
 
   // Navigate to original conversation when clicking on forwarded message header
-  const handleNavigateToForwarded = async (forwardedFrom: any) => {
+  const handleNavigateToForwarded = React.useCallback(async (forwardedFrom: any) => {
     try {
       if (!forwardedFrom?.source_conversation_id) {
         Alert.alert('Lỗi', 'Không tìm thấy cuộc trò chuyện gốc');
@@ -272,8 +268,9 @@ export default function ChatDetailScreen() {
       console.error('[handleNavigateToForwarded] Error:', error);
       Alert.alert('Lỗi', 'Không thể chuyển đến cuộc trò chuyện gốc');
     }
-  };
+  }, [chatId, flashListRef, router, setHighlightedMessageId]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleFilePress = async (item: any) => {
     try {
       if (!authUser?.id) {
@@ -304,8 +301,7 @@ export default function ChatDetailScreen() {
         );
       }
 
-      console.log('[handleFilePress] Download URL:', downloadUrl);
-
+      
       // Open file in browser for download
       try {
         await WebBrowser.openBrowserAsync(downloadUrl);
@@ -323,6 +319,7 @@ export default function ChatDetailScreen() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleLoadReactions = async (messageId: string) => {
     try {
       const reactions = await getMessageReactions(messageId);
@@ -359,8 +356,7 @@ export default function ChatDetailScreen() {
     try {
       const messageId = message.messageId || message.id;
       const createdAt = message.createdAt || message.timestamp;
-      console.log('[Unpin Message] messageId:', messageId, 'createdAt:', createdAt);
-      
+            
       await unpinMessage(chatId, createdAt, messageId);
       // Refresh pinned messages list
       const response = await getPinnedMessages(chatId, 20);
@@ -427,7 +423,6 @@ export default function ChatDetailScreen() {
 
   const handleOpenChatOptions = () => {
     if (isOpeningChatOptions) {
-      console.log('[ChatDetail] ChatOptions already opening, ignoring click');
       return;
     }
     
@@ -984,8 +979,7 @@ export default function ChatDetailScreen() {
             // Refresh conversation list to show updated nickname
             // Note: Conversation detail already refreshed by ChatOptions
             // UI updates automatically via store subscription
-            console.log('[ChatDetail] Nickname changed, UI updated via store');
-          }}
+                      }}
         />
         
         <MessageActionMenu

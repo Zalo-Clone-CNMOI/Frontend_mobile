@@ -75,7 +75,6 @@ export const MembersSection: React.FC<MembersSectionProps> = ({
 
   const handleViewAllPress = () => {
     if (isNavigating) {
-      console.log('[MembersSection] Already navigating to members, ignoring click');
       return;
     }
 

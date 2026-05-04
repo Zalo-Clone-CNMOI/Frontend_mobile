@@ -41,6 +41,7 @@ export function GroupInviteDetailModal({
   const creatorName = inviterNameProp || '';
 
   const handleJoin = async () => {
+    if (joining || rejecting) return; // Prevent double click
     setJoining(true);
     try {
       await acceptInvite(groupId, inviteId);
@@ -61,6 +62,7 @@ export function GroupInviteDetailModal({
   };
 
   const handleReject = async () => {
+    if (joining || rejecting) return; // Prevent double click
     setRejecting(true);
     try {
       await rejectInvite(groupId, inviteId);
@@ -88,10 +90,8 @@ export function GroupInviteDetailModal({
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <TouchableOpacity
-          activeOpacity={1}
+        <View
           style={[styles.container, { backgroundColor: theme.colors.card }]}
-          onPress={(e: any) => e.stopPropagation()}
         >
           {/* Header */}
           <View style={styles.header}>
@@ -141,7 +141,7 @@ export function GroupInviteDetailModal({
                   {t('group_errors.invite_message')}
                 </Text>
                 <Text style={[styles.messageText, { color: theme.colors.text }]}>
-                  "{inviteMessage}"
+                  {inviteMessage}
                 </Text>
               </View>
             )}
@@ -174,7 +174,7 @@ export function GroupInviteDetailModal({
               </TouchableOpacity>
             </View>
           </View>
-        </TouchableOpacity>
+        </View>
       </Pressable>
     </Modal>
   );

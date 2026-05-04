@@ -161,7 +161,7 @@ export function ConversationInvitesModal({
           </Text>
           {invite.message && (
             <Text style={[styles.inviteMessage, { color: theme.colors.icon }]} numberOfLines={2}>
-              "{invite.message}"
+              {invite.message}
             </Text>
           )}
           <Text style={[styles.inviteDate, { color: theme.colors.icon }]}>
