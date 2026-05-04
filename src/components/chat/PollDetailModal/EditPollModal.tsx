@@ -199,7 +199,9 @@ export const EditPollModal: React.FC<EditPollModalProps> = ({
               <Text style={styles.sectionLabel}>
                 {t('pollDetail.editOptions', 'Sửa lựa chọn')}
               </Text>
-              {poll.options.map((option) => {
+              {poll.options.filter((option, index, self) => 
+                self.findIndex(o => o.option_id === option.option_id) === index
+              ).map((option) => {
                 const hasVotes = option.vote_count > 0;
                 const editedLabel = editedOptionLabels.find(e => e.option_id === option.option_id)?.label;
                 const currentLabel = editedLabel || option.label;

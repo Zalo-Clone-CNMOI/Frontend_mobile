@@ -185,6 +185,11 @@ export const PollOptions: React.FC<PollOptionsProps> = ({
   // Show results if: has votes OR is closed OR expired
   const showResults = poll.total_votes > 0 || isClosed;
 
+  // Filter duplicate options by option_id to prevent React key errors
+  const uniqueOptions = poll.options.filter((option, index, self) => 
+    self.findIndex(o => o.option_id === option.option_id) === index
+  );
+
   // Check if current user can remove an option (creator only, option has no votes)
   const canRemoveOption = (option: PollOption): boolean => {
     if (!currentUserId) return false;
@@ -196,9 +201,9 @@ export const PollOptions: React.FC<PollOptionsProps> = ({
 
   return (
     <View style={styles.optionsContainer}>
-      {poll.options.map((option, index) => (
+      {uniqueOptions.map((option, index) => (
         <OptionItem
-          key={`${option.option_id}-${option.label}`}
+          key={option.option_id}
           option={option}
           index={index}
           isSelected={selectedOptions.includes(option.option_id)}

@@ -728,10 +728,27 @@ function registerSocketListeners() {
   };
 
   const handleMessageDeleted = (payload: any) => {
+    const messageId = payload?.message_id;
+    const conversationId = payload?.conversation_id;
+    const deletedAt = payload?.deleted_at;
+
+    if (!messageId || !conversationId) return;
+
+    // Apply same logic as revokeMessage for real-time sync
+    const { revokeMessage, removePinnedMessage, isMessagePinned } = require('../store/useMessagesStore').useMessagesStore.getState();
+    
+    // Auto unpin when message is deleted
+    if (isMessagePinned(conversationId, messageId)) {
+      removePinnedMessage(conversationId, messageId);
+    }
+
+    // Apply delete/revoke logic
+    revokeMessage(conversationId, messageId);
+
     _handlers.onMessageDeleted?.({
-      messageId: payload?.message_id,
-      conversationId: payload?.conversation_id,
-      deletedAt: payload?.deleted_at,
+      messageId,
+      conversationId,
+      deletedAt,
     });
   };
 
