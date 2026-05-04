@@ -189,16 +189,23 @@ export const useChatOptions = ({
   }, [chatId, router, onLeaveSuccess, t]);
 
   const handleAddMember = useCallback(() => {
+    if (isNavigatingToMembers) {
+      return;
+    }
+
+    setIsNavigatingToMembers(true);
     router.push({
       pathname: '/createGroup',
       params: { conversationId: chatId, mode: 'addMember' },
     } as any);
-  }, [chatId, router]);
+    
+    // Reset navigation flag after a delay
+    setTimeout(() => setIsNavigatingToMembers(false), 1000);
+  }, [chatId, router, isNavigatingToMembers]);
 
   const handleViewMembers = useCallback(
     (onClose: () => void) => {
       if (isNavigatingToMembers) {
-        console.log('[ChatOptions] Already navigating to members, ignoring click');
         return;
       }
 
@@ -207,9 +214,10 @@ export const useChatOptions = ({
         pathname: '/groupMembers',
         params: {
           conversationId: chatId,
-          chatName: chatName,
-          currentUserId: currentUserId,
-          myRole: myRole,
+          chatName,
+          currentUserId,
+          myRole,
+          isGroup: String(isGroup),
         },
       } as any);
       onClose();
@@ -217,12 +225,11 @@ export const useChatOptions = ({
       // Reset navigation state after a short delay
       setTimeout(() => setIsNavigatingToMembers(false), 300);
     },
-    [chatId, chatName, currentUserId, myRole, router, isNavigatingToMembers]
+    [chatId, chatName, currentUserId, myRole, isGroup, router, isNavigatingToMembers]
   );
 
   const handleViewAllMedia = useCallback(() => {
     if (isNavigatingToMedia) {
-      console.log('[ChatOptions] Already navigating to media gallery, ignoring click');
       return;
     }
 
@@ -238,7 +245,6 @@ export const useChatOptions = ({
 
   const handleViewPolls = useCallback(() => {
     if (isNavigatingToPolls) {
-      console.log('[ChatOptions] Already navigating to polls, ignoring click');
       return;
     }
 

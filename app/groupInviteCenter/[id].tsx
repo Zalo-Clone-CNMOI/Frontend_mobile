@@ -24,6 +24,15 @@ import { GroupInviteDTO as Invite, GroupInviteStatus } from '@/src/types/dto/Api
 import { ChevronLeft } from 'lucide-react-native';
 import { subscribeToGroupInviteEvents, unsubscribeFromGroupInviteEvents } from '@/src/services/groupInviteSocketHandler';
 import { useAuth } from '@/src/contexts/AuthContext';
+import { NETWORK_CONFIG } from '@/src/config/network';
+
+const normalizeAvatar = (avatar?: string | null): string | null => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
+  }
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
+};
 
 type TabType = 'invite' | 'view';
 type StatusFilter = 'all' | 'pending' | 'accepted' | 'rejected' | 'expired';
@@ -437,6 +446,7 @@ export default function GroupInviteCenterScreen() {
                   <AvatarWithInitials
                     name={friend.fullName}
                     size={44}
+                    avatarUrl={normalizeAvatar(friend.avatarUrl)}
                   />
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text 
@@ -541,6 +551,7 @@ export default function GroupInviteCenterScreen() {
                 <AvatarWithInitials
                   name={invitedName}
                   size={44}
+                  avatarUrl={normalizeAvatar(invitedFriend?.avatarUrl)}
                 />
                 <View style={styles.inviteContent}>
                   <Text style={[styles.inviteName, { color: theme.colors.text }]}>
@@ -551,7 +562,7 @@ export default function GroupInviteCenterScreen() {
                   </Text>
                   {invite.message && (
                     <Text style={[styles.inviteMessage, { color: theme.colors.icon }]} numberOfLines={2}>
-                      "{invite.message}"
+                      {invite.message}
                     </Text>
                   )}
                   <Text style={[styles.inviteDate, { color: theme.colors.icon }]}>

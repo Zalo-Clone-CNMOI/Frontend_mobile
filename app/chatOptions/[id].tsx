@@ -1,6 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { Bell, BellOff, ChevronLeft, FileText, List, Pin, Search, UserPlus } from 'lucide-react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -105,6 +105,22 @@ export default function ChatOptionsScreen() {
     } catch (error: any) {
       toast.error(error.message || 'Không thể thực hiện thao tác');
     }
+  };
+
+  // Navigation debouncing state
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  const handleNavigateToInviteCenter = () => {
+    if (isNavigating) return; // Prevent multiple navigation calls
+    setIsNavigating(true);
+    
+    router.push({
+      pathname: '/groupInviteCenter/[id]',
+      params: { id: chatId, name: chatName },
+    } as any);
+    
+    // Reset navigation flag after a delay
+    setTimeout(() => setIsNavigating(false), 1000);
   };
 
   const handleRoleChangePress = (member: any) => {
@@ -327,10 +343,8 @@ export default function ChatOptionsScreen() {
           {isGroup && myRole !== 'member' && (
             <TouchableOpacity
               style={[chatOptionsStyles.optionItem, { borderBottomColor: theme.colors.border }]}
-              onPress={() => router.push({
-                pathname: '/groupInviteCenter/[id]',
-                params: { id: chatId, name: chatName },
-              } as any)}
+              onPress={handleNavigateToInviteCenter}
+              disabled={isNavigating}
             >
               <View style={chatOptionsStyles.optionLeft}>
                 <View
