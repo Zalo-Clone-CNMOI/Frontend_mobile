@@ -51,11 +51,16 @@ export function PollVoteOptions({
     return Math.round((voteCount / totalVotes) * 100);
   };
 
+  // Filter duplicate options by option_id to prevent React key errors
+  const uniqueOptions = poll.options.filter((option, index, self) => 
+    self.findIndex(o => o.option_id === option.option_id) === index
+  );
+
   const getMostVotedOptionIds = (): string[] => {
     if (!showResults || totalVotes === 0) return [];
-    const maxVotes = Math.max(...poll.options.map(o => o.vote_count));
+    const maxVotes = Math.max(...uniqueOptions.map(o => o.vote_count));
     if (maxVotes === 0) return [];
-    return poll.options
+    return uniqueOptions
       .filter(o => o.vote_count === maxVotes)
       .map(o => o.option_id);
   };
@@ -64,7 +69,7 @@ export function PollVoteOptions({
 
   return (
     <View style={styles.container}>
-      {poll.options.map((option, index) => {
+      {uniqueOptions.map((option, index) => {
         const isSelected = selectedOptions.includes(option.option_id);
         const percentage = calculatePercentage(option.vote_count);
         const isMostVoted = mostVotedIds.includes(option.option_id);

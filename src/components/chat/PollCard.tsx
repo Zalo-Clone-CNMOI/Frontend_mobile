@@ -37,18 +37,105 @@ export function PollCard({
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [hasVoted, setHasVoted] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [currentPollData, setCurrentPollData] = useState(metadata);
 
-  // Sync with store
+  // Sync with store - get full poll data for real-time updates
   useEffect(() => {
-    const poll = pollStore.getPollById(metadata.poll_id);
-    if (poll && 'my_vote' in poll && Array.isArray(poll.my_vote)) {
-      setSelectedOptions(poll.my_vote || []);
-      setHasVoted((poll.my_vote?.length || 0) > 0);
-    }
+    const updateFromStore = () => {
+      const poll = pollStore.getPollById(metadata.poll_id);
+      if (poll) {
+        console.log('[PollCard] Updating from store:', {
+          pollId: metadata.poll_id,
+          my_vote: 'my_vote' in poll ? poll.my_vote : undefined,
+          total_votes: 'total_votes' in poll ? poll.total_votes : poll.total_votes,
+          status: 'status' in poll ? poll.status : metadata.status,
+          options_count: poll.options?.length || metadata.options?.length
+        });
+        
+        // Update current poll data with store data (merge with metadata as fallback)
+        const rawOptions = poll.options || metadata.options;
+        
+        // Filter duplicate options by option_id to prevent React key errors
+        const uniqueOptions = rawOptions.filter((option, index, self) => 
+          self.findIndex(o => o.option_id === option.option_id) === index
+        );
+        
+        const mergedPoll = {
+          ...metadata,
+          ...poll,
+          // Ensure we have all required fields
+          poll_id: metadata.poll_id,
+          question: poll.question || metadata.question,
+          options: uniqueOptions,
+          total_votes: 'total_votes' in poll ? poll.total_votes : metadata.total_votes,
+          status: 'status' in poll ? poll.status : metadata.status,
+          expires_at: poll.expires_at || metadata.expires_at,
+          allow_multiple: poll.allow_multiple ?? metadata.allow_multiple,
+          allow_add_option: poll.allow_add_option ?? metadata.allow_add_option,
+        };
+        
+        setCurrentPollData(mergedPoll);
+        
+        // Update vote state
+        if ('my_vote' in poll && Array.isArray(poll.my_vote)) {
+          setSelectedOptions(poll.my_vote || []);
+          setHasVoted((poll.my_vote?.length || 0) > 0);
+        }
+      }
+    };
+
+    // Initial sync
+    updateFromStore();
+
+    // Subscribe to store changes using Zustand
+    const unsubscribe = usePollStore.subscribe((state) => {
+      const poll = state.pollDetails.get(metadata.poll_id) || state.pollMetadata.get(metadata.poll_id);
+      if (poll) {
+        console.log('[PollCard] Store change detected:', {
+          pollId: metadata.poll_id,
+          my_vote: 'my_vote' in poll ? poll.my_vote : undefined,
+          total_votes: 'total_votes' in poll ? poll.total_votes : poll.total_votes,
+          status: 'status' in poll ? poll.status : metadata.status,
+          options_count: poll.options?.length || metadata.options?.length,
+          question: 'question' in poll ? poll.question : metadata.question
+        });
+        
+        // Update current poll data
+        const rawOptions = poll.options || metadata.options;
+        
+        // Filter duplicate options by option_id to prevent React key errors
+        const uniqueOptions = rawOptions.filter((option, index, self) => 
+          self.findIndex(o => o.option_id === option.option_id) === index
+        );
+        
+        const mergedPoll = {
+          ...metadata,
+          ...poll,
+          poll_id: metadata.poll_id,
+          question: poll.question || metadata.question,
+          options: uniqueOptions,
+          total_votes: 'total_votes' in poll ? poll.total_votes : metadata.total_votes,
+          status: 'status' in poll ? poll.status : metadata.status,
+          expires_at: poll.expires_at || metadata.expires_at,
+          allow_multiple: poll.allow_multiple ?? metadata.allow_multiple,
+          allow_add_option: poll.allow_add_option ?? metadata.allow_add_option,
+        };
+        
+        setCurrentPollData(mergedPoll);
+        
+        // Update vote state
+        if ('my_vote' in poll && Array.isArray(poll.my_vote)) {
+          setSelectedOptions(poll.my_vote || []);
+          setHasVoted((poll.my_vote?.length || 0) > 0);
+        }
+      }
+    });
+
+    return unsubscribe;
   }, [metadata.poll_id]);
 
-  const isClosed = metadata.status === 'closed';
-  const isExpired = metadata.expires_at && Date.now() > metadata.expires_at;
+  const isClosed = currentPollData.status === 'closed';
+  const isExpired = currentPollData.expires_at && Date.now() > currentPollData.expires_at;
 
   const handleCardPress = () => {
     if (isClosed || isExpired) {
@@ -66,7 +153,7 @@ export function PollCard({
     if (isClosed || isExpired) return;
 
     const poll = pollStore.getPollById(metadata.poll_id);
-    const isMultiple = poll?.allow_multiple ?? metadata.allow_multiple;
+    const isMultiple = poll?.allow_multiple ?? currentPollData.allow_multiple;
 
     let newSelection: string[];
 
@@ -116,12 +203,12 @@ export function PollCard({
       >
         {/* Question */}
         <Text style={styles.question} numberOfLines={2}>
-          {metadata.question}
+          {currentPollData.question}
         </Text>
 
         {/* Options */}
         <View style={styles.optionsContainer}>
-          {metadata.options.map((option) => (
+          {currentPollData.options.map((option) => (
             <TouchableOpacity
               key={option.option_id}
               style={[
@@ -167,7 +254,7 @@ export function PollCard({
           <View style={styles.footer}>
             <View style={styles.divider} />
             <Text style={styles.voteCount}>
-              {metadata.total_votes || 0} {t('poll.votes')}
+              {currentPollData.total_votes || 0} {t('poll.votes')}
             </Text>
           </View>
         )}
