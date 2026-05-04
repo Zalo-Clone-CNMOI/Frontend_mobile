@@ -297,17 +297,34 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       return {
         messagesByChatId: {
           ...state.messagesByChatId,
-          [chatId]: existing.map((m) =>
-            m.id === messageId
-              ? {
-                  ...m,
-                  revokedBackupText: m.revokedBackupText || m.text || '',
+          [chatId]: existing.map((m) => {
+            const isTargetMessage = m.id === messageId;
+            const replyTo = m.replyTo;
+            const isReplyToTarget = replyTo?.id === messageId;
+
+            if (!isTargetMessage && !isReplyToTarget) return m;
+
+            return {
+              ...m,
+              // Handle target message deletion
+              ...(isTargetMessage ? {
+                revokedBackupText: m.revokedBackupText || m.text || '',
+                text: '',
+                isRevoked: true,
+                revokeRestoreUntil: now + REVOKED_RESTORE_TTL_MS,
+              } : {}),
+              // Handle reply to deleted message
+              ...(replyTo && isReplyToTarget ? {
+                replyTo: {
+                  ...replyTo,
+                  id: replyTo.id,
+                  senderId: replyTo.senderId,
                   text: '',
                   isRevoked: true,
-                  revokeRestoreUntil: now + REVOKED_RESTORE_TTL_MS,
-                }
-              : m
-          ),
+                },
+              } : {}),
+            };
+          }),
         },
       };
     });

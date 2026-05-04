@@ -7,6 +7,7 @@ import { createSocket, getSocket } from "./socket";
 import { getDeduplicationService } from "./deduplicationService";
 import { generateUUID } from "../utils/uuid";
 import { toLegacyChatMessage, enrichReplyToDetails } from "./chatUtils";
+import { useMessagesStore } from "../store/useMessagesStore";
 
 // Deduplication service
 const dedupService = getDeduplicationService();
@@ -210,13 +211,22 @@ export async function editMessage(
 }
 
 /**
- * Delete a message via socket
+ * Delete a message via socket with optimistic update
  */
 export async function deleteMessage(
   conversationId: string,
   messageId: string,
   createdAt: number
 ): Promise<void> {
+  // Optimistic update - mark message as deleted immediately
+  const { revokeMessage, removePinnedMessage, isMessagePinned } = useMessagesStore.getState();
+  revokeMessage(conversationId, messageId);
+  
+  // Auto unpin when message is deleted
+  if (isMessagePinned(conversationId, messageId)) {
+    removePinnedMessage(conversationId, messageId);
+  }
+
   const socket = await createSocket();
   socket.emit("chat:delete", {
     message_id: messageId,

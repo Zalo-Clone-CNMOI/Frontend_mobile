@@ -108,7 +108,7 @@ export default function InviteCenterScreen() {
           </Text>
           <View style={styles.inviterRow}>
             <Text style={[styles.inviterLabel, { color: theme.colors.icon }]}>
-              {t('group_errors.invited_by') || 'Invited by'}
+              {t('group_errors.invited_by')}
             </Text>
             <Text style={[styles.inviterName, { color: theme.colors.text }]}>
               {item.inviter?.fullName || 'Unknown'}
@@ -122,7 +122,7 @@ export default function InviteCenterScreen() {
           <View style={styles.metaRow}>
             <Users size={14} color={theme.colors.icon} />
             <Text style={[styles.memberCount, { color: theme.colors.icon }]}>
-              {item.conversation?.memberCount || 0} {t('group_errors.members') || 'members'}
+              {item.conversation?.memberCount || 0} {t('group_errors.members')}
             </Text>
             <Clock size={14} color={theme.colors.icon} style={styles.metaIcon} />
             <Text style={[styles.expiry, { color: isExpired ? '#ef4444' : theme.colors.icon }]}>
@@ -177,8 +177,8 @@ export default function InviteCenterScreen() {
       <Bell size={48} color={theme.colors.icon} />
       <Text style={[styles.emptyText, { color: theme.colors.icon }]}>
         {activeTab === 'pending'
-          ? (t('group_errors.no_pending_invites') || 'No pending invites')
-          : (t('group_errors.no_history') || 'No history')}
+          ? t('group_errors.no_pending_invites')
+          : t('group_errors.no_history')}
       </Text>
     </View>
   );
@@ -191,7 +191,7 @@ export default function InviteCenterScreen() {
           <ChevronLeft size={24} color={theme.colors.iconHeader} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.colors.iconHeader }]}>
-          {t('group_errors.invite_center') || 'Group Invites'}
+          {t('group_errors.invite_center')}
         </Text>
         {unreadCount > 0 && (
           <View style={styles.badge}>
@@ -216,7 +216,7 @@ export default function InviteCenterScreen() {
               { color: activeTab === 'pending' ? theme.colors.primary : theme.colors.icon },
             ]}
           >
-            {t('group_errors.pending') || 'Pending'}
+            {t('group_errors.pending')}
           </Text>
           {receivedInvites.pending.length > 0 && (
             <View style={[styles.tabBadge, { backgroundColor: theme.colors.primary }]}>
@@ -238,7 +238,7 @@ export default function InviteCenterScreen() {
               { color: activeTab === 'history' ? theme.colors.primary : theme.colors.icon },
             ]}
           >
-            {t('group_errors.history') || 'History'}
+            {t('group_errors.history')}
           </Text>
         </TouchableOpacity>
       </View>

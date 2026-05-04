@@ -876,7 +876,7 @@ export default function ChatDetailScreen() {
           ListEmptyComponent={isSearchMode && searchQuery.length > 0 && !isSearching ? (
             <View style={styles.emptySearchContainer}>
               <Text style={[styles.emptySearchText, { color: theme.colors.icon }]}>
-                Không tìm thấy tin nhắn nào cho "{searchQuery}"
+                Không tìm thấy tin nhắn nào cho {searchQuery}
               </Text>
             </View>
           ) : null}
