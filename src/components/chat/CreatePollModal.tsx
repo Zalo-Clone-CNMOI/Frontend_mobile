@@ -272,6 +272,7 @@ export function CreatePollModal({
   // UI state
   const [showExpiry, setShowExpiry]   = useState(false);
   const [showDiscard, setShowDiscard] = useState(false);
+  const [isCreatingAction, setIsCreatingAction] = useState(false);
 
   const nextId = useRef(3);
 
@@ -343,11 +344,18 @@ export function CreatePollModal({
   }, [question, options]);
 
   const handleCreate = useCallback(async () => {
+    if (isCreatingAction || isCreating) {
+      console.log('[CreatePollModal] Poll creation already in progress, ignoring click');
+      return;
+    }
+
     const error = validate();
     if (error) {
       Alert.alert('Lỗi', error);
       return;
     }
+
+    setIsCreatingAction(true);
     try {
       const validOptions = options.filter(o => o.label.trim());
       const result = await createPoll(conversationId, {
@@ -413,6 +421,8 @@ export function CreatePollModal({
       }
 
       Alert.alert('Lỗi', message);
+    } finally {
+      setIsCreatingAction(false);
     }
   }, [
     validate, createPoll, conversationId, question, options,

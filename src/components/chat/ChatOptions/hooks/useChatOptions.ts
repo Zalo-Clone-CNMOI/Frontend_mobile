@@ -110,6 +110,11 @@ export const useChatOptions = ({
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const [roleSelectionVisible, setRoleSelectionVisible] = useState(false);
+  
+  // Navigation protection states
+  const [isNavigatingToMembers, setIsNavigatingToMembers] = useState(false);
+  const [isNavigatingToPolls, setIsNavigatingToPolls] = useState(false);
+  const [isNavigatingToMedia, setIsNavigatingToMedia] = useState(false);
 
   // Sub-hooks
   const media = useMediaGallery({ chatId, currentUserId });
@@ -192,6 +197,12 @@ export const useChatOptions = ({
 
   const handleViewMembers = useCallback(
     (onClose: () => void) => {
+      if (isNavigatingToMembers) {
+        console.log('[ChatOptions] Already navigating to members, ignoring click');
+        return;
+      }
+
+      setIsNavigatingToMembers(true);
       router.push({
         pathname: '/groupMembers',
         params: {
@@ -202,23 +213,44 @@ export const useChatOptions = ({
         },
       } as any);
       onClose();
+      
+      // Reset navigation state after a short delay
+      setTimeout(() => setIsNavigatingToMembers(false), 300);
     },
-    [chatId, chatName, currentUserId, myRole, router]
+    [chatId, chatName, currentUserId, myRole, router, isNavigatingToMembers]
   );
 
   const handleViewAllMedia = useCallback(() => {
+    if (isNavigatingToMedia) {
+      console.log('[ChatOptions] Already navigating to media gallery, ignoring click');
+      return;
+    }
+
+    setIsNavigatingToMedia(true);
     router.push({
       pathname: '/media-gallery',
       params: { conversationId: chatId, chatName: chatName },
     });
-  }, [chatId, chatName, router]);
+    
+    // Reset navigation state after a short delay
+    setTimeout(() => setIsNavigatingToMedia(false), 300);
+  }, [chatId, chatName, router, isNavigatingToMedia]);
 
   const handleViewPolls = useCallback(() => {
+    if (isNavigatingToPolls) {
+      console.log('[ChatOptions] Already navigating to polls, ignoring click');
+      return;
+    }
+
+    setIsNavigatingToPolls(true);
     router.push({
       pathname: '/conversationPolls',
       params: { conversationId: chatId, chatName },
     } as any);
-  }, [chatId, chatName, router]);
+    
+    // Reset navigation state after a short delay
+    setTimeout(() => setIsNavigatingToPolls(false), 300);
+  }, [chatId, chatName, router, isNavigatingToPolls]);
 
   const handleMediaPress = useCallback(
     (item: any) => {

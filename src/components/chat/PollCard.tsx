@@ -38,6 +38,7 @@ export function PollCard({
   const [hasVoted, setHasVoted] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [currentPollData, setCurrentPollData] = useState(metadata);
+  const [isModalOpening, setIsModalOpening] = useState(false);
 
   // Sync with store - get full poll data for real-time updates
   useEffect(() => {
@@ -138,15 +139,34 @@ export function PollCard({
   const isExpired = currentPollData.expires_at && Date.now() > currentPollData.expires_at;
 
   const handleCardPress = () => {
+    // Prevent multiple clicks while modal is opening or already open
+    if (isModalOpening || showDetailModal) {
+      console.log('[PollCard] Modal already opening or open, ignoring click');
+      return;
+    }
+
     if (isClosed || isExpired) {
       Alert.alert(
         t('poll.expiredAlertTitle'),
         t('poll.expiredAlertMessage'),
-        [{ text: t('poll.viewResults'), onPress: () => setShowDetailModal(true) }]
+        [{ text: t('poll.viewResults'), onPress: () => {
+          if (!isModalOpening && !showDetailModal) {
+            setIsModalOpening(true);
+            setShowDetailModal(true);
+            // Reset opening state after a short delay
+            setTimeout(() => setIsModalOpening(false), 300);
+          }
+        }}]
       );
       return;
     }
+
+    // Set opening state and show modal
+    setIsModalOpening(true);
     setShowDetailModal(true);
+    
+    // Reset opening state after a short delay to prevent rapid clicks
+    setTimeout(() => setIsModalOpening(false), 300);
   };
 
   const handleToggleOption = async (optionId: string) => {
@@ -266,6 +286,7 @@ export function PollCard({
           visible={showDetailModal}
           onClose={() => {
             setShowDetailModal(false);
+            setIsModalOpening(false); // Reset opening state when modal closes
             // Force refresh to get latest poll data
             const poll = pollStore.getPollById(metadata.poll_id);
             if (poll && 'my_vote' in poll && Array.isArray(poll.my_vote)) {

@@ -39,6 +39,7 @@ export const useMembers = ({
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [selectedRole, setSelectedRole] = useState<'admin' | 'member'>('member');
   const [roleUpdating, setRoleUpdating] = useState(false);
+  const [removingMember, setRemovingMember] = useState(false);
 
   const refreshConversationDetails = useConversationDetailStore(
     (state) => state.fetchConversationDetail
@@ -86,6 +87,11 @@ export const useMembers = ({
 
   const handleRemoveMember = useCallback(
     (member: Member) => {
+      if (removingMember) {
+        console.log('[useMembers] Member removal already in progress, ignoring click');
+        return;
+      }
+
       Alert.alert(
         t('chat_options.remove_member'),
         t('chat_options.remove_member_confirm', { name: member.fullName }),
@@ -95,6 +101,8 @@ export const useMembers = ({
             text: t('chat_options.remove'),
             style: 'destructive',
             onPress: async () => {
+              if (removingMember) return; // Double check
+              setRemovingMember(true);
               try {
                 await removeMember(chatId, member.userId);
                 Alert.alert(t('common.success'), t('chat_options.remove_member_success'));
@@ -103,13 +111,15 @@ export const useMembers = ({
                   t('common.error'),
                   error.message || t('chat_options.remove_member_failed')
                 );
+              } finally {
+                setRemovingMember(false);
               }
             },
           },
         ]
       );
     },
-    [chatId, t]
+    [chatId, t, removingMember]
   );
 
   return {
