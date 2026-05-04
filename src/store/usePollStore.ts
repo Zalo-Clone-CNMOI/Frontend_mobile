@@ -220,6 +220,13 @@ export const usePollStore = create<PollState>((set, get) => ({
       const response = await getPollDetail(conversationId, pollId);
       const detail = response.data;
       
+      console.log('[PollStore] fetchPollDetail response:', {
+        pollId,
+        my_vote: detail.my_vote,
+        total_votes: detail.total_votes,
+        hasMyVote: Boolean(detail.my_vote && detail.my_vote.length > 0)
+      });
+      
       set((state) => {
         const newPollDetails = new Map(state.pollDetails);
         newPollDetails.set(pollId, detail);
@@ -233,6 +240,7 @@ export const usePollStore = create<PollState>((set, get) => ({
       
       return detail;
     } catch (err: any) {
+      console.error('[PollStore] fetchPollDetail error:', err);
       set({ error: err.message || 'Failed to fetch poll detail' });
       return null;
     }
@@ -283,29 +291,36 @@ export const usePollStore = create<PollState>((set, get) => ({
   },
   
   castVote: async (conversationId: string, pollId: string, optionIds: string[]) => {
+    console.log('[PollStore] castVote called:', { pollId, optionIds });
     set({ isVoting: true, error: null });
     try {
       const response = await castVote(conversationId, pollId, { option_ids: optionIds });
+      console.log('[PollStore] castVote API response:', response.data);
 
       // Optimistically update user votes and vote counts
       set((state) => {
         const newUserVotes = new Map(state.userVotes);
         newUserVotes.set(pollId, optionIds);
+        console.log('[PollStore] Updated userVotes for poll:', pollId, optionIds);
 
         // Optimistically update poll detail vote counts
         const newDetails = new Map(state.pollDetails);
         const existing = newDetails.get(pollId);
         if (existing) {
+          const previousVote = existing.my_vote || [];
+          console.log('[PollStore] Previous my_vote:', previousVote, 'New my_vote:', optionIds);
+          
           const updated = {
             ...existing,
-            total_voters: (existing.total_voters || 0) + (existing.my_vote?.length === 0 ? 1 : 0),
+            total_voters: (existing.total_voters || 0) + (previousVote.length === 0 ? 1 : 0),
             my_vote: optionIds,
           };
           updated.options = updated.options.map(opt => ({
             ...opt,
-            vote_count: opt.vote_count + (optionIds.includes(opt.option_id) ? 1 : 0) - (existing.my_vote?.includes(opt.option_id) ? 1 : 0),
+            vote_count: opt.vote_count + (optionIds.includes(opt.option_id) ? 1 : 0) - (previousVote.includes(opt.option_id) ? 1 : 0),
           }));
           newDetails.set(pollId, updated);
+          console.log('[PollStore] Updated poll detail with my_vote:', optionIds);
         }
 
         return { userVotes: newUserVotes, pollDetails: newDetails, isVoting: false };
@@ -315,6 +330,7 @@ export const usePollStore = create<PollState>((set, get) => ({
       get().fetchPollDetail(conversationId, pollId, true).catch(console.error);
 
     } catch (err: any) {
+      console.error('[PollStore] castVote error:', err);
       set({ error: err.message || 'Failed to cast vote', isVoting: false });
       throw err;
     }
@@ -563,7 +579,7 @@ export const usePollStore = create<PollState>((set, get) => ({
     if (eventId && get().isEventProcessed(eventId)) return;
     
     // Note: In v1, tally may be empty - we should refetch detail
-    // But we'll update what we have
+    // But we'll update what we have while preserving my_vote
     
     set((state) => {
       const newMetadata = new Map(state.pollMetadata);
@@ -590,16 +606,20 @@ export const usePollStore = create<PollState>((set, get) => ({
       return { pollMetadata: newMetadata };
     });
     
-    // Also update poll detail
+    // Also update poll detail - preserve my_vote to avoid losing user's selection
     set((state) => {
       const newDetails = new Map(state.pollDetails);
       const existing = newDetails.get(payload.poll_id);
       
       if (existing) {
+        // Preserve my_vote from existing data to avoid losing user selection
+        const preservedMyVote = existing.my_vote || [];
+        
         const updated = {
           ...existing,
           total_votes: payload.total_votes,
           total_voters: payload.total_voters,
+          my_vote: preservedMyVote, // Preserve user's vote
         };
         
         if (payload.tally && payload.tally.length > 0) {
@@ -619,7 +639,7 @@ export const usePollStore = create<PollState>((set, get) => ({
     
     if (eventId) get().markEventProcessed(eventId);
     
-    console.log('[PollStore] Poll vote updated:', payload.poll_id);
+    console.log('[PollStore] Poll vote updated:', payload.poll_id, 'preserved my_vote');
   },
   
   handlePollOptionAdded: (payload: GroupPollOptionAddedPayload, eventId?: string) => {

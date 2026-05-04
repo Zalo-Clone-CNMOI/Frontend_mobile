@@ -5,11 +5,13 @@ import { fetchRuntimeFriendSnapshot } from '../../services/realtime/runtimeFrien
 import { useRealtimeStore } from '../../store/useRealtimeStore';
 import { useChatsStore } from '../../store/useChatsStore';
 import { getSocket } from '../../services/socket';
+import { usePollSocket } from '../../hooks/usePollSocket';
 
 /**
- * ChatSocketBridge - Component to initialize chat socket listeners
+ * ChatSocketBridge - Component to initialize chat and poll socket listeners
  * This component calls initChat function to register socket event listeners
  * for chat messages, reactions, presence, etc.
+ * It also initializes usePollSocket to automatically refresh UI when poll events are received.
  * It should be placed in the app layout to ensure socket listeners are registered
  * when the user is authenticated.
  *
@@ -18,6 +20,9 @@ import { getSocket } from '../../services/socket';
  */
 export function ChatSocketBridge() {
   const { isAuthenticated, user } = useAuth();
+  
+  // Initialize poll socket listeners to automatically refresh UI on poll events
+  usePollSocket();
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id) {
