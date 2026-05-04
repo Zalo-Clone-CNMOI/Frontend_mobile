@@ -1,5 +1,5 @@
 import { Crown, Shield, Trash2, User } from 'lucide-react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -71,6 +71,20 @@ export const MembersSection: React.FC<MembersSectionProps> = ({
   onRemoveMember,
 }) => {
   const { t } = useTranslation();
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  const handleViewAllPress = () => {
+    if (isNavigating) {
+      console.log('[MembersSection] Already navigating to members, ignoring click');
+      return;
+    }
+
+    setIsNavigating(true);
+    onViewAll();
+    
+    // Reset navigation state after a short delay
+    setTimeout(() => setIsNavigating(false), 300);
+  };
 
   const renderMemberItem = ({ item }: { item: Member }) => {
     const showChangeRole = canChangeRole(item);
@@ -118,7 +132,7 @@ export const MembersSection: React.FC<MembersSectionProps> = ({
     <View style={[styles.additionalOptions, { backgroundColor: theme.colors.card }]}>
       <TouchableOpacity
         style={[styles.optionItem, { borderBottomColor: theme.colors.border }]}
-        onPress={onViewAll}
+        onPress={handleViewAllPress}
       >
         <View style={styles.optionLeft}>
           <View

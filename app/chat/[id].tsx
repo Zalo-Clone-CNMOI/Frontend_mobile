@@ -164,6 +164,9 @@ export default function ChatDetailScreen() {
   // Pinned messages state
   const [pinnedMessages, setPinnedMessagesList] = useState<any[]>([]);
   const [showPinnedSection, setShowPinnedSection] = useState(false);
+  
+  // Chat options navigation protection
+  const [isOpeningChatOptions, setIsOpeningChatOptions] = useState(false);
 
   // Load pinned messages when chat loads
   useEffect(() => {
@@ -420,6 +423,19 @@ export default function ChatDetailScreen() {
   const handleOpenSearch = () => {
     setShowChatOptions(false);
     toggleSearchMode();
+  };
+
+  const handleOpenChatOptions = () => {
+    if (isOpeningChatOptions) {
+      console.log('[ChatDetail] ChatOptions already opening, ignoring click');
+      return;
+    }
+    
+    setIsOpeningChatOptions(true);
+    router.push(`/chatOptions/${chatId}?name=${encodeURIComponent(title)}&isGroup=${currentChat?.isGroup ? 'true' : 'false'}` as any);
+    
+    // Reset opening state after a short delay
+    setTimeout(() => setIsOpeningChatOptions(false), 300);
   };
 
   // Handle search input change with debounce
@@ -763,7 +779,7 @@ export default function ChatDetailScreen() {
                   <TouchableOpacity style={styles.callButton} onPress={handleOpenSearch}>
                     <Search size={20} color={theme.colors.iconHeader} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.callButton} onPress={() => router.push(`/chatOptions/${chatId}?name=${encodeURIComponent(title)}&isGroup=${currentChat?.isGroup ? 'true' : 'false'}` as any)}>
+                  <TouchableOpacity style={styles.callButton} onPress={handleOpenChatOptions}>
                     <List size={20} color={theme.colors.iconHeader} />
                   </TouchableOpacity>
                 </>

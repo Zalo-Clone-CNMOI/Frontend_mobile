@@ -50,6 +50,7 @@ export function ConversationInvitesModal({
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
+  const [cancellingInviteId, setCancellingInviteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -75,6 +76,11 @@ export function ConversationInvitesModal({
   };
 
   const handleCancelInvite = async (inviteId: string) => {
+    if (cancellingInviteId === inviteId) {
+      console.log('[ConversationInvitesModal] Invite cancellation already in progress, ignoring click');
+      return;
+    }
+
     Alert.alert(
       t('common.confirm'),
       t('group_errors.cancel_invite_confirm') || 'Are you sure you want to cancel this invite?',
@@ -84,12 +90,16 @@ export function ConversationInvitesModal({
           text: t('common.confirm'),
           style: 'destructive',
           onPress: async () => {
+            if (cancellingInviteId === inviteId) return; // Double check
+            setCancellingInviteId(inviteId);
             try {
               await cancelInvite(conversationId, inviteId);
               Alert.alert(t('common.success'), 'Invite cancelled');
               fetchInvites();
             } catch (error: any) {
               Alert.alert(t('common.error'), error.message || 'Failed to cancel invite');
+            } finally {
+              setCancellingInviteId(null);
             }
           },
         },
@@ -166,8 +176,13 @@ export function ConversationInvitesModal({
             <TouchableOpacity
               style={[styles.cancelButton, { borderColor: '#FF3B30' }]}
               onPress={() => handleCancelInvite(invite.id)}
+              disabled={cancellingInviteId === invite.id}
             >
-              <XIcon size={16} color="#FF3B30" />
+              {cancellingInviteId === invite.id ? (
+                <ActivityIndicator size="small" color="#FF3B30" />
+              ) : (
+                <XIcon size={16} color="#FF3B30" />
+              )}
             </TouchableOpacity>
           )}
         </View>

@@ -48,6 +48,16 @@ import { uploadMedia } from '@/src/services/mediaService';
 
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 
+// Avatar normalization function from contact tab
+const normalizeAvatar = (avatar?: string | null): string | null => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    // Replace bucket name if URL from backend uses wrong bucket
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
+  }
+  return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
+};
+
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
 
 import { FriendRecord } from '@/src/types/realtimeBff';
@@ -664,7 +674,7 @@ export default function CreateGroupScreen() {
 
     const friendName = item.fullName || '';
 
-
+    const normalizedAvatarUrl = normalizeAvatar(item.avatarUrl);
 
     return (
 
@@ -689,6 +699,8 @@ export default function CreateGroupScreen() {
           name={friendName}
 
           size={48}
+
+          avatarUrl={normalizedAvatarUrl}
 
         />
 
@@ -1063,6 +1075,8 @@ export default function CreateGroupScreen() {
                   name={friend.fullName}
 
                   size={40}
+
+                  avatarUrl={normalizeAvatar(friend.avatarUrl)}
 
                 />
 

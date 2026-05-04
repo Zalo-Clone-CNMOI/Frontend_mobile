@@ -69,6 +69,8 @@ export const PollDetailModal: React.FC<PollDetailModalProps> = ({
   const [showEditModal, setShowEditModal] = useState(false);
   const [isRemovingOption, setIsRemovingOption] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isVotingAction, setIsVotingAction] = useState(false);
+  const [isAddingOptionAction, setIsAddingOptionAction] = useState(false);
 
   // Check permissions (safe to compute even if poll is null)
   const userCanClose = poll ? canClosePoll(poll, currentUserId, userRole) : false;
@@ -150,8 +152,14 @@ export const PollDetailModal: React.FC<PollDetailModalProps> = ({
     }
   }, [conversationId, pollId, pollStore, onPollEdited, t, loadPollDetail]);
 
-  // Handle vote with error handling
+  // Handle vote with error handling and protection against multiple clicks
   const handleVote = useCallback(async () => {
+    if (isVotingAction || isSubmitting) {
+      console.log('[PollDetailModal] Vote already in progress, ignoring click');
+      return;
+    }
+
+    setIsVotingAction(true);
     try {
       await castVote();
       onVoteSuccess?.();
@@ -161,8 +169,10 @@ export const PollDetailModal: React.FC<PollDetailModalProps> = ({
         t('common.error', 'Lỗi'),
         error.message || t('pollDetail.voteError', 'Không thể bình chọn. Vui lòng thử lại.')
       );
+    } finally {
+      setIsVotingAction(false);
     }
-  }, [castVote, t, onVoteSuccess]);
+  }, [castVote, t, onVoteSuccess, isVotingAction, isSubmitting]);
 
   // Handle remove option
   const handleRemoveOption = useCallback(async (optionId: string) => {
