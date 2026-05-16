@@ -2,6 +2,7 @@ import { BaseHandler } from "./BaseHandler";
 import { useCallStore } from "../../../store/useCallStore";
 import { toast } from "../../toastService";
 import { router } from "expo-router";
+import { callPeerManager } from "../../callPeerManager";
 
 export class CallHandler extends BaseHandler {
   readonly name = "CallHandler";
@@ -148,6 +149,13 @@ export class CallHandler extends BaseHandler {
         type: signalType as "offer" | "answer" | "ice-candidate",
         data,
       });
+
+      await callPeerManager.handleSignal(
+        callId,
+        fromUserId,
+        signalType as "offer" | "answer" | "ice-candidate",
+        data
+      );
     } catch (error) {
       this.error("Failed to handle signaling data", error);
     }

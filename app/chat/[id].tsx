@@ -431,6 +431,7 @@ export default function ChatDetailScreen() {
         params: {
           recipientName: title,
           recipientAvatar: currentChat?.avatar || '',
+          callType: 'audio',
         },
       } as any);
     } catch (error) {
@@ -470,6 +471,7 @@ export default function ChatDetailScreen() {
         params: {
           recipientName: title,
           recipientAvatar: currentChat?.avatar || '',
+          callType: 'video',
         },
       } as any);
     } catch (error) {

@@ -3,15 +3,13 @@ import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 
 export default function CallingRoute() {
-  const { recipientName, recipientAvatar } = useLocalSearchParams<{
+  const params = useLocalSearchParams<{
     recipientName?: string;
     recipientAvatar?: string;
+    callType?: 'audio' | 'video';
   }>();
 
   return (
-    <CallingScreen
-      recipientName={recipientName || 'User'}
-      recipientAvatar={recipientAvatar || undefined}
-    />
+    <CallingScreen callType={params.callType || 'audio'} />
   );
 }

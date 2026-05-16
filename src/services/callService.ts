@@ -3,18 +3,13 @@ import { getSocket } from "./socket";
 import { toast } from "./toastService";
 import { getAuthData } from "./authService";
 import { generateUUID } from "../utils/uuid";
-
-/**
- * Call Service
- * High-level call coordination service
- * Orchestrates call lifecycle and socket event emission
- * Pattern: Service layer between UI and socket/state
- */
+import { callMediaManager } from "./callMediaManager";
+import { callPeerManager } from "./callPeerManager";
 
 export interface InitiateCallParams {
   conversationId: string;
   callType: "audio" | "video";
-  recipientIds?: string[]; // For group calls
+  recipientIds?: string[];
 }
 
 export interface CallEventPayload {
@@ -25,12 +20,8 @@ export interface CallEventPayload {
 
 class CallService {
   private callTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private readonly CALL_TIMEOUT_MS = 60000; // 60 seconds
+  private readonly CALL_TIMEOUT_MS = 60000;
 
-  /**
-   * Initiate a new call
-   * Sends call:start event to server via socket
-   */
   async initiateCall(params: InitiateCallParams): Promise<void> {
     try {
       const socket = getSocket();
@@ -50,10 +41,12 @@ class CallService {
       const startedAt = Date.now();
       const remoteUserId = params.recipientIds?.[0];
 
-      // Initialize call state locally first
       useCallStore.getState().initiateCall(params.conversationId, params.callType, callId, startedAt, remoteUserId);
 
-      // Emit socket event to start call
+      const isVideo = params.callType === "video";
+
+      await callMediaManager.createLocalMediaStream(isVideo);
+
       socket.emit(
         "call:start",
         {
@@ -70,7 +63,6 @@ class CallService {
             useCallStore.getState().endCall();
           } else {
             console.log("[CallService] Call initiated successfully", response);
-            // Set timeout for unanswered calls
             this.setCallTimeout();
           }
         }
@@ -83,14 +75,9 @@ class CallService {
     }
   }
 
-  /**
-   * Accept an incoming call
-   * Sends call:accept event to server via socket
-   */
   async acceptCall(): Promise<void> {
     try {
-      const { acceptIncomingCall, incomingCall } =
-        useCallStore.getState();
+      const { acceptIncomingCall, incomingCall } = useCallStore.getState();
       const socket = getSocket();
       const user = await getAuthData();
 
@@ -107,10 +94,20 @@ class CallService {
         throw new Error("User not authenticated");
       }
 
-      // Accept call locally
       acceptIncomingCall();
 
-      // Emit socket event
+      const isVideo = incomingCall.callType === "video";
+      await callMediaManager.createLocalMediaStream(isVideo);
+
+      const { currentCall } = useCallStore.getState();
+      if (currentCall && currentCall.remoteUserId) {
+        await callPeerManager.acceptCall(
+          currentCall.callId || incomingCall.callId,
+          currentCall.conversationId || incomingCall.conversationId,
+          currentCall.remoteUserId
+        );
+      }
+
       socket.emit(
         "call:accept",
         {
@@ -135,15 +132,10 @@ class CallService {
     }
   }
 
-  /**
-   * Reject an incoming call
-   * Sends call:reject event to server via socket
-   */
   async rejectCall(reason?: string): Promise<void> {
     try {
       const { rejectIncomingCall, incomingCall } = useCallStore.getState();
       const socket = getSocket();
-      const user = await getAuthData();
 
       if (!socket || !socket.connected) {
         throw new Error("Socket not connected");
@@ -153,10 +145,8 @@ class CallService {
         throw new Error("No incoming call to reject");
       }
 
-      // Reject locally
       rejectIncomingCall();
 
-      // Emit socket event
       socket.emit("call:reject", {
         call_id: incomingCall.callId,
         conversation_id: incomingCall.conversationId,
@@ -171,17 +161,12 @@ class CallService {
     }
   }
 
-  /**
-   * End the current call
-   * Sends call:end event to server via socket
-   */
   async endCall(): Promise<void> {
     try {
       let { currentCall } = useCallStore.getState();
       const socket = getSocket();
 
-      if (!currentCall || !currentCall.callId) {
-        // Try to get callId from incomingCall as fallback
+      if (!currentCall?.callId) {
         const { incomingCall } = useCallStore.getState();
         if (incomingCall?.callId) {
           currentCall = incomingCall as any;
@@ -191,10 +176,16 @@ class CallService {
         }
       }
 
-      const callId = currentCall.callId;
+      if (!currentCall) {
+        console.log("[CallService] No active call to end, returning");
+        return;
+      }
+      const callId = currentCall.callId!;
       const conversationId = currentCall.conversationId;
 
-      // Emit socket event BEFORE local cleanup
+      callPeerManager.cleanup();
+      await callMediaManager.stopLocalMedia();
+
       if (socket && socket.connected) {
         socket.emit("call:end", {
           call_id: callId,
@@ -214,11 +205,8 @@ class CallService {
         });
       }
 
-      // End call locally
       const { endCall: storeEndCall } = useCallStore.getState();
       storeEndCall();
-
-      // Clear timeout
       this.clearCallTimeout();
 
       console.log("[CallService] Call ended");
@@ -227,10 +215,6 @@ class CallService {
     }
   }
 
-  /**
-   * Send WebRTC signaling data (SDP, ICE candidates)
-   * Called from callPeerManager after local offer/answer creation
-   */
   async sendSignalingData(
     callId: string,
     conversationId: string,
@@ -268,10 +252,6 @@ class CallService {
     }
   }
 
-  /**
-   * Handle incoming signaling data from peer
-   * Called by CallHandler when receiving signal events
-   */
   handleIncomingSignal(
     callId: string,
     from: string,
@@ -283,21 +263,15 @@ class CallService {
       data.type || data.candidate
     );
 
-    // Signal will be queued in store via CallHandler
-    // callPeerManager will pull from queue
+    callPeerManager.handleSignal(callId, from, type, data);
   }
 
-  /**
-   * Set timeout for unanswered calls
-   * Auto-ends call after CALL_TIMEOUT_MS
-   */
   private setCallTimeout(): void {
     this.clearCallTimeout();
 
     this.callTimeoutId = setTimeout(() => {
       const { callState, endCall } = useCallStore.getState();
 
-      // Only timeout if still ringing/calling
       if (callState === "calling" || callState === "connecting") {
         console.log("[CallService] Call timeout - no response");
         toast.info("Call timed out - no response");
@@ -306,9 +280,6 @@ class CallService {
     }, this.CALL_TIMEOUT_MS);
   }
 
-  /**
-   * Clear call timeout
-   */
   private clearCallTimeout(): void {
     if (this.callTimeoutId) {
       clearTimeout(this.callTimeoutId);
@@ -316,12 +287,15 @@ class CallService {
     }
   }
 
-  /**
-   * Mute/unmute audio in current call
-   */
   toggleCallAudio(enabled: boolean): void {
-    const { toggleAudio, localStream } = useCallStore.getState();
+    const { toggleAudio } = useCallStore.getState();
     toggleAudio(enabled);
+
+    if (enabled) {
+      callMediaManager.unmuteAudio();
+    } else {
+      callMediaManager.muteAudio();
+    }
 
     const socket = getSocket();
     const { currentCall } = useCallStore.getState();
@@ -335,12 +309,15 @@ class CallService {
     }
   }
 
-  /**
-   * Enable/disable video in current call
-   */
   toggleCallVideo(enabled: boolean): void {
     const { toggleVideo } = useCallStore.getState();
     toggleVideo(enabled);
+
+    if (enabled) {
+      callMediaManager.enableVideo();
+    } else {
+      callMediaManager.disableVideo();
+    }
 
     const socket = getSocket();
     const { currentCall } = useCallStore.getState();
@@ -354,10 +331,10 @@ class CallService {
     }
   }
 
-  /**
-   * Handle call recovery/reconnection
-   * Called when socket reconnects and user is in active call
-   */
+  switchCamera(): void {
+    callMediaManager.switchCamera();
+  }
+
   async handleReconnection(conversationId: string): Promise<void> {
     try {
       const socket = getSocket();
@@ -369,7 +346,6 @@ class CallService {
 
       console.log("[CallService] Handling call reconnection");
 
-      // Request current call state from server
       socket.emit(
         "call:state:request",
         {
@@ -379,11 +355,7 @@ class CallService {
         },
         (response: any) => {
           if (response?.callState) {
-            console.log(
-              "[CallService] Recovered call state:",
-              response.callState
-            );
-            // Update store with recovered state
+            console.log("[CallService] Recovered call state:", response.callState);
             if (response.callState.participants) {
               response.callState.participants.forEach((p: any) => {
                 useCallStore.getState().addParticipant(p);
@@ -396,11 +368,14 @@ class CallService {
       console.error("[CallService] Error handling reconnection", error);
     }
   }
+
+  getPeerManager() {
+    return callPeerManager;
+  }
 }
 
 export const callService = new CallService();
 
-// React hook for call service
 export function useCallService() {
   return {
     initiateCall: callService.initiateCall.bind(callService),
@@ -410,6 +385,7 @@ export function useCallService() {
     sendSignalingData: callService.sendSignalingData.bind(callService),
     toggleCallAudio: callService.toggleCallAudio.bind(callService),
     toggleCallVideo: callService.toggleCallVideo.bind(callService),
+    switchCamera: callService.switchCamera.bind(callService),
     handleReconnection: callService.handleReconnection.bind(callService),
   };
 }

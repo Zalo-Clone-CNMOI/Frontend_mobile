@@ -1,144 +1,166 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   Image,
   Animated,
+  Easing,
+  TouchableOpacity,
+  StatusBar,
   Dimensions,
-} from "react-native";
-import { Phone, PhoneOff } from "lucide-react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useTheme } from "@/src/theme/themeContext";
-import { useCallStore } from "@/src/store/useCallStore";
-import { useCallService } from "@/src/services/callService";
-import { getUserProfile } from "@/src/services/usersApi";
-import { useRouter } from "expo-router";
+} from 'react-native';
+import { Phone, PhoneOff, Video } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCallStore } from '@/src/store/useCallStore';
+import { useCallService } from '@/src/services/callService';
+import { getUserProfile } from '@/src/services/usersApi';
+import { useRouter } from 'expo-router';
 
-const { width } = Dimensions.get("window");
+const AVATAR_SIZE = 120;
 
 export function IncomingCallScreen() {
   const { incomingCall, callState } = useCallStore();
   const { acceptCall, rejectCall } = useCallService();
-  const theme = useTheme();
   const router = useRouter();
-  const [callerName, setCallerName] = useState<string>("");
-  const [callerAvatar, setCallerAvatar] = useState<string>("");
-  const [pulseAnim] = useState(new Animated.Value(0));
+
+  const [callerName, setCallerName] = useState('');
+  const [callerAvatar, setCallerAvatar] = useState('');
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  const isVideoCall = incomingCall?.callType === 'video';
 
   useEffect(() => {
-    if (callState === "ended" || callState === "idle") {
+    if (callState === 'ended' || callState === 'idle') {
       router.back();
-    } else if (callState === "connecting" || callState === "active") {
-      router.replace("/call/active");
+    } else if (callState === 'connecting' || callState === 'active') {
+      router.replace({
+        pathname: '/call/active',
+        params: { callType: incomingCall?.callType || 'audio' },
+      });
     }
-  }, [callState, router]);
+  }, [callState, router, incomingCall]);
 
   useEffect(() => {
     if (!incomingCall) return;
-    const fetchCallerProfile = async () => {
+    (async () => {
       try {
         const profile = await getUserProfile(incomingCall.initiatorId);
         if (profile) {
           setCallerName(profile.fullName || profile.nickname || incomingCall.initiatorId);
-          setCallerAvatar(profile.avatarUrl || "");
+          setCallerAvatar(profile.avatarUrl || '');
         } else {
           setCallerName(incomingCall.initiatorId);
         }
       } catch {
         setCallerName(incomingCall.initiatorId);
       }
-    };
-    fetchCallerProfile();
+    })();
   }, [incomingCall]);
 
   useEffect(() => {
-    const pulse = Animated.loop(
+    Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1,
           duration: 1000,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 0,
           duration: 1000,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, []);
+    ).start();
+  }, [pulseAnim]);
+
+  const handleAccept = useCallback(async () => {
+    try {
+      await acceptCall();
+      router.replace({
+        pathname: '/call/active',
+        params: { callType: incomingCall?.callType || 'audio' },
+      });
+    } catch {}
+  }, [acceptCall, router, incomingCall]);
+
+  const handleReject = useCallback(async () => {
+    try {
+      await rejectCall('rejected_by_user');
+      router.back();
+    } catch {}
+  }, [rejectCall, router]);
 
   if (!incomingCall) return null;
 
-  const handleAccept = async () => {
-    try {
-      await acceptCall();
-      router.push("/call/active");
-    } catch (error) {
-      console.error("Error accepting call:", error);
-    }
-  };
-
-  const handleReject = async () => {
-    try {
-      await rejectCall("rejected_by_user");
-      router.back();
-    } catch (error) {
-      console.error("Error rejecting call:", error);
-    }
-  };
-
   const pulseScale = pulseAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.05],
+    outputRange: [1, 1.04],
+  });
+  const pulseOpacity = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.8, 0.3],
   });
 
-  const initial = callerName ? callerName.charAt(0).toUpperCase() : "?";
+  const initial = callerName ? callerName.charAt(0).toUpperCase() : '?';
 
   return (
-    <View style={[styles.container, { backgroundColor: '#1a1a2e' }]}>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.topSection}>
+          <Animated.View
+            style={[
+              styles.glowRing,
+              { transform: [{ scale: pulseScale }], opacity: pulseOpacity },
+            ]}
+          />
           {callerAvatar ? (
             <Image source={{ uri: callerAvatar }} style={styles.avatar} />
           ) : (
             <Animated.View
-              style={[styles.avatarCircle, { transform: [{ scale: pulseScale }] }]}
+              style={[
+                styles.avatarPlaceholder,
+                { transform: [{ scale: pulseScale }] },
+              ]}
             >
-              <Text style={styles.avatarText}>{initial}</Text>
+              <Text style={styles.avatarInitial}>{initial}</Text>
             </Animated.View>
           )}
           <Text style={styles.callerName}>{callerName}</Text>
           <Text style={styles.callType}>
-            {incomingCall.callType === "video" ? "Cuộc gọi video" : "Cuộc gọi thoại"}
+            {isVideoCall ? 'Cuộc gọi video đến' : 'Cuộc gọi thoại đến'}
           </Text>
         </View>
 
         <View style={styles.bottomSection}>
           <TouchableOpacity
-            style={styles.rejectButton}
+            style={styles.actionButton}
             onPress={handleReject}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
             <View style={styles.rejectCircle}>
               <PhoneOff size={28} color="white" />
             </View>
-            <Text style={styles.buttonLabel}>Từ chối</Text>
+            <Text style={styles.actionLabel}>Từ chối</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.acceptButton}
+            style={styles.actionButton}
             onPress={handleAccept}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
             <View style={styles.acceptCircle}>
-              <Phone size={28} color="white" />
+              {isVideoCall ? (
+                <Video size={28} color="white" />
+              ) : (
+                <Phone size={28} color="white" />
+              )}
             </View>
-            <Text style={styles.buttonLabel}>Chấp nhận</Text>
+            <Text style={styles.actionLabel}>Chấp nhận</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -149,84 +171,102 @@ export function IncomingCallScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#1a1a2e',
   },
   safeArea: {
     flex: 1,
-    justifyContent: "space-between",
-    paddingBottom: 50,
+    justifyContent: 'space-between',
+    paddingBottom: 48,
   },
   topSection: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  glowRing: {
+    position: 'absolute',
+    width: AVATAR_SIZE + 40,
+    height: AVATAR_SIZE + 40,
+    borderRadius: (AVATAR_SIZE + 40) / 2,
+    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 20,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
     borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.3)",
-  },
-  avatarCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#2d2d5e",
-    justifyContent: "center",
-    alignItems: "center",
+    borderColor: 'rgba(255,255,255,0.25)',
     marginBottom: 20,
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.3)",
   },
-  avatarText: {
+  avatarPlaceholder: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.25)',
+    marginBottom: 20,
+  },
+  avatarInitial: {
     fontSize: 48,
-    fontWeight: "bold",
-    color: "white",
+    fontWeight: '600',
+    color: 'white',
   },
   callerName: {
     fontSize: 26,
-    fontWeight: "700",
-    color: "white",
+    fontWeight: '700',
+    color: 'white',
     marginBottom: 8,
+    textAlign: 'center',
+    paddingHorizontal: 24,
   },
   callType: {
     fontSize: 15,
-    color: "rgba(255,255,255,0.6)",
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '400',
   },
   bottomSection: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingHorizontal: 60,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 48,
+    alignItems: 'center',
   },
-  acceptButton: {
-    alignItems: "center",
-  },
-  rejectButton: {
-    alignItems: "center",
+  actionButton: {
+    alignItems: 'center',
   },
   acceptCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#4CAF50",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: '#34C759',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 8,
+    shadowColor: '#34C759',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   rejectCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#FF4444",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: '#FF3B30',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 8,
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  buttonLabel: {
-    color: "white",
+  actionLabel: {
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: '500',
   },
 });
