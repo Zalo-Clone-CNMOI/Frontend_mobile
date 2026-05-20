@@ -387,4 +387,62 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  groupSettingsContainer: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  settingsCategory: {
+    marginTop: 8,
+  },
+  settingsCategoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+  },
+  settingsCategoryIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  settingsCategoryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  settingToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+  },
+  settingToggleContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  settingToggleLabel: {
+    fontSize: 15,
+    fontWeight: '400',
+  },
+  settingToggleDescription: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  settingsReadOnlyNotice: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  settingsReadOnlyText: {
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
 });

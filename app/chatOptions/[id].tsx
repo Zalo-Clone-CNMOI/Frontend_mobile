@@ -1,6 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { Bell, BellOff, ChevronLeft, FileText, List, Pin, Search, UserPlus } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -21,10 +21,12 @@ import { NicknameEditModal } from '@/src/components/chat/ChatOptions/modals/Nick
 import { ProfileSection } from '@/src/components/chat/ChatOptions/ProfileSection';
 import { RoleSelectionModal } from '@/src/components/chat/ChatOptions/modals/RoleSelectionModal';
 import { useChatOptions } from '@/src/components/chat/ChatOptions/hooks/useChatOptions';
+import { GroupSettingsSection } from '@/src/components/chat/ChatOptions/GroupSettingsSection';
 import { styles as chatOptionsStyles } from '@/src/components/chat/ChatOptions/styles';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { toast } from '@/src/services/toastService';
 import { useChatsStore } from '@/src/store/useChatsStore';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import { pinConversation, unpinConversation } from '@/src/services/conversationsApi';
 
 export default function ChatOptionsScreen() {
@@ -371,6 +373,15 @@ export default function ChatOptionsScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Group Settings Section - Only for groups */}
+        {isGroup && (
+          <GroupSettingsSection
+            theme={theme}
+            conversationId={chatId}
+            myRole={myRole}
+          />
+        )}
 
         {/* Leave/Disband Group */}
         {isGroup && (

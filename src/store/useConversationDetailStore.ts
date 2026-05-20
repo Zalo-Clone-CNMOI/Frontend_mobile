@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { getConversationDetail } from '../services/conversationsApi';
+import type { GroupSettings } from '../types/group-settings';
 
 export interface ConversationMember {
   id: string;
@@ -35,6 +36,7 @@ interface ConversationDetailState {
     conversation: ConversationDetail;
     members: ConversationMember[];
     mySettings: MySettings;
+    settings: GroupSettings | null;
     cachedAt: number;
   }>;
   isLoading: boolean;
@@ -46,11 +48,13 @@ interface ConversationDetailState {
   addMember: (conversationId: string, member: ConversationMember) => void;
   removeMember: (conversationId: string, memberId: string) => void;
   updateMySettings: (conversationId: string, updates: Partial<MySettings>) => void;
+  updateSettings: (conversationId: string, settings: GroupSettings | null) => void;
   invalidateCache: (conversationId: string) => void;
   invalidateAllCache: () => void;
   getConversationDetail: (conversationId: string) => ConversationDetail | null;
   getMembers: (conversationId: string) => ConversationMember[];
   getMySettings: (conversationId: string) => MySettings | null;
+  getSettings: (conversationId: string) => GroupSettings | null;
   reset: () => void;
 }
 
@@ -102,10 +106,11 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
           isMuted: data.mySettings?.isMuted,
           isPinned: data.mySettings?.isPinned,
         };
+        const settings: GroupSettings | null = data.settings || null;
         return {
           cache: {
             ...state.cache,
-            [conversationId]: { conversation, members, mySettings, cachedAt: now },
+            [conversationId]: { conversation, members, mySettings, settings, cachedAt: now },
           },
           isLoading: false,
         };
@@ -216,6 +221,23 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
     });
   },
 
+  updateSettings: (conversationId: string, settings: GroupSettings | null) => {
+    set((state) => {
+      const existing = state.cache[conversationId];
+      if (!existing) return {};
+      return {
+        cache: {
+          ...state.cache,
+          [conversationId]: {
+            ...existing,
+            settings,
+            cachedAt: Date.now(),
+          },
+        },
+      };
+    });
+  },
+
   invalidateCache: (conversationId: string) => {
     set((state) => {
       const newCache = { ...state.cache };
@@ -231,6 +253,8 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
   getMembers: (conversationId: string) => get().cache[conversationId]?.members || [],
 
   getMySettings: (conversationId: string) => get().cache[conversationId]?.mySettings || null,
+
+  getSettings: (conversationId: string) => get().cache[conversationId]?.settings || null,
 
   reset: () => set({ cache: {}, isLoading: false, error: null }),
 }));
