@@ -128,6 +128,8 @@ class CallPeerManager {
       const webrtc = await ensureWebRTC()
 
       if (type === "offer") {
+        const { currentCall } = useCallStore.getState();
+        const conversationId = currentCall?.conversationId || "";
         await this.peerConnection.setRemoteDescription(
           new webrtc.RTCSessionDescription({ type: "offer", sdp: data.sdp })
         );
@@ -138,7 +140,7 @@ class CallPeerManager {
           new webrtc.RTCSessionDescription({ type: "answer", sdp: answer.sdp })
         );
 
-        await callService.sendSignalingData(callId, "", "answer", {
+        await callService.sendSignalingData(callId, conversationId, "answer", {
           sdp: answer.sdp,
         });
 

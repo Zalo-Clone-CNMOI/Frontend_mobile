@@ -63,6 +63,17 @@ class CallService {
             useCallStore.getState().endCall();
           } else {
             console.log("[CallService] Call initiated successfully", response);
+            if (remoteUserId) {
+              callPeerManager.startCall(
+                callId,
+                true,
+                remoteUserId,
+                params.conversationId
+              ).catch((err) => {
+                console.error("[CallService] Failed to start WebRTC call", err);
+                this.endCall();
+              });
+            }
             this.setCallTimeout();
           }
         }
@@ -270,12 +281,12 @@ class CallService {
     this.clearCallTimeout();
 
     this.callTimeoutId = setTimeout(() => {
-      const { callState, endCall } = useCallStore.getState();
+      const { callState } = useCallStore.getState();
 
       if (callState === "calling" || callState === "connecting") {
         console.log("[CallService] Call timeout - no response");
         toast.info("Call timed out - no response");
-        endCall();
+        this.endCall();
       }
     }, this.CALL_TIMEOUT_MS);
   }

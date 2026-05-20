@@ -41,10 +41,12 @@ export function useChatDetailScreenLogic() {
     name?: string | string[];
     jumpToMessageId?: string | string[];
     highlightPollId?: string | string[];
+    capturedPhotoUri?: string | string[];
   }>();
   const chatId = getSingleRouteParam(params?.id).trim();
   const jumpToMessageId = getSingleRouteParam(params?.jumpToMessageId).trim() || undefined;
   const highlightPollId = getSingleRouteParam(params?.highlightPollId).trim() || undefined;
+  const capturedPhotoUri = getSingleRouteParam(params?.capturedPhotoUri).trim() || undefined;
   const { t } = useTranslation();
   const { user } = useAuth();
   const headerHeight = useHeaderHeight();
@@ -57,6 +59,7 @@ export function useChatDetailScreenLogic() {
   const [replyingMessage, setReplyingMessage] = useState<ChatMessage | null>(null);
   const flashListRef = useRef<any>(null);
   const loadedCursorRef = useRef<string | null>(null);
+  const lastCapturedPhotoRef = useRef<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageUrls, setSelectedImageUrls] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -497,6 +500,21 @@ export function useChatDetailScreenLogic() {
       flashListRef.current?.scrollToEnd({ animated: true });
     }, 100);
   }, [addMessage, chatId, replyingMessage, updateMessage]);
+
+  useEffect(() => {
+    if (!capturedPhotoUri || !chatId) return;
+    if (lastCapturedPhotoRef.current === capturedPhotoUri) return;
+
+    lastCapturedPhotoRef.current = capturedPhotoUri;
+    const fileName = capturedPhotoUri.split('/').pop() || `camera_${Date.now()}.jpg`;
+    handleSendFiles([
+      {
+        uri: capturedPhotoUri,
+        name: fileName,
+        mimeType: 'image/jpeg',
+      },
+    ]);
+  }, [capturedPhotoUri, chatId, handleSendFiles]);
 
   const openMessageActions = useCallback((msg: ChatMessage) => {
     // Show action menu on long press
