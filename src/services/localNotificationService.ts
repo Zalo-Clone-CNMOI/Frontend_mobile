@@ -1,5 +1,5 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { getExpoNotifications } from '../notifications/expoNotifications';
 
 export interface LocalNotificationData {
   conversationId?: string;
@@ -27,6 +27,9 @@ class LocalNotificationService {
 
   async initialize() {
     if (this.initialized) return;
+
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return;
 
     // Request permissions
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -67,6 +70,9 @@ class LocalNotificationService {
    * Chỉ gọi khi app ở background và cần thông báo
    */
   async showNotification(options: ShowNotificationOptions): Promise<string | null> {
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return null;
+
     if (!this.initialized) {
       await this.initialize();
     }
@@ -79,7 +85,7 @@ class LocalNotificationService {
           data: options.data || {},
           badge: options.badge,
           sound: true,
-          priority: Notifications.AndroidPriority.HIGH,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
         },
         trigger: null, // Immediate notification
       });
@@ -138,6 +144,9 @@ class LocalNotificationService {
    * Xóa tất cả notification
    */
   async clearAllNotifications(): Promise<void> {
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return;
+
     await Notifications.dismissAllNotificationsAsync();
   }
 
@@ -145,13 +154,19 @@ class LocalNotificationService {
    * Xóa badge
    */
   async clearBadge(): Promise<void> {
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return;
+
     await Notifications.setBadgeCountAsync(0);
   }
 
   /**
    * Lấy danh sách notification đang hiển thị
    */
-  async getPresentedNotifications(): Promise<Notifications.Notification[]> {
+  async getPresentedNotifications(): Promise<any[]> {
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return [];
+
     return await Notifications.getPresentedNotificationsAsync();
   }
 }
@@ -160,6 +175,9 @@ export const localNotificationService = new LocalNotificationService();
 
 // React hook cho việc xử lý response từ notification
 export function useNotificationResponse(handler: (data: LocalNotificationData) => void) {
+  const Notifications = getExpoNotifications();
+  if (!Notifications) return;
+
   Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data as LocalNotificationData;
     handler(data);

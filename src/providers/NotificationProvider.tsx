@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'expo-router';
-import * as Notifications from 'expo-notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { appStateService } from '../services/appStateService';
 import { localNotificationService, type LocalNotificationData } from '../services/localNotificationService';
@@ -8,6 +7,7 @@ import { useNotificationListener } from '../hooks/useNotificationListener';
 import { useConversationRoomJoiner } from '../hooks/useConversationRoomJoiner';
 import { createSocket } from '../services/socket';
 import { initChat } from '../services/socket/initChat';
+import { getExpoNotifications } from '../notifications/expoNotifications';
 
 /**
  * NotificationProvider
@@ -52,6 +52,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   // Handle notification response (user taps notification)
   useEffect(() => {
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return;
+
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as LocalNotificationData;
       console.log('[NotificationProvider] Notification tapped:', data);

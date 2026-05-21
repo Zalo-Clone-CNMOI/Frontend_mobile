@@ -68,6 +68,29 @@ export const DEFAULT_GROUP_SETTINGS: GroupSettings = {
   },
 };
 
+const booleanOrDefault = (value: unknown, fallback: boolean) =>
+  typeof value === 'boolean' ? value : fallback;
+
+export function normalizeGroupSettings(settings: Partial<GroupSettings> | null | undefined): GroupSettings {
+  return {
+    permissions: {
+      change_info: booleanOrDefault(settings?.permissions?.change_info, DEFAULT_GROUP_SETTINGS.permissions.change_info),
+      pin_message: booleanOrDefault(settings?.permissions?.pin_message, DEFAULT_GROUP_SETTINGS.permissions.pin_message),
+      create_note: booleanOrDefault(settings?.permissions?.create_note, DEFAULT_GROUP_SETTINGS.permissions.create_note),
+      create_poll: booleanOrDefault(settings?.permissions?.create_poll, DEFAULT_GROUP_SETTINGS.permissions.create_poll),
+      send_message: booleanOrDefault(settings?.permissions?.send_message, DEFAULT_GROUP_SETTINGS.permissions.send_message),
+    },
+    policies: {
+      join_approval: booleanOrDefault(settings?.policies?.join_approval, DEFAULT_GROUP_SETTINGS.policies.join_approval),
+      allow_read_history: booleanOrDefault(settings?.policies?.allow_read_history, DEFAULT_GROUP_SETTINGS.policies.allow_read_history),
+      allow_join_link: booleanOrDefault(settings?.policies?.allow_join_link, DEFAULT_GROUP_SETTINGS.policies.allow_join_link),
+    },
+    features: {
+      admin_tagging: booleanOrDefault(settings?.features?.admin_tagging, DEFAULT_GROUP_SETTINGS.features.admin_tagging),
+    },
+  };
+}
+
 export type MemberRole = 'owner' | 'admin' | 'member';
 
 export function canMemberDo(
@@ -83,5 +106,5 @@ export function canMemberDo(
     return true;
   }
 
-  return settings.permissions[action] ?? true;
+  return normalizeGroupSettings(settings).permissions[action] ?? true;
 }

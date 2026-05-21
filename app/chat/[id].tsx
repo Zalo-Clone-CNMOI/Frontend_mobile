@@ -36,6 +36,7 @@ import { leaveConversation, addMember, markAsRead, getConversationDetail, disban
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
+import { canMemberDo, normalizeGroupSettings } from '@/src/types/group-settings';
 import { useInAppNotification } from '@/src/notifications/useInAppNotification';
 import { NotificationBanner } from '@/src/components/notifications/NotificationBanner';
 import { setCurrentConversationId } from '@/src/hooks/useNotificationListener';
@@ -138,8 +139,14 @@ export default function ChatDetailScreen() {
     jumpToMessage,
   } = useChatDetailScreenLogic();
 
+  const conversationCacheEntry = useConversationDetailStore((state) => state.cache[chatId]);
+
   // Local state for members to avoid infinite loop - initialized after chatId is available
   const [members, setMembers] = useState(() => getMembers(chatId));
+  const groupSettings = normalizeGroupSettings(conversationCacheEntry?.settings);
+  const myGroupRole = getMySettings(chatId)?.role || 'member';
+  const canPinMessages = !currentChat?.isGroup || canMemberDo('pin_message', myGroupRole, groupSettings);
+  const canSendMessages = !currentChat?.isGroup || canMemberDo('send_message', myGroupRole, groupSettings);
   
   // Sync members from store when cache changes using Zustand subscription
   useEffect(() => {
@@ -978,7 +985,7 @@ export default function ChatDetailScreen() {
 
         <View>
           {isTypingVisible && !isMultiSelectMode ? <TypingIndicator text={typingText} /> : null}
-          {!isMultiSelectMode && (
+          {!isMultiSelectMode && canSendMessages && (
             <ChatComposer
               value={input}
               onChangeText={setInput}
@@ -1004,6 +1011,13 @@ export default function ChatDetailScreen() {
             }
             onCancelReply={() => setReplyingMessage(null)}
             />
+          )}
+          {!isMultiSelectMode && !canSendMessages && (
+            <View style={[styles.readOnlyComposer, { backgroundColor: theme.colors.card, borderTopColor: theme.colors.border }]}>
+              <Text style={[styles.readOnlyComposerText, { color: theme.colors.icon }]}>
+                {t('group_settings.send_message_disabled', { defaultValue: 'Chỉ quản trị viên được gửi tin nhắn trong nhóm này.' })}
+              </Text>
+            </View>
           )}
         </View>
 
@@ -1066,7 +1080,8 @@ export default function ChatDetailScreen() {
           onUnpin={handleUnpinAction}
           isPinned={selectedActionMessage ? isMessagePinned(chatId, selectedActionMessage.id) : false}
           conversationType={currentChat?.isGroup ? 'group' : 'direct'}
-          userRole={getMySettings(chatId)?.role || 'member'}
+          userRole={myGroupRole}
+          canPinMessages={canPinMessages}
         />
 
         <ForwardModal
@@ -1249,5 +1264,15 @@ const styles = StyleSheet.create({
   multiSelectActionText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  readOnlyComposer: {
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  readOnlyComposerText: {
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getConversationDetail } from '../services/conversationsApi';
 import type { GroupSettings } from '../types/group-settings';
+import { normalizeGroupSettings } from '../types/group-settings';
 
 export interface ConversationMember {
   id: string;
@@ -106,7 +107,7 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
           isMuted: data.mySettings?.isMuted,
           isPinned: data.mySettings?.isPinned,
         };
-        const settings: GroupSettings | null = data.settings || null;
+        const settings: GroupSettings | null = data.settings ? normalizeGroupSettings(data.settings) : null;
         return {
           cache: {
             ...state.cache,
@@ -230,7 +231,7 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
           ...state.cache,
           [conversationId]: {
             ...existing,
-            settings,
+            settings: settings ? normalizeGroupSettings(settings) : null,
             cachedAt: Date.now(),
           },
         },

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { styles } from './styles';
 import type { GroupSettings, GroupPermissionKey, GroupPolicyKey, GroupFeatureKey } from '../../../types/group-settings';
-import { DEFAULT_GROUP_SETTINGS } from '../../../types/group-settings';
+import { normalizeGroupSettings } from '../../../types/group-settings';
 import { updateGroupSettings } from '../../../services/conversationsApi';
 import { useConversationDetailStore } from '../../../store/useConversationDetailStore';
 
@@ -98,8 +98,9 @@ export const GroupSettingsSection: React.FC<GroupSettingsSectionProps> = ({
   
   const settings = useConversationDetailStore((state) => state.getSettings(conversationId));
   const updateSettings = useConversationDetailStore((state) => state.updateSettings);
+  const fetchConversationDetail = useConversationDetailStore((state) => state.fetchConversationDetail);
   
-  const currentSettings = settings || DEFAULT_GROUP_SETTINGS;
+  const currentSettings = normalizeGroupSettings(settings);
   const isPrivileged = myRole === 'owner' || myRole === 'admin';
 
   const handleToggle = useCallback(async (
@@ -129,10 +130,12 @@ export const GroupSettingsSection: React.FC<GroupSettingsSectionProps> = ({
       };
       
       const response = await updateGroupSettings(conversationId, payload as any);
-      const updatedSettings = response.data?.settings || response.data?.data?.settings;
+      const detail = response.data?.data || response.data;
+      const updatedSettings = detail?.settings;
       if (updatedSettings) {
-        updateSettings(conversationId, updatedSettings);
+        updateSettings(conversationId, normalizeGroupSettings(updatedSettings));
       }
+      fetchConversationDetail(conversationId, true).catch(() => {});
     } catch (error: any) {
       updateSettings(conversationId, previousSettings);
       Alert.alert(
@@ -142,7 +145,7 @@ export const GroupSettingsSection: React.FC<GroupSettingsSectionProps> = ({
     } finally {
       setLoadingKey(null);
     }
-  }, [conversationId, currentSettings, isPrivileged, updateSettings, t]);
+  }, [conversationId, currentSettings, isPrivileged, updateSettings, fetchConversationDetail, t]);
 
   const isLoading = (category: string, key: string) => loadingKey === `${category}.${key}`;
 

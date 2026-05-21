@@ -9,6 +9,7 @@ import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useMediaGallery } from './useMediaGallery';
 import { useMembers } from './useMembers';
 import { useNickname } from './useNickname';
+import { canMemberDo, normalizeGroupSettings, type GroupSettings } from '@/src/types/group-settings';
 
 interface UseChatOptionsOptions {
   visible: boolean;
@@ -38,6 +39,11 @@ interface UseChatOptionsReturn {
   myRole: 'owner' | 'admin' | 'member';
   myNickname: string;
   chatAvatar: string | null | undefined;
+  groupSettings: GroupSettings;
+  canChangeGroupInfo: boolean;
+  canCreatePoll: boolean;
+  canPinMessages: boolean;
+  canSendMessages: boolean;
 
   // Media
   media: ReturnType<typeof useMediaGallery>;
@@ -86,10 +92,15 @@ export const useChatOptions = ({
   const members = cacheEntry?.members || EMPTY_MEMBERS;
   const mySettings = cacheEntry?.mySettings || DEFAULT_SETTINGS;
   const cachedConversation = cacheEntry?.conversation;
+  const groupSettings = normalizeGroupSettings(cacheEntry?.settings);
 
   // Find current user in members list to get role
   const currentMember = members.find((m) => m.userId === currentUserId);
   const myRole = currentMember?.role || mySettings.role;
+  const canChangeGroupInfo = canMemberDo('change_info', myRole, groupSettings);
+  const canCreatePoll = canMemberDo('create_poll', myRole, groupSettings);
+  const canPinMessages = canMemberDo('pin_message', myRole, groupSettings);
+  const canSendMessages = canMemberDo('send_message', myRole, groupSettings);
   const myNickname = mySettings.nickname || '';
   const memberCount = cachedConversation?.memberCount ?? memberCountProp;
   // For 1-1 conversations, get avatar from other user in members list
@@ -325,6 +336,11 @@ export const useChatOptions = ({
     myRole,
     myNickname,
     chatAvatar,
+    groupSettings,
+    canChangeGroupInfo,
+    canCreatePoll,
+    canPinMessages,
+    canSendMessages,
 
     // Sub-hooks
     media,

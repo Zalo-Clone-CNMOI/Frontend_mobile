@@ -1,12 +1,29 @@
-import auth from "@react-native-firebase/auth";
+import Constants from "expo-constants";
 
 let confirmationResult: any = null;
+
+const getFirebaseAuth = () => {
+  if (Constants.appOwnership === "expo") {
+    throw new Error(
+      "Firebase phone authentication requires a development build. Expo Go cannot load @react-native-firebase/auth."
+    );
+  }
+
+  try {
+    const auth = require("@react-native-firebase/auth").default;
+    return auth();
+  } catch (error) {
+    throw new Error(
+      "Firebase auth native module is unavailable. Rebuild and reinstall the development build after installing @react-native-firebase/app and @react-native-firebase/auth."
+    );
+  }
+};
 
 export const setRecaptchaVerifier = (_verifier: any) => {
 };
 
 export const sendOtp = async (phone: string) => {
-  confirmationResult = await auth().signInWithPhoneNumber(phone);
+  confirmationResult = await getFirebaseAuth().signInWithPhoneNumber(phone);
   return confirmationResult;
 };
 
@@ -19,7 +36,7 @@ export const confirmOtp = async (code: string) => {
 };
 
 export const getFirebaseIdToken = async (): Promise<string> => {
-  const user = auth().currentUser;
+  const user = getFirebaseAuth().currentUser;
   if (!user) {
     throw new Error("Not authenticated with Firebase. Please verify OTP again.");
   }

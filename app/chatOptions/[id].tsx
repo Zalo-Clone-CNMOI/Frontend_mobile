@@ -55,6 +55,8 @@ export default function ChatOptionsScreen() {
     myNickname,
     chatAvatar,
     media,
+    canChangeGroupInfo,
+    canCreatePoll,
     membersActions,
     nickname,
     setNotificationsEnabled,
@@ -187,6 +189,7 @@ export default function ChatOptionsScreen() {
           onChangeWallpaper={() => {}}
           onToggleNotifications={() => setNotificationsEnabled(!notificationsEnabled)}
           onGroupInfoUpdated={() => {}}
+          canEditGroupInfo={canChangeGroupInfo}
         />
 
         <MediaSection
@@ -280,7 +283,7 @@ export default function ChatOptionsScreen() {
           </TouchableOpacity>
 
           {/* Create Poll (Group only) */}
-          {isGroup && (
+          {isGroup && canCreatePoll && (
             <TouchableOpacity
               style={[chatOptionsStyles.optionItem, { borderBottomColor: theme.colors.border }]}
               onPress={() => setCreatePollModalVisible(true)}
