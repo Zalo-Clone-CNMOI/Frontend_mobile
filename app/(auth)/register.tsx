@@ -1,4 +1,3 @@
-import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
 import { router } from "expo-router";
 import {
   CheckCircle2,
@@ -25,8 +24,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useOtpRegistration } from "../../src/contexts/OtpRegistrationContext";
 import { COUNTRIES_MOCK_DATA } from "../../src/data/countriesMockData";
-import { sendOtp, setRecaptchaVerifier } from "../../src/services/auth/firebaseAuth.service";
-import { FIREBASE_CONFIG, getFirebaseApp } from "../../src/services/firebase";
+import { sendOtp } from "../../src/services/auth/firebaseAuth.service";
+import { getFirebaseApp } from "../../src/services/firebase";
 import { validatePhoneByCountry } from "../../src/validators/phoneValidator";
 
 export default function RegisterPhoneScreen() {
@@ -45,7 +44,7 @@ export default function RegisterPhoneScreen() {
   const { setPhoneE164, setConfirmationResult, reset } = useOtpRegistration();
   const { t } = useTranslation();
 
-  const recaptchaVerifier = React.useRef<FirebaseRecaptchaVerifierModal>(null);
+  const recaptchaVerifier = React.useRef(null);
 
   const toE164Phone = (countryCode: string, national: string) => {
     const dial = String(countryCode || "").trim();
@@ -95,10 +94,6 @@ export default function RegisterPhoneScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={FIREBASE_CONFIG as any}
-      />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -210,7 +205,6 @@ export default function RegisterPhoneScreen() {
                   reset();
                   setPhoneE164(phoneE164);
 
-                  setRecaptchaVerifier((recaptchaVerifier.current as any) || null);
                   const confirmation = await sendOtp(phoneE164);
                   setConfirmationResult(confirmation);
 

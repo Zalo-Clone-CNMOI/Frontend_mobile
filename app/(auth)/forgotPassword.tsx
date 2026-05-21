@@ -1,11 +1,10 @@
-import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
 import { router } from 'expo-router';
 import { Check, ChevronLeft, Eye, EyeOff, XCircle } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { confirmOtp, getFirebaseIdToken, sendOtp, setRecaptchaVerifier } from "../../src/services/auth/firebaseAuth.service";
+import { confirmOtp, getFirebaseIdToken, sendOtp } from "../../src/services/auth/firebaseAuth.service";
 import * as authApi from '../../src/services/authApi';
-import { FIREBASE_CONFIG, getFirebaseApp } from "../../src/services/firebase";
+import { getFirebaseApp } from "../../src/services/firebase";
 import {
     ActivityIndicator,
     Alert,
@@ -39,7 +38,6 @@ export default function ForgotPasswordScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   getFirebaseApp();
-  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
   const [firebaseIdToken, setFirebaseIdToken] = useState('');
 
   const isValidPhone = (phoneNum: string) => {
@@ -63,7 +61,6 @@ export default function ForgotPasswordScreen() {
         phoneE164 = '+84' + phoneStr;
       }
       
-      setRecaptchaVerifier((recaptchaVerifier.current as any) || null);
       await sendOtp(phoneE164);
       setCurrentStep('otp');
     } catch (e: any) {
@@ -313,10 +310,6 @@ export default function ForgotPasswordScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={FIREBASE_CONFIG as any}
-      />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         
         <View style={styles.header}>

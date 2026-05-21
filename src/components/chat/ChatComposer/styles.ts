@@ -112,6 +112,40 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginBottom: 5,
   },
+  recordingBanner: {
+    marginHorizontal: 15,
+    marginTop: 6,
+    marginBottom: 8,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#EAF3FF',
+    borderWidth: 1,
+    borderColor: '#CFE2FF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  recordingText: {
+    color: '#0A5CC2',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  recordingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF3B30',
+    marginRight: 8,
+  },
+  recordingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  micActiveBtn: {
+    backgroundColor: '#EAF3FF',
+    borderRadius: 20,
+  },
 
   // MoreOptions styles
   moreBoard: {

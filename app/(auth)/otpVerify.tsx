@@ -1,8 +1,7 @@
 import { useOtpRegistration } from '@/src/contexts/OtpRegistrationContext';
 import { confirmOtp, getFirebaseIdToken, sendOtp, setRecaptchaVerifier } from '@/src/services/auth/firebaseAuth.service';
-import { FIREBASE_CONFIG, getFirebaseApp } from '@/src/services/firebase';
+import { getFirebaseApp } from '@/src/services/firebase';
 import * as authApi from '@/src/services/authApi';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import { router } from 'expo-router';
 import { ChevronLeft, XCircle } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
@@ -29,7 +28,7 @@ export default function OtpVerifyScreen() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
 
-  const recaptchaVerifier = React.useRef<FirebaseRecaptchaVerifierModal>(null);
+  const recaptchaVerifier = React.useRef(null);
 
   const canSubmit = useMemo(() => code.trim().length >= 6 && !!phoneE164, [code, phoneE164]);
 
@@ -92,7 +91,6 @@ export default function OtpVerifyScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <FirebaseRecaptchaVerifierModal ref={recaptchaVerifier} firebaseConfig={FIREBASE_CONFIG as any} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>

@@ -1,8 +1,9 @@
 import { useTheme } from '@/src/theme/themeContext';
+import { Audio } from 'expo-av';
 import * as DocumentPicker from 'expo-document-picker';
 import { ImageIcon, Mic, MoreHorizontal, SendHorizontal, Smile } from 'lucide-react-native';
-import React, { useMemo, useRef, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Keyboard, Pressable, Text, TextInput, View } from 'react-native';
 import { ReplyBar } from './components/ReplyBar';
 import { ImagePreview } from './components/ImagePreview';
 import { MoreOptions } from './components/MoreOptions';
@@ -42,6 +43,8 @@ export const ChatComposer = React.memo(function ChatComposer({
   const theme = useTheme();
   const [showMore, setShowMore] = useState(false);
   const [selectedImages, setSelectedImages] = useState<DocumentPicker.DocumentPickerAsset[]>([]);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
   const typingTimeoutRef = useRef<any>(null);
 
   const { handlePickDocument, handlePickVideo, handlePickImage } = useFilePicker();
@@ -95,6 +98,68 @@ export const ChatComposer = React.memo(function ChatComposer({
     setShowMore(v => !v);
   };
 
+  const handleToggleVoiceRecord = async () => {
+    try {
+      if (!isRecording) {
+        const { granted } = await Audio.requestPermissionsAsync();
+        if (!granted) {
+          Alert.alert('Không có quyền micro', 'Vui lòng cấp quyền micro để ghi âm.');
+          return;
+        }
+
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+
+        const nextRecording = new Audio.Recording();
+        await nextRecording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+        await nextRecording.startAsync();
+
+        setRecording(nextRecording);
+        setIsRecording(true);
+        return;
+      }
+
+      if (!recording) return;
+
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setRecording(null);
+      setIsRecording(false);
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+
+      if (!uri) {
+        Alert.alert('Ghi âm thất bại', 'Không lấy được file ghi âm.');
+        return;
+      }
+
+      const voiceFile: DocumentPicker.DocumentPickerAsset = {
+        uri,
+        name: `voice_${Date.now()}.m4a`,
+        mimeType: 'audio/m4a',
+      } as DocumentPicker.DocumentPickerAsset;
+
+      onSendFiles([voiceFile]);
+    } catch {
+      setIsRecording(false);
+      setRecording(null);
+      Alert.alert('Ghi âm thất bại', 'Không thể ghi âm. Vui lòng thử lại.');
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (recording) {
+        recording.stopAndUnloadAsync().catch(() => {});
+      }
+    };
+  }, [recording]);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
     
@@ -104,6 +169,15 @@ export const ChatComposer = React.memo(function ChatComposer({
       {selectedImages.length > 0 && <ImagePreview images={selectedImages} onRemove={handleRemoveImage} onAddMore={handlePickImageForPreview} theme={theme} />}
       {!!replyingTo && !editingTo && <ReplyBar type="reply" senderName={replyingTo.senderName} text={replyingTo.text} onCancel={onCancelReply || (() => {})} theme={theme} />}
     </View>
+    {isRecording && (
+      <View style={styles.recordingBanner}>
+        <View style={styles.recordingLeft}>
+          <View style={styles.recordingDot} />
+          <Text style={styles.recordingText}>Dang ghi am tin nhan thoai</Text>
+        </View>
+        <Text style={styles.recordingText}>Cham Mic de gui</Text>
+      </View>
+    )}
 
     <View style={styles.composer}>
       {/* 1. Nút Emoji trái */}
@@ -141,8 +215,11 @@ export const ChatComposer = React.memo(function ChatComposer({
               <ImageIcon size={26} color={theme.colors.icon} strokeWidth={1.5} />
             </Pressable>
             
-            <Pressable style={styles.iconBtn}>
-              <Mic size={26} color={theme.colors.icon} strokeWidth={1.5} />
+            <Pressable
+              style={[styles.iconBtn, isRecording && styles.micActiveBtn]}
+              onPress={handleToggleVoiceRecord}
+            >
+              <Mic size={26} color={isRecording ? '#0A5CC2' : theme.colors.icon} strokeWidth={1.5} />
             </Pressable>
           </>
         )}

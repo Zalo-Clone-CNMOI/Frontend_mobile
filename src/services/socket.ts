@@ -1,6 +1,7 @@
 import { io, Socket } from "socket.io-client";
 import { NETWORK_CONFIG } from "../config/network";
 import { getCurrentToken, refreshAccessToken } from "./authService";
+import { getHandlerRegistry } from "./socket/HandlerRegistry";
 
 const WS_URL = NETWORK_CONFIG.SOCKET_URL;
 
@@ -41,6 +42,11 @@ export const createSocket = async (): Promise<Socket> => {
 
   socket.on("connect", () => {
     console.log('[Socket] Connected successfully', socket?.id);
+    // Auto-bind any pending handlers to this socket
+    const registry = getHandlerRegistry();
+    if (registry.getHandlerNames().length > 0 && socket) {
+      registry.setSocket(socket);
+    }
   });
 
   // Debug: Log all incoming events

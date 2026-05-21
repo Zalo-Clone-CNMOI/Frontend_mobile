@@ -6,6 +6,8 @@ import { appStateService } from '../services/appStateService';
 import { localNotificationService, type LocalNotificationData } from '../services/localNotificationService';
 import { useNotificationListener } from '../hooks/useNotificationListener';
 import { useConversationRoomJoiner } from '../hooks/useConversationRoomJoiner';
+import { createSocket } from '../services/socket';
+import { initChat } from '../services/socket/initChat';
 
 /**
  * NotificationProvider
@@ -30,6 +32,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       // Initialize Local Notification Service
       await localNotificationService.initialize();
+
+      // Create socket connection early so handlers can receive events
+      await createSocket();
+
+      // Initialize chat socket handlers (CallHandler, ChatMessageHandler, etc.)
+      initChat();
 
       initializedRef.current = true;
       console.log('[NotificationProvider] Services initialized');

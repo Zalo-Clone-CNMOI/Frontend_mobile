@@ -12,7 +12,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.nguyenannguyen.zalo",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "We need microphone access to make calls",
+        "NSCameraUsageDescription": "We need camera access for video calls"
       }
     },
     "android": {
@@ -30,17 +32,22 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.VIBRATE",
-        "android.permission.RECEIVE_BOOT_COMPLETED"
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE"
       ],
       "package": "com.x22664321k.Zalo_2026",
-      "usesCleartextTraffic": true
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "expo-dev-client",
       "expo-router",
+      "@react-native-firebase/app",
       "expo-notifications",
       [
         "expo-splash-screen",
@@ -61,7 +68,9 @@
         }
       ],
       "expo-video",
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -70,9 +79,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "9ec780b4-cf87-4dd4-8f4d-4ce0f844d864"
+        "projectId": "aa15874d-2a6f-4840-b89f-109c511fa358"
       }
     },
-    "owner": "nguyenannguyen"
+    "owner": "22664321"
   }
 }

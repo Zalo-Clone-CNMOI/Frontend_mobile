@@ -22,10 +22,12 @@ import { useChatStore } from '@/src/store/chatStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useTheme } from '@/src/theme/themeContext';
+import { useCallService } from '@/src/services/callService';
+import { useCallStore } from '@/src/store/useCallStore';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Bell, ChevronDown, ChevronUp, Circle, Forward, List, Phone, Search, X } from 'lucide-react-native';
+import { Bell, ChevronDown, ChevronUp, Circle, Forward, List, Phone, Search, Video, X } from 'lucide-react-native';
 import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
 import { PresenceText } from '@/src/components/common/PresenceIndicator';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -43,6 +45,8 @@ export default function ChatDetailScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user: authUser } = useAuth();
+  const { initiateCall } = useCallService();
+  const callState = useCallStore((state) => state.callState);
   const { notification, showInfo, showSuccess, showError, hideNotification } = useInAppNotification();
   const fetchConversationDetail = useConversationDetailStore((state) => state.fetchConversationDetail);
   const getMySettings = useConversationDetailStore((state) => state.getMySettings);
@@ -396,24 +400,84 @@ export default function ChatDetailScreen() {
     }
   };
 
-  const handleVoiceCall = () => {
+  const handleStartVoiceCall = async () => {
     if (!currentChat) {
       Alert.alert('Lỗi', 'Không tìm thấy thông tin cuộc trò chuyện');
       return;
     }
-    
-    // For now, just show an alert - implement actual call functionality later
-    const otherUserId = (currentChat as any)?.otherUserId || (currentChat as any)?.userId;
-    const otherUserName = title;
-    
-    Alert.alert(
-      'Cuộc gọi thoại',
-      `Gọi cho ${otherUserName}?\n\nTính năng này sẽ được triển khai sau.`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { text: 'OK', onPress: () => { /* TODO: Implement voice call */ } }
-      ]
-    );
+
+    if (callState !== 'idle') {
+      Alert.alert('Cuộc gọi', 'Bạn đang có một cuộc gọi khác.');
+      return;
+    }
+
+    try {
+      const recipientId = (currentChat as any)?.otherUserId || (currentChat as any)?.userId;
+      const memberIds = Array.isArray((currentChat as any)?.members)
+        ? (currentChat as any).members
+            .map((member: any) => member.userId || member.id)
+            .filter((memberId: string | undefined) => memberId && memberId !== authUser?.id)
+        : [];
+      const recipientIds = currentChat?.isGroup ? memberIds : recipientId ? [recipientId] : undefined;
+
+      await initiateCall({
+        conversationId: chatId,
+        callType: 'audio',
+        recipientIds,
+      });
+
+      router.push({
+        pathname: '/call/calling',
+        params: {
+          recipientName: title,
+          recipientAvatar: currentChat?.avatar || '',
+          callType: 'audio',
+        },
+      } as any);
+    } catch (error) {
+      console.error('[ChatDetail] Failed to initiate call:', error);
+      Alert.alert('Lỗi', 'Không thể bắt đầu cuộc gọi. Vui lòng thử lại.');
+    }
+  };
+
+  const handleStartVideoCall = async () => {
+    if (!currentChat) {
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin cuộc trò chuyện');
+      return;
+    }
+
+    if (callState !== 'idle') {
+      Alert.alert('Cuộc gọi', 'Bạn đang có một cuộc gọi khác.');
+      return;
+    }
+
+    try {
+      const recipientId = (currentChat as any)?.otherUserId || (currentChat as any)?.userId;
+      const memberIds = Array.isArray((currentChat as any)?.members)
+        ? (currentChat as any).members
+            .map((member: any) => member.userId || member.id)
+            .filter((memberId: string | undefined) => memberId && memberId !== authUser?.id)
+        : [];
+      const recipientIds = currentChat?.isGroup ? memberIds : recipientId ? [recipientId] : undefined;
+
+      await initiateCall({
+        conversationId: chatId,
+        callType: 'video',
+        recipientIds,
+      });
+
+      router.push({
+        pathname: '/call/calling',
+        params: {
+          recipientName: title,
+          recipientAvatar: currentChat?.avatar || '',
+          callType: 'video',
+        },
+      } as any);
+    } catch (error) {
+      console.error('[ChatDetail] Failed to initiate video call:', error);
+      Alert.alert('Lỗi', 'Không thể bắt đầu cuộc gọi video.');
+    }
   };
 
   const handleOpenSearch = () => {
@@ -767,9 +831,15 @@ export default function ChatDetailScreen() {
                 <>
                   <TouchableOpacity
                     style={styles.callButton}
-                    onPress={handleVoiceCall}
+                    onPress={handleStartVoiceCall}
                   >
                     <Phone size={20} color={theme.colors.iconHeader} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.callButton}
+                    onPress={handleStartVideoCall}
+                  >
+                    <Video size={20} color={theme.colors.iconHeader} />
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.callButton} onPress={handleOpenSearch}>
                     <Search size={20} color={theme.colors.iconHeader} />

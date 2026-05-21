@@ -1,52 +1,35 @@
-import {
-  signInWithPhoneNumber,
-  type ApplicationVerifier,
-  type ConfirmationResult,
-} from 'firebase/auth';
-import { getFirebaseAuth } from '../firebase';
+import auth from "@react-native-firebase/auth";
 
-let confirmationResult: ConfirmationResult | null = null;
-let recaptchaVerifier: ApplicationVerifier | null = null;
+let confirmationResult: any = null;
 
-export const setRecaptchaVerifier = (verifier: ApplicationVerifier | null) => {
-  recaptchaVerifier = verifier;
+export const setRecaptchaVerifier = (_verifier: any) => {
 };
 
-export const sendOtp = async (phone: string): Promise<ConfirmationResult> => {
-  const auth = getFirebaseAuth();
-  if (!recaptchaVerifier) {
-    throw new Error('Missing reCAPTCHA verifier. Please try again.');
-  }
-
-  confirmationResult = await signInWithPhoneNumber(auth, phone, recaptchaVerifier);
+export const sendOtp = async (phone: string) => {
+  confirmationResult = await auth().signInWithPhoneNumber(phone);
   return confirmationResult;
 };
 
 export const confirmOtp = async (code: string) => {
   if (!confirmationResult) {
-    throw new Error('OTP session not found. Please request a new code.');
+    throw new Error("OTP session not found. Please request a new code.");
   }
-
   const result = await confirmationResult.confirm(code);
   return result;
 };
 
 export const getFirebaseIdToken = async (): Promise<string> => {
-  const auth = getFirebaseAuth();
-  const user = auth.currentUser;
+  const user = auth().currentUser;
   if (!user) {
-    throw new Error('Not authenticated with Firebase. Please verify OTP again.');
+    throw new Error("Not authenticated with Firebase. Please verify OTP again.");
   }
-
-  const idToken = await user.getIdToken(true);
+  const idToken = await user.getIdToken();
   if (!idToken) {
-    throw new Error('Failed to get Firebase ID token.');
+    throw new Error("Failed to get Firebase ID token.");
   }
-
   return idToken;
 };
 
 export const resetOtpSession = () => {
   confirmationResult = null;
 };
-

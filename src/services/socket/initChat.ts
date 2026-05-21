@@ -4,6 +4,7 @@ import {
   ChatMessageHandler,
   ChatReactionHandler,
   ChatSystemHandler,
+  CallHandler,
   SocketAckHandler,
 } from "./handlers";
 
@@ -21,37 +22,35 @@ export function initChat(): () => void {
     return () => {};
   }
 
-  const socket = getSocket();
-  if (!socket) {
-    console.warn("[initChat] Socket not available");
-    return () => {};
-  }
-
   const registry = getHandlerRegistry();
 
-  // Register handlers if not already done
+  // Register handlers even if socket isn't available yet.
+  // Handlers will be bound to socket when it becomes available.
   if (!handlersRegistered) {
     console.log("[initChat] Registering socket handlers");
 
-    // Register all chat-related handlers
     registry.register(new ChatMessageHandler());
     registry.register(new ChatReactionHandler());
     registry.register(new ChatSystemHandler());
+    registry.register(new CallHandler());
     registry.register(new SocketAckHandler());
 
     handlersRegistered = true;
   }
 
-  // Set socket in registry (will auto-register handlers to socket)
-  registry.setSocket(socket);
+  const socket = getSocket();
+  if (socket) {
+    registry.setSocket(socket);
+    initialized = true;
 
-  initialized = true;
-
-  // Re-join open conversations on reconnect
-  socket.on("connect", () => {
-    console.log("[initChat] Socket connected, rejoining conversations");
-    // Note: Open conversations tracking would need to be moved to a shared module
-  });
+    socket.on("connect", () => {
+      console.log("[initChat] Socket connected, rejoining conversations");
+      // Re-register handlers on reconnect (in case socket was replaced)
+      registry.setSocket(socket);
+    });
+  } else {
+    console.log("[initChat] Socket not available, handlers registered. Will bind on socket connect.");
+  }
 
   console.log("[initChat] Initialization complete");
 
