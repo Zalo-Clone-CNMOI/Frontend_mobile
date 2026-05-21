@@ -22,7 +22,7 @@ import {
   ChevronDown,
   Wifi,
 } from 'lucide-react-native';
-import { RTCView } from 'react-native-webrtc';
+import Constants from 'expo-constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCallStore } from '@/src/store/useCallStore';
 import { useCallService } from '@/src/services/callService';
@@ -34,6 +34,27 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const PIP_WIDTH = 90;
 const PIP_HEIGHT = 140;
 const CONTROLS_SHOW_DURATION = 4000;
+
+let RTCViewComponent: React.ComponentType<any> | null | undefined;
+
+function getRTCViewComponent() {
+  if (Constants.appOwnership === 'expo') {
+    return null;
+  }
+
+  if (RTCViewComponent !== undefined) {
+    return RTCViewComponent;
+  }
+
+  try {
+    RTCViewComponent = require('react-native-webrtc').RTCView;
+  } catch (error) {
+    console.warn('[ActiveCallScreen] react-native-webrtc is unavailable:', error);
+    RTCViewComponent = null;
+  }
+
+  return RTCViewComponent;
+}
 
 interface ActiveCallScreenProps {
   callType?: 'audio' | 'video';
@@ -71,6 +92,7 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
   const remoteParticipant = remoteUserId ? participants[remoteUserId] : undefined;
   const remoteStream = remoteParticipant?.remoteStream;
   const networkQuality = 'good';
+  const RTCView = getRTCViewComponent();
 
   // --- Navigation ---
   useEffect(() => {
@@ -210,7 +232,7 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
           style={StyleSheet.absoluteFill}
         >
           {/* Remote video */}
-          {remoteStream ? (
+          {remoteStream && RTCView ? (
             <RTCView
               streamURL={(remoteStream as any).toURL()}
               style={styles.remoteVideo}
@@ -233,7 +255,7 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
           )}
 
           {/* Local PiP */}
-          {localStream ? (
+          {localStream && RTCView ? (
             <View
               style={[styles.pipContainer, { left: pipPosition.x, top: pipPosition.y }]}
               {...pipPan.panHandlers}

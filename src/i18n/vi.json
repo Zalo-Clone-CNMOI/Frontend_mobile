@@ -232,6 +232,32 @@
     "pin_desc":"Ghim hội thoại này"
   },
 
+  "group_settings": {
+    "permissions": "Quyền hạn",
+    "policies": "Chính sách",
+    "features": "Tính năng",
+    "change_info": "Sửa thông tin nhóm",
+    "change_info_desc": "Thành viên có thể sửa tên và ảnh nhóm",
+    "pin_message": "Ghim tin nhắn",
+    "pin_message_desc": "Thành viên có thể ghim tin nhắn",
+    "create_note": "Tạo ghi chú",
+    "create_note_desc": "Thành viên có thể tạo ghi chú",
+    "create_poll": "Tạo bình chọn",
+    "create_poll_desc": "Thành viên có thể tạo bình chọn",
+    "send_message": "Gửi tin nhắn",
+    "send_message_desc": "Thành viên có thể gửi tin nhắn",
+    "join_approval": "Yêu cầu phê duyệt để tham gia",
+    "join_approval_desc": "Người được mời phải chấp nhận để tham gia",
+    "allow_read_history": "Thành viên mới đọc được lịch sử",
+    "allow_read_history_desc": "Cho phép thành viên mới xem tin nhắn cũ",
+    "allow_join_link": "Cho phép tham gia qua liên kết",
+    "allow_join_link_desc": "Bật tính năng tham gia qua liên kết",
+    "admin_tagging": "Tag @admin",
+    "admin_tagging_desc": "Bật mention @admin",
+    "read_only_notice": "Chỉ quản trị viên mới có thể thay đổi cài đặt nhóm",
+    "update_failed": "Không thể cập nhật cài đặt"
+  },
+
   "conversation": {
     "leave": "Rời hội thoại",
     "leave_success": "Đã rời hội thoại",

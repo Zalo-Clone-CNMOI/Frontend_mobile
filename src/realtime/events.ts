@@ -35,6 +35,7 @@ export const WsEvents = {
   // Group / Conversation
   ConversationCreated: 'conversation:created',
   ConversationUpdated: 'conversation:updated',
+  ConversationSettingsUpdated: 'conversation:settings:updated',
   ConversationDisbanded: 'conversation:disbanded',
   ConversationMemberAdded: 'conversation:member:added',
   ConversationMemberRemoved: 'conversation:member:removed',
@@ -157,6 +158,13 @@ export interface ConversationUpdatedPayload {
   updated_by: string;
   name: string | null;
   avatar_url: string | null;
+  updated_at: number;
+}
+
+export interface ConversationSettingsUpdatedPayload {
+  conversation_id: string;
+  updated_by: string;
+  settings: Record<string, unknown>;
   updated_at: number;
 }
 

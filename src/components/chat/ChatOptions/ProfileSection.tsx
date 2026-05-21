@@ -18,6 +18,7 @@ interface ProfileSectionProps {
   onChangeWallpaper?: () => void;
   onToggleNotifications?: () => void;
   onGroupInfoUpdated?: () => void;
+  canEditGroupInfo?: boolean;
 }
 
 const DEFAULT_AVATAR = 'https://i.pravatar.cc/150?u=default';
@@ -34,6 +35,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
   onChangeWallpaper,
   onToggleNotifications,
   onGroupInfoUpdated,
+  canEditGroupInfo,
 }) => {
   const { t } = useTranslation();
   const [editModalVisible, setEditModalVisible] = React.useState(false);
@@ -55,7 +57,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
     onGroupInfoUpdated?.();
   };
 
-  const canEditGroup = isGroup && (myRole === 'owner' || myRole === 'admin');
+  const canEditGroup = isGroup && (canEditGroupInfo ?? (myRole === 'owner' || myRole === 'admin'));
   const canAddMember = isGroup && (myRole === 'owner' || myRole === 'admin');
 
   return (

@@ -1,24 +1,29 @@
-import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { registerForPushNotifications } from './registerForPushNotifications';
 import { registerAndSyncToken, getPendingToken } from '../services/deviceTokenService';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+import { getExpoNotifications } from './expoNotifications';
 
 export function useNotifications() {
   const { isAuthenticated } = useAuth();
   const registeredRef = useRef(false);
+
+  useEffect(() => {
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return;
+
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -50,6 +55,9 @@ export function useNotifications() {
   }, [isAuthenticated]);
 
   useEffect(() => {
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return;
+
     const sub1 = Notifications.addNotificationReceivedListener((notification) => {
       const { title, body, data } = notification.request.content;
     });

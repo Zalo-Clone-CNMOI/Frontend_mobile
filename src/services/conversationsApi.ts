@@ -421,6 +421,34 @@ export const rejectInvite = (conversationId: string, inviteId: string) =>
 export const cancelInvite = (conversationId: string, inviteId: string) =>
   request('POST', `/conversations/${encodeURIComponent(conversationId)}/invites/${encodeURIComponent(inviteId)}/cancel`);
 
+// Update group settings (admin/owner only)
+export const updateGroupSettings = (
+  conversationId: string,
+  payload: {
+    permissions?: {
+      change_info?: boolean;
+      pin_message?: boolean;
+      create_note?: boolean;
+      create_poll?: boolean;
+      send_message?: boolean;
+    };
+    policies?: {
+      join_approval?: boolean;
+      allow_read_history?: boolean;
+      allow_join_link?: boolean;
+    };
+    features?: {
+      admin_tagging?: boolean;
+    };
+  },
+) => {
+  return request(
+    'PATCH',
+    `/conversations/${encodeURIComponent(conversationId)}/group-settings`,
+    payload,
+  );
+};
+
 export default {
   getConversations,
   getConversationDetail,
@@ -442,4 +470,5 @@ export default {
   acceptInvite,
   rejectInvite,
   cancelInvite,
+  updateGroupSettings,
 };

@@ -1,3 +1,5 @@
+import Constants from "expo-constants";
+
 const readEnv = (key: string) => {
   return String(process.env[key as keyof NodeJS.ProcessEnv] || "").trim();
 };
@@ -16,6 +18,12 @@ export const getFirebaseApp = () => {
 };
 
 export const getFirebaseAuth = () => {
+  if (Constants.appOwnership === "expo") {
+    throw new Error(
+      "Firebase auth requires a development build. Expo Go cannot load @react-native-firebase/auth."
+    );
+  }
+
   const auth = require("@react-native-firebase/auth").default;
   return auth();
 };

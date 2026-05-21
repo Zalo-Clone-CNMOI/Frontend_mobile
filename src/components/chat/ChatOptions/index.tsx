@@ -81,6 +81,8 @@ export const ChatOptions: React.FC<ChatOptionsProps> = ({
     myRole,
     myNickname,
     media,
+    canChangeGroupInfo,
+    canCreatePoll,
     membersActions,
     nickname,
     setNotificationsEnabled,
@@ -149,6 +151,7 @@ export const ChatOptions: React.FC<ChatOptionsProps> = ({
               onToggleNotifications?.(!notificationsEnabled);
             }}
             onGroupInfoUpdated={onNicknameChanged}
+            canEditGroupInfo={canChangeGroupInfo}
           />
 
           <MediaSection
@@ -214,7 +217,7 @@ export const ChatOptions: React.FC<ChatOptionsProps> = ({
             </View>
 
             {/* Create Poll (Group only) */}
-            {isGroup && (
+            {isGroup && canCreatePoll && (
               <TouchableOpacity
                 style={[styles.optionItem, { borderBottomColor: theme.colors.border }]}
                 onPress={() => setCreatePollModalVisible(true)}

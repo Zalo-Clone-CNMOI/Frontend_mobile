@@ -1,5 +1,5 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { getExpoNotifications } from './expoNotifications';
 
 export interface InAppNotification {
   id: string;
@@ -17,6 +17,9 @@ class InAppNotificationService {
    * Show an in-app notification using expo-notifications
    */
   async showNotification(notification: InAppNotification): Promise<void> {
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return;
+
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -46,6 +49,9 @@ class InAppNotificationService {
    * Clear all notifications
    */
   async clearAllNotifications(): Promise<void> {
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return;
+
     await Notifications.dismissAllNotificationsAsync();
   }
 
@@ -53,6 +59,9 @@ class InAppNotificationService {
    * Clear a specific notification by identifier
    */
   async clearNotification(notificationId: string): Promise<void> {
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return;
+
     await Notifications.dismissNotificationAsync(notificationId);
   }
 
@@ -60,6 +69,9 @@ class InAppNotificationService {
    * Get notification badge count
    */
   async getBadgeCount(): Promise<number> {
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return 0;
+
     if (Platform.OS === 'ios') {
       return await Notifications.getBadgeCountAsync();
     }
@@ -70,6 +82,9 @@ class InAppNotificationService {
    * Set notification badge count
    */
   async setBadgeCount(count: number): Promise<void> {
+    const Notifications = getExpoNotifications();
+    if (!Notifications) return;
+
     if (Platform.OS === 'ios') {
       await Notifications.setBadgeCountAsync(count);
     }

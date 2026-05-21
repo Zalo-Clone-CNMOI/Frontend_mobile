@@ -1,7 +1,7 @@
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { getExpoNotifications } from './expoNotifications';
 
 function getProjectId(): string | undefined {
   const envProjectId = (process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '').trim();
@@ -14,6 +14,9 @@ function getProjectId(): string | undefined {
 }
 
 export async function registerForPushNotifications(): Promise<string | null> {
+  const Notifications = getExpoNotifications();
+  if (!Notifications) return null;
+
   if (!Device.isDevice) return null;
 
   if (Platform.OS === 'android') {

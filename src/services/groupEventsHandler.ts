@@ -1,11 +1,12 @@
 import { getSocket } from './socket';
 
-import { WsEvents, ConversationCreatedPayload, ConversationUpdatedPayload, ConversationDisbandedPayload, ConversationMemberAddedPayload, ConversationMemberRemovedPayload, ConversationMemberRoleUpdatedPayload, GroupInviteSentPayload, GroupInviteStatusPayload } from '../realtime/events';
+import { WsEvents, ConversationCreatedPayload, ConversationUpdatedPayload, ConversationSettingsUpdatedPayload, ConversationDisbandedPayload, ConversationMemberAddedPayload, ConversationMemberRemovedPayload, ConversationMemberRoleUpdatedPayload, GroupInviteSentPayload, GroupInviteStatusPayload } from '../realtime/events';
 
 import { useGroupInviteStore } from '../store/useGroupInviteStore';
 import { useConversationDetailStore } from '../store/useConversationDetailStore';
 import { useChatsStore } from '../store/useChatsStore';
 import { fetchConversations } from '../services/chatService';
+import { normalizeGroupSettings } from '../types/group-settings';
 
 
 
@@ -173,6 +174,24 @@ export const subscribeToGroupEvents = () => {
     markEventProcessed(id);
 
   });
+
+  // conversation:settings:updated
+  // Backend currently emits Kafka `conversation.settings.updated` for server-side cache invalidation.
+  // If/when ws-gateway broadcasts settings updates, keep local caches in sync without a screen refresh.
+  const handleConversationSettingsUpdated = (payload: ConversationSettingsUpdatedPayload, eventId?: string) => {
+    const id = eventId || `settings-updated:${payload.conversation_id}:${payload.updated_at}`;
+    if (isEventProcessed(id)) return;
+
+    conversationDetailStore.updateSettings(
+      payload.conversation_id,
+      normalizeGroupSettings(payload.settings as any),
+    );
+
+    markEventProcessed(id);
+  };
+
+  socket.on(WsEvents.ConversationSettingsUpdated, handleConversationSettingsUpdated);
+  socket.on('conversation.settings.updated', handleConversationSettingsUpdated);
 
 
 
@@ -595,6 +614,10 @@ export const unsubscribeFromGroupEvents = () => {
   socket.off(WsEvents.ConversationCreated);
 
   socket.off(WsEvents.ConversationUpdated);
+
+  socket.off(WsEvents.ConversationSettingsUpdated);
+
+  socket.off('conversation.settings.updated');
 
   socket.off(WsEvents.ConversationDisbanded);
 

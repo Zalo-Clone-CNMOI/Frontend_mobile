@@ -28,6 +28,7 @@ interface MessageActionMenuProps {
   isPinned?: boolean;
   conversationType?: 'direct' | 'group';
   userRole?: 'owner' | 'admin' | 'member';
+  canPinMessages?: boolean;
 }
 
 const REACTIONS = [
@@ -54,6 +55,7 @@ export function MessageActionMenu({
   isPinned,
   conversationType = 'direct',
   userRole = 'member',
+  canPinMessages,
 }: MessageActionMenuProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -84,8 +86,7 @@ export function MessageActionMenu({
   const isMe = Boolean(message.fromMe);
   const hasImageAttachment = message.attachments?.some((a: any) => a.type === 'image') || message.type === 'image';
   const canEdit = isMe && !message.isRevoked && !hasImageAttachment;
-  // Only owner/admin can pin in group conversations, anyone can pin in direct
-  const canPin = conversationType === 'direct' || userRole === 'owner' || userRole === 'admin';
+  const canPin = canPinMessages ?? (conversationType === 'direct' || userRole === 'owner' || userRole === 'admin');
 
   return (
     <Modal
