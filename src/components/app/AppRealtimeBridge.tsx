@@ -8,13 +8,15 @@ import {
 } from "../../services/realtime/runtimeFriendService";
 import { useRealtimeStore } from "../../store/useRealtimeStore";
 import { subscribeToGroupEvents, unsubscribeFromGroupEvents, setCurrentUserId } from "../../services/groupEventsHandler";
+import { isRetryableRequestError } from "../../utils/networkUtils";
 
 const buildEventId = (prefix: string, suffix?: string | number) =>
   `${prefix}:${String(suffix || Date.now())}`;
 
 export function AppRealtimeBridge() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isLoggingOut } = useAuth();
   const setHydrating = useRealtimeStore((state) => state.setHydrating);
+  const setHydrationError = useRealtimeStore((state) => state.setHydrationError);
   const setFriendSnapshot = useRealtimeStore((state) => state.setFriendSnapshot);
   const upsertFriend = useRealtimeStore((state) => state.upsertFriend);
   const removeFriend = useRealtimeStore((state) => state.removeFriend);
@@ -24,7 +26,7 @@ export function AppRealtimeBridge() {
     const resetStore = useRealtimeStore((state) => state.reset);
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) {
+    if (!isAuthenticated || !user?.id || isLoggingOut) {
       resetRuntimeFriendService();
       resetStore();
       unsubscribeFromGroupEvents();
@@ -42,13 +44,48 @@ export function AppRealtimeBridge() {
     // Subscribe to conversation events (global) - includes group invite events
     subscribeToGroupEvents();
 
-    const bootRealtime = async () => {
+    const MAX_RETRIES = 3;
+    const BASE_DELAY = 2000;
+
+    const loadFriendSnapshot = async (attempt = 0): Promise<void> => {
+      if (isCancelled || !isAuthenticated) return;
+
+      setHydrating(true);
+      setHydrationError(null);
+
       try {
-        setHydrating(true);
         const snapshot = await fetchRuntimeFriendSnapshot();
         if (!isCancelled) {
           setFriendSnapshot(snapshot);
         }
+      } catch (error: any) {
+        const shouldRetry = attempt < MAX_RETRIES && isRetryableRequestError(error);
+        console.error(
+          `[AppRealtimeBridge] Friend snapshot failed (${attempt + 1}/${MAX_RETRIES + 1}):`,
+          error?.message || error,
+        );
+
+        if (shouldRetry && !isCancelled && isAuthenticated) {
+          const delay = BASE_DELAY * Math.pow(2, attempt);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return loadFriendSnapshot(attempt + 1);
+        }
+
+        if (!isCancelled) {
+          setHydrationError(error?.message || 'Failed to load friend data');
+          setHydrating(false);
+        }
+        throw error;
+      }
+
+      if (!isCancelled) {
+        setHydrating(false);
+      }
+    };
+
+    const bootRealtime = async () => {
+      try {
+        await loadFriendSnapshot();
 
         const friendService = await getRuntimeFriendService();
         cleanupFriendRealtime = friendService.subscribeRealtime({
@@ -104,10 +141,7 @@ export function AppRealtimeBridge() {
         cleanupSocketNotifications = () => {
         };
       } catch (error) {
-      } finally {
-        if (!isCancelled) {
-          setHydrating(false);
-        }
+        console.warn('[AppRealtimeBridge] Realtime boot partial failure:', error);
       }
     };
 
@@ -126,10 +160,12 @@ export function AppRealtimeBridge() {
     resetStore,
     setFriendSnapshot,
     setHydrating,
+    setHydrationError,
     upsertFriend,
     upsertReceivedRequest,
     upsertSentRequest,
     user?.id,
+    isLoggingOut,
   ]);
 
   return null;

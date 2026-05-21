@@ -116,7 +116,7 @@ export const searchMessages = async (
 // Upload media file (image, video, audio, document)
 // Returns uploaded file info with key, URL, etc.
 export const uploadMedia = async (formData: FormData) => {
-  return request('POST', '/api/media/upload', formData);
+  return request('POST', '/media/upload', formData);
 };
 
 // Get pinned messages in a conversation

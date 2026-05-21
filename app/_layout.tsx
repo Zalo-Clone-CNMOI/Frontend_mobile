@@ -9,6 +9,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { AppRealtimeBridge } from '../src/components/app/AppRealtimeBridge';
 import { ChatSocketBridge } from '../src/components/app/ChatSocketBridge';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
+import { WebRTCProvider } from '../src/contexts/WebRTCProvider';
 import { initializeLanguage } from '../src/i18n';
 import '../src/i18n/config';
 import { useNotifications } from '../src/notifications/useNotifications';
@@ -16,6 +17,7 @@ import { NotificationProvider } from '../src/providers';
 import { ThemeProvider as AppThemeProvider } from '../src/theme/themeContext';
 import { ThemeManagerProvider, useThemeManager } from '../src/theme/themeManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logConnectivityReport } from '../src/services/connectivityService';
 
 function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
   const { theme } = useThemeManager();
@@ -47,6 +49,13 @@ function NavigationThemeWrapper({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     initializeLanguage().then(() => {
       setReady(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!__DEV__) return;
+    logConnectivityReport().catch((error) => {
+      console.warn('[Connectivity] Probe failed:', error);
     });
   }, []);
 
@@ -97,12 +106,14 @@ export default function RootLayout() {
         <ThemeManagerProvider>
           <AppThemeProvider>
             <NotificationProvider>
-              <NavigationThemeWrapper>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="(auth)" />
-                  <Stack.Screen name="(tabs)" />
-                </Stack>
-              </NavigationThemeWrapper>
+              <WebRTCProvider>
+                <NavigationThemeWrapper>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(auth)" />
+                    <Stack.Screen name="(tabs)" />
+                  </Stack>
+                </NavigationThemeWrapper>
+              </WebRTCProvider>
             </NotificationProvider>
           </AppThemeProvider>
         </ThemeManagerProvider>

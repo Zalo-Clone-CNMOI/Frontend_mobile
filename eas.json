@@ -6,13 +6,34 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_HOST": "18.138.217.102",
+        "EXPO_PUBLIC_API_PORT": "5000",
+        "EXPO_PUBLIC_SOCKET_PORT": "3001",
+        "EXPO_PUBLIC_SSO_PORT": "5001",
+        "EXPO_PUBLIC_HTTP_TIMEOUT_MS": "15000"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_HOST": "18.138.217.102",
+        "EXPO_PUBLIC_API_PORT": "5000",
+        "EXPO_PUBLIC_SOCKET_PORT": "3001",
+        "EXPO_PUBLIC_SSO_PORT": "5001",
+        "EXPO_PUBLIC_HTTP_TIMEOUT_MS": "15000"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_HOST": "18.138.217.102",
+        "EXPO_PUBLIC_API_PORT": "5000",
+        "EXPO_PUBLIC_SOCKET_PORT": "3001",
+        "EXPO_PUBLIC_SSO_PORT": "5001",
+        "EXPO_PUBLIC_HTTP_TIMEOUT_MS": "15000"
+      }
     }
   },
   "submit": {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useInAppNotification } from '../notifications/useInAppNotification';
-import { getRealtimeSocket } from '../services/realtime/defaultRealtimeClients';
+import { createSocket, getSocket } from '../services/socket';
 import { WsEvents } from '../realtime/events';
 import { useRoute } from '@react-navigation/native';
 import { subscribeToPollEvents, setPollEventCallbacks, setPollCurrentUserId } from '../services/pollEventsHandler';
@@ -71,7 +71,7 @@ export function useNotificationListener() {
 
     const setupListeners = async () => {
       try {
-        socket = await getRealtimeSocket();
+        socket = getSocket() || (await createSocket());
         if (!isActive) return;
 
         console.log('[NotificationListener] Socket obtained:', socket?.id, 'connected:', socket?.connected, 'userId:', userId);

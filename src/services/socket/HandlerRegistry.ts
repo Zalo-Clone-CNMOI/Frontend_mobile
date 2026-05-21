@@ -57,11 +57,20 @@ export class HandlerRegistry {
    * Set socket and register all handlers to it
    */
   setSocket(socket: Socket): void {
+    const socketChanged = this.socket !== socket;
+
+    if (socketChanged && this.socket) {
+      for (const handler of this.handlers.values()) {
+        if (handler.isRegistered()) {
+          handler.unregister();
+        }
+      }
+    }
+
     this.socket = socket;
-    
-    // Register all existing handlers to new socket
+
     for (const handler of this.handlers.values()) {
-      if (!handler.isRegistered()) {
+      if (!handler.isRegistered() || socketChanged) {
         handler.register(socket);
       }
     }

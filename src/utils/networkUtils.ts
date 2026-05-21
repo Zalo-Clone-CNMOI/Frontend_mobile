@@ -6,6 +6,7 @@ export interface NetworkStatus {
 export const isNetworkError = (error: any): boolean => {
   return (
     error?.message?.includes('Network Error') ||
+    error?.message?.includes('Network request failed') ||
     error?.message?.includes('ERR_NETWORK') ||
     error?.message?.includes('ERR_INTERNET_DISCONNECTED') ||
     error?.code === 'NETWORK_ERROR' ||
@@ -22,6 +23,9 @@ export const isTimeoutError = (error: any): boolean => {
     error?.message?.includes('aborted')
   );
 };
+
+export const isRetryableRequestError = (error: any): boolean =>
+  isNetworkError(error) || isTimeoutError(error);
 
 export const getErrorMessage = (error: any): string => {
   if (isNetworkError(error)) {
@@ -60,6 +64,7 @@ export const getErrorMessage = (error: any): string => {
 
 export default {
   isNetworkError,
+  isRetryableRequestError,
   isTimeoutError,
-  getErrorMessage
+  getErrorMessage,
 };

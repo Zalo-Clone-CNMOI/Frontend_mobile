@@ -1,17 +1,20 @@
-type WebRTCLib = {
-  RTCPeerConnection: any
-  RTCSessionDescription: any
-  RTCIceCandidate: any
-}
+import { isWebRTCAvailable, loadWebRTC } from "../utils/webrtcLoader";
 
-let WebRTC: WebRTCLib | null = null
+type WebRTCLib = {
+  RTCPeerConnection: any;
+  RTCSessionDescription: any;
+  RTCIceCandidate: any;
+};
 
 async function ensureWebRTC(): Promise<WebRTCLib> {
-  if (!WebRTC) {
-    const mod = await import("react-native-webrtc")
-    WebRTC = mod as unknown as WebRTCLib
+  if (!isWebRTCAvailable()) {
+    throw new Error("WebRTC is not available in this build");
   }
-  return WebRTC
+  const mod = await loadWebRTC();
+  if (!mod?.RTCPeerConnection) {
+    throw new Error("WebRTC native module is not initialized");
+  }
+  return mod as unknown as WebRTCLib;
 }
 
 import { useCallStore } from "../store/useCallStore";

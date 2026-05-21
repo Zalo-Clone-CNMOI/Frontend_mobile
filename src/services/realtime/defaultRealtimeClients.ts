@@ -1,74 +1,34 @@
-import { AxiosInstance } from "axios";
-import { Socket } from "socket.io-client";
-import { getCurrentToken, refreshAccessToken } from "../authService";
-import { createBffHttpClient } from "./createBffHttpClient";
-import { createSocketGateway } from "./createSocketGateway";
-import { NETWORK_CONFIG } from "../../config/network";
-
-// Extract host from NETWORK_CONFIG (remove http:// and port)
-const extractHost = (url: string): string => {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname;
-  } catch {
-    return url;
-  }
-};
-
-const API_HOST = extractHost(NETWORK_CONFIG.API_BASE_URL);
-const API_PORT = NETWORK_CONFIG.API_BASE_URL.split(':')[2]?.split('/')[0] || '5000';
+import { AxiosInstance } from 'axios';
+import { Socket } from 'socket.io-client';
+import api from '../http';
+import { createSocket, getSocket } from '../socket';
 
 let httpClientInstance: AxiosInstance | null = null;
-let socketInstance: Socket | null = null;
-let socketInstancePromise: Promise<Socket> | null = null;
 
+/**
+ * Single shared Socket.IO connection (see services/socket.ts).
+ * Previously this module opened a second connection, so chat:join rooms
+ * did not receive call:started on the socket where CallHandler listens.
+ */
 export const getRealtimeHttpClient = () => {
   if (!httpClientInstance) {
-    httpClientInstance = createBffHttpClient({
-      host: API_HOST,
-      httpPort: Number(API_PORT),
-      getAccessToken: getCurrentToken,
-      refreshAccessToken,
-    });
+    httpClientInstance = api;
   }
-
   return httpClientInstance;
 };
 
-export const getRealtimeSocket = async () => {
-  if (socketInstance) {
-    return socketInstance;
-  }
-
-  if (!socketInstancePromise) {
-    socketInstancePromise = createSocketGateway({
-      host: API_HOST,
-      wsPort: 3001,
-      getAccessToken: getCurrentToken,
-      refreshAccessToken,
-    }).then((socket) => {
-      socketInstance = socket;
-      return socket;
-    });
-  }
-
-  return socketInstancePromise;
+export const getRealtimeSocket = async (): Promise<Socket> => {
+  return createSocket();
 };
 
 export const resetRealtimeClients = async () => {
-  if (socketInstance) {
-    socketInstance.removeAllListeners();
-    socketInstance.disconnect();
-    socketInstance = null;
-  } else if (socketInstancePromise) {
-    try {
-      const pendingSocket = await socketInstancePromise;
-      pendingSocket.removeAllListeners();
-      pendingSocket.disconnect();
-    } catch {
-    }
-  }
-
-  socketInstancePromise = null;
   httpClientInstance = null;
+  // Socket disconnect is handled by disconnectSocket() in AuthContext
+  const socket = getSocket();
+  if (socket) {
+    socket.removeAllListeners('friend:request:send');
+    socket.removeAllListeners('friend:request:respond');
+    socket.removeAllListeners('friend:request:cancel');
+    socket.removeAllListeners('friend:removed');
+  }
 };

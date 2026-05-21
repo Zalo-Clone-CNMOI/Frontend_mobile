@@ -8,15 +8,14 @@ import { ArrowLeft, Circle, UserMinus } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Stack } from 'expo-router';
-
-const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com/';
+import { NETWORK_CONFIG } from '@/src/config/network';
 
 const normalizeAvatarUrl = (avatar?: string): string | null => {
   if (!avatar) return null;
   if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar;
+    return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
   }
-  return S3_BASE_URL + avatar.replace(/^\//, '');
+  return `${NETWORK_CONFIG.S3_BASE_URL}/${avatar.replace(/^\//, '')}`;
 };
 
 export default function UserProfileScreen() {

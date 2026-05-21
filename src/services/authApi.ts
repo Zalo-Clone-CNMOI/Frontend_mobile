@@ -1,4 +1,3 @@
-import { NETWORK_CONFIG } from '../config/network';
 import { saveAuthData, type UserInfo } from './authService';
 import api from './http';
 
@@ -93,9 +92,9 @@ export const checkPhoneExists = async (phone: string): Promise<boolean | null> =
   if (!normalizedPhone) return null;
 
   const candidateEndpoints = [
-    `${NETWORK_CONFIG.AUTH_BASE_URL}/check-phone`,
-    `${NETWORK_CONFIG.AUTH_BASE_URL}/phone-exists`,
-    `${NETWORK_CONFIG.AUTH_BASE_URL}/exists`,
+    '/auth/check-phone',
+    '/auth/phone-exists',
+    '/auth/exists',
   ];
 
   for (const endpoint of candidateEndpoints) {
@@ -132,14 +131,14 @@ export const checkPhoneExists = async (phone: string): Promise<boolean | null> =
 // Formats phone to E.164, calls register API
 export const register = async (payload: any) => {
   formatPhonePayload(payload);
-  return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/register`, payload);
+  return await api.post('/auth/register', payload);
 };
 
 // Login with phone and password
 // Formats phone, extracts user info and tokens, saves to storage
 export const login = async (payload: any) => {
   formatPhonePayload(payload);
-  const response = await api.post(NETWORK_CONFIG.AUTH_LOGIN_URL, payload);
+  const response = await api.post('/auth/login', payload);
 
   const raw = response?.data || {};
   const data = raw?.data || raw;
@@ -177,47 +176,45 @@ export const login = async (payload: any) => {
 // Logout current user
 export const logout = async (deviceId?: string) => {
   const payload = deviceId ? { deviceId } : {};
-  return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/logout`, payload);
+  return await api.post('/auth/logout', payload);
 };
 
 // Delete all device tokens for current user
 // Used during logout to stop push notifications on all devices
 export const deleteAllDeviceTokens = async () => {
-  return await api.delete(`${NETWORK_CONFIG.AUTH_BASE_URL}/device-tokens`);
+  return await api.delete('/auth/device-tokens');
 };
 
 // Reset password with Firebase token
 export const resetPassword = async (payload: any) => {
-  return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/reset-password`, payload);
+  return await api.post('/auth/reset-password', payload);
 };
 
 // Generate QR code for login
 export const qrGenerate = async (payload?: any) => {
-  return await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/generate`, payload || {});
+  return await api.post('/auth/qr/generate', payload || {});
 };
 
 // Check QR code login status
 export const qrStatus = async (qrId: string) => {
-  return await api.get(`${NETWORK_CONFIG.AUTH_BASE_URL}/qr/status/${qrId}`);
+  return await api.get(`/auth/qr/status/${qrId}`);
 };
 
 // Confirm QR code login from another device
 export const qrConfirm = async (sessionId: string, payload?: any) => {
-  const url = `${NETWORK_CONFIG.AUTH_BASE_URL}/qr/confirm`;
   const body = { sessionId, ...payload };
-  return await api.post(url, body);
+  return await api.post('/auth/qr/confirm', body);
 };
 
 // Reject QR code login from another device
 export const qrReject = async (sessionId: string, payload?: any) => {
-  const url = `${NETWORK_CONFIG.AUTH_BASE_URL}/qr/reject`;
   const body = { sessionId, ...payload };
-  return await api.post(url, body);
+  return await api.post('/auth/qr/reject', body);
 };
 
 // Refresh access token using refresh token
 export const refreshToken = async (refreshToken: string) => {
-  const response = await api.post(`${NETWORK_CONFIG.AUTH_BASE_URL}/refresh`, {
+  const response = await api.post('/auth/refresh', {
     refreshToken,
   });
   return response;

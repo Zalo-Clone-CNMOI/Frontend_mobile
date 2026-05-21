@@ -6,45 +6,30 @@ import {
 } from "../../types/realtimeBff";
 import { NETWORK_CONFIG } from "../../config/network";
 
-// Extract host from NETWORK_CONFIG (remove http:// and port)
-const extractHost = (url: string): string => {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname;
-  } catch {
-    return url;
-  }
-};
-
-const DEFAULT_HOST = extractHost(NETWORK_CONFIG.SOCKET_URL);
-const DEFAULT_WS_PORT = Number(NETWORK_CONFIG.SOCKET_URL.split(':')[2] || '3001');
-
 export type CreateSocketGatewayOptions = RealtimeHostConfig & {
   getAccessToken: AccessTokenProvider;
   refreshAccessToken?: RefreshAccessTokenProvider;
   autoConnect?: boolean;
 };
 
-const buildWsUrl = ({
-  host = DEFAULT_HOST,
-  wsPort = DEFAULT_WS_PORT,
-}: RealtimeHostConfig) => `ws://${host}:${wsPort}`;
+const withBearer = (token: string | null) => (token ? `Bearer ${token}` : "");
 
 export const createSocketGateway = async ({
-  host = DEFAULT_HOST,
-  wsPort = DEFAULT_WS_PORT,
   getAccessToken,
   refreshAccessToken,
   autoConnect = true,
 }: CreateSocketGatewayOptions): Promise<Socket> => {
   const accessToken = await getAccessToken();
-  const socket = io(buildWsUrl({ host, wsPort }), {
-    auth: {
-      token: accessToken || "",
-    },
+  const bearerToken = withBearer(accessToken);
+
+  const socket = io(NETWORK_CONFIG.SOCKET_URL, {
+    auth: { token: bearerToken },
+    extraHeaders: accessToken ? { Authorization: bearerToken } : {},
     transports: ["websocket", "polling"],
     autoConnect,
     reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
     path: "/socket.io",
   });
 
@@ -56,9 +41,11 @@ export const createSocketGateway = async ({
       const nextToken = await refreshAccessToken();
       if (!nextToken) return;
 
-      socket.auth = {
-        token: nextToken,
-      };
+      const bearer = withBearer(nextToken);
+      socket.auth = { token: bearer };
+      if (socket.io.opts.extraHeaders) {
+        socket.io.opts.extraHeaders.Authorization = bearer;
+      }
 
       if (!socket.connected) {
         socket.connect();
