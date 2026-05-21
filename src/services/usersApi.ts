@@ -1,9 +1,24 @@
 import { NETWORK_CONFIG } from '../config/network';
 import { apiCallWithRefresh } from './authService';
-import api from './http';
 
-// Get current user profile
-export const getProfile = () => api.get('/api/users/me');
+// Get current user profile (API :5000, not BFF :3000)
+export const getProfile = async () => {
+  const url = `${NETWORK_CONFIG.API_BASE_URL}/users/me`;
+  const response = await apiCallWithRefresh(url, { method: 'GET' });
+  const text = await response.text();
+  let payload: any = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = text;
+  }
+
+  if (!response.ok) {
+    throw new Error(payload?.message || `Get profile failed (${response.status})`);
+  }
+
+  return { data: payload, status: response.status };
+};
 
 // Get user profile by ID
 // Fetches user info from backend API, extracts data field from response

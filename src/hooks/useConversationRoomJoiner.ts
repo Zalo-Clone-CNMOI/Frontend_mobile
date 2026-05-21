@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { getRealtimeSocket } from '../services/realtime/defaultRealtimeClients';
+import { createSocket, getSocket } from '../services/socket';
 import { useChatsStore } from '../store/useChatsStore';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -18,7 +18,7 @@ export function useConversationRoomJoiner() {
 
   const joinConversationRoom = useCallback(async (conversationId: string) => {
     try {
-      const socket = await getRealtimeSocket();
+      const socket = getSocket() || (await createSocket());
       if (!socket || !socket.connected) {
         console.log('[RoomJoiner] Socket not connected, skipping join for:', conversationId);
         return;
@@ -39,7 +39,7 @@ export function useConversationRoomJoiner() {
 
   const leaveConversationRoom = useCallback(async (conversationId: string) => {
     try {
-      const socket = await getRealtimeSocket();
+      const socket = getSocket() || (await createSocket());
       if (!socket || !socket.connected) return;
 
       if (!joinedRoomsRef.current.has(conversationId)) return;
@@ -58,7 +58,7 @@ export function useConversationRoomJoiner() {
 
     const init = async () => {
       try {
-        const socket = await getRealtimeSocket();
+        const socket = getSocket() || (await createSocket());
         if (!socket) {
           console.log('[RoomJoiner] Socket not available yet');
           return;
@@ -117,7 +117,7 @@ export function useConversationRoomJoiner() {
   useEffect(() => {
     const setupReconnect = async () => {
       try {
-        const socket = await getRealtimeSocket();
+        const socket = getSocket() || (await createSocket());
         if (!socket) return;
 
         const handleConnect = () => {
@@ -145,7 +145,7 @@ export function useConversationRoomJoiner() {
     return () => {
       const cleanup = async () => {
         try {
-          const socket = await getRealtimeSocket();
+          const socket = getSocket() || (await createSocket());
           if (!socket) return;
 
           console.log('[RoomJoiner] Component unmounting, leaving all rooms');

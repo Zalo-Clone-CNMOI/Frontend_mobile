@@ -5,6 +5,9 @@ import { getAuthData } from "./authService";
 import { generateUUID } from "../utils/uuid";
 import { callMediaManager } from "./callMediaManager";
 import { callPeerManager } from "./callPeerManager";
+import { isWebRTCAvailable } from "../utils/webrtcLoader";
+import { joinConversationRoom } from "./socket/joinConversationRoom";
+import { resolveCallRecipientIds } from "./callParticipants";
 
 export interface InitiateCallParams {
   conversationId: string;
@@ -24,6 +27,11 @@ class CallService {
 
   async initiateCall(params: InitiateCallParams): Promise<void> {
     try {
+      if (!isWebRTCAvailable()) {
+        toast.error("Calls need a dev/production build with WebRTC (not Expo Go)");
+        throw new Error("WebRTC unavailable");
+      }
+
       const socket = getSocket();
       const user = await getAuthData();
 
@@ -39,7 +47,19 @@ class CallService {
 
       const callId = generateUUID();
       const startedAt = Date.now();
-      const remoteUserId = params.recipientIds?.[0];
+
+      await joinConversationRoom(params.conversationId);
+
+      let recipientIds = params.recipientIds?.filter(Boolean) as string[] | undefined;
+      if (!recipientIds?.length) {
+        recipientIds = await resolveCallRecipientIds(
+          params.conversationId,
+          null,
+          String(user.id || user.phone || ''),
+        );
+      }
+
+      const remoteUserId = recipientIds?.[0];
 
       useCallStore.getState().initiateCall(params.conversationId, params.callType, callId, startedAt, remoteUserId);
 
@@ -47,14 +67,17 @@ class CallService {
 
       await callMediaManager.createLocalMediaStream(isVideo);
 
+      const conversationType =
+        recipientIds && recipientIds.length > 1 ? "group" : "direct";
+
       socket.emit(
         "call:start",
         {
           call_id: callId,
           conversation_id: params.conversationId,
-          conversation_type: params.recipientIds && params.recipientIds.length > 1 ? 'group' : 'direct',
+          conversation_type: conversationType,
           call_type: params.callType,
-          participant_ids: params.recipientIds,
+          participant_ids: recipientIds,
           started_at: startedAt,
         },
         (response: any) => {
@@ -88,6 +111,11 @@ class CallService {
 
   async acceptCall(): Promise<void> {
     try {
+      if (!isWebRTCAvailable()) {
+        toast.error("Calls need a dev/production build with WebRTC (not Expo Go)");
+        throw new Error("WebRTC unavailable");
+      }
+
       const { acceptIncomingCall, incomingCall } = useCallStore.getState();
       const socket = getSocket();
       const user = await getAuthData();

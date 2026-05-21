@@ -3,9 +3,19 @@ import { NETWORK_CONFIG } from "../config/network";
 import { getCurrentToken, refreshAccessToken } from "./authService";
 
 const api = axios.create({
-  baseURL: NETWORK_CONFIG.BFF_BASE_URL,
-  timeout: 10000,
+  baseURL: NETWORK_CONFIG.API_BASE_URL,
+  timeout: NETWORK_CONFIG.HTTP_TIMEOUT_MS,
 });
+
+if (__DEV__) {
+  api.interceptors.request.use((config) => {
+    const base = (config.baseURL || '').replace(/\/+$/, '');
+    const path = config.url || '';
+    const fullUrl = path.startsWith('http') ? path : `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+    console.log('[AXIOS]', (config.method || 'get').toUpperCase(), fullUrl);
+    return config;
+  });
+}
 
 api.interceptors.request.use(
   async (config) => {
@@ -55,5 +65,21 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+if (__DEV__) {
+  api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      console.error(
+        '[AXIOS ERROR]',
+        error.config?.url,
+        error.message,
+        error.code,
+        error.response?.status,
+      );
+      return Promise.reject(error);
+    },
+  );
+}
 
 export default api;

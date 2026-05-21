@@ -120,7 +120,7 @@ const buildRequestPath = (
 export const createFriendService = ({
   httpClient,
   socket,
-  apiPrefix = "/api",
+  apiPrefix = "",
   rateLimiter = defaultRequestRateLimiter,
 }: FriendServiceDependencies) => {
   const endpoint = createBffEndpointBuilder(apiPrefix);

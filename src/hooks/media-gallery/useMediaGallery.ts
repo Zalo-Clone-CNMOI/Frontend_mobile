@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getMessages } from '@/src/services/messagesApi';
 import { getAttachmentUrl } from '@/src/services/mediaService';
+import { NETWORK_CONFIG } from '@/src/config/network';
 
-const S3_BASE_URL = 'https://onn-bucket-23.s3.ap-southeast-1.amazonaws.com';
+const S3_BASE_URL = NETWORK_CONFIG.S3_BASE_URL;
 
 export type MediaType = 'all' | 'images' | 'videos' | 'files' | 'links';
 

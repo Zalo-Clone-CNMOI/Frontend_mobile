@@ -22,7 +22,7 @@ import {
   ChevronDown,
   Wifi,
 } from 'lucide-react-native';
-import Constants from 'expo-constants';
+import { isWebRTCAvailable, loadRTCView } from '@/src/utils/webrtcLoader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCallStore } from '@/src/store/useCallStore';
 import { useCallService } from '@/src/services/callService';
@@ -37,8 +37,9 @@ const CONTROLS_SHOW_DURATION = 4000;
 
 let RTCViewComponent: React.ComponentType<any> | null | undefined;
 
-function getRTCViewComponent() {
-  if (Constants.appOwnership === 'expo') {
+async function resolveRTCViewComponent() {
+  if (!isWebRTCAvailable()) {
+    RTCViewComponent = null;
     return null;
   }
 
@@ -47,13 +48,13 @@ function getRTCViewComponent() {
   }
 
   try {
-    RTCViewComponent = require('react-native-webrtc').RTCView;
+    RTCViewComponent = await loadRTCView();
   } catch (error) {
     console.warn('[ActiveCallScreen] react-native-webrtc is unavailable:', error);
     RTCViewComponent = null;
   }
 
-  return RTCViewComponent;
+  return RTCViewComponent ?? null;
 }
 
 interface ActiveCallScreenProps {
@@ -92,7 +93,19 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
   const remoteParticipant = remoteUserId ? participants[remoteUserId] : undefined;
   const remoteStream = remoteParticipant?.remoteStream;
   const networkQuality = 'good';
-  const RTCView = getRTCViewComponent();
+  const [RTCView, setRTCView] = useState<React.ComponentType<any> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    resolveRTCViewComponent().then((ViewComponent) => {
+      if (!cancelled) {
+        setRTCView(ViewComponent);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // --- Navigation ---
   useEffect(() => {

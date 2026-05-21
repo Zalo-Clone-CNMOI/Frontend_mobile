@@ -314,7 +314,7 @@ export const getCurrentUser = async (): Promise<UserInfo | null> => {
 export const apiCallWithRefresh = async (
   url: string,
   options: RequestInit = {},
-  timeoutMs = 15000,
+  timeoutMs = NETWORK_CONFIG.HTTP_TIMEOUT_MS,
 ): Promise<Response> => {
   console.log(`[API Request] ${options.method || 'GET'} ${url} (timeout: ${timeoutMs}ms)`);
   try {
@@ -370,6 +370,9 @@ export const apiCallWithRefresh = async (
 
     return response;
   } catch (error: any) {
+    if (__DEV__) {
+      console.error('[API FAIL]', url, error?.name, error?.message);
+    }
     if (error.name === 'AbortError') {
       throw new Error(`Request timeout after ${timeoutMs}ms`);
     }

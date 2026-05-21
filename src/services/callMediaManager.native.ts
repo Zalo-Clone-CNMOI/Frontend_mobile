@@ -2,10 +2,29 @@ import { useCallStore } from "../store/useCallStore";
 import { Audio } from "expo-av";
 import { Platform, PermissionsAndroid } from "react-native";
 import { toast } from "./toastService";
+import { isWebRTCAvailable, loadWebRTC } from "../utils/webrtcLoader";
+
+let mediaDevicesCache: any = null;
+
+const WEBRTC_UNAVAILABLE_MSG =
+  "Calls require a custom dev build (expo run:android / EAS). WebRTC is not available in Expo Go.";
 
 async function getMediaDevices() {
-  const mod = await import("react-native-webrtc");
-  return (mod as any).mediaDevices;
+  if (!isWebRTCAvailable()) {
+    throw new Error(WEBRTC_UNAVAILABLE_MSG);
+  }
+
+  if (mediaDevicesCache) {
+    return mediaDevicesCache;
+  }
+
+  const mod = await loadWebRTC();
+  if (!mod?.mediaDevices?.getUserMedia) {
+    throw new Error(WEBRTC_UNAVAILABLE_MSG);
+  }
+
+  mediaDevicesCache = mod.mediaDevices;
+  return mediaDevicesCache;
 }
 
 class CallMediaManager {

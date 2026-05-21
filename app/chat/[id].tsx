@@ -23,6 +23,7 @@ import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { useCallService } from '@/src/services/callService';
+import { resolveCallRecipientIds } from '@/src/services/callParticipants';
 import { useCallStore } from '@/src/store/useCallStore';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
@@ -419,13 +420,16 @@ export default function ChatDetailScreen() {
     }
 
     try {
-      const recipientId = (currentChat as any)?.otherUserId || (currentChat as any)?.userId;
-      const memberIds = Array.isArray((currentChat as any)?.members)
-        ? (currentChat as any).members
-            .map((member: any) => member.userId || member.id)
-            .filter((memberId: string | undefined) => memberId && memberId !== authUser?.id)
-        : [];
-      const recipientIds = currentChat?.isGroup ? memberIds : recipientId ? [recipientId] : undefined;
+      const recipientIds = await resolveCallRecipientIds(
+        chatId,
+        currentChat,
+        authUser?.id || '',
+      );
+
+      if (!recipientIds.length) {
+        Alert.alert('Lỗi', 'Không xác định được người nhận cuộc gọi.');
+        return;
+      }
 
       await initiateCall({
         conversationId: chatId,
@@ -459,13 +463,16 @@ export default function ChatDetailScreen() {
     }
 
     try {
-      const recipientId = (currentChat as any)?.otherUserId || (currentChat as any)?.userId;
-      const memberIds = Array.isArray((currentChat as any)?.members)
-        ? (currentChat as any).members
-            .map((member: any) => member.userId || member.id)
-            .filter((memberId: string | undefined) => memberId && memberId !== authUser?.id)
-        : [];
-      const recipientIds = currentChat?.isGroup ? memberIds : recipientId ? [recipientId] : undefined;
+      const recipientIds = await resolveCallRecipientIds(
+        chatId,
+        currentChat,
+        authUser?.id || '',
+      );
+
+      if (!recipientIds.length) {
+        Alert.alert('Lỗi', 'Không xác định được người nhận cuộc gọi.');
+        return;
+      }
 
       await initiateCall({
         conversationId: chatId,

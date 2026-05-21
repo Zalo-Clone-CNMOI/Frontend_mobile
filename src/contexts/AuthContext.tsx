@@ -152,36 +152,42 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Set a flag to prevent any background processes from re-logging in
       await AsyncStorage.setItem('@auth_logout_in_progress', 'true');
 
-      // STEP 2: Clear auth data from storage
-      try {
-        await clearAuthData();
-      } catch (storageError) {
-        errorMessage = errorMessage || 'Failed to clear local data';
-      }
-
-      // STEP 3: Reset runtime state (socket, stores, etc.)
-      // This must happen AFTER clearing storage to prevent race conditions
-      await resetRuntimeState();
-
-      // STEP 4: Get deviceId and call logout API
+      // STEP 2: Logout API while access token is still in memory
       let deviceId: string | undefined;
       try {
         deviceId = await AsyncStorage.getItem('@device_id') || undefined;
       } catch (e) {
       }
 
-      // Call logout API (non-blocking for UI)
       try {
         await authApi.logout(deviceId);
         logoutSuccess = true;
       } catch (apiError: any) {
-        errorMessage = apiError?.message || 'Logout request failed';
+        const status = apiError?.response?.status;
+        if (status === 401 || status === 403) {
+          logoutSuccess = true;
+        } else {
+          errorMessage = apiError?.message || 'Logout request failed';
+        }
       }
 
-      // Delete all device tokens (non-blocking)
       try {
-        const deleteResponse = await authApi.deleteAllDeviceTokens();
+        await authApi.deleteAllDeviceTokens();
       } catch (deleteError: any) {
+        const status = deleteError?.response?.status;
+        if (status !== 404 && status !== 401) {
+          console.warn('[Auth] deleteAllDeviceTokens failed:', deleteError?.message);
+        }
+      }
+
+      // STEP 3: Stop sockets/realtime before wiping tokens
+      await resetRuntimeState();
+
+      // STEP 4: Clear persisted auth
+      try {
+        await clearAuthData();
+      } catch (storageError) {
+        errorMessage = errorMessage || 'Failed to clear local data';
       }
 
       // Clear device token from AsyncStorage

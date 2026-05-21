@@ -52,21 +52,26 @@ const SSO_PORT = readEnv('EXPO_PUBLIC_SSO_PORT', '5001');
 
 
 
-// Build URLs from host + port (single source of truth, no duplication)
+// Shared HTTP timeout for axios + fetch wrappers
+const HTTP_TIMEOUT_MS = readEnvNumber('EXPO_PUBLIC_HTTP_TIMEOUT_MS', 15000);
 
-const BFF_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${BFF_PORT}`);
+// API root without /api suffix (media presign, health probes)
+const API_ROOT_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}`);
 
-const API_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}/api`);
+// Legacy alias — same host/port as API (do not use port 3000 unless BFF is deployed)
+const BFF_BASE_URL = API_ROOT_URL;
+
+const API_BASE_URL = trimTrailingSlash(`${API_ROOT_URL}/api`);
 
 const AUTH_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}/api/auth`);
 
 const SOCKET_URL = trimTrailingSlash(`http://${API_HOST}:${SOCKET_PORT}`);
 
-const MESSAGE_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}`);
+const MESSAGE_BASE_URL = API_ROOT_URL;
 
-const MEDIA_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}`);
+const MEDIA_BASE_URL = API_ROOT_URL;
 
-const MEDIA_FILE_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}`);
+const MEDIA_FILE_BASE_URL = API_ROOT_URL;
 
 const SSO_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${SSO_PORT}`);
 
@@ -104,8 +109,25 @@ const MAX_FILE_SIZE_DOCUMENT = readEnvNumber('EXPO_PUBLIC_MAX_FILE_SIZE_DOCUMENT
 
 
 
-export const NETWORK_CONFIG = {
+if (__DEV__) {
+  console.log('[NETWORK_CONFIG]', {
+    API_HOST,
+    API_ROOT_URL,
+    API_BASE_URL,
+    SOCKET_URL,
+    SSO_BASE_URL,
+    HTTP_TIMEOUT_MS,
+    BFF_PORT,
+  });
+}
 
+export const NETWORK_CONFIG = {
+  API_HOST,
+  API_PORT: Number(API_PORT),
+  SOCKET_PORT: Number(SOCKET_PORT),
+  SSO_PORT: Number(SSO_PORT),
+  HTTP_TIMEOUT_MS,
+  API_ROOT_URL,
   API_BASE_URL,
 
   AUTH_BASE_URL,

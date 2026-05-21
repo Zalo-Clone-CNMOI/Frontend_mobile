@@ -3,6 +3,8 @@ import { useCallStore } from "../../../store/useCallStore";
 import { toast } from "../../toastService";
 import { router } from "expo-router";
 import { callPeerManager } from "../../callPeerManager";
+import { getAuthData } from "../../authService";
+import { joinConversationRoom } from "../joinConversationRoom";
 
 export class CallHandler extends BaseHandler {
   readonly name = "CallHandler";
@@ -42,10 +44,22 @@ export class CallHandler extends BaseHandler {
     const callType = payload.call_type;
     const startedAt = payload.started_at;
 
+    const authUser = await getAuthData();
+    const currentUserId = authUser?.id;
+
+    if (currentUserId && initiatorId === currentUserId) {
+      this.log("Ignoring call:started — we are the initiator", { callId });
+      return;
+    }
+
     const { callState: currentState, currentCall } = useCallStore.getState();
     if (currentState !== "idle" && currentState !== "ended") {
       this.log("Skipping call:started - already in call", { state: currentState, callId: currentCall?.callId });
       return;
+    }
+
+    if (conversationId) {
+      await joinConversationRoom(conversationId);
     }
 
     this.log("📞 Incoming call", {
