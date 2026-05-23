@@ -126,10 +126,17 @@ export const GroupSettingsSection: React.FC<GroupSettingsSectionProps> = ({
     setLoadingKey(`${category}.${key}`);
 
     try {
+      // Build full settings payload to avoid server applying defaults to missing fields
+      const currentFullSettings = normalizeGroupSettings(previousSettings);
       const payload = {
-        [category]: {
-          [key]: value,
-        },
+        permissions: { ...currentFullSettings.permissions },
+        policies: { ...currentFullSettings.policies },
+        features: { ...currentFullSettings.features },
+      };
+      // Override only the changed field
+      payload[category] = {
+        ...payload[category],
+        [key]: value,
       };
 
       console.log(`[GroupSettings] Updating ${conversationId}:`, payload);

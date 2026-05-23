@@ -152,10 +152,19 @@ export default function ChatDetailScreen() {
 
   // Local state for members to avoid infinite loop - initialized after chatId is available
   const [members, setMembers] = useState(() => getMembers(chatId));
-  const groupSettings = normalizeGroupSettings(conversationCacheEntry?.settings);
+  const rawSettings = conversationCacheEntry?.settings;
+  const groupSettings = normalizeGroupSettings(rawSettings);
   const myGroupRole = getMySettings(chatId)?.role || 'member';
-  const canPinMessages = !currentChat?.isGroup || canMemberDo('pin_message', myGroupRole, groupSettings);
-  const canSendMessages = !currentChat?.isGroup || canMemberDo('send_message', myGroupRole, groupSettings);
+  
+  // Only check permissions if currentChat is loaded
+  const settingsLoaded = rawSettings != null;
+  // For direct chats: can always send. For groups: check permission.
+  const canPinMessages = currentChat && !currentChat.isGroup
+    ? true
+    : (settingsLoaded ? canMemberDo('pin_message', myGroupRole, groupSettings) : false);
+  const canSendMessages = currentChat && !currentChat.isGroup
+    ? true
+    : (settingsLoaded ? canMemberDo('send_message', myGroupRole, groupSettings) : false);
   
   // Sync members from store when cache changes using Zustand subscription
   useEffect(() => {
@@ -968,12 +977,13 @@ export default function ChatDetailScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? keyboardOffset : 0}
       >
         {/* Search UI - Zalo Style */}
-        {showPinnedSection && !isSearchMode && (
+        {showPinnedSection && !isSearchMode && canPinMessages && (
           <PinnedMessagesSection
             pinnedMessages={pinnedMessages}
             onPressMessage={handlePinMessagePress}
             onUnpinMessage={handleUnpinAction}
             conversationId={chatId}
+            canPinMessages={canPinMessages}
           />
         )}
 

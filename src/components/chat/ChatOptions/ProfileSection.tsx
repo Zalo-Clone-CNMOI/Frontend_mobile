@@ -160,6 +160,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
           currentName={chatName}
           currentAvatar={chatAvatar || null}
           myRole={myRole}
+          canEditGroupInfo={canEditGroupInfo}
         />
       )}
     </>
