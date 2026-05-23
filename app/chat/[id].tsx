@@ -48,7 +48,6 @@ import { canMemberDo, normalizeGroupSettings } from '@/src/types/group-settings'
 import { useInAppNotification } from '@/src/notifications/useInAppNotification';
 import { NotificationBanner } from '@/src/components/notifications/NotificationBanner';
 import { setCurrentConversationId } from '@/src/hooks/useNotificationListener';
-import { PolicyStatusBanner } from '@/src/components/chat/ChatOptions/PolicyStatusBanner';
 
 export default function ChatDetailScreen() {
   const theme = useTheme();
@@ -245,18 +244,7 @@ export default function ChatDetailScreen() {
     console.log(`[Mock] Injected ${count} translations`);
   }, [messages]);
 
-  // DEV: inject mock smart reply suggestions for UI testing
-  useEffect(() => {
-    if (!chatId) return;
-    const store = useAISmartReplyStore.getState();
-    if (store.suggestions.has(chatId)) return;
-    store.setSuggestions(chatId, [
-      'Ok bạn, để tôi xem lại',
-      'Cảm ơn bạn đã hỗ trợ nhiệt tình!',
-      'Tôi sẽ kiểm tra và phản hồi lại sau',
-    ]);
-    console.log('[Mock] Injected smart reply suggestions');
-  }, [chatId]);
+  
 
   // Load pinned messages when chat loads
   useEffect(() => {
@@ -1061,15 +1049,6 @@ export default function ChatDetailScreen() {
               </View>
             )}
           </View>
-        )}
-
-        {/* Policy Status Banner - only for group chats */}
-        {currentChat?.isGroup && (
-          <PolicyStatusBanner
-            conversationId={chatId}
-            theme={theme}
-            myRole={myGroupRole}
-          />
         )}
 
         <FlashList

@@ -69,7 +69,7 @@ export const SmartReplyChips: React.FC<SmartReplyChipsProps> = ({
             activeOpacity={0.7}
           >
             <Text
-              style={[styles.chipText, { color: theme.colors.primary }]}
+              style={[styles.chipText, { color: theme?.colors?.primary || '#007AFF' }]}
               numberOfLines={1}
             >
               {suggestion}

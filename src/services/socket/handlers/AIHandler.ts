@@ -56,8 +56,6 @@ export class AIHandler extends BaseHandler {
   }
 
   private handleSmartReplyResult(payload: any): void {
-    this.log("Smart reply result:", payload);
-
     const { conversation_id, suggestions } = payload || {};
     if (!conversation_id) return;
 
