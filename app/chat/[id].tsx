@@ -48,6 +48,7 @@ import { canMemberDo, normalizeGroupSettings } from '@/src/types/group-settings'
 import { useInAppNotification } from '@/src/notifications/useInAppNotification';
 import { NotificationBanner } from '@/src/components/notifications/NotificationBanner';
 import { setCurrentConversationId } from '@/src/hooks/useNotificationListener';
+import { PolicyStatusBanner } from '@/src/components/chat/ChatOptions/PolicyStatusBanner';
 
 export default function ChatDetailScreen() {
   const theme = useTheme();
@@ -1060,6 +1061,15 @@ export default function ChatDetailScreen() {
               </View>
             )}
           </View>
+        )}
+
+        {/* Policy Status Banner - only for group chats */}
+        {currentChat?.isGroup && (
+          <PolicyStatusBanner
+            conversationId={chatId}
+            theme={theme}
+            myRole={myGroupRole}
+          />
         )}
 
         <FlashList
