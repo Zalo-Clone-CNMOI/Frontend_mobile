@@ -268,6 +268,16 @@
     "not_found": "Nhóm không tìm thấy hoặc đã bị xóa."
   },
 
+  "policies": {
+    "status_header": "Trạng thái nhóm",
+    "join_approval_true": "Nhóm yêu cầu phê duyệt để tham gia",
+    "join_approval_false": "Không yêu cầu phê duyệt để tham gia",
+    "allow_read_history_true": "Thành viên mới có thể đọc lịch sử",
+    "allow_read_history_false": "Tin nhắn cũ không khả dụng cho thành viên mới",
+    "allow_join_link_true": "Có thể tham gia nhóm qua link",
+    "allow_join_link_false": "Không thể tham gia nhóm qua link"
+  },
+
   "conversation": {
     "leave": "Rời hội thoại",
     "leave_success": "Đã rời hội thoại",

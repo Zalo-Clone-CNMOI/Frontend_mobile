@@ -10,6 +10,7 @@ import { useChatsStore } from '@/src/store/useChatsStore';
 import { useAuth } from '@/src/contexts/AuthContext';
 import * as mediaService from '@/src/services/mediaService';
 import type { MediaFileInput } from '@/src/types/media';
+import { PolicyStatusBanner } from '@/src/components/chat/ChatOptions/PolicyStatusBanner';
 
 type GroupInfoModalProps = {
   visible: boolean;
@@ -239,6 +240,13 @@ export function GroupInfoModal({
             <Text style={[styles.charCount, { color: theme.colors.icon }]}>
               {name.length}/50
             </Text>
+
+            {/* Policy Status Banner */}
+            <PolicyStatusBanner
+              conversationId={conversationId}
+              theme={theme}
+              myRole={localRole}
+            />
           </View>
 
           <View style={styles.footer}>
