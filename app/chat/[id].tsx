@@ -155,15 +155,16 @@ export default function ChatDetailScreen() {
   const rawSettings = conversationCacheEntry?.settings;
   const groupSettings = normalizeGroupSettings(rawSettings);
   
-  // getMySettings from store, default to 'member' if not loaded yet
-  const myGroupRole = getMySettings(chatId)?.role || 'member';
+  // Get role from members array first (more reliable), fallback to mySettings
+  const currentMember = members.find((m) => m.userId === authUser?.id);
+  const myGroupRole = currentMember?.role || getMySettings(chatId)?.role || 'member';
   
   // Check if settings is loaded from server (not using defaults)
   const settingsLoaded = rawSettings != null;
   
   // DEBUG: Log cache read details
   console.log('[Permissions] conversationCacheEntry?.settings:', rawSettings, 'type:', typeof rawSettings);
-  console.log('[Permissions] getMySettings role:', getMySettings(chatId)?.role, 'normalized role:', myGroupRole);
+  console.log('[Permissions] currentMember?.role:', currentMember?.role, 'getMySettings role:', getMySettings(chatId)?.role, 'myGroupRole:', myGroupRole);
   
   // For direct chats: always allow. For groups: owner/admin always allow (even if settings not loaded yet).
   const canPinMessages = currentChat && !currentChat.isGroup
