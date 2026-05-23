@@ -20,6 +20,12 @@ export const SmartReplyChips: React.FC<SmartReplyChipsProps> = ({
   const theme = useTheme();
   const suggestions = useAISmartReplyStore((state) => state.suggestions.get(conversationId)) ?? [];
   const isLoading = useAISmartReplyStore((state) => state.loadingByConversation.get(conversationId)) ?? false;
+  
+  // DEBUG: Log store read
+  console.log('[SmartReplyChips] conversationId:', conversationId);
+  console.log('[SmartReplyChips] suggestions from store:', suggestions);
+  console.log('[SmartReplyChips] all store keys:', Array.from(useAISmartReplyStore.getState().suggestions.keys()));
+  
   const displaySuggestions = suggestions.slice(0, 3).map((s) =>
     s.length > 80 ? s.slice(0, 77) + '...' : s
   );

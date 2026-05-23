@@ -59,10 +59,21 @@ export class AIHandler extends BaseHandler {
     this.log("Smart reply result:", payload);
 
     const { conversation_id, suggestions } = payload || {};
+    console.log('[AIHandler] handleSmartReplyResult - conversation_id:', conversation_id);
+    console.log('[AIHandler] handleSmartReplyResult - suggestions:', suggestions);
+    console.log('[AIHandler] handleSmartReplyResult - full payload:', JSON.stringify(payload));
+    
     if (!conversation_id) return;
 
     import("../../../store/useAISmartReplyStore").then(({ useAISmartReplyStore }) => {
+      console.log('[AIHandler] Setting suggestions for conversation_id:', conversation_id);
+      console.log('[AIHandler] Store suggestions Map before:', Array.from(useAISmartReplyStore.getState().suggestions.keys()));
+      
       useAISmartReplyStore.getState().setSuggestions(conversation_id, suggestions || []);
+      
+      console.log('[AIHandler] Store suggestions Map after:', Array.from(useAISmartReplyStore.getState().suggestions.keys()));
+      console.log('[AIHandler] Suggestions set for conversation_id:', conversation_id, 'are:', useAISmartReplyStore.getState().suggestions.get(conversation_id));
+      
       useAISmartReplyStore.getState().setLoading(conversation_id, false);
     });
   }
