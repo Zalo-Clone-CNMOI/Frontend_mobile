@@ -2,8 +2,8 @@ import React from 'react';
 import { AlertCircle, Clock, Link2Off, Shield, Users } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { normalizeGroupSettings } from '../../types/group-settings';
-import { useConversationDetailStore } from '../../store/useConversationDetailStore';
+import { normalizeGroupSettings } from '../../../types/group-settings';
+import { useConversationDetailStore } from '../../../store/useConversationDetailStore';
 
 interface PolicyStatusBannerProps {
   conversationId: string;
