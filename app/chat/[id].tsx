@@ -158,13 +158,17 @@ export default function ChatDetailScreen() {
   
   // Only check permissions if currentChat is loaded
   const settingsLoaded = rawSettings != null;
-  // For direct chats: can always send. For groups: check permission.
+  // For direct chats: always allow. For groups: owner/admin always allow, member check permission.
   const canPinMessages = currentChat && !currentChat.isGroup
     ? true
-    : (settingsLoaded ? canMemberDo('pin_message', myGroupRole, groupSettings) : false);
+    : (myGroupRole === 'owner' || myGroupRole === 'admin')
+      ? true
+      : (settingsLoaded ? canMemberDo('pin_message', myGroupRole, groupSettings) : false);
   const canSendMessages = currentChat && !currentChat.isGroup
     ? true
-    : (settingsLoaded ? canMemberDo('send_message', myGroupRole, groupSettings) : false);
+    : (myGroupRole === 'owner' || myGroupRole === 'admin')
+      ? true
+      : (settingsLoaded ? canMemberDo('send_message', myGroupRole, groupSettings) : false);
   
   // Sync members from store when cache changes using Zustand subscription
   useEffect(() => {
