@@ -154,17 +154,34 @@ export default function ChatDetailScreen() {
   const [members, setMembers] = useState(() => getMembers(chatId));
   const rawSettings = conversationCacheEntry?.settings;
   const groupSettings = normalizeGroupSettings(rawSettings);
-  const myGroupRole = getMySettings(chatId)?.role || 'member';
   
-  // Only check permissions if currentChat is loaded
+  // Get role from members array first (more reliable), fallback to mySettings
+  const currentMember = members.find((m) => m.userId === authUser?.id);
+  const myGroupRole = currentMember?.role || getMySettings(chatId)?.role || 'member';
+  
+  // Check if settings is loaded from server (not using defaults)
   const settingsLoaded = rawSettings != null;
-  // For direct chats: can always send. For groups: check permission.
+  
+  // DEBUG: Log cache read details
+  console.log('[Permissions] conversationCacheEntry?.settings:', rawSettings, 'type:', typeof rawSettings);
+  console.log('[Permissions] currentMember?.role:', currentMember?.role, 'getMySettings role:', getMySettings(chatId)?.role, 'myGroupRole:', myGroupRole);
+  
+  // For direct chats: always allow. For groups: owner/admin always allow (even if settings not loaded yet).
   const canPinMessages = currentChat && !currentChat.isGroup
     ? true
-    : (settingsLoaded ? canMemberDo('pin_message', myGroupRole, groupSettings) : false);
+    : (myGroupRole === 'owner' || myGroupRole === 'admin')
+      ? true
+      : (settingsLoaded ? canMemberDo('pin_message', myGroupRole, groupSettings) : false);
   const canSendMessages = currentChat && !currentChat.isGroup
     ? true
-    : (settingsLoaded ? canMemberDo('send_message', myGroupRole, groupSettings) : false);
+    : (myGroupRole === 'owner' || myGroupRole === 'admin')
+      ? true
+      : (settingsLoaded ? canMemberDo('send_message', myGroupRole, groupSettings) : false);
+  
+  // DEBUG: Log decision path
+  const isDirect = currentChat && !currentChat.isGroup;
+  const isPrivileged = myGroupRole === 'owner' || myGroupRole === 'admin';
+  console.log('[Permissions] canSendMessages:', canSendMessages, '| isDirect:', isDirect, '| isPrivileged:', isPrivileged, '| settingsLoaded:', settingsLoaded);
   
   // Sync members from store when cache changes using Zustand subscription
   useEffect(() => {
