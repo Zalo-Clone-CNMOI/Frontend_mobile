@@ -1,5 +1,5 @@
 import { useTheme } from '@/src/theme/themeContext';
-import { Bell, BellOff, ChevronLeft, FileText, List, Pin, Search, UserPlus } from 'lucide-react-native';
+import { Bell, BellOff, ChevronLeft, Crown, FileText, List, Pin, Search, UserPlus } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -20,6 +20,7 @@ import { MembersSection } from '@/src/components/chat/ChatOptions/MembersSection
 import { NicknameEditModal } from '@/src/components/chat/ChatOptions/modals/NicknameEditModal';
 import { ProfileSection } from '@/src/components/chat/ChatOptions/ProfileSection';
 import { RoleSelectionModal } from '@/src/components/chat/ChatOptions/modals/RoleSelectionModal';
+import { TransferOwnershipModal } from '@/src/components/chat/ChatOptions/modals/TransferOwnershipModal';
 import { useChatOptions } from '@/src/components/chat/ChatOptions/hooks/useChatOptions';
 import { GroupSettingsSection } from '@/src/components/chat/ChatOptions/GroupSettingsSection';
 import { styles as chatOptionsStyles } from '@/src/components/chat/ChatOptions/styles';
@@ -65,7 +66,10 @@ export default function ChatOptionsScreen() {
     setRoleSelectionVisible,
     handleLeaveGroup,
     handleDisbandGroup,
+    handleTransferOwnership,
     handleAddMember,
+    transferOwnershipModalVisible,
+    setTransferOwnershipModalVisible,
     handleViewMembers,
     handleViewAllMedia,
     handleMediaPress,
@@ -390,25 +394,38 @@ export default function ChatOptionsScreen() {
         {isGroup && (
           <View style={[chatOptionsStyles.additionalOptions, { backgroundColor: theme.colors.card, marginTop: 16 }]}>
             {myRole === 'owner' ? (
-              <TouchableOpacity
-                style={[chatOptionsStyles.optionItem, { borderBottomColor: theme.colors.border }]}
-                onPress={() => {
-                  Alert.alert(
-                    t('chat_options.disband_title'),
-                    t('chat_options.disband_confirm'),
-                    [
-                      { text: t('common.cancel'), style: 'cancel' },
-                      { text: t('chat_options.disband'), style: 'destructive', onPress: handleDisbandGroup },
-                    ]
-                  );
-                }}
-              >
-                <View style={chatOptionsStyles.optionLeft}>
-                  <Text style={[chatOptionsStyles.optionTitle, { color: '#FF3B30' }]}>
-                    {t('chat_options.disband_group')}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={[chatOptionsStyles.optionItem, { borderBottomColor: theme.colors.border }]}
+                  onPress={() => setTransferOwnershipModalVisible(true)}
+                >
+                  <View style={chatOptionsStyles.optionLeft}>
+                    <Crown size={20} color="#FF9500" style={{ marginRight: 12 }} />
+                    <Text style={[chatOptionsStyles.optionTitle, { color: '#FF9500' }]}>
+                      {t('chat_options.transfer_ownership')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[chatOptionsStyles.optionItem, { borderBottomColor: theme.colors.border }]}
+                  onPress={() => {
+                    Alert.alert(
+                      t('chat_options.disband_title'),
+                      t('chat_options.disband_confirm'),
+                      [
+                        { text: t('common.cancel'), style: 'cancel' },
+                        { text: t('chat_options.disband'), style: 'destructive', onPress: handleDisbandGroup },
+                      ]
+                    );
+                  }}
+                >
+                  <View style={chatOptionsStyles.optionLeft}>
+                    <Text style={[chatOptionsStyles.optionTitle, { color: '#FF3B30' }]}>
+                      {t('chat_options.disband_group')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </>
             ) : (
               <TouchableOpacity
                 style={[chatOptionsStyles.optionItem, { borderBottomColor: theme.colors.border }]}
@@ -470,6 +487,18 @@ export default function ChatOptionsScreen() {
         onClose={() => setRoleSelectionVisible(false)}
         onConfirm={membersActions.handleRoleChangeConfirm}
         theme={theme}
+      />
+
+      <TransferOwnershipModal
+        visible={transferOwnershipModalVisible}
+        theme={theme}
+        members={members}
+        currentUserId={authUser?.id}
+        onClose={() => setTransferOwnershipModalVisible(false)}
+        onSelect={(member) => {
+          setTransferOwnershipModalVisible(false);
+          handleTransferOwnership(member.userId, member.fullName);
+        }}
       />
     </SafeAreaView>
   );

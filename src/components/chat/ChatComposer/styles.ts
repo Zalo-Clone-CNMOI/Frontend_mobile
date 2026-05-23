@@ -86,7 +86,6 @@ export const styles = StyleSheet.create({
   },
   input: {
     fontSize: 17,
-    color: '#000',
     paddingVertical: 8,
     paddingHorizontal: 4,
     minHeight: 40,

@@ -1,6 +1,7 @@
 import { getSocket } from "../socket";
 import { getHandlerRegistry } from "./HandlerRegistry";
 import {
+  AIHandler,
   ChatMessageHandler,
   ChatReactionHandler,
   ChatSystemHandler,
@@ -34,6 +35,7 @@ export function initChat(): () => void {
     registry.register(new ChatSystemHandler());
     registry.register(new CallHandler());
     registry.register(new SocketAckHandler());
+    registry.register(new AIHandler());
 
     handlersRegistered = true;
   }

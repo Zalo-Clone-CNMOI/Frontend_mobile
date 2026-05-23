@@ -222,6 +222,13 @@
     "disband_confirm": "Bạn có chắc muốn giải tán nhóm này? Hành động này không thể hoàn tác.",
     "disband": "Giải tán",
     "disband_group": "Giải tán nhóm",
+    "transfer_ownership": "Chuyển quyền chủ nhóm",
+    "transfer_ownership_desc": "Chọn thành viên để chuyển quyền chủ nhóm. Bạn sẽ trở thành thành viên thường sau khi chuyển.",
+    "transfer_ownership_confirm": "Bạn có chắc muốn chuyển quyền chủ nhóm cho {{name}}? Hành động này không thể hoàn tác.",
+    "transfer_ownership_success": "Đã chuyển quyền chủ nhóm thành công",
+    "transfer_ownership_failed": "Không thể chuyển quyền chủ nhóm",
+    "transfer": "Chuyển quyền",
+    "no_eligible_members": "Không có thành viên nào đủ điều kiện nhận quyền",
     "leave_title": "Rời nhóm",
     "pin": "Ghim hội thoại",
     "unpin": "Bỏ ghim",
@@ -255,7 +262,10 @@
     "admin_tagging": "Tag @admin",
     "admin_tagging_desc": "Bật mention @admin",
     "read_only_notice": "Chỉ quản trị viên mới có thể thay đổi cài đặt nhóm",
-    "update_failed": "Không thể cập nhật cài đặt"
+    "update_failed": "Không thể cập nhật cài đặt",
+    "timeout_error": "Yêu cầu hết thời gian. Vui lòng thử lại.",
+    "permission_denied": "Bạn không có quyền thay đổi cài đặt này.",
+    "not_found": "Nhóm không tìm thấy hoặc đã bị xóa."
   },
 
   "conversation": {
@@ -497,7 +507,9 @@
     "empty": "Chưa có cuộc trò chuyện nào",
     "edited": "Đã chỉnh sửa",
     "view_original_message": "Xem tin nhắn gốc",
-    "image_not_available": "Ảnh không khả dụng"
+    "image_not_available": "Ảnh không khả dụng",
+    "removed": "Tin nhắn đã bị gỡ",
+    "translated": "Xem bản dịch"
   },
 
   "add_friend": {

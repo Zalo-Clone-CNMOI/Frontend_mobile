@@ -176,6 +176,10 @@ export type ChatMessage = {
   pinnedBy?: string;
   pinnedAt?: number;
 
+  // Moderation fields
+  removed?: boolean;
+  removalReason?: string;
+
   // System message fields
   messageType?: 'user' | 'system' | 'poll' | 'invite';
   systemEventType?: SystemEventType;

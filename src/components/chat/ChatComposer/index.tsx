@@ -7,6 +7,7 @@ import { Alert, Keyboard, Pressable, Text, TextInput, View } from 'react-native'
 import { ReplyBar } from './components/ReplyBar';
 import { ImagePreview } from './components/ImagePreview';
 import { MoreOptions } from './components/MoreOptions';
+import { SmartReplyChips } from '../SmartReplyChips';
 import { useFilePicker } from './hooks/useFilePicker';
 import { styles } from './styles';
 
@@ -26,6 +27,9 @@ export type ChatComposerProps = {
   onCancelReply?: () => void;
   onTypingStart?: () => void;
   onTypingStop?: () => void;
+  conversationId?: string;
+  userId?: string;
+  onSmartReplyDismiss?: () => void;
 };
 
 export const ChatComposer = React.memo(function ChatComposer({
@@ -39,6 +43,9 @@ export const ChatComposer = React.memo(function ChatComposer({
   onCancelReply,
   onTypingStart,
   onTypingStop,
+  conversationId,
+  userId,
+  onSmartReplyDismiss,
 }: ChatComposerProps) {
   const theme = useTheme();
   const [showMore, setShowMore] = useState(false);
@@ -160,11 +167,25 @@ export const ChatComposer = React.memo(function ChatComposer({
     };
   }, [recording]);
 
+  useEffect(() => {
+    if (value.length > 0 && onSmartReplyDismiss) {
+      onSmartReplyDismiss();
+    }
+  }, [value, onSmartReplyDismiss]);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
     
     {/* Phần Reply hoặc Image Preview (nếu có) */}
     <View style={styles.topSection}>
+      {conversationId && (
+        <SmartReplyChips
+          conversationId={conversationId}
+          userId={userId || ''}
+          onSelect={(suggestion) => onChangeText(suggestion)}
+          onDismiss={onSmartReplyDismiss || (() => {})}
+        />
+      )}
       {!!editingTo && <ReplyBar type="edit" text={editingTo.text} onCancel={onCancelEdit || (() => {})} theme={theme} />}
       {selectedImages.length > 0 && <ImagePreview images={selectedImages} onRemove={handleRemoveImage} onAddMore={handlePickImageForPreview} theme={theme} />}
       {!!replyingTo && !editingTo && <ReplyBar type="reply" senderName={replyingTo.senderName} text={replyingTo.text} onCancel={onCancelReply || (() => {})} theme={theme} />}
@@ -191,8 +212,8 @@ export const ChatComposer = React.memo(function ChatComposer({
           value={value}
           onChangeText={handleTextChange}
           placeholder="Nhập tin nhắn"
-          placeholderTextColor="#999"
-          style={styles.input}
+          placeholderTextColor={theme.dark ? 'rgba(255,255,255,0.35)' : '#999'}
+          style={[styles.input, { color: theme.colors.text }]}
           multiline
         />
       </View>

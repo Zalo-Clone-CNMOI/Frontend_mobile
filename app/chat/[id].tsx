@@ -15,9 +15,16 @@ import { useChatDetailScreenLogic } from '@/src/hooks/screens/useChatDetailScree
 import { useMessagePin } from '@/src/hooks/useMessagePin';
 import { getMessageReactions } from '@/src/services/chatService';
 import * as mediaService from '@/src/services/mediaService';
+import { translationService } from '@/src/services/ai/TranslationService';
 import { lookupMessage, getPinnedMessages } from '@/src/services/messagesApi';
 import { mapPinnedMessagesListFromApi } from '@/src/types/mappers/DTOMappers';
 import { searchUsers } from '@/src/services/usersApi';
+import { summaryService } from '@/src/services/ai/SummaryService';
+import { SummaryModal } from '@/src/components/chat/SummaryModal';
+import { EntityInfoModal } from '@/src/components/chat/EntityInfoModal';
+import { useEntityDetectionStore } from '@/src/store/useEntityDetectionStore';
+import { useAITranslationStore } from '@/src/store/useAITranslationStore';
+import { useAISmartReplyStore } from '@/src/store/useAISmartReplyStore';
 import { useChatStore } from '@/src/store/chatStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useChatsStore } from '@/src/store/useChatsStore';
@@ -28,7 +35,7 @@ import { useCallStore } from '@/src/store/useCallStore';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Bell, ChevronDown, ChevronUp, Circle, Forward, List, Phone, Search, Video, X } from 'lucide-react-native';
+import { Bell, ChevronDown, ChevronUp, Circle, Forward, List, Phone, Search, Sparkles, Video, X } from 'lucide-react-native';
 import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
 import { PresenceText } from '@/src/components/common/PresenceIndicator';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -54,6 +61,7 @@ export default function ChatDetailScreen() {
   const getMySettings = useConversationDetailStore((state) => state.getMySettings);
   const getMembers = useConversationDetailStore((state) => state.getMembers);
   const setMessageReactions = useMessagesStore((state) => state.setMessageReactions);
+  const messageCount = useMessagesStore((state) => (state.messagesByChatId[chatId || '']?.length) ?? 0);
   const deleteChat = useChatsStore((state) => state.deleteChat);
   const { pinMessage, unpinMessage, isMessagePinned } = useMessagePin();
 
@@ -179,6 +187,49 @@ export default function ChatDetailScreen() {
   
   // Chat options navigation protection
   const [isOpeningChatOptions, setIsOpeningChatOptions] = useState(false);
+
+  // Summary modal state
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+
+  // Entity detection state
+  const [showEntityInfoModal, setShowEntityInfoModal] = useState(false);
+  const [selectedEntityItem, setSelectedEntityItem] = useState<any>(null);
+  const entitiesByMessage = useEntityDetectionStore((s) => s.entitiesByMessage);
+
+  // DEV: inject mock translations for UI testing
+  useEffect(() => {
+    if (!messages?.length) return;
+    const store = useAITranslationStore.getState();
+    let count = 0;
+    for (const msg of messages) {
+      if (count >= 5) break;
+      const text = msg.text || msg.content || '';
+      if (!text.trim() || msg.isRevoked || msg.removed) continue;
+      const key = `${msg.id}_vi`;
+      if (store.cache.has(key)) continue;
+      store.setTranslation(
+        msg.id,
+        'vi',
+        text,
+        `[Mock EN] Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore. ${text.slice(0, 40)}...`,
+      );
+      count++;
+    }
+    console.log(`[Mock] Injected ${count} translations`);
+  }, [messages]);
+
+  // DEV: inject mock smart reply suggestions for UI testing
+  useEffect(() => {
+    if (!chatId) return;
+    const store = useAISmartReplyStore.getState();
+    if (store.suggestions.has(chatId)) return;
+    store.setSuggestions(chatId, [
+      'Ok bạn, để tôi xem lại',
+      'Cảm ơn bạn đã hỗ trợ nhiệt tình!',
+      'Tôi sẽ kiểm tra và phản hồi lại sau',
+    ]);
+    console.log('[Mock] Injected smart reply suggestions');
+  }, [chatId]);
 
   // Load pinned messages when chat loads
   useEffect(() => {
@@ -511,6 +562,35 @@ export default function ChatDetailScreen() {
     setTimeout(() => setIsOpeningChatOptions(false), 300);
   };
 
+  const handleSummarizeChat = () => {
+    if (chatId) {
+      setShowSummaryModal(true);
+      summaryService.requestSummary({
+        conversationId: chatId,
+        messageCount: 200,
+      });
+    }
+  };
+
+  const handleEntityPress = useCallback((entity: any) => {
+    setSelectedEntityItem(entity);
+    setShowEntityInfoModal(true);
+  }, []);
+
+  const handleTranslate = useCallback((message: any) => {
+    if (authUser?.id && chatId && message.text) {
+      const cached = translationService.getCachedTranslation(message.id, 'vi');
+      if (!cached) {
+        translationService.requestTranslation({
+          conversationId: chatId,
+          userId: authUser.id,
+          messageId: message.id,
+          body: message.text,
+        });
+      }
+    }
+  }, [authUser?.id, chatId]);
+
   // Handle search input change with debounce
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
@@ -692,6 +772,7 @@ export default function ChatDetailScreen() {
   const presenceStatus = getPresenceStatus();
 
   const renderItem = React.useCallback(({ item }: { item: any }) => {
+    const messageEntities = entitiesByMessage.get(item.id) || undefined;
     return (
       <MessageBubble
         item={item}
@@ -731,6 +812,9 @@ export default function ChatDetailScreen() {
         onToggleSelection={toggleMessageSelection}
         // Messages for reply lookup
         messages={messages}
+        // Entity detection
+        entities={messageEntities}
+        onEntityPress={handleEntityPress}
       />
     );
   }, [
@@ -757,6 +841,8 @@ export default function ChatDetailScreen() {
     selectedMessageIds,
     toggleMessageSelection,
     messages,
+    entitiesByMessage,
+    handleEntityPress,
   ]);
 
   return (
@@ -843,6 +929,14 @@ export default function ChatDetailScreen() {
                 </TouchableOpacity>
               ) : !isSearchMode && (
                 <>
+                  {messageCount > 10 && (
+                    <TouchableOpacity
+                      style={styles.callButton}
+                      onPress={handleSummarizeChat}
+                    >
+                      <Sparkles size={20} color={theme.colors.iconHeader} />
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity
                     style={styles.callButton}
                     onPress={handleStartVoiceCall}
@@ -1017,6 +1111,13 @@ export default function ChatDetailScreen() {
                 : null
             }
             onCancelReply={() => setReplyingMessage(null)}
+              conversationId={chatId}
+              userId={authUser?.id}
+              onSmartReplyDismiss={() => {
+                import('@/src/services/ai/SmartReplyService').then(({ smartReplyService }) => {
+                  smartReplyService.clearSuggestions(chatId);
+                });
+              }}
             />
           )}
           {!isMultiSelectMode && !canSendMessages && (
@@ -1089,6 +1190,7 @@ export default function ChatDetailScreen() {
           conversationType={currentChat?.isGroup ? 'group' : 'direct'}
           userRole={myGroupRole}
           canPinMessages={canPinMessages}
+          onTranslate={handleTranslate}
         />
 
         <ForwardModal
@@ -1124,6 +1226,22 @@ export default function ChatDetailScreen() {
           currentUserId={authUser?.id || ''}
           // isOwner and myRole props are deprecated - MemberRoleModal fetches fresh role from API
         />
+
+        {showSummaryModal && (
+          <SummaryModal
+            visible={showSummaryModal}
+            conversationId={chatId}
+            onClose={() => setShowSummaryModal(false)}
+          />
+        )}
+
+        {showEntityInfoModal && (
+          <EntityInfoModal
+            visible={showEntityInfoModal}
+            entity={selectedEntityItem}
+            onClose={() => setShowEntityInfoModal(false)}
+          />
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

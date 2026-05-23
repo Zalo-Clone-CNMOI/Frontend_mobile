@@ -286,6 +286,13 @@
     "disband_confirm": "Are you sure you want to disband this group? This action cannot be undone.",
     "disband": "Disband",
     "disband_group": "Disband Group",
+    "transfer_ownership": "Transfer Ownership",
+    "transfer_ownership_desc": "Select a member to transfer ownership to. You will become a regular member after the transfer.",
+    "transfer_ownership_confirm": "Are you sure you want to transfer ownership to {{name}}? This action cannot be undone.",
+    "transfer_ownership_success": "Ownership transferred successfully",
+    "transfer_ownership_failed": "Failed to transfer ownership",
+    "transfer": "Transfer",
+    "no_eligible_members": "No eligible members to transfer ownership to",
     "leave_title": "Leave Group",
     "pin": "Pin Conversation",
     "unpin": "Unpin",
@@ -411,7 +418,11 @@
     "revoked": "Message revoked",
     "replying_to": "Replying to",
     "replied_message": "Replied message",
-    "empty": "No conversations yet"
+    "empty": "No conversations yet",
+    "edited": "Edited",
+    "view_original_message": "View original",
+    "removed": "Message removed",
+    "translated": "View translation"
   },
 
   "add_friend": {

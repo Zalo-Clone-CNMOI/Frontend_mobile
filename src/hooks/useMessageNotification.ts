@@ -7,6 +7,7 @@ import { localNotificationService } from '../services/localNotificationService';
 import { useInAppNotification } from '../notifications/useInAppNotification';
 import { useChatsStore } from '../store/useChatsStore';
 import { useMessagesStore } from '../store/useMessagesStore';
+import { useChatStore } from '../store/chatStore';
 import { toLegacyChatMessage, enrichReplyToDetails, isMessageProcessed, addProcessedMessageId } from '../services/chatService';
 import * as messagesApi from '../services/messagesApi';
 import { detectPreviewTypeFromMessage, formatPreviewContent } from '../utils/messagePreviewFormatter';
@@ -83,7 +84,7 @@ export function useMessageNotification() {
     const messageId = payload.message_id || payload.id;
     const conversationId = payload.conversation_id || payload.conversationId;
     const senderId = payload.sender_id || payload.senderId;
-    const senderName = payload.sender_name || payload.senderName || 'Người dùng';
+    const senderName = payload.sender_name || 'Người dùng';
     const body = payload.body || payload.content || '';
 
     console.log('[MessageNotification] New message:', { messageId, conversationId, senderId, senderName });
@@ -168,13 +169,13 @@ export function useMessageNotification() {
   // Xử lý tin nhắn đã sửa
   const handleMessageUpdated = useCallback((payload: any) => {
     console.log('[MessageNotification] Message updated:', payload);
-    useMessagesStore.getState().updateMessage?.(payload);
+    useChatStore.getState().updateMessage(payload);
   }, []);
 
   // Xử lý tin nhắn đã xóa
   const handleMessageDeleted = useCallback((payload: any) => {
     console.log('[MessageNotification] Message deleted:', payload);
-    useMessagesStore.getState().deleteMessage?.(payload);
+    useChatStore.getState().deleteMessage(payload);
   }, []);
 
   // Xử lý reaction
