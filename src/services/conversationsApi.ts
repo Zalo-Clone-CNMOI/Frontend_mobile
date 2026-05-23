@@ -299,6 +299,10 @@ export const updateConversation = async (
 export const disbandConversation = (conversationId: string) =>
   request('POST', `/conversations/${encodeURIComponent(conversationId)}/disband`);
 
+// Transfer ownership to another member (owner only)
+export const transferOwnership = (conversationId: string, targetUserId: string) =>
+  request('POST', `/conversations/${encodeURIComponent(conversationId)}/transfer-ownership`, { targetUserId });
+
 // Pin conversation for current user
 export const pinConversation = (conversationId: string) =>
   request('POST', `/conversations/${encodeURIComponent(conversationId)}/pin`);
@@ -462,6 +466,7 @@ export default {
   updateMySettings,
   updateConversation,
   disbandConversation,
+  transferOwnership,
   pinConversation,
   unpinConversation,
   sendInvites,

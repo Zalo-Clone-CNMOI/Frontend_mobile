@@ -1,7 +1,7 @@
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
 import * as Clipboard from 'expo-clipboard';
-import { Copy, Edit, Forward, Pin, Reply, RotateCcw, Trash2 } from 'lucide-react-native';
+import { Copy, Edit, Forward, Languages, Pin, Reply, RotateCcw, Trash2 } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -25,6 +25,7 @@ interface MessageActionMenuProps {
   onForward?: (message: ChatMessage) => void;
   onPin?: (message: ChatMessage) => void;
   onUnpin?: (message: ChatMessage) => void;
+  onTranslate?: (message: ChatMessage) => void;
   isPinned?: boolean;
   conversationType?: 'direct' | 'group';
   userRole?: 'owner' | 'admin' | 'member';
@@ -52,6 +53,7 @@ export function MessageActionMenu({
   onForward,
   onPin,
   onUnpin,
+  onTranslate,
   isPinned,
   conversationType = 'direct',
   userRole = 'member',
@@ -153,6 +155,15 @@ export function MessageActionMenu({
               </View>
               <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.reply_to', { defaultValue: 'Trả lời' })}</Text>
             </TouchableOpacity>
+
+            {onTranslate && message.text && (
+              <TouchableOpacity style={styles.gridItem} onPress={() => { onTranslate?.(message); onClose(); }}>
+                <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
+                  <Languages size={24} color="#6366f1" />
+                </View>
+                <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('ai.translate', { defaultValue: 'Dịch' })}</Text>
+              </TouchableOpacity>
+            )}
 
 
             <TouchableOpacity style={styles.gridItem} onPress={handleCopy}>

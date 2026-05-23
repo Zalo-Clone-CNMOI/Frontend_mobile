@@ -33,7 +33,10 @@ interface MessagesState {
   addPinnedMessage: (chatId: string, messageId: string) => void;
   removePinnedMessage: (chatId: string, messageId: string) => void;
   isMessagePinned: (chatId: string, messageId: string) => boolean;
-  
+
+  // Moderation methods
+  markMessageRemoved: (chatId: string, messageId: string, reason?: string) => void;
+
   reset: () => void;
 }
 
@@ -471,6 +474,31 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     const state = get();
     const pinnedSet = state.pinnedMessagesByChatId[chatId];
     return pinnedSet ? pinnedSet.has(messageId) : false;
+  },
+
+  markMessageRemoved: (chatId, messageId, reason) => {
+    set((state) => {
+      const messages = state.messagesByChatId[chatId];
+      if (!messages) return state;
+
+      const updatedMessages = messages.map((msg) => {
+        if (msg.id === messageId || msg.serverMessageId === messageId) {
+          return {
+            ...msg,
+            removed: true,
+            removalReason: reason || 'ai_moderation',
+          };
+        }
+        return msg;
+      });
+
+      return {
+        messagesByChatId: {
+          ...state.messagesByChatId,
+          [chatId]: updatedMessages,
+        },
+      };
+    });
   },
 
   reset: () => {

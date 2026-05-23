@@ -48,7 +48,7 @@ export function PollCard({
         console.log('[PollCard] Updating from store:', {
           pollId: metadata.poll_id,
           my_vote: 'my_vote' in poll ? poll.my_vote : undefined,
-          total_votes: 'total_votes' in poll ? poll.total_votes : poll.total_votes,
+          total_votes: 'total_votes' in poll ? poll.total_votes : metadata.total_votes,
           status: 'status' in poll ? poll.status : metadata.status,
           options_count: poll.options?.length || metadata.options?.length
         });
@@ -95,7 +95,7 @@ export function PollCard({
         console.log('[PollCard] Store change detected:', {
           pollId: metadata.poll_id,
           my_vote: 'my_vote' in poll ? poll.my_vote : undefined,
-          total_votes: 'total_votes' in poll ? poll.total_votes : poll.total_votes,
+          total_votes: 'total_votes' in poll ? poll.total_votes : metadata.total_votes,
           status: 'status' in poll ? poll.status : metadata.status,
           options_count: poll.options?.length || metadata.options?.length,
           question: 'question' in poll ? poll.question : metadata.question

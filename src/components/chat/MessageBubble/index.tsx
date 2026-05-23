@@ -25,6 +25,9 @@ import {
   View,
 } from 'react-native';
 import { useUserProfiles } from '@/src/hooks/useUserProfiles';
+import type { DetectedEntity } from '@/src/store/useEntityDetectionStore';
+import { useAITranslationStore } from '@/src/store/useAITranslationStore';
+import { EntityInfoModal } from '../EntityInfoModal';
 
 // ─── Helper: HighlightText Component ─────────────────────────────────────────
 // Highlights search terms in message text like Zalo
@@ -94,6 +97,9 @@ type MessageBubbleProps = {
   onToggleSelection?: (messageId: string) => void;
   // Messages list for reply lookup
   messages?: ChatMessage[];
+  // Entity detection
+  entities?: DetectedEntity[];
+  onEntityPress?: (entity: DetectedEntity) => void;
 };
 
 export const MessageBubble = React.memo(
@@ -115,21 +121,39 @@ export const MessageBubble = React.memo(
     isPinned = false,
     conversationMembers,
     currentUserRole,
-    isMultiSelectMode = false,
+isMultiSelectMode = false,
     isSelected = false,
     onToggleSelection,
     messages,
+    entities,
+    onEntityPress,
   }: MessageBubbleProps) {
-  const theme = useTheme();
-  const { t } = useTranslation();
-  const { user: authUser } = useAuth();
-  const { profiles, fetchUserProfile, getAvatarUrl, loading } = useUserProfiles();
-  const [attachmentUrl, setAttachmentUrl] = useState<string>('');
-  const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
-  const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
-  const fetchedUrlsRef = useRef(false);
+    const theme = useTheme();
+    const { t } = useTranslation();
+    const { user: authUser } = useAuth();
+    const { profiles, fetchUserProfile, getAvatarUrl, loading } = useUserProfiles();
+    const [attachmentUrl, setAttachmentUrl] = useState<string>('');
+    const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
+    const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
+    const fetchedUrlsRef = useRef(false);
+    const [showEntityModal, setShowEntityModal] = useState(false);
+    const [selectedEntity, setSelectedEntity] = useState<DetectedEntity | null>(null);
+    const [showTranslation, setShowTranslation] = useState(false);
+    const displayEntities = entities && entities.length > 0 ? entities : undefined;
 
-  const attachments: Attachment[] = item.attachments || [];
+    const cachedTranslation = useAITranslationStore((s) => s.cache.get(`${item.id}_vi`));
+    const hasTranslation = !!cachedTranslation && !item.isRevoked && !item.removed;
+
+    const handleEntityPress = (entity: DetectedEntity) => {
+      if (onEntityPress) {
+        onEntityPress(entity);
+      } else {
+        setSelectedEntity(entity);
+        setShowEntityModal(true);
+      }
+    };
+
+    const attachments: Attachment[] = item.attachments || [];
   const imageAttachments = attachments.filter((a: Attachment) => a.type === 'image' || a.content_type?.startsWith('image/'));
   const hasMultipleImages = imageAttachments.length > 1;
   const previewImages = attachmentUrls.slice(0, 6);
@@ -390,6 +414,17 @@ export const MessageBubble = React.memo(
     return theirBubbleBg;
   };
 
+  // Check if this is an invite message
+  const isInviteMessage = item.messageType === 'invite' || item.type === 'invite';
+
+  if (isInviteMessage) {
+    return (
+      <View style={styles.systemMessageContainer}>
+        <InviteMessageBubble item={item} isMe={isMe ?? false} />
+      </View>
+    );
+  }
+
   // Check if this is a system message
   const isSystemMessage = item.messageType === 'system' || item.senderId === 'SYSTEM' || item.type === 'system';
 
@@ -411,83 +446,91 @@ export const MessageBubble = React.memo(
           currentUserId={authUser?.id || ''}
         />
       </View>
-    );
-  }
+);
+}
 
-  // Check if this is an invite message
-  const isInviteMessage = item.messageType === 'invite' || item.type === 'invite';
-  const inviteMetadata = item.metadata as {
-    invite_id?: string;
-    group_id?: string;
-    group_name?: string;
-    inviter_id?: string;
-    inviter_name?: string;
-    status?: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'expired';
-  } | undefined;
+interface EntityHighlightTextProps {
+  text: string;
+  entities: DetectedEntity[];
+  textColor: string;
+  entityColors?: Record<string, string>;
+  onEntityPress?: (entity: DetectedEntity) => void;
+}
 
-  if (isInviteMessage || inviteMetadata?.invite_id) {
+function EntityHighlightText({
+  text,
+  entities,
+  textColor,
+  entityColors = {},
+  onEntityPress,
+}: EntityHighlightTextProps) {
+  const highConfidenceEntities = entities.filter((e) => e.confidence > 0.75);
+
+  if (!highConfidenceEntities || highConfidenceEntities.length === 0) {
     return (
-      <View
-        style={[
-          styles.container,
-          isMe ? styles.rowRight : styles.rowLeft,
-        ]}
-      >
-        {/* Left avatar (other user) */}
-        {!isMe && (
-          avatar && avatar.trim() !== '' ? (
-            <Image source={{ uri: avatar }} style={styles.avatar} />
-          ) : (
-            <AvatarWithInitials name={senderName} size={36} style={styles.avatar} />
-          )
-        )}
-
-        <View style={[styles.bubbleWrapper, { alignItems: isMe ? 'flex-end' : 'flex-start' }]}>
-          {/* Sender name for group chats */}
-          {isGroup && !isMe && (
-            <Text style={[styles.senderNameText, { color: senderNameColor }]}>
-              {senderName}
-            </Text>
-          )}
-
-          <InviteMessageBubble
-            item={item}
-            isMe={isMe}
-            onAccept={(inviteId) => {
-              // TODO: Handle accept invite
-              console.log('Accept invite:', inviteId);
-            }}
-            onReject={(inviteId) => {
-              // TODO: Handle reject invite
-              console.log('Reject invite:', inviteId);
-            }}
-            onViewInvite={(inviteId) => {
-              // TODO: Navigate to group
-              console.log('View invite:', inviteId);
-            }}
-          />
-
-          {/* Time row */}
-          <View style={[styles.timeRow, { alignSelf: 'flex-end' }]}>
-            <Text style={[styles.timestamp, { color: isMe ? myMetaColor : theirMetaColor }]}>
-              {formatTime(item.timestamp)}
-            </Text>
-
-            {isPinned && (
-              <View style={styles.pinIcon}>
-                <Pin size={12} color={isMe ? myMetaColor : theirMetaColor} fill={isMe ? myMetaColor : theirMetaColor} />
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Right avatar (shown for sent messages – optional) */}
-        {isMe && avatar && avatar.trim() !== '' && (
-          <Image source={{ uri: avatar }} style={styles.avatar} />
-        )}
-      </View>
+      <Text style={[styles.text, { color: textColor }]}>
+        {text}
+      </Text>
     );
   }
+
+  const sortedEntities = [...highConfidenceEntities].sort((a, b) => a.start_index - b.start_index);
+
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+
+  sortedEntities.forEach((entity) => {
+    if (entity.start_index > lastIndex && entity.start_index < text.length) {
+      parts.push(
+        <Text key={`text-${lastIndex}`} style={[styles.text, { color: textColor }]}>
+          {text.slice(lastIndex, entity.start_index)}
+        </Text>
+      );
+    }
+
+    const color = entityColors[entity.type] || '#6366f1';
+    parts.push(
+      <Text
+        key={`entity-${entity.start_index}`}
+        style={[
+          styles.text,
+          {
+            color: textColor,
+            backgroundColor: color + '30',
+            borderRadius: 3,
+            borderBottomWidth: 2,
+            borderBottomColor: color,
+          },
+        ]}
+        onPress={() => onEntityPress?.(entity)}
+      >
+        {text.slice(entity.start_index, Math.min(entity.end_index, text.length))}
+      </Text>
+    );
+
+    lastIndex = Math.min(entity.end_index, text.length);
+  });
+
+  if (lastIndex < text.length) {
+    parts.push(
+      <Text key={`text-${lastIndex}`} style={[styles.text, { color: textColor }]}>
+        {text.slice(lastIndex)}
+      </Text>
+    );
+  }
+
+  return <Text>{parts}</Text>;
+}
+
+// ─── Helper: HighlightText Component ─────────────────────────────────────────
+// Highlights search terms in message text like Zalo
+
+interface HighlightTextProps {
+  text: string;
+  highlight?: string;
+  textColor: string;
+  highlightColor: string;
+}
 
   // Handle press - toggle selection in multi-select mode
   const handlePress = () => {
@@ -603,23 +646,29 @@ export const MessageBubble = React.memo(
           )}
 
           {/* ── Content ────────────────────────────────────────────────────── */}
-          {item.isRevoked ? (
+          {item.isRevoked || item.removed ? (
             <View style={styles.revokedRow}>
-              {canReuseRevoked && (
-                <Pressable
-                  onPress={() => onReuseRevoked?.(item)}
-                  style={[styles.reuseBtn, { borderColor: theme.colors.border }]}
-                >
-                  <RotateCcw size={14} color={isMe ? myTextColor : theme.colors.text} />
-                </Pressable>
-              )}
               <Text
                 style={[
                   styles.revoked,
                   { color: theme.colors.text },
                 ]}
               >
-                {t('messages.revoked')}
+                {item.removed ? (
+                item.removalReason === 'ai_moderation' ? (
+                  <Text style={[styles.revoked, { color: theme.colors.text }]}>
+                    {t('messages.removed_by_moderation', { defaultValue: 'Message removed by AI moderation' })}
+                  </Text>
+                ) : (
+                  <Text style={[styles.revoked, { color: theme.colors.text }]}>
+                    {item.removalReason || t('messages.removed')}
+                  </Text>
+                )
+              ) : (
+                <Text style={[styles.revoked, { color: theme.colors.text }]}>
+                  {t('messages.revoked')}
+                </Text>
+              )}
               </Text>
             </View>
           ) : isImage ? (
@@ -888,19 +937,78 @@ export const MessageBubble = React.memo(
               )}
             </TouchableOpacity>
           ) : (
-            // ── Plain text with optional highlight ────────────────────────────────────
-            <HighlightText
-              text={messageText}
-              highlight={highlightText}
-              textColor={isMe ? myTextColor : theirTextColor}
-              highlightColor={isMe ? 'rgba(255,255,255,0.4)' : 'rgba(255,193,7,0.8)'}
-            />
+            // ── Plain text with optional entity highlight or search highlight ──────────
+            <View>
+              {displayEntities && displayEntities.length > 0 ? (
+                <EntityHighlightText
+                  text={messageText}
+                  entities={displayEntities}
+                  textColor={isMe ? myTextColor : theirTextColor}
+                  onEntityPress={handleEntityPress}
+                />
+              ) : (
+                <HighlightText
+                  text={messageText}
+                  highlight={highlightText}
+                  textColor={isMe ? myTextColor : theirTextColor}
+                  highlightColor={isMe ? 'rgba(255,255,255,0.4)' : 'rgba(255,193,7,0.8)'}
+                />
+              )}
+
+              {hasTranslation && !showTranslation && (
+                <TouchableOpacity
+                  onPress={() => setShowTranslation(true)}
+                  activeOpacity={0.7}
+                  style={[
+                    styles.translateButton,
+                    isMe
+                      ? { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.25)' }
+                      : { backgroundColor: theme.colors.primary + '10', borderColor: theme.colors.primary + '30' },
+                  ]}
+                >
+                  <View style={[styles.translateBadge, { backgroundColor: isMe ? '#fff' : theme.colors.primary }]}>
+                    <Text style={[styles.translateBadgeText, { color: isMe ? theme.colors.primary : '#fff' }]}>
+                      Dịch
+                    </Text>
+                  </View>
+                  <Text style={[styles.translateActionText, { color: isMe ? '#fff' : theme.colors.primary }]}>
+                    Xem thêm
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {hasTranslation && showTranslation && (
+                <View style={styles.translatedBlock}>
+                  <View style={[styles.translatedDivider, { backgroundColor: isMe ? 'rgba(255,255,255,0.2)' : 'rgba(128,128,128,0.25)' }]} />
+                  <Text style={[styles.translatedText, { color: isMe ? myTextColor : theirTextColor }]}>
+                    {cachedTranslation.translated}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setShowTranslation(false)}
+                    activeOpacity={0.7}
+                    style={[
+                      styles.translateButton,
+                      isMe
+                        ? { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.25)' }
+                        : { backgroundColor: theme.colors.primary + '10', borderColor: theme.colors.primary + '30' },
+                    ]}
+                  >
+                    <View style={[styles.translateBadge, { backgroundColor: '#10b981' }]}>
+                      <Text style={styles.translateBadgeText}>Đã dịch</Text>
+                    </View>
+                    <Text style={[styles.translateActionText, { color: isMe ? '#fff' : theme.colors.primary }]}>
+                      Ẩn bớt
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
           )}
         </TouchableOpacity>
 
         {/* ── Time row ──────────────────────────────────────────────────────── */}
         <View style={[styles.timeRow, { alignSelf: 'flex-end' }]}>
-          {!item.isRevoked && (
+          {!item.isRevoked && !item.removed && (
             <>
               {item.isEdited ? (
                 <Text style={[styles.edited, { color: isMe ? myMetaColor : theirMetaColor }]}>
@@ -919,7 +1027,7 @@ export const MessageBubble = React.memo(
             </View>
           )}
 
-          {isMe && !item.isRevoked && (
+          {isMe && !item.isRevoked && !item.removed && (
             <View style={styles.receiptIcon}>
               {item.status === 'read' ? (
                 <CheckCheck size={14} color={myTextColor} />
@@ -946,6 +1054,12 @@ export const MessageBubble = React.memo(
       {isMe && avatar && avatar.trim() !== '' && (
         <Image source={{ uri: avatar }} style={styles.avatar} />
       )}
+
+      <EntityInfoModal
+        visible={showEntityModal}
+        entity={selectedEntity}
+        onClose={() => setShowEntityModal(false)}
+      />
     </View>
   );
 }, (prevProps, nextProps) => {
@@ -1260,6 +1374,11 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
+  systemMessageContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+
   bubbleWithReply: {
     paddingTop: 8,
     minWidth: 220,
@@ -1364,4 +1483,42 @@ const styles = StyleSheet.create({
     maxWidth: '70%',
   },
 
+  // Translation styles
+  translateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+    gap: 6,
+  },
+  translateBadge: {
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  translateBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  translateActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  translatedBlock: {
+    marginTop: 2,
+  },
+  translatedDivider: {
+    height: 1,
+    marginVertical: 6,
+  },
+  translatedText: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontStyle: 'italic',
+  },
 });

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { leaveConversation, disbandConversation } from '@/src/services/conversationsApi';
+import { leaveConversation, disbandConversation, transferOwnership } from '@/src/services/conversationsApi';
 import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
@@ -30,6 +30,7 @@ interface UseChatOptionsReturn {
   viewerVisible: boolean;
   viewerInitialIndex: number;
   roleSelectionVisible: boolean;
+  transferOwnershipModalVisible: boolean;
 
   // Data
   cacheEntry: any;
@@ -61,8 +62,10 @@ interface UseChatOptionsReturn {
   setViewerVisible: (value: boolean) => void;
   setViewerInitialIndex: (value: number) => void;
   setRoleSelectionVisible: (value: boolean) => void;
+  setTransferOwnershipModalVisible: (value: boolean) => void;
   handleLeaveGroup: () => void;
   handleDisbandGroup: () => void;
+  handleTransferOwnership: (targetUserId: string, targetName: string) => void;
   handleAddMember: () => void;
   handleViewMembers: (onClose: () => void) => void;
   handleViewAllMedia: () => void;
@@ -121,7 +124,8 @@ export const useChatOptions = ({
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const [roleSelectionVisible, setRoleSelectionVisible] = useState(false);
-  
+  const [transferOwnershipModalVisible, setTransferOwnershipModalVisible] = useState(false);
+
   // Navigation protection states
   const [isNavigatingToMembers, setIsNavigatingToMembers] = useState(false);
   const [isNavigatingToPolls, setIsNavigatingToPolls] = useState(false);
@@ -198,6 +202,35 @@ export const useChatOptions = ({
       },
     ]);
   }, [chatId, router, onLeaveSuccess, t]);
+
+  const handleTransferOwnership = useCallback(
+    (targetUserId: string, targetName: string) => {
+      Alert.alert(
+        t('chat_options.transfer_ownership'),
+        t('chat_options.transfer_ownership_confirm', { name: targetName }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('chat_options.transfer'),
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await transferOwnership(chatId, targetUserId);
+                await storeFetchConversationDetail(chatId, true);
+                Alert.alert(t('common.success'), t('chat_options.transfer_ownership_success'));
+              } catch (error: any) {
+                Alert.alert(
+                  t('common.error'),
+                  error.message || t('chat_options.transfer_ownership_failed')
+                );
+              }
+            },
+          },
+        ]
+      );
+    },
+    [chatId, storeFetchConversationDetail, t]
+  );
 
   const handleAddMember = useCallback(() => {
     if (isNavigatingToMembers) {
@@ -327,6 +360,7 @@ export const useChatOptions = ({
     viewerVisible,
     viewerInitialIndex,
     roleSelectionVisible,
+    transferOwnershipModalVisible,
 
     // Data
     cacheEntry,
@@ -356,6 +390,8 @@ export const useChatOptions = ({
     setRoleSelectionVisible,
     handleLeaveGroup,
     handleDisbandGroup,
+    handleTransferOwnership,
+    setTransferOwnershipModalVisible,
     handleAddMember,
     handleViewMembers,
     handleViewAllMedia,

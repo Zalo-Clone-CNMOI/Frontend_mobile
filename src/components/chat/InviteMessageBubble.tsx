@@ -15,6 +15,8 @@ interface InviteMessageBubbleProps {
   onViewInvite?: (inviteId: string) => void;
 }
 
+const noop = () => {};
+
 export const InviteMessageBubble: React.FC<InviteMessageBubbleProps> = ({
   item,
   isMe,
@@ -43,14 +45,11 @@ export const InviteMessageBubble: React.FC<InviteMessageBubbleProps> = ({
 
   useEffect(() => {
     console.log('=== InviteMessageBubble Received Data ===');
-    console.log('item (ChatMessage):', JSON.stringify(item, null, 2));
+    console.log('item:', JSON.stringify(item, null, 2));
     console.log('isMe:', isMe);
-    console.log('onAccept:', typeof onAccept);
-    console.log('onReject:', typeof onReject);
-    console.log('onViewInvite:', typeof onViewInvite);
     console.log('metadata:', JSON.stringify(item.metadata, null, 2));
     console.log('metadata.message:', metadata?.message);
-  }, [item, isMe, onAccept, onReject, onViewInvite, metadata?.message]);
+  }, [item, isMe, metadata?.message]);
 
   // Handle press on invite card - only open modal for pending invites
   const handlePress = () => {

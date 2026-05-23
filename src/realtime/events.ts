@@ -55,6 +55,21 @@ export const WsEvents = {
   GroupPollOptionAdded: 'group:poll:option:added',
   GroupPollOptionRemoved: 'group:poll:option:removed',
   GroupPollClosed: 'group:poll:closed',
+
+  // AI / Chat
+  AiSmartReplyRequest: 'ai:smart-reply:request',
+  AiSmartReplyResult: 'ai:smart-reply:result',
+  AiSummaryRequest: 'ai:summary:request',
+  AiSummaryResult: 'ai:summary:result',
+  AiTranslateRequest: 'ai:translate:request',
+  AiTranslateResult: 'ai:translate:result',
+  AiModerationEnforcement: 'ai:moderation:enforcement',
+  MessageEntities: 'message:entities',
+  AiDocumentQueryRequest: 'ai:document:query:request',
+  AiDocumentQueryResult: 'ai:document:query:result',
+  AiDocumentProcessed: 'ai:document:processed',
+  AiStreamChunk: 'ai:stream:chunk',
+  AiStreamComplete: 'ai:stream:complete',
 } as const;
 
 export type WsEventName = (typeof WsEvents)[keyof typeof WsEvents];
@@ -302,4 +317,109 @@ export interface GroupPollClosedPayload {
     vote_count: number;
   }>;
   closed_at: number;
+}
+
+// ==================== AI / Smart Reply Types ====================
+
+export interface AiSmartReplyResultPayload {
+  conversation_id: string;
+  user_id: string;
+  suggestions: string[];
+  language: string;
+  trace_id?: string;
+}
+
+// ==================== AI / Summary Types ====================
+
+export interface AiSummaryResultPayload {
+  conversation_id: string;
+  user_id: string;
+  summary: string;
+  message_count: number;
+  language: string;
+  trace_id?: string;
+}
+
+// ==================== AI / Translation Types ====================
+
+export interface AiTranslateResultPayload {
+  message_id: string;
+  conversation_id: string;
+  user_id: string;
+  original_body: string;
+  translated_body: string;
+  source_language: string;
+  target_language: string;
+  trace_id?: string;
+}
+
+// ==================== AI / Moderation Types ====================
+
+export interface AiModerationEnforcementPayload {
+  conversation_id: string;
+  message_id: string;
+  removed_message_id: string;
+  reason: string;
+  confidence: number;
+  trace_id?: string;
+}
+
+// ==================== AI / Entity Types ====================
+
+export interface MessageEntitiesPayload {
+  conversation_id: string;
+  message_id: string;
+  user_id: string;
+  entities: Array<{
+    text: string;
+    type: 'tool' | 'company' | 'person' | 'concept' | 'location' | 'product' | 'other';
+    start_index: number;
+    end_index: number;
+    confidence: number;
+  }>;
+  trace_id?: string;
+}
+
+// ==================== AI / Document Types ====================
+
+export interface AiDocumentQueryResultPayload {
+  conversation_id: string;
+  user_id: string;
+  document_id: string;
+  query: string;
+  answer: string;
+  sources: Array<{
+    text: string;
+    similarity: number;
+    page_number?: number;
+  }>;
+  trace_id?: string;
+}
+
+export interface AiDocumentProcessedPayload {
+  conversation_id: string;
+  user_id: string;
+  document_id: string;
+  file_name: string;
+  status: 'completed' | 'failed';
+  error_message?: string;
+  chunks_count?: number;
+  trace_id?: string;
+}
+
+// ==================== AI / Stream Types ====================
+
+export interface AiStreamChunkPayload {
+  conversation_id: string;
+  user_id: string;
+  chunk: string;
+  is_final: boolean;
+  trace_id?: string;
+}
+
+export interface AiStreamCompletePayload {
+  conversation_id: string;
+  user_id: string;
+  total_chunks: number;
+  trace_id?: string;
 }

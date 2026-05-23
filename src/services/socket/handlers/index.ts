@@ -2,6 +2,7 @@
 // All handlers follow the BaseHandler pattern for consistency
 
 export { BaseHandler, type HandlerContext } from "./BaseHandler";
+export { AIHandler } from "./AIHandler";
 export { CallHandler } from "./CallHandler";
 export { ChatMessageHandler } from "./ChatMessageHandler";
 export { ChatReactionHandler } from "./ChatReactionHandler";

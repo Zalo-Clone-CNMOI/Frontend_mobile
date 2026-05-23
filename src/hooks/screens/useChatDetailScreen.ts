@@ -292,6 +292,17 @@ export function useChatDetailScreenLogic() {
         markConversationAsRead(chatId);
         resetUnreadCount(chatId);
 
+        // Request AI smart reply suggestions
+        if (messagesWithAvatar.length > 0 && user?.id) {
+          const userId = user.id;
+          import('@/src/services/ai/SmartReplyService').then(({ smartReplyService }) => {
+            smartReplyService.requestSmartReply({
+              conversationId: chatId,
+              userId,
+            });
+          });
+        }
+
         // Handle jumpToMessageId - scroll to specific message
         if (jumpToMessageId && messagesWithAvatar.length > 0) {
           const messageIndex = messagesWithAvatar.findIndex(m =>

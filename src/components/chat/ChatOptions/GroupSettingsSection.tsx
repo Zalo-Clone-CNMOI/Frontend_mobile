@@ -1,5 +1,5 @@
 import { Settings, Shield, ToggleLeft, ToggleRight } from 'lucide-react-native';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -95,13 +95,16 @@ export const GroupSettingsSection: React.FC<GroupSettingsSectionProps> = ({
 }) => {
   const { t } = useTranslation();
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
-  
+
   const settings = useConversationDetailStore((state) => state.getSettings(conversationId));
   const updateSettings = useConversationDetailStore((state) => state.updateSettings);
   const fetchConversationDetail = useConversationDetailStore((state) => state.fetchConversationDetail);
-  
+
   const currentSettings = normalizeGroupSettings(settings);
   const isPrivileged = myRole === 'owner' || myRole === 'admin';
+
+  const settingsRef = useRef(currentSettings);
+  settingsRef.current = currentSettings;
 
   const handleToggle = useCallback(async (
     category: 'permissions' | 'policies' | 'features',
@@ -109,43 +112,77 @@ export const GroupSettingsSection: React.FC<GroupSettingsSectionProps> = ({
     value: boolean,
   ) => {
     if (!isPrivileged) return;
-    
-    const previousSettings = currentSettings;
-    
+
+    const previousSettings = settingsRef.current;
+
     updateSettings(conversationId, {
-      ...currentSettings,
+      ...previousSettings,
       [category]: {
-        ...currentSettings[category],
+        ...previousSettings[category],
         [key]: value,
       },
     });
-    
+
     setLoadingKey(`${category}.${key}`);
-    
+
     try {
       const payload = {
         [category]: {
           [key]: value,
         },
       };
-      
-      const response = await updateGroupSettings(conversationId, payload as any);
-      const detail = response.data?.data || response.data;
+
+      console.log(`[GroupSettings] Updating ${conversationId}:`, payload);
+
+      let response: any;
+      let lastError: any;
+
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          response = await updateGroupSettings(conversationId, payload as any);
+          console.log(`[GroupSettings] Response (attempt ${attempt}):`, response?.status, response?.data);
+          break;
+        } catch (error: any) {
+          lastError = error;
+          console.warn(`[GroupSettings] Attempt ${attempt} failed:`, error?.message);
+          if (attempt < 2 && error.message?.includes('timeout')) {
+            console.log(`[GroupSettings] Retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      const detail = response?.data?.data || response?.data;
       const updatedSettings = detail?.settings;
       if (updatedSettings) {
         updateSettings(conversationId, normalizeGroupSettings(updatedSettings));
       }
       fetchConversationDetail(conversationId, true).catch(() => {});
     } catch (error: any) {
+      console.error(`[GroupSettings] Error updating ${key}:`, error?.message, error?.code);
+
       updateSettings(conversationId, previousSettings);
+
+      let errorMessage = error.message || t('group_settings.update_failed') || 'Failed to update settings';
+
+      if (error.message?.includes('timeout')) {
+        errorMessage = t('group_settings.timeout_error') || 'Request timed out. Please try again later.';
+      } else if (error.message?.includes('403') || error?.code === 'FORBIDDEN') {
+        errorMessage = t('group_settings.permission_denied') || 'You do not have permission to change this setting.';
+      } else if (error.message?.includes('404')) {
+        errorMessage = t('group_settings.not_found') || 'Group not found or has been deleted.';
+      }
+
       Alert.alert(
         t('common.error') || 'Error',
-        error.message || (t('group_settings.update_failed') || 'Failed to update settings'),
+        errorMessage,
       );
     } finally {
       setLoadingKey(null);
     }
-  }, [conversationId, currentSettings, isPrivileged, updateSettings, fetchConversationDetail, t]);
+  }, [conversationId, isPrivileged, updateSettings, fetchConversationDetail, t]);
 
   const isLoading = (category: string, key: string) => loadingKey === `${category}.${key}`;
 
