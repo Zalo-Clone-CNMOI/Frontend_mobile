@@ -1,6 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { Sparkles } from 'lucide-react-native';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ScrollView, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { useAISmartReplyStore } from '../../store/useAISmartReplyStore';
 
@@ -29,6 +29,14 @@ export const SmartReplyChips: React.FC<SmartReplyChipsProps> = ({
   const displaySuggestions = suggestions.slice(0, 3).map((s) =>
     s.length > 80 ? s.slice(0, 77) + '...' : s
   );
+
+  // DEBUG: Log every render with current state
+  useEffect(() => {
+    console.log('[SmartReplyChips] RENDER - conversationId:', conversationId);
+    console.log('[SmartReplyChips] RENDER - suggestions count:', suggestions.length);
+    console.log('[SmartReplyChips] RENDER - displaySuggestions:', displaySuggestions);
+    console.log('[SmartReplyChips] RENDER - isLoading:', isLoading);
+  });
 
   if (isLoading) {
     return (
