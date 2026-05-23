@@ -2,8 +2,10 @@ import { useAuth } from '@/src/contexts/AuthContext';
 import { createDirect } from '@/src/services/conversationsApi';
 import { NETWORK_CONFIG } from '@/src/config/network';
 import { fetchRuntimeFriendSnapshot } from '@/src/services/realtime/runtimeFriendService';
+import { useChatsStore } from '@/src/store/useChatsStore';
 import { usePresenceStore } from '@/src/store/usePresenceStore';
 import { useRealtimeStore } from '@/src/store/useRealtimeStore';
+import type { ConversationV2 } from '@/src/types/chat';
 import type { ContactListItem as ContactListItemType } from '@/src/types/contacts';
 export type { ContactListItemType as ContactListItem };
 import { useFocusEffect } from '@react-navigation/native';
@@ -47,6 +49,8 @@ export function useContactsScreenLogic() {
   const receivedRequests = useRealtimeStore((state) => state.receivedRequests);
   const isHydrating = useRealtimeStore((state) => state.isHydrating);
   const presenceMap = usePresenceStore((state) => state.presenceMap);
+  const allChats = useChatsStore((state) => state.chats);
+  const chatsLoading = useChatsStore((state) => state.isLoading);
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -114,8 +118,16 @@ export function useContactsScreenLogic() {
     useCallback(() => {
       console.log('[ContactsScreen] Focused, refreshing friends');
       refreshFriends();
+      const chats = useChatsStore.getState();
+      if (chats.chats.length === 0 && !chats.isLoading) {
+        chats.initializeChats();
+      }
     }, [refreshFriends])
   );
+
+  const groups = useMemo(() => {
+    return allChats.filter((chat) => chat.isGroup);
+  }, [allChats]);
 
   const filteredFriends = useMemo(() => {
     if (usersFilterType === 'recent') {
@@ -124,12 +136,25 @@ export function useContactsScreenLogic() {
     return friends;
   }, [friends, usersFilterType]);
 
+  const handleGroupPress = useCallback(
+    (group: ConversationV2) => {
+      router.push({
+        pathname: '/chat/[id]',
+        params: { id: group.conversationId, name: group.name },
+      });
+    },
+    [router],
+  );
+
   return {
     activeTab,
     error,
     filteredFriends,
     friends,
+    groups,
+    groupsLoading: chatsLoading,
     handleRetry,
+    handleGroupPress,
     handleViewProfile,
     hasNext: false,
     loading: loading || isHydrating,

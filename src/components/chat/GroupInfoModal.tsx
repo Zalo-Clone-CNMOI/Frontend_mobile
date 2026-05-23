@@ -18,6 +18,7 @@ type GroupInfoModalProps = {
   currentName: string;
   currentAvatar: string | null;
   myRole: 'owner' | 'admin' | 'member';
+  canEditGroupInfo?: boolean;
 };
 
 export function GroupInfoModal({
@@ -27,6 +28,7 @@ export function GroupInfoModal({
   currentName,
   currentAvatar,
   myRole,
+  canEditGroupInfo = false,
 }: GroupInfoModalProps) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -90,8 +92,9 @@ export function GroupInfoModal({
   };
 
   const handleSave = async () => {
-    if (localRole !== 'owner') {
-      Alert.alert('Lỗi', 'Chỉ chủ nhóm mới có thể chỉnh sửa thông tin nhóm');
+    const canEdit = localRole === 'owner' || localRole === 'admin' || canEditGroupInfo;
+    if (!canEdit) {
+      Alert.alert('Lỗi', 'Bạn không có quyền chỉnh sửa thông tin nhóm');
       return;
     }
 
@@ -141,8 +144,10 @@ export function GroupInfoModal({
     }
   };
 
-  if (localRole !== 'owner') {
-    // View-only mode for non-owners
+  const canEdit = localRole === 'owner' || localRole === 'admin' || canEditGroupInfo;
+
+  if (!canEdit) {
+    // View-only mode for non-owners/non-admins without change_info permission
     return (
       <Modal
         transparent

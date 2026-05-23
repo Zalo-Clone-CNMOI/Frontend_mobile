@@ -103,7 +103,7 @@ export function canMemberDo(
   }
 
   if (!settings) {
-    return true;
+    return false;
   }
 
   return normalizeGroupSettings(settings).permissions[action] ?? true;

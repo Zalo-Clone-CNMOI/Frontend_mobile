@@ -20,6 +20,7 @@ interface PinnedMessagesSectionProps {
   onPressMessage: (message: ChatMessage) => void;
   onUnpinMessage?: (message: ChatMessage) => void;
   conversationId?: string;
+  canPinMessages?: boolean;
 }
 
 export const PinnedMessagesSection: React.FC<PinnedMessagesSectionProps> = ({
@@ -28,11 +29,12 @@ export const PinnedMessagesSection: React.FC<PinnedMessagesSectionProps> = ({
   onPressMessage,
   onUnpinMessage,
   conversationId,
+  canPinMessages = true,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
 
-  if (pinnedMessages.length === 0) {
+  if (!canPinMessages || pinnedMessages.length === 0) {
     return null;
   }
 

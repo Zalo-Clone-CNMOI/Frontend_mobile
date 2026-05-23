@@ -3,13 +3,14 @@ import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
 import { ContactListItem, useContactsScreenLogic } from '@/src/hooks/screens/useContactsScreen';
 import { useTheme } from '@/src/theme/themeContext';
+import type { ConversationV2 } from '@/src/types/chat';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Cake, ChevronRight, UserPlus, Users } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function ContactItem({ item, onPress }: {
@@ -74,6 +75,55 @@ function ContactItem({ item, onPress }: {
   );
 }
 
+function GroupItem({ item, onPress }: { item: ConversationV2; onPress: () => void }) {
+  const theme = useTheme();
+  const { t } = useTranslation();
+  const lastMsg = item.lastMessage;
+  const timeStr = lastMsg?.timestamp
+    ? new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : '';
+
+  return (
+    <TouchableOpacity
+      style={[styles.cardRow, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+      activeOpacity={0.75}
+      onPress={onPress}
+    >
+      <View style={styles.cardAvatarContainer}>
+        <AvatarWithInitials
+          name={item.name || t('contacts.unknown')}
+          size={50}
+          avatarUrl={item.avatar}
+        />
+      </View>
+
+      <View style={[styles.cardContent, { backgroundColor: 'transparent', borderBottomColor: 'transparent' }]}>
+        <View style={styles.textWrapper}>
+          <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={1}>
+            {item.name || t('contacts.unknown')}
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.colors.text, opacity: 0.6 }]} numberOfLines={1}>
+            {item.memberCount ? `${item.memberCount} members` : ''}
+          </Text>
+          {lastMsg ? (
+            <Text style={[styles.metaText, { color: theme.colors.text, opacity: 0.5 }]} numberOfLines={1}>
+              {lastMsg.content}
+            </Text>
+          ) : null}
+        </View>
+
+        <View style={styles.trailingWrap}>
+          {timeStr ? (
+            <Text style={[styles.lastSeenText, { color: theme.colors.text, opacity: 0.5 }]}>
+              {timeStr}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 function MenuOption({
   icon,
   title,
@@ -129,7 +179,10 @@ export default function ContactsScreen() {
     error,
     filteredFriends,
     friends,
+    groups,
+    groupsLoading,
     handleRetry,
+    handleGroupPress,
     handleViewProfile,
     loading,
     onRefresh,
@@ -181,7 +234,7 @@ export default function ContactsScreen() {
           <MenuOption icon={<UserPlus size={22} color="#fff" />} title={t('contacts.create_group')} onPress={() => router.push('/createGroup')} />
           <View style={[styles.dividerSection, { backgroundColor: theme.colors.dividerSection }]} />
           <View style={styles.chip}>
-            <Text style={{ color: theme.colors.text }}>{t('contacts.joined_groups')} (0)</Text>
+            <Text style={{ color: theme.colors.text }}>{t('contacts.joined_groups')} ({groups.length})</Text>
           </View>
         </View>
       );
@@ -213,14 +266,14 @@ export default function ContactsScreen() {
         </View>
 
         <FlashList
-          data={activeTab === 0 ? filteredFriends : []}
-          keyExtractor={(item) => item.id}
+          data={activeTab === 0 ? filteredFriends : activeTab === 1 ? groups : []}
+          keyExtractor={(item: any) => item.id || item.conversationId}
           ListHeaderComponent={renderListHeader}
           onRefresh={onRefresh}
           refreshing={refreshing}
           ListFooterComponent={() => (
             <View style={{ padding: 12, alignItems: 'center' }}>
-              {loading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
+              {(loading || groupsLoading) ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
             </View>
           )}
           ListEmptyComponent={() => (
@@ -240,19 +293,29 @@ export default function ContactsScreen() {
                     <Text style={{ color: 'white', fontWeight: 'bold' }}>{t('contacts.retry')}</Text>
                   </TouchableOpacity>
                 </View>
-              ) : loading ? (
+              ) : (loading || groupsLoading) ? (
                 <ActivityIndicator size="large" color={theme.colors.primary} />
               ) : (
                 <Text style={{ color: theme.colors.text }}>{t('contacts.empty')}</Text>
               )}
             </View>
           )}
-          renderItem={({ item }) => (
-            <ContactItem
-              item={item}
-              onPress={() => handleViewProfile(item.id)}
-            />
-          )}
+          renderItem={({ item }: { item: any }) => {
+            if (activeTab === 1) {
+              return (
+                <GroupItem
+                  item={item as ConversationV2}
+                  onPress={() => handleGroupPress(item as ConversationV2)}
+                />
+              );
+            }
+            return (
+              <ContactItem
+                item={item}
+                onPress={() => handleViewProfile(item.id)}
+              />
+            );
+          }}
         />
       </View>
     </SafeAreaView>

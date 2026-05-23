@@ -88,7 +88,7 @@ export function MessageActionMenu({
   const isMe = Boolean(message.fromMe);
   const hasImageAttachment = message.attachments?.some((a: any) => a.type === 'image') || message.type === 'image';
   const canEdit = isMe && !message.isRevoked && !hasImageAttachment;
-  const canPin = canPinMessages ?? (conversationType === 'direct' || userRole === 'owner' || userRole === 'admin');
+  const canPin = conversationType === 'direct' || userRole === 'owner' || userRole === 'admin' || canPinMessages === true;
 
   return (
     <Modal
@@ -181,21 +181,21 @@ export function MessageActionMenu({
               <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.forward', { defaultValue: 'Chuyển tiếp' })}</Text>
             </TouchableOpacity>
 
-            {canPin && (isPinned ? (
+            {isPinned ? (
               <TouchableOpacity style={styles.gridItem} onPress={() => { onUnpin?.(message); onClose(); }}>
                 <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
                   <Pin size={24} color="#8b5cf6" />
                 </View>
                 <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.unpin', { defaultValue: 'Bỏ ghim' })}</Text>
               </TouchableOpacity>
-            ) : (
+            ) : canPin ? (
               <TouchableOpacity style={styles.gridItem} onPress={() => { onPin?.(message); onClose(); }}>
                 <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
                   <Pin size={24} color="#8b5cf6" />
                 </View>
                 <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.pin', { defaultValue: 'Ghim' })}</Text>
               </TouchableOpacity>
-            ))}
+            ) : null}
 
             {canEdit && (
               <TouchableOpacity style={styles.gridItem} onPress={() => { onEdit?.(message); onClose(); }}>

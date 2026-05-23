@@ -225,12 +225,12 @@ export function useChatDetailScreenLogic() {
 
   // Fetch conversation details with forceRefresh when opening a conversation
   useEffect(() => {
-    if (chatId && currentChat?.type === 'group') {
+    if (chatId && (currentChat?.type === 'group' || currentChat?.isGroup)) {
       fetchConversationDetail(chatId, true).catch(err => {
         console.error('[useChatDetailScreen] Failed to fetch conversation details:', err);
       });
     }
-  }, [chatId, currentChat?.type, fetchConversationDetail]);
+  }, [chatId, currentChat?.type, currentChat?.isGroup, fetchConversationDetail]);
 
   // Presence state - use global store for persistence
   const presenceMap = usePresenceStore((state) => state.presenceMap);

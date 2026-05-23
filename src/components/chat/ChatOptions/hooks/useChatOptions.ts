@@ -95,15 +95,19 @@ export const useChatOptions = ({
   const members = cacheEntry?.members || EMPTY_MEMBERS;
   const mySettings = cacheEntry?.mySettings || DEFAULT_SETTINGS;
   const cachedConversation = cacheEntry?.conversation;
-  const groupSettings = normalizeGroupSettings(cacheEntry?.settings);
+  const rawSettings = cacheEntry?.settings;
+  const groupSettings = normalizeGroupSettings(rawSettings);
+  
+  // Only allow permissions if settings has been loaded from server (not using defaults)
+  const settingsLoaded = rawSettings != null;
 
   // Find current user in members list to get role
   const currentMember = members.find((m) => m.userId === currentUserId);
   const myRole = currentMember?.role || mySettings.role;
-  const canChangeGroupInfo = canMemberDo('change_info', myRole, groupSettings);
-  const canCreatePoll = canMemberDo('create_poll', myRole, groupSettings);
-  const canPinMessages = canMemberDo('pin_message', myRole, groupSettings);
-  const canSendMessages = canMemberDo('send_message', myRole, groupSettings);
+  const canChangeGroupInfo = settingsLoaded ? canMemberDo('change_info', myRole, groupSettings) : false;
+  const canCreatePoll = settingsLoaded ? canMemberDo('create_poll', myRole, groupSettings) : false;
+  const canPinMessages = settingsLoaded ? canMemberDo('pin_message', myRole, groupSettings) : false;
+  const canSendMessages = settingsLoaded ? canMemberDo('send_message', myRole, groupSettings) : false;
   const myNickname = mySettings.nickname || '';
   const memberCount = cachedConversation?.memberCount ?? memberCountProp;
   // For 1-1 conversations, get avatar from other user in members list

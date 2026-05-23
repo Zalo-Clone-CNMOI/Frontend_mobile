@@ -381,8 +381,8 @@ export default function ChatOptionsScreen() {
           )}
         </View>
 
-        {/* Group Settings Section - Only for groups */}
-        {isGroup && (
+        {/* Group Settings Section - Only for groups, admin/owner can see */}
+        {isGroup && (myRole === 'owner' || myRole === 'admin') && (
           <GroupSettingsSection
             theme={theme}
             conversationId={chatId}
