@@ -154,17 +154,27 @@ export default function ChatDetailScreen() {
   const [members, setMembers] = useState(() => getMembers(chatId));
   const rawSettings = conversationCacheEntry?.settings;
   const groupSettings = normalizeGroupSettings(rawSettings);
+  
+  // getMySettings from store, default to 'member' if not loaded yet
+  // Note: We assume owner/admin will always have valid role in cache after fetch
   const myGroupRole = getMySettings(chatId)?.role || 'member';
   
-  // Only check permissions if currentChat is loaded
+  // Check if settings is loaded from server (not using defaults)
+  // If settings not loaded yet, owner/admin can still do everything
+  // Only members are restricted when settings not loaded
   const settingsLoaded = rawSettings != null;
-  // For direct chats: always allow. For groups: owner/admin always allow, member check permission.
+  
+  // For direct chats: always allow. For groups: owner/admin always allow (even if settings not loaded yet).
   const canPinMessages = currentChat && !currentChat.isGroup
     ? true
     : (myGroupRole === 'owner' || myGroupRole === 'admin')
       ? true
       : (settingsLoaded ? canMemberDo('pin_message', myGroupRole, groupSettings) : false);
   const canSendMessages = currentChat && !currentChat.isGroup
+    ? true
+    : (myGroupRole === 'owner' || myGroupRole === 'admin')
+      ? true
+      : (settingsLoaded ? canMemberDo('send_message', myGroupRole, groupSettings) : false);
     ? true
     : (myGroupRole === 'owner' || myGroupRole === 'admin')
       ? true
