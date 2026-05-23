@@ -1112,7 +1112,9 @@ export default function ChatDetailScreen() {
 
         <View>
           {isTypingVisible && !isMultiSelectMode ? <TypingIndicator text={typingText} /> : null}
-          {!isMultiSelectMode && canSendMessages && (
+          {/* DEBUG: Log before render decision */}
+          {console.log('[ChatComposer render] canSendMessages =', canSendMessages, 'type:', typeof canSendMessages, '!!canSendMessages:', !!canSendMessages) || true}
+          {!isMultiSelectMode && canSendMessages ? (
             <ChatComposer
               value={input}
               onChangeText={setInput}
