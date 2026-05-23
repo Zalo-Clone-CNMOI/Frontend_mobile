@@ -223,14 +223,16 @@ export function useChatDetailScreenLogic() {
 
   const fetchConversationDetail = useConversationDetailStore((state) => state.fetchConversationDetail);
 
-  // Fetch conversation details with forceRefresh when opening a conversation
+  // Fetch conversation details when opening a conversation
+  // Must call even when currentChat is not yet loaded (for settings to load)
   useEffect(() => {
-    if (chatId && (currentChat?.type === 'group' || currentChat?.isGroup)) {
+    if (chatId) {
+      console.log('[useChatDetailScreen] Fetching conversation details for:', chatId);
       fetchConversationDetail(chatId, true).catch(err => {
         console.error('[useChatDetailScreen] Failed to fetch conversation details:', err);
       });
     }
-  }, [chatId, currentChat?.type, currentChat?.isGroup, fetchConversationDetail]);
+  }, [chatId, fetchConversationDetail]);
 
   // Presence state - use global store for persistence
   const presenceMap = usePresenceStore((state) => state.presenceMap);

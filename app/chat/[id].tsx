@@ -160,9 +160,11 @@ export default function ChatDetailScreen() {
   const myGroupRole = getMySettings(chatId)?.role || 'member';
   
   // Check if settings is loaded from server (not using defaults)
-  // If settings not loaded yet, owner/admin can still do everything
-  // Only members are restricted when settings not loaded
   const settingsLoaded = rawSettings != null;
+  
+  // DEBUG: Log settings loading state
+  console.log('[Permissions] rawSettings:', rawSettings?.permissions?.send_message, 'loaded:', settingsLoaded);
+  console.log('[Permissions] myGroupRole:', myGroupRole, 'isGroup:', currentChat?.isGroup);
   
   // For direct chats: always allow. For groups: owner/admin always allow (even if settings not loaded yet).
   const canPinMessages = currentChat && !currentChat.isGroup
@@ -175,10 +177,8 @@ export default function ChatDetailScreen() {
     : (myGroupRole === 'owner' || myGroupRole === 'admin')
       ? true
       : (settingsLoaded ? canMemberDo('send_message', myGroupRole, groupSettings) : false);
-    ? true
-    : (myGroupRole === 'owner' || myGroupRole === 'admin')
-      ? true
-      : (settingsLoaded ? canMemberDo('send_message', myGroupRole, groupSettings) : false);
+  
+  console.log('[Permissions] canSendMessages:', canSendMessages);
   
   // Sync members from store when cache changes using Zustand subscription
   useEffect(() => {
