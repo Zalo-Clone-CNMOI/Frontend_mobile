@@ -177,6 +177,11 @@ export default function ChatDetailScreen() {
       ? true
       : (settingsLoaded ? canMemberDo('send_message', myGroupRole, groupSettings) : false);
   
+  // DEBUG: Log decision path
+  const isDirect = currentChat && !currentChat.isGroup;
+  const isPrivileged = myGroupRole === 'owner' || myGroupRole === 'admin';
+  console.log('[Permissions] canSendMessages:', canSendMessages, '| isDirect:', isDirect, '| isPrivileged:', isPrivileged, '| settingsLoaded:', settingsLoaded);
+  
   // Sync members from store when cache changes using Zustand subscription
   useEffect(() => {
     // Initial sync
