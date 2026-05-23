@@ -245,18 +245,7 @@ export default function ChatDetailScreen() {
     console.log(`[Mock] Injected ${count} translations`);
   }, [messages]);
 
-  // DEV: inject mock smart reply suggestions for UI testing
-  useEffect(() => {
-    if (!chatId) return;
-    const store = useAISmartReplyStore.getState();
-    if (store.suggestions.has(chatId)) return;
-    store.setSuggestions(chatId, [
-      'Ok bạn, để tôi xem lại',
-      'Cảm ơn bạn đã hỗ trợ nhiệt tình!',
-      'Tôi sẽ kiểm tra và phản hồi lại sau',
-    ]);
-    console.log('[Mock] Injected smart reply suggestions');
-  }, [chatId]);
+  
 
   // Load pinned messages when chat loads
   useEffect(() => {
