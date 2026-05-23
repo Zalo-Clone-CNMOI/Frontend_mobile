@@ -103,8 +103,11 @@ export function canMemberDo(
   }
 
   if (!settings) {
+    console.log('[canMemberDo] settings is null/undefined, returning false for action:', action);
     return false;
   }
 
-  return normalizeGroupSettings(settings).permissions[action] ?? true;
+  const result = normalizeGroupSettings(settings).permissions[action] ?? true;
+  console.log('[canMemberDo] action:', action, 'role:', role, 'settings.permissions[action]:', normalizeGroupSettings(settings).permissions[action], 'result:', result);
+  return result;
 }
