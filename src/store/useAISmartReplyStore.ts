@@ -19,11 +19,16 @@ export const useAISmartReplyStore = create<AISmartReplyState>((set, get) => ({
   errorByConversation: new Map(),
 
   setSuggestions: (conversationId, suggestions) => {
+    console.log('[useAISmartReplyStore] setSuggestions called:', { conversationId, suggestions });
     set((state) => {
       const newSuggestions = new Map(state.suggestions);
+      console.log('[useAISmartReplyStore] new Map created, current keys:', Array.from(newSuggestions.keys()));
       newSuggestions.set(conversationId, suggestions);
+      console.log('[useAISmartReplyStore] after set, keys:', Array.from(newSuggestions.keys()));
+      console.log('[useAISmartReplyStore] value for conversationId:', newSuggestions.get(conversationId));
       return { suggestions: newSuggestions };
     });
+    console.log('[useAISmartReplyStore] store updated, final state suggestions:', Array.from(get().suggestions.keys()));
   },
 
   clearSuggestions: (conversationId) => {
