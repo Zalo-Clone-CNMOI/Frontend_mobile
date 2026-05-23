@@ -75,6 +75,10 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
         set({ isLoading: false });
         return;
       }
+      
+      // DEBUG: Log raw settings from API
+      console.log('[fetchConversationDetail] API response settings:', JSON.stringify(data.settings));
+      
       set((state) => {
         const existing = state.cache[conversationId];
         const now = Date.now();
@@ -108,6 +112,10 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
           isPinned: data.mySettings?.isPinned,
         };
         const settings: GroupSettings | null = data.settings ? normalizeGroupSettings(data.settings) : null;
+        
+        console.log('[fetchConversationDetail] settings after normalize:', settings);
+        console.log('[fetchConversationDetail] settings.permissions.send_message:', settings?.permissions?.send_message);
+        
         return {
           cache: {
             ...state.cache,
