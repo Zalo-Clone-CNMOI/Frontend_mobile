@@ -24,8 +24,6 @@ export const SmartReplyChips: React.FC<SmartReplyChipsProps> = ({
     s.length > 80 ? s.slice(0, 77) + '...' : s
   );
 
-  console.log('[SmartReplyChips] RENDER - suggestions:', suggestions, 'displaySuggestions:', displaySuggestions);
-
   if (isLoading) {
     return (
       <View style={[styles.container, { borderBottomColor: theme.colors.border }]}>
@@ -71,7 +69,7 @@ export const SmartReplyChips: React.FC<SmartReplyChipsProps> = ({
             activeOpacity={0.7}
           >
             <Text
-              style={[styles.chipText, { color: '#007AFF' }]}
+              style={[styles.chipText, { color: theme?.colors?.primary || '#007AFF' }]}
               numberOfLines={1}
             >
               {suggestion}
