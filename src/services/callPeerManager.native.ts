@@ -23,6 +23,7 @@ import { callService } from "./callService";
 class CallPeerManager {
   private peerConnection: any = null;
   private active = false;
+  private pendingOffer: { callId: string; fromUserId: string; data: any } | null = null;
   private iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
@@ -85,19 +86,35 @@ class CallPeerManager {
   ): Promise<void> {
     try {
       this.active = true;
-      this.peerConnection = await this.createPeerConnection(callId, conversationId);
+
+      if (!this.peerConnection) {
+        this.peerConnection = await this.createPeerConnection(callId, conversationId);
+      } else {
+        console.log("[CallPeerManager] Reusing existing peer connection for accept");
+      }
 
       const { localStream } = useCallStore.getState();
-      if (localStream) {
+      if (localStream && this.peerConnection) {
+        const senders = this.peerConnection.getSenders?.() ?? [];
+        const existingTrackIds = new Set(
+          senders.map((s: any) => s.track?.id).filter(Boolean)
+        );
         const tracks = (localStream as any).getTracks?.() ?? [];
         tracks.forEach((track: any) => {
-          if (this.peerConnection) {
+          if (!existingTrackIds.has(track.id)) {
             this.peerConnection.addTrack(track, localStream as any);
           }
         });
       }
 
-      console.log("[CallPeerManager] Ready to accept call, awaiting offer");
+      if (this.pendingOffer) {
+        console.log("[CallPeerManager] Processing pending offer after accept");
+        const offer = this.pendingOffer;
+        this.pendingOffer = null;
+        await this.processOffer(offer.callId, offer.fromUserId, offer.data);
+      } else {
+        console.log("[CallPeerManager] Ready to accept call, awaiting offer");
+      }
     } catch (error) {
       console.error("[CallPeerManager] Error accepting call", error);
       this.active = false;
@@ -111,6 +128,12 @@ class CallPeerManager {
     type: string,
     data: any
   ): Promise<void> {
+    if (type === "offer" && !this.active) {
+      console.log("[CallPeerManager] Queuing offer — not yet active");
+      this.pendingOffer = { callId, fromUserId, data };
+      return;
+    }
+
     if (!this.peerConnection) {
       console.warn("[CallPeerManager] No peer connection, creating one");
       const { currentCall } = useCallStore.getState();
@@ -134,29 +157,9 @@ class CallPeerManager {
       const webrtc = await ensureWebRTC()
 
       if (type === "offer") {
-        const { currentCall } = useCallStore.getState();
-        const conversationId = currentCall?.conversationId || "";
-        await this.peerConnection.setRemoteDescription(
-          new webrtc.RTCSessionDescription({ type: "offer", sdp: data.sdp })
-        );
-
-        const answer = await this.peerConnection.createAnswer();
-
-        await this.peerConnection.setLocalDescription(
-          new webrtc.RTCSessionDescription({ type: "answer", sdp: answer.sdp })
-        );
-
-        await callService.sendSignalingData(callId, conversationId, "answer", {
-          sdp: answer.sdp,
-        });
-
-        console.log("[CallPeerManager] Answer created and sent");
+        await this.processOffer(callId, fromUserId, data);
       } else if (type === "answer") {
-        await this.peerConnection.setRemoteDescription(
-          new webrtc.RTCSessionDescription({ type: "answer", sdp: data.sdp })
-        );
-
-        console.log("[CallPeerManager] Remote answer set");
+        await this.processAnswer(callId, data, webrtc);
       } else if (type === "ice-candidate") {
         if (data.candidate) {
           let candidateStr = data.candidate;
@@ -184,6 +187,42 @@ class CallPeerManager {
     } catch (error) {
       console.error("[CallPeerManager] Error handling signal", error);
     }
+  }
+
+  private async processOffer(
+    callId: string,
+    fromUserId: string,
+    data: any
+  ): Promise<void> {
+    const webrtc = await ensureWebRTC();
+    const { currentCall } = useCallStore.getState();
+    const conversationId = currentCall?.conversationId || "";
+    await this.peerConnection.setRemoteDescription(
+      new webrtc.RTCSessionDescription({ type: "offer", sdp: data.sdp })
+    );
+
+    const answer = await this.peerConnection.createAnswer();
+
+    await this.peerConnection.setLocalDescription(
+      new webrtc.RTCSessionDescription({ type: "answer", sdp: answer.sdp })
+    );
+
+    await callService.sendSignalingData(callId, conversationId, "answer", {
+      sdp: answer.sdp,
+    });
+
+    console.log("[CallPeerManager] Answer created and sent");
+  }
+
+  private async processAnswer(
+    callId: string,
+    data: any,
+    webrtc: WebRTCLib
+  ): Promise<void> {
+    await this.peerConnection.setRemoteDescription(
+      new webrtc.RTCSessionDescription({ type: "answer", sdp: data.sdp })
+    );
+    console.log("[CallPeerManager] Remote answer set");
   }
 
   private async createPeerConnection(
@@ -249,6 +288,7 @@ class CallPeerManager {
 
   cleanup(): void {
     this.active = false;
+    this.pendingOffer = null;
 
     if (this.peerConnection) {
       this.peerConnection.close();

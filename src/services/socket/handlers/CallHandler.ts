@@ -77,6 +77,11 @@ export class CallHandler extends BaseHandler {
       return;
     }
 
+    if (currentState === "ended") {
+      this.log("Reset stale ended state before processing new call", { callId });
+      useCallStore.getState().resetCall();
+    }
+
     if (conversationId) {
       await joinConversationRoom(conversationId);
     }
@@ -111,22 +116,39 @@ export class CallHandler extends BaseHandler {
   private async handleCallAccepted(payload: any) {
     const callId = payload.call_id;
     const userId = payload.user_id;
+    const status = payload.status;
+    const participants = payload.participants;
 
     this.log("✅ Call accepted", {
       by: userId,
       callId,
+      status,
     });
 
     try {
-      const { setCallState, addParticipant } = useCallStore.getState();
-      setCallState("connecting");
+      const store = useCallStore.getState();
+      const { setCallState, participants: currentParticipants } = store;
 
-      addParticipant({
-        userId,
-        status: "accepted",
-        isLocalUser: false,
-        audioEnabled: true,
-      });
+      if (participants) {
+        Object.entries(participants as Record<string, string>).forEach(([uid, s]) => {
+          if (!currentParticipants[uid]) {
+            store.addParticipant({
+              userId: uid,
+              status: s as any,
+              isLocalUser: false,
+              audioEnabled: true,
+            });
+          } else if (currentParticipants[uid].status !== s) {
+            store.updateParticipant(uid, { status: s as any });
+          }
+        });
+      }
+
+      if (status === "ongoing") {
+        setCallState("active");
+      } else {
+        setCallState("connecting");
+      }
 
       toast.success("Call accepted");
     } catch (error) {
@@ -146,11 +168,14 @@ export class CallHandler extends BaseHandler {
     });
 
     try {
-      const { endCall, setCallState } = useCallStore.getState();
+      const { setCallState } = useCallStore.getState();
       setCallState("ended");
-      endCall();
 
       toast.info(reason ? `Call declined: ${reason}` : "Call declined");
+
+      setTimeout(() => {
+        useCallStore.getState().endCall();
+      }, 1500);
     } catch (error) {
       this.error("Failed to handle call rejection", error);
     }
@@ -160,6 +185,16 @@ export class CallHandler extends BaseHandler {
     const callId = payload.call_id;
     const fromUserId = payload.sender_id;
     const signalType = payload.signal_type;
+
+    const { callState, currentCall } = useCallStore.getState();
+    if (callState !== "connecting" && callState !== "active" && callState !== "calling") {
+      if (signalType === "offer") {
+        this.log("Ignoring offer — not in call, will be polled on accept", { callId });
+      } else {
+        this.log("Ignoring signal — not in call", { signalType, callId });
+      }
+      return;
+    }
 
     this.log(`📡 Signal received: ${signalType}`, {
       from: fromUserId,

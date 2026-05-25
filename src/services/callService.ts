@@ -334,46 +334,7 @@ class CallService {
       useCallStore.getState().acceptIncomingCall();
       acceptedInStore = true;
 
-      const isVideo = incomingCall.callType === "video";
-
-      // Fetch ICE servers before setting up WebRTC
-      try {
-        const servers = await this.fetchIceServers();
-        callPeerManager.setIceServers(servers);
-      } catch {
-        // use fallback
-      }
-
-      // If media fails, we MUST roll back the store — otherwise we are stuck
-      // in "connecting" with no media and no peer connection.
-      try {
-        await callMediaManager.createLocalMediaStream(isVideo);
-      } catch (mediaError) {
-        console.error(
-          "[CallService] Failed to acquire media on accept",
-          mediaError
-        );
-        throw mediaError;
-      }
-
-      const { currentCall } = useCallStore.getState();
-      if (currentCall && currentCall.remoteUserId) {
-        try {
-          await callPeerManager.acceptCall(
-            currentCall.callId || incomingCall.callId,
-            currentCall.conversationId || incomingCall.conversationId,
-            currentCall.remoteUserId
-          );
-        } catch (peerError) {
-          console.error(
-            "[CallService] Failed to set up peer on accept",
-            peerError
-          );
-          throw peerError;
-        }
-      }
-
-      // Tell the server we accepted — best-effort with ack timeout
+      // Emit call:accept immediately so backend knows we accepted
       const ack = await emitWithAck(
         "call:accept",
         {
@@ -388,28 +349,58 @@ class CallService {
         throw new Error(`call:accept rejected: ${ack.error}`);
       }
 
+      // Then set up WebRTC asynchronously (don't block navigation)
+      const isVideo = incomingCall.callType === "video";
+      this.setupAcceptCallAsync(incomingCall).catch((err) => {
+        console.error("[CallService] Async WebRTC setup after accept failed", err);
+      });
+
       console.log("[CallService] Call accepted successfully");
     } catch (error) {
       console.error("[CallService] Error accepting call", error);
       toast.error("Failed to accept call");
 
-      // Roll back any partial progress
       try {
         callPeerManager.cleanup();
-      } catch {
-        // ignore
-      }
+      } catch {}
       try {
         await callMediaManager.stopLocalMedia();
-      } catch {
-        // ignore
-      }
+      } catch {}
       if (acceptedInStore) {
         useCallStore.getState().endCall();
       } else {
         useCallStore.getState().rejectIncomingCall();
       }
       throw error;
+    }
+  }
+
+  private async setupAcceptCallAsync(
+    incomingCall: any
+  ): Promise<void> {
+    try {
+      const isVideo = incomingCall.callType === "video";
+
+      const servers = await this.fetchIceServers();
+      callPeerManager.setIceServers(servers);
+
+      await callMediaManager.createLocalMediaStream(isVideo);
+
+      const { currentCall } = useCallStore.getState();
+      if (currentCall && currentCall.remoteUserId) {
+        await callPeerManager.acceptCall(
+          currentCall.callId || incomingCall.callId,
+          currentCall.conversationId || incomingCall.conversationId,
+          currentCall.remoteUserId
+        );
+      }
+    } catch (err) {
+      console.error("[CallService] Async accept WebRTC setup failed", err);
+      const { callState } = useCallStore.getState();
+      if (callState === "connecting" || callState === "active") {
+        toast.error("Failed to set up call connection");
+        await this.safeCleanup();
+      }
     }
   }
 
@@ -659,10 +650,14 @@ class CallService {
       return;
     }
 
+    const { currentCall } = useCallStore.getState();
+    const targetUserId = currentCall?.remoteUserId;
+
     const signalPayload: Record<string, any> = {
       call_id: callId,
       conversation_id: conversationId,
       signal_type: type,
+      ...(targetUserId ? { target_user_id: targetUserId } : {}),
       sent_at: Date.now(),
     };
 
