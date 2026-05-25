@@ -102,6 +102,7 @@ export const GroupSettingsSection: React.FC<GroupSettingsSectionProps> = ({
 
   const currentSettings = normalizeGroupSettings(settings);
   const isPrivileged = myRole === 'owner' || myRole === 'admin';
+  const settingsLoaded = settings != null;
 
   const settingsRef = useRef(currentSettings);
   settingsRef.current = currentSettings;
@@ -112,6 +113,7 @@ export const GroupSettingsSection: React.FC<GroupSettingsSectionProps> = ({
     value: boolean,
   ) => {
     if (!isPrivileged) return;
+    if (!settingsLoaded) return;
 
     const previousSettings = settingsRef.current;
 
@@ -126,17 +128,12 @@ export const GroupSettingsSection: React.FC<GroupSettingsSectionProps> = ({
     setLoadingKey(`${category}.${key}`);
 
     try {
-      // Build full settings payload to avoid server applying defaults to missing fields
-      const currentFullSettings = normalizeGroupSettings(previousSettings);
+      // Send only the toggled category with all its fields so server doesn't reset other categories
       const payload = {
-        permissions: { ...currentFullSettings.permissions },
-        policies: { ...currentFullSettings.policies },
-        features: { ...currentFullSettings.features },
-      };
-      // Override only the changed field
-      payload[category] = {
-        ...payload[category],
-        [key]: value,
+        [category]: {
+          ...currentSettings[category],
+          [key]: value,
+        },
       };
 
       console.log(`[GroupSettings] Updating ${conversationId}:`, payload);
@@ -189,7 +186,7 @@ export const GroupSettingsSection: React.FC<GroupSettingsSectionProps> = ({
     } finally {
       setLoadingKey(null);
     }
-  }, [conversationId, isPrivileged, updateSettings, fetchConversationDetail, t]);
+  }, [conversationId, isPrivileged, settingsLoaded, updateSettings, fetchConversationDetail, t]);
 
   const isLoading = (category: string, key: string) => loadingKey === `${category}.${key}`;
 
@@ -225,7 +222,7 @@ export const GroupSettingsSection: React.FC<GroupSettingsSectionProps> = ({
             description={perm.description}
             value={currentSettings.permissions[perm.key]}
             onValueChange={(value) => handleToggle('permissions', perm.key, value)}
-            disabled={!isPrivileged}
+            disabled={!isPrivileged || !settingsLoaded}
             theme={theme}
             loading={isLoading('permissions', perm.key)}
           />
@@ -244,7 +241,7 @@ export const GroupSettingsSection: React.FC<GroupSettingsSectionProps> = ({
             description={policy.description}
             value={currentSettings.policies[policy.key]}
             onValueChange={(value) => handleToggle('policies', policy.key, value)}
-            disabled={!isPrivileged}
+            disabled={!isPrivileged || !settingsLoaded}
             theme={theme}
             loading={isLoading('policies', policy.key)}
           />
@@ -263,7 +260,7 @@ export const GroupSettingsSection: React.FC<GroupSettingsSectionProps> = ({
             description={feature.description}
             value={currentSettings.features[feature.key]}
             onValueChange={(value) => handleToggle('features', feature.key, value)}
-            disabled={!isPrivileged}
+            disabled={!isPrivileged || !settingsLoaded}
             theme={theme}
             loading={isLoading('features', feature.key)}
           />

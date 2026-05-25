@@ -5,8 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Image, Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { NETWORK_CONFIG } from '@/src/config/network';
-import { updateConversation, getConversationDetail } from '@/src/services/conversationsApi';
+import { updateConversation } from '@/src/services/conversationsApi';
 import { useChatsStore } from '@/src/store/useChatsStore';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import { useAuth } from '@/src/contexts/AuthContext';
 import * as mediaService from '@/src/services/mediaService';
 import type { MediaFileInput } from '@/src/types/media';
@@ -52,20 +53,13 @@ export function GroupInfoModal({
     }
   }, [visible, currentName, currentAvatar]);
 
-  // Fetch myRole from API when modal opens
+  // Get role using unified getMyRole (members[] first, fallback mySettings)
   useEffect(() => {
-    if (visible && conversationId) {
-      getConversationDetail(conversationId)
-        .then((response) => {
-          const data = response.data?.data;
-          if (data?.mySettings?.role) {
-            setLocalRole(data.mySettings.role);
-          }
-        })
-        .catch((error) => {
-        });
+    if (visible && conversationId && authUser?.id) {
+      const role = useConversationDetailStore.getState().getMyRole(conversationId, authUser.id);
+      setLocalRole(role);
     }
-  }, [visible, conversationId]);
+  }, [visible, conversationId, authUser?.id]);
 
   const handlePickAvatar = async () => {
     try {

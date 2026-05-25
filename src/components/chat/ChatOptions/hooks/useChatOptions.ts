@@ -101,9 +101,9 @@ export const useChatOptions = ({
   // Only allow permissions if settings has been loaded from server (not using defaults)
   const settingsLoaded = rawSettings != null;
 
-  // Find current user in members list to get role
-  const currentMember = members.find((m) => m.userId === currentUserId);
-  const myRole = currentMember?.role || mySettings.role;
+  // Get role using unified getMyRole (members[] first, fallback mySettings)
+  const getMyRole = useConversationDetailStore((s) => s.getMyRole);
+  const myRole = currentUserId ? getMyRole(chatId, currentUserId) : 'member';
   const canChangeGroupInfo = settingsLoaded ? canMemberDo('change_info', myRole, groupSettings) : false;
   const canCreatePoll = settingsLoaded ? canMemberDo('create_poll', myRole, groupSettings) : false;
   const canPinMessages = settingsLoaded ? canMemberDo('pin_message', myRole, groupSettings) : false;

@@ -56,6 +56,7 @@ interface ConversationDetailState {
   getMembers: (conversationId: string) => ConversationMember[];
   getMySettings: (conversationId: string) => MySettings | null;
   getSettings: (conversationId: string) => GroupSettings | null;
+  getMyRole: (conversationId: string, userId: string) => 'owner' | 'admin' | 'member';
   reset: () => void;
 }
 
@@ -264,6 +265,14 @@ export const useConversationDetailStore = create<ConversationDetailState>((set, 
   getMySettings: (conversationId: string) => get().cache[conversationId]?.mySettings || null,
 
   getSettings: (conversationId: string) => get().cache[conversationId]?.settings || null,
+
+  getMyRole: (conversationId: string, userId: string) => {
+    const state = get();
+    const cache = state.cache[conversationId];
+    if (!cache) return 'member';
+    const member = cache.members.find((m) => m.userId === userId);
+    return member?.role ?? cache.mySettings?.role ?? 'member';
+  },
 
   reset: () => set({ cache: {}, isLoading: false, error: null }),
 }));
