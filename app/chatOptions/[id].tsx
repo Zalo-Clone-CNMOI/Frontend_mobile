@@ -250,8 +250,8 @@ export default function ChatOptionsScreen() {
             <Switch
               value={notificationsEnabled}
               onValueChange={(value) => setNotificationsEnabled(value)}
-              trackColor={{ false: '#767577', true: theme.colors.primary + '50' }}
-              thumbColor={notificationsEnabled ? theme.colors.primary : '#f4f3f4'}
+              trackColor={{ false: theme.colors.disabled, true: theme.colors.primary + '50' }}
+              thumbColor={notificationsEnabled ? theme.colors.primary : theme.colors.card}
             />
           </View>
 
@@ -400,8 +400,8 @@ export default function ChatOptionsScreen() {
                   onPress={() => setTransferOwnershipModalVisible(true)}
                 >
                   <View style={chatOptionsStyles.optionLeft}>
-                    <Crown size={20} color="#FF9500" style={{ marginRight: 12 }} />
-                    <Text style={[chatOptionsStyles.optionTitle, { color: '#FF9500' }]}>
+                    <Crown size={20} color={theme.colors.warning} style={{ marginRight: 12 }} />
+                    <Text style={[chatOptionsStyles.optionTitle, { color: theme.colors.warning }]}>
                       {t('chat_options.transfer_ownership')}
                     </Text>
                   </View>
@@ -420,7 +420,7 @@ export default function ChatOptionsScreen() {
                   }}
                 >
                   <View style={chatOptionsStyles.optionLeft}>
-                    <Text style={[chatOptionsStyles.optionTitle, { color: '#FF3B30' }]}>
+                    <Text style={[chatOptionsStyles.optionTitle, { color: theme.colors.error }]}>
                       {t('chat_options.disband_group')}
                     </Text>
                   </View>
@@ -441,7 +441,7 @@ export default function ChatOptionsScreen() {
                 }}
               >
                 <View style={chatOptionsStyles.optionLeft}>
-                  <Text style={[chatOptionsStyles.optionTitle, { color: '#FF3B30' }]}>
+                  <Text style={[chatOptionsStyles.optionTitle, { color: theme.colors.error }]}>
                     {t('chat_options.leave_group')}
                   </Text>
                 </View>

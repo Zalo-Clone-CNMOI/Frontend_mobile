@@ -71,7 +71,7 @@ export const MediaSection: React.FC<MediaSectionProps> = ({
           <Image source={{ uri: item.thumbnail || item.uri }} style={styles.mediaThumbnail} />
           {item.type === 'video' && (
             <View style={styles.playIconContainer}>
-              <Play size={24} color="#fff" fill="#fff" />
+              <Play size={24} color={theme.colors.textHeader} fill={theme.colors.textHeader} />
             </View>
           )}
         </>

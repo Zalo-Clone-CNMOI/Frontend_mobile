@@ -32,6 +32,12 @@ export function useConversationRoomJoiner() {
       console.log('[RoomJoiner] Joining conversation room:', conversationId);
       socket.emit('chat:join', { conversation_id: conversationId });
       joinedRoomsRef.current.add(conversationId);
+
+      socket.emit('call:state:request', {
+        conversation_id: conversationId,
+        requested_at: Date.now(),
+      });
+      console.log('[RoomJoiner] Requested call state for:', conversationId);
     } catch (error) {
       console.error('[RoomJoiner] Error joining room:', error);
     }
@@ -124,6 +130,10 @@ export function useConversationRoomJoiner() {
           console.log('[RoomJoiner] Socket reconnected, rejoining all rooms');
           joinedRoomsRef.current.forEach((roomId) => {
             socket.emit('chat:join', { conversation_id: roomId });
+            socket.emit('call:state:request', {
+              conversation_id: roomId,
+              requested_at: Date.now(),
+            });
           });
         };
 

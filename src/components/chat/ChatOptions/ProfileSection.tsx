@@ -74,8 +74,8 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
             <Image source={{ uri: avatarUrl }} style={styles.profileAvatar} />
           )}
           {canEditGroup && (
-            <TouchableOpacity style={styles.cameraIcon} onPress={handleEditGroupInfo}>
-              <Camera size={20} color="#fff" />
+            <TouchableOpacity style={[styles.cameraIcon, { backgroundColor: theme.colors.primary, borderColor: theme.colors.background }]} onPress={handleEditGroupInfo}>
+              <Camera size={20} color={theme.colors.textHeader} />
             </TouchableOpacity>
           )}
         </View>

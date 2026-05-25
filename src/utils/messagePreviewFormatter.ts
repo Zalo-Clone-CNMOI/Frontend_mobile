@@ -53,7 +53,7 @@ export const formatPreviewContent = (message: ChatMessage, t?: (key: string, opt
     case 'file':
       return t ? t('chat.sent_file', { defaultValue: 'Đã gửi 1 tệp đính kèm' }) : 'Đã gửi 1 tệp đính kèm';
     case 'voice':
-      return '__VOICE__'; // Special marker for voice messages
+      return t ? t('chat.sent_voice', { defaultValue: 'Tin nhắn thoại' }) : 'Tin nhắn thoại';
     case 'deleted':
       return '';
     case 'text':

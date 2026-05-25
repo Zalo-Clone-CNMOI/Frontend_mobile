@@ -13,7 +13,8 @@ import type { ChatMessage, Attachment } from '@/src/types/chat';
 import type { PollMessageMetadata } from '@/src/types/dto/PollDTO';
 import type { FileVisibility } from '@/src/types/media';
 import type { ConversationMember } from '@/src/types/interface/chat-interface';
-import { Check, CheckCheck, FileArchive, FileAudio, FileText, FileVideo, Forward, Pin, Play, RotateCcw } from 'lucide-react-native';
+import { Check, CheckCheck, FileArchive, FileAudio, FileText, FileVideo, Forward, Pause, Pin, Play, RotateCcw } from 'lucide-react-native';
+import { Audio } from 'expo-av';
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -27,6 +28,7 @@ import {
 import { useUserProfiles } from '@/src/hooks/useUserProfiles';
 import type { DetectedEntity } from '@/src/store/useEntityDetectionStore';
 import { useAITranslationStore } from '@/src/store/useAITranslationStore';
+import { MentionHighlight } from '@/src/components/chat/MentionHighlight';
 import { EntityInfoModal } from '../EntityInfoModal';
 
 // ─── Helper: HighlightText Component ─────────────────────────────────────────
@@ -141,8 +143,23 @@ isMultiSelectMode = false,
     const [showTranslation, setShowTranslation] = useState(false);
     const displayEntities = entities && entities.length > 0 ? entities : undefined;
 
+    // Audio playback state for voice messages
+    const [sound, setSound] = useState<Audio.Sound | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [playbackDuration, setPlaybackDuration] = useState<number>(0);
+    const [playbackPosition, setPlaybackPosition] = useState<number>(0);
+    const [voiceUrl, setVoiceUrl] = useState<string>('');
+
     const cachedTranslation = useAITranslationStore((s) => s.cache.get(`${item.id}_vi`));
     const hasTranslation = !!cachedTranslation && !item.isRevoked && !item.removed;
+
+    const prevCachedRef = useRef(cachedTranslation);
+    useEffect(() => {
+      if (cachedTranslation && !prevCachedRef.current) {
+        setShowTranslation(true);
+      }
+      prevCachedRef.current = cachedTranslation;
+    }, [cachedTranslation]);
 
     const handleEntityPress = (entity: DetectedEntity) => {
       if (onEntityPress) {
@@ -308,10 +325,11 @@ isMultiSelectMode = false,
     (item.type === 'video' || item.fileInfo?.mimeType?.startsWith('video/')) ||
     (item.text && typeof item.text === 'string' && item.text.includes('video/')) ||
     (item.content && typeof item.content === 'string' && item.content.includes('video/'));
-  const isFile = (item.type === 'file' || (item.fileInfo && !isImage && !isVideo));
+  const isVoice = item.type === 'voice' || (item.fileInfo?.mimeType?.startsWith('audio/')) || false;
+  const isFile = (item.type === 'file' || (item.fileInfo && !isImage && !isVideo && !isVoice));
 
   useEffect(() => {
-    if (isGroup && !item.fromMe && item.senderId) {
+    if (isGroup && !item.fromMe && item.senderId && item.senderId !== 'SYSTEM') {
       fetchUserProfile(item.senderId);
     }
   }, [isGroup, item.fromMe, item.senderId, fetchUserProfile]);
@@ -407,9 +425,83 @@ isMultiSelectMode = false,
     return () => clearTimeout(timer);
   }, [item.id, item.isRevoked, item.revokedBackupText, item.revokeRestoreUntil, onRevokeRestoreExpired]);
 
+  // ─── Voice message audio loading ────────────────────────────────────────────
+  useEffect(() => {
+    if (!isVoice) return;
+
+    const resolveAndLoadAudio = async () => {
+      try {
+        const attachment = item.attachment || item.attachments?.[0];
+        let resolvedUrl = '';
+
+        if (attachment?.key) {
+          resolvedUrl = await mediaService.getAttachmentUrl(
+            { key: attachment.key, visibility: (attachment.visibility || 'private') as FileVisibility, url: undefined },
+            authUser?.id || ''
+          );
+        } else if (item.fileInfo?.uri) {
+          resolvedUrl = item.fileInfo.uri;
+        } else if (attachment?.url) {
+          resolvedUrl = attachment.url;
+        }
+
+        if (!resolvedUrl) return;
+        setVoiceUrl(resolvedUrl);
+
+        // Clean up existing sound
+        if (sound) {
+          await sound.unloadAsync();
+          setSound(null);
+        }
+
+        // Create and load new sound
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          { uri: resolvedUrl },
+          { shouldPlay: false },
+          (status) => {
+            if (status.isLoaded) {
+              setPlaybackDuration(status.durationMillis || 0);
+              setPlaybackPosition(status.positionMillis || 0);
+              if (status.didJustFinish) {
+                setIsPlaying(false);
+                newSound?.setPositionAsync(0);
+              }
+            }
+          }
+        );
+        setSound(newSound);
+      } catch (error) {
+        // Silent fail - voice message will show without playback
+      }
+    };
+
+    resolveAndLoadAudio();
+
+    return () => {
+      if (sound) {
+        sound.unloadAsync().catch(() => {});
+      }
+    };
+  }, [item.messageId || item.id, isVoice]);
+
+  const handlePlayPause = async () => {
+    if (!sound) return;
+    try {
+      if (isPlaying) {
+        await sound.pauseAsync();
+        setIsPlaying(false);
+      } else {
+        await sound.playAsync();
+        setIsPlaying(true);
+      }
+    } catch (error) {
+      // Silent fail
+    }
+  };
+
   // ─── Computed bubble background ─────────────────────────────────────────────
   const getBubbleBg = () => {
-    if (isImage || isVideo || isFile) return 'transparent';
+    if (isImage || isVideo || isFile || isVoice) return 'transparent';
     if (isMe) return myBubbleBg;
     return theirBubbleBg;
   };
@@ -612,7 +704,7 @@ interface HighlightTextProps {
               borderBottomRightRadius: 18,
               borderBottomLeftRadius: 18,
             },
-            (isImage || isVideo || isFile) && styles.mediaBubble,
+            (isImage || isVideo || isFile || isVoice) && styles.mediaBubble,
             item.replyTo && styles.bubbleWithReply,
             item.forwardedFrom && styles.bubbleWithForwarded,
           ]}
@@ -637,7 +729,7 @@ interface HighlightTextProps {
           
           
           {/* ── Forwarded header ───────────────────────────────────────────── */}
-          {item.forwardedFrom && (isImage || isVideo || isFile) && (
+          {item.forwardedFrom && (isImage || isVideo || isFile || isVoice) && (
             <ForwardedHeader
               forwardedFrom={item.forwardedFrom}
               isMe={isMe ?? false}
@@ -888,6 +980,63 @@ interface HighlightTextProps {
                 </Text>
               )}
             </TouchableOpacity>
+          ) : isVoice ? (
+            <TouchableOpacity
+              onPress={handlePlayPause}
+              onLongPress={() => onLongPress?.(item)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.imageWithForwardContainer, !isMe && styles.imageWithForwardContainerReverse]}>
+                {onForwardPress && (
+                  <TouchableOpacity
+                    style={[
+                      styles.forwardButton,
+                      { backgroundColor: isDark ? '#2C2C2E' : '#FFFFFF' },
+                      isMe ? styles.forwardButtonMarginLeft : styles.forwardButtonMarginRight,
+                    ]}
+                    onPress={() => onForwardPress(item)}
+                    activeOpacity={0.7}
+                  >
+                    <Forward size={18} color={theme.colors.icon} />
+                  </TouchableOpacity>
+                )}
+                <View style={[styles.voiceContainer, { backgroundColor: isMe ? myBubbleBg : theirBubbleBg, borderColor: isMe ? theme.colors.border : theirBubbleBorder }]}>
+                  <View style={styles.voiceRow}>
+                    <View style={[styles.voicePlayBtn, { backgroundColor: isMe ? 'rgba(255,255,255,0.2)' : theme.colors.primary }]}>
+                      {isPlaying ? (
+                        <Pause size={18} color="#FFF" fill="#FFF" />
+                      ) : (
+                        <Play size={18} color="#FFF" fill="#FFF" style={{ marginLeft: 2 }} />
+                      )}
+                    </View>
+                    <View style={styles.voiceWaveform}>
+                      <View style={[styles.voiceProgressTrack, { backgroundColor: isMe ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.12)' }]}>
+                        <View style={[styles.voiceProgressFill, {
+                          width: playbackDuration > 0 ? `${(playbackPosition / playbackDuration) * 100}%` : '0%',
+                          backgroundColor: isMe ? '#FFF' : theme.colors.primary
+                        }]} />
+                      </View>
+                      <View style={styles.voiceBars}>
+                        {[3, 5, 4, 7, 5, 8, 6, 9, 5, 7, 4, 6].map((h, i) => (
+                          <View
+                            key={i}
+                            style={[styles.voiceBar, {
+                              height: h,
+                              backgroundColor: isMe ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.2)',
+                            }]}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={[styles.voiceTime, { color: isMe ? myMetaColor : theirMetaColor }]}>
+                    {playbackDuration > 0
+                      ? `${Math.floor(playbackPosition / 60000)}:${String(Math.floor((playbackPosition % 60000) / 1000)).padStart(2, '0')} / ${Math.floor(playbackDuration / 60000)}:${String(Math.floor((playbackDuration % 60000) / 1000)).padStart(2, '0')}`
+                      : 'Voice message'}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
           ) : isFile ? (
             // ── FILE BUBBLE ──────────────────────────────────────────────────
             <TouchableOpacity
@@ -937,9 +1086,16 @@ interface HighlightTextProps {
               )}
             </TouchableOpacity>
           ) : (
-            // ── Plain text with optional entity highlight or search highlight ──────────
+            // ── Plain text with optional mention/entity/search highlight ──────────
             <View>
-              {displayEntities && displayEntities.length > 0 ? (
+              {item.mentions && item.mentions.length > 0 ? (
+                <MentionHighlight
+                  text={messageText}
+                  mentions={item.mentions}
+                  textColor={isMe ? myTextColor : theirTextColor}
+                  highlightColor={isMe ? 'rgba(255,255,255,0.2)' : theme.colors.primary + '20'}
+                />
+              ) : displayEntities && displayEntities.length > 0 ? (
                 <EntityHighlightText
                   text={messageText}
                   entities={displayEntities}
@@ -1520,5 +1676,54 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     fontStyle: 'italic',
+  },
+
+  // Voice message styles
+  voiceContainer: {
+    width: 220,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 0.5,
+  },
+  voiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  voicePlayBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  voiceWaveform: {
+    flex: 1,
+    gap: 4,
+  },
+  voiceProgressTrack: {
+    height: 3,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  voiceProgressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  voiceBars: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 3,
+    height: 12,
+  },
+  voiceBar: {
+    width: 3,
+    borderRadius: 2,
+    minHeight: 2,
+  },
+  voiceTime: {
+    fontSize: 11,
+    marginTop: 6,
+    textAlign: 'right',
   },
 });

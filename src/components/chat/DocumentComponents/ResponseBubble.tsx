@@ -17,6 +17,7 @@ interface ResponseBubbleProps {
 export function ResponseBubble({ query, answer, sources, timestamp }: ResponseBubbleProps) {
   const theme = useTheme();
   const [copied, setCopied] = useState(false);
+  const successColor = theme.colors.success;
 
   const handleCopy = async () => {
     await Clipboard.setStringAsync(answer);
@@ -27,6 +28,8 @@ export function ResponseBubble({ query, answer, sources, timestamp }: ResponseBu
   const formatTime = (ts: number) => {
     return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+
+  const footerBorderColor = theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
 
   return (
     <View style={styles.container}>
@@ -52,12 +55,12 @@ export function ResponseBubble({ query, answer, sources, timestamp }: ResponseBu
             <SourcesAccordion sources={sources} defaultExpanded={true} />
           )}
 
-          <View style={styles.responseFooter}>
+          <View style={[styles.responseFooter, { borderTopColor: footerBorderColor }]}>
             <Pressable onPress={handleCopy} style={styles.copyBtn}>
               {copied ? (
                 <>
-                  <Check size={12} color="#10b981" />
-                  <Text style={[styles.copyText, { color: '#10b981' }]}>Copied</Text>
+                  <Check size={12} color={successColor} />
+                  <Text style={[styles.copyText, { color: successColor }]}>Copied</Text>
                 </>
               ) : (
                 <>
@@ -132,7 +135,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(128,128,128,0.2)',
   },
   copyBtn: {
     flexDirection: 'row',

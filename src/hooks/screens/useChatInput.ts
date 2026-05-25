@@ -8,7 +8,9 @@ import {
 } from '@/src/services/chatService';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useChatsStore } from '@/src/store/useChatsStore';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import type { ChatMessage } from '@/src/types/chat';
+import type { WsMention } from '@/src/realtime/events';
 
 interface UseChatInputOptions {
   chatId: string;
@@ -36,11 +38,45 @@ export function useChatInput({
   const mergeMessageId = useMessagesStore((state) => state.mergeMessageId);
   const updateLastMessage = useChatsStore((state) => state.updateLastMessage);
 
+  const parseMentions = useCallback((text: string): WsMention[] => {
+    const result: WsMention[] = [];
+    const members = useConversationDetailStore.getState().getMembers(chatId);
+    if (members.length === 0) return result;
+
+    const sorted = [...members].sort((a, b) => b.fullName.length - a.fullName.length);
+
+    for (const member of sorted) {
+      const pattern = `@${member.fullName}`;
+      let searchFrom = 0;
+      while (true) {
+        const idx = text.indexOf(pattern, searchFrom);
+        if (idx < 0) break;
+        const charBefore = idx > 0 ? text[idx - 1] : ' ';
+        const charAfter = idx + pattern.length < text.length ? text[idx + pattern.length] : ' ';
+        if ((charBefore === ' ' || charBefore === '\n') && (charAfter === ' ' || charAfter === '\n' || charAfter === '')) {
+          result.push({
+            user_id: member.userId,
+            mention_type: 'user',
+            offset: idx,
+            length: pattern.length,
+          });
+        }
+        searchFrom = idx + 1;
+      }
+    }
+
+    result.sort((a, b) => a.offset - b.offset);
+    return result;
+  }, [chatId]);
+
   // Send text message
   const handleSend = useCallback(async () => {
     if (!input.trim() || !chatId) return;
 
     const text = input.trim();
+
+    const mentions = parseMentions(text);
+
     setInput('');
 
     // Notify typing stopped
@@ -51,6 +87,9 @@ export function useChatInput({
       if (replyingMessage) {
         messageOptions.replyToMessage = replyingMessage;
         setReplyingMessage(null);
+      }
+      if (mentions.length > 0) {
+        messageOptions.mentions = mentions;
       }
 
       const { optimisticMessage, sendPromise } = await sendSocketMessage(
@@ -80,6 +119,14 @@ export function useChatInput({
   const handleSendFiles = useCallback(async (files: any[]) => {
     if (files.length === 0 || !chatId) return;
 
+    const isAudioFile = (file: any) => {
+      const mimeType = file?.mimeType || file?.type || '';
+      return mimeType.startsWith('audio/');
+    };
+
+    const isAllAudio = files.length > 0 && files.every(isAudioFile);
+    const previewType = isAllAudio ? 'voice' : 'file';
+
     const fallbackLabel = files.length === 1
       ? (files[0]?.name || files[0]?.uri?.split('/')?.pop() || 'File')
       : `${files.length} files`;
@@ -100,7 +147,7 @@ export function useChatInput({
 
       addMessage(chatId, optimisticMessage);
       
-      updateLastMessage(chatId, fallbackLabel, 'file', Date.now(), currentUserId, currentUserName);
+      updateLastMessage(chatId, fallbackLabel, previewType, Date.now(), currentUserId, currentUserName);
 
       await sendPromise;
       

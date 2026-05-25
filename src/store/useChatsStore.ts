@@ -150,7 +150,7 @@ export const useChatsStore = create<ChatsState>((set) => ({
           } else if (type === 'file') {
             previewContent = 'Đã gửi 1 tệp đính kèm';
           } else if (type === 'voice') {
-            previewContent = '__VOICE__';
+            previewContent = 'Tin nhắn thoại';
           } else if (type === 'deleted' || type === 'revoked') {
             previewContent = 'Tin nhắn đã được thu hồi';
           } else if (type === 'poll') {

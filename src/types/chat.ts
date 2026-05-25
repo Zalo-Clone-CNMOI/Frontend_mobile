@@ -180,6 +180,14 @@ export type ChatMessage = {
   removed?: boolean;
   removalReason?: string;
 
+  // Mention fields
+  mentions?: Array<{
+    user_id: string;
+    mention_type: 'user' | 'all';
+    offset: number;
+    length: number;
+  }>;
+
   // System message fields
   messageType?: 'user' | 'system' | 'poll' | 'invite';
   systemEventType?: SystemEventType;

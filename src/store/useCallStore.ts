@@ -57,6 +57,7 @@ export interface CallSession {
   conversationId: string | null;
   remoteUserId: string | null;
   callType: "audio" | "video";
+  conversationType: "direct" | "group";
   startedAt: number | null;
   duration: number;
 }
@@ -66,6 +67,7 @@ export interface UseCallStoreState {
   currentCall: CallSession | null;
   incomingCall: IncomingCallData | null;
   participants: Record<string, CallParticipant>;
+  userDisplayNames: Record<string, string>;
   signalingQueue: SignalingData[];
   outgoingSignalQueue: OutgoingSignal[];
   localStream: MediaStream | null;
@@ -78,7 +80,8 @@ export interface UseCallStoreState {
     callType: "audio" | "video",
     callId?: string,
     startedAt?: number,
-    remoteUserId?: string
+    remoteUserId?: string,
+    conversationType?: "direct" | "group"
   ) => boolean;
   acceptIncomingCall: () => void;
   rejectIncomingCall: () => void;
@@ -93,6 +96,7 @@ export interface UseCallStoreState {
   removeParticipant: (userId: string) => void;
   updateParticipant: (userId: string, updates: Partial<CallParticipant>) => void;
   updateParticipantStream: (userId: string, stream: MediaStream | null) => void;
+  setUserDisplayName: (userId: string, name: string) => void;
 
   setLocalStream: (stream: MediaStream | null) => void;
   toggleAudio: (enabled: boolean) => void;
@@ -124,6 +128,7 @@ const initialCallSession: CallSession = {
   conversationId: null,
   remoteUserId: null,
   callType: "audio",
+  conversationType: "direct",
   startedAt: null,
   duration: 0,
 };
@@ -153,6 +158,7 @@ export const useCallStore = create<UseCallStoreState>((set, get) => ({
   currentCall: null,
   incomingCall: null,
   participants: {},
+  userDisplayNames: {},
   signalingQueue: [],
   outgoingSignalQueue: [],
   localStream: null,
@@ -165,7 +171,8 @@ export const useCallStore = create<UseCallStoreState>((set, get) => ({
     callType: "audio" | "video",
     callId?: string,
     startedAt?: number,
-    remoteUserId?: string
+    remoteUserId?: string,
+    conversationType?: "direct" | "group"
   ) => {
     const state = get();
 
@@ -189,6 +196,7 @@ export const useCallStore = create<UseCallStoreState>((set, get) => ({
         conversationId,
         remoteUserId: remoteUserId || null,
         callType,
+        conversationType: conversationType || "direct",
         startedAt: startedAt || Date.now(),
         duration: 0,
       },
@@ -215,6 +223,7 @@ export const useCallStore = create<UseCallStoreState>((set, get) => ({
         conversationId: incomingCall.conversationId,
         remoteUserId: incomingCall.initiatorId,
         callType: incomingCall.callType,
+        conversationType: incomingCall.conversationType,
         startedAt: Date.now(),
         duration: 0,
       },
@@ -228,6 +237,7 @@ export const useCallStore = create<UseCallStoreState>((set, get) => ({
       incomingCall: null,
       callState: "idle",
       participants: {},
+      userDisplayNames: {},
       error: null,
     });
   },
@@ -247,6 +257,7 @@ export const useCallStore = create<UseCallStoreState>((set, get) => ({
       callState: "idle",
       currentCall: { ...initialCallSession },
       participants: {},
+      userDisplayNames: {},
       signalingQueue: [],
       outgoingSignalQueue: [],
       localStream: null,
@@ -371,6 +382,13 @@ export const useCallStore = create<UseCallStoreState>((set, get) => ({
     });
   },
 
+  setUserDisplayName: (userId: string, name: string) => {
+    if (!userId) return;
+    set((state) => ({
+      userDisplayNames: { ...state.userDisplayNames, [userId]: name },
+    }));
+  },
+
   setLocalStream: (stream: MediaStream | null) => {
     const { localStream } = get();
     // Release old stream if replacing
@@ -471,6 +489,7 @@ export const useCallStore = create<UseCallStoreState>((set, get) => ({
       currentCall: { ...initialCallSession },
       incomingCall: null,
       participants: {},
+      userDisplayNames: {},
       signalingQueue: [],
       outgoingSignalQueue: [],
       localStream: null,

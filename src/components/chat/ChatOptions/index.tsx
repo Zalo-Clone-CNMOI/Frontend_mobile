@@ -131,7 +131,7 @@ export const ChatOptions: React.FC<ChatOptionsProps> = ({
 
   return (
     <Modal visible={visible} onRequestClose={onClose}>
-      <StatusBar style="dark" />
+      <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <ChatOptionsHeader theme={theme} onClose={onClose} />
 
@@ -211,8 +211,8 @@ export const ChatOptions: React.FC<ChatOptionsProps> = ({
                   setNotificationsEnabled(value);
                   onToggleNotifications?.(value);
                 }}
-                trackColor={{ false: '#767577', true: theme.colors.primary + '50' }}
-                thumbColor={notificationsEnabled ? theme.colors.primary : '#f4f3f4'}
+                trackColor={{ false: theme.colors.disabled, true: theme.colors.primary + '50' }}
+                thumbColor={notificationsEnabled ? theme.colors.primary : theme.colors.card}
               />
             </View>
 
@@ -351,13 +351,13 @@ export const ChatOptions: React.FC<ChatOptionsProps> = ({
                       borderRadius: 16,
                       justifyContent: 'center',
                       alignItems: 'center',
-                      backgroundColor: '#FF3B30' + '15',
+                      backgroundColor: theme.colors.error + '15',
                     }}
                   >
-                    <SettingsIcon size={18} color="#FF3B30" />
+                    <SettingsIcon size={18} color={theme.colors.error} />
                   </View>
                   <View style={styles.optionTextContainer}>
-                    <Text style={[styles.optionTitle, { color: '#FF3B30' }]}>
+                    <Text style={[styles.optionTitle, { color: theme.colors.error }]}>
                       {t('chat_options.leave_group')}
                     </Text>
                   </View>
@@ -379,13 +379,13 @@ export const ChatOptions: React.FC<ChatOptionsProps> = ({
                       borderRadius: 16,
                       justifyContent: 'center',
                       alignItems: 'center',
-                      backgroundColor: '#FF3B30' + '15',
+                      backgroundColor: theme.colors.error + '15',
                     }}
                   >
-                    <SettingsIcon size={18} color="#FF3B30" />
+                    <SettingsIcon size={18} color={theme.colors.error} />
                   </View>
                   <View style={styles.optionTextContainer}>
-                    <Text style={[styles.optionTitle, { color: '#FF3B30' }]}>
+                    <Text style={[styles.optionTitle, { color: theme.colors.error }]}>
                       {t('chat_options.delete_group')}
                     </Text>
                   </View>

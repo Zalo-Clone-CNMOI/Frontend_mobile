@@ -8,6 +8,7 @@ import { callPeerManager } from "./callPeerManager";
 import { isWebRTCAvailable } from "../utils/webrtcLoader";
 import { joinConversationRoom } from "./socket/joinConversationRoom";
 import { resolveCallRecipientIds } from "./callParticipants";
+import { apiJsonRequest } from "./apiRequest";
 
 export interface InitiateCallParams {
   conversationId: string;
@@ -24,6 +25,10 @@ export interface CallEventPayload {
 const EMIT_ACK_TIMEOUT_MS = 2_000;
 const CALL_END_ACK_TIMEOUT_MS = 1_500;
 const RECONNECTION_REQUEST_TIMEOUT_MS = 5_000;
+const PUBLIC_TURN_SERVERS: Array<{ urls: string | string[]; username?: string; credential?: string }> = [
+  { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+];
 
 /**
  * Emit a socket event with an ack callback and a timeout.
@@ -69,17 +74,35 @@ class CallService {
   private callTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private readonly CALL_TIMEOUT_MS = 60_000;
 
-  // Reconnection handler bound once so it can be removed on cleanup
   private reconnectHandler: (() => void) | null = null;
   private reconnectSocket: any = null;
+
+  private _isCleaningUp = false;
+  private _cleanupPromise: Promise<void> | null = null;
 
   constructor() {
     this.attachSocketReconnectHandler();
   }
 
+  private async safeCleanup(): Promise<void> {
+    if (this._isCleaningUp) {
+      return this._cleanupPromise || Promise.resolve();
+    }
+    this._isCleaningUp = true;
+    this._cleanupPromise = (async () => {
+      try { callPeerManager.cleanup(); } catch {}
+      try { await callMediaManager.stopLocalMedia(); } catch {}
+      useCallStore.getState().resetCall();
+      this.clearCallTimeout();
+    })();
+    await this._cleanupPromise;
+    this._isCleaningUp = false;
+    this._cleanupPromise = null;
+  }
+
   /**
-   * Listen for socket reconnects so we can flush queued outgoing signals.
-   * This survives socket re-creation: we re-bind whenever a new socket is observed.
+   * Listen for socket reconnects so we can flush queued outgoing signals
+   * and sync call state.
    */
   private attachSocketReconnectHandler(): void {
     const socket = getSocket();
@@ -87,7 +110,6 @@ class CallService {
       return;
     }
 
-    // Detach from previous socket
     if (this.reconnectSocket && this.reconnectHandler) {
       try {
         this.reconnectSocket.off("connect", this.reconnectHandler);
@@ -101,6 +123,9 @@ class CallService {
       this.flushOutgoingSignalQueue().catch((err) => {
         console.warn("[CallService] Failed to flush signal queue", err);
       });
+      this.syncCallStateAfterReconnect().catch((err) => {
+        console.warn("[CallService] Failed to sync call state after reconnect", err);
+      });
     };
 
     try {
@@ -108,6 +133,12 @@ class CallService {
     } catch (err) {
       console.warn("[CallService] Failed to attach reconnect handler", err);
     }
+  }
+
+  private async syncCallStateAfterReconnect(): Promise<void> {
+    const { currentCall } = useCallStore.getState();
+    if (!currentCall?.conversationId) return;
+    await this.handleReconnection(currentCall.conversationId);
   }
 
   private async flushOutgoingSignalQueue(): Promise<void> {
@@ -183,6 +214,9 @@ class CallService {
       }
       const remoteUserId = recipientIds?.[0];
 
+      const conversationType =
+        recipientIds && recipientIds.length > 1 ? "group" : "direct";
+
       // Reserve store slot. Returns false if another call already in flight.
       const reserved = useCallStore
         .getState()
@@ -191,7 +225,8 @@ class CallService {
           params.callType,
           callId,
           startedAt,
-          remoteUserId
+          remoteUserId,
+          conversationType
         );
       if (!reserved) {
         throw new Error("Already in a call");
@@ -203,70 +238,28 @@ class CallService {
       // If media acquisition fails we must roll the store back.
       try {
         await callMediaManager.createLocalMediaStream(isVideo);
+        if (isVideo) {
+          useCallStore.getState().toggleVideo(true);
+        }
       } catch (mediaError) {
         console.error("[CallService] Failed to acquire media", mediaError);
         throw mediaError;
       }
 
-      const conversationType =
-        recipientIds && recipientIds.length > 1 ? "group" : "direct";
-
-      // Send call:start with ack via Promise — easier to await
-      const ack = await new Promise<any>((resolve) => {
-        let settled = false;
-        const timer = setTimeout(() => {
-          if (!settled) {
-            settled = true;
-            resolve({ error: "Server did not acknowledge call:start" });
-          }
-        }, 5_000);
-
-        try {
-          socket.emit(
-            "call:start",
-            {
-              call_id: callId,
-              conversation_id: params.conversationId,
-              conversation_type: conversationType,
-              call_type: params.callType,
-              participant_ids: recipientIds,
-              started_at: startedAt,
-            },
-            (response: any) => {
-              if (settled) return;
-              settled = true;
-              clearTimeout(timer);
-              resolve(response ?? {});
-            }
-          );
-        } catch (err) {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve({ error: String(err) });
-        }
+      // Send call:start — server uses fire-and-forget via Kafka, no ack sent back
+      socket.emit("call:start", {
+        call_id: callId,
+        conversation_id: params.conversationId,
+        conversation_type: conversationType,
+        call_type: params.callType,
+        participant_ids: recipientIds,
+        started_at: startedAt,
       });
 
-      if (ack?.error) {
-        throw new Error(`call:start rejected: ${ack.error}`);
-      }
+      console.log("[CallService] Call initiated, call:start sent");
 
-      console.log("[CallService] Call initiated successfully", ack);
-
-      // Now start the WebRTC peer connection. Await so failures roll back.
-      if (remoteUserId) {
-        try {
-          await callPeerManager.startCall(
-            callId,
-            true,
-            remoteUserId,
-            params.conversationId
-          );
-        } catch (peerError) {
-          console.error("[CallService] Failed to start WebRTC peer", peerError);
-          throw peerError;
-        }
-      }
+      // WebRTC setup runs async — doesn't block navigation to calling screen
+      this.setupCallAsync(callId, recipientIds || [], params.conversationId);
 
       this.setCallTimeout();
     } catch (error) {
@@ -288,6 +281,34 @@ class CallService {
         useCallStore.getState().resetCall();
       }
       throw error;
+    }
+  }
+
+  private async setupCallAsync(
+    callId: string,
+    recipientIds: string[],
+    conversationId: string
+  ): Promise<void> {
+    try {
+      const servers = await this.fetchIceServers();
+      callPeerManager.setIceServers(servers);
+
+      for (let i = 0; i < recipientIds.length; i++) {
+        const uid = recipientIds[i];
+        if (!uid) continue;
+        if (i === 0) {
+          await callPeerManager.startCall(callId, true, uid, conversationId);
+        } else {
+          await callPeerManager.addParticipant(callId, uid, conversationId, true);
+        }
+      }
+    } catch (err) {
+      console.error("[CallService] Async WebRTC setup failed", err);
+      const { callState } = useCallStore.getState();
+      if (callState === "calling" || callState === "connecting") {
+        toast.error("Failed to establish call connection");
+        await this.safeCleanup();
+      }
     }
   }
 
@@ -323,38 +344,7 @@ class CallService {
       useCallStore.getState().acceptIncomingCall();
       acceptedInStore = true;
 
-      const isVideo = incomingCall.callType === "video";
-
-      // If media fails, we MUST roll back the store — otherwise we are stuck
-      // in "connecting" with no media and no peer connection.
-      try {
-        await callMediaManager.createLocalMediaStream(isVideo);
-      } catch (mediaError) {
-        console.error(
-          "[CallService] Failed to acquire media on accept",
-          mediaError
-        );
-        throw mediaError;
-      }
-
-      const { currentCall } = useCallStore.getState();
-      if (currentCall && currentCall.remoteUserId) {
-        try {
-          await callPeerManager.acceptCall(
-            currentCall.callId || incomingCall.callId,
-            currentCall.conversationId || incomingCall.conversationId,
-            currentCall.remoteUserId
-          );
-        } catch (peerError) {
-          console.error(
-            "[CallService] Failed to set up peer on accept",
-            peerError
-          );
-          throw peerError;
-        }
-      }
-
-      // Tell the server we accepted — best-effort with ack timeout
+      // Emit call:accept immediately so backend knows we accepted
       const ack = await emitWithAck(
         "call:accept",
         {
@@ -369,28 +359,61 @@ class CallService {
         throw new Error(`call:accept rejected: ${ack.error}`);
       }
 
+      // Then set up WebRTC asynchronously (don't block navigation)
+      const isVideo = incomingCall.callType === "video";
+      this.setupAcceptCallAsync(incomingCall).catch((err) => {
+        console.error("[CallService] Async WebRTC setup after accept failed", err);
+      });
+
       console.log("[CallService] Call accepted successfully");
     } catch (error) {
       console.error("[CallService] Error accepting call", error);
       toast.error("Failed to accept call");
 
-      // Roll back any partial progress
       try {
         callPeerManager.cleanup();
-      } catch {
-        // ignore
-      }
+      } catch {}
       try {
         await callMediaManager.stopLocalMedia();
-      } catch {
-        // ignore
-      }
+      } catch {}
       if (acceptedInStore) {
         useCallStore.getState().endCall();
       } else {
         useCallStore.getState().rejectIncomingCall();
       }
       throw error;
+    }
+  }
+
+  private async setupAcceptCallAsync(
+    incomingCall: any
+  ): Promise<void> {
+    try {
+      const isVideo = incomingCall.callType === "video";
+
+      const servers = await this.fetchIceServers();
+      callPeerManager.setIceServers(servers);
+
+      await callMediaManager.createLocalMediaStream(isVideo);
+      if (isVideo) {
+        useCallStore.getState().toggleVideo(true);
+      }
+
+      const { currentCall } = useCallStore.getState();
+      if (currentCall && currentCall.remoteUserId) {
+        await callPeerManager.acceptCall(
+          currentCall.callId || incomingCall.callId,
+          currentCall.conversationId || incomingCall.conversationId,
+          currentCall.remoteUserId
+        );
+      }
+    } catch (err) {
+      console.error("[CallService] Async accept WebRTC setup failed", err);
+      const { callState } = useCallStore.getState();
+      if (callState === "connecting" || callState === "active") {
+        toast.error("Failed to set up call connection");
+        await this.safeCleanup();
+      }
     }
   }
 
@@ -492,40 +515,95 @@ class CallService {
         );
       }
 
-      // 2) Tear down peer connection (removes listeners, closes RTC)
-      try {
-        callPeerManager.cleanup();
-      } catch (err) {
-        console.warn("[CallService] callPeerManager.cleanup failed", err);
-      }
-
-      // 3) Stop and release local media (camera/mic)
-      try {
-        await callMediaManager.stopLocalMedia();
-      } catch (err) {
-        console.warn("[CallService] callMediaManager.stopLocalMedia failed", err);
-      }
-
-      // 4) Reset store (also releases remote streams)
-      useCallStore.getState().endCall();
-      this.clearCallTimeout();
-
+      await this.safeCleanup();
       console.log("[CallService] Call ended");
     } catch (error) {
       console.error("[CallService] Error ending call", error);
-      // Last-resort cleanup
-      try {
-        callPeerManager.cleanup();
-      } catch {
-        // ignore
-      }
-      try {
-        await callMediaManager.stopLocalMedia();
-      } catch {
-        // ignore
-      }
+      try { callPeerManager.cleanup(); } catch {}
+      try { await callMediaManager.stopLocalMedia(); } catch {}
       useCallStore.getState().endCall();
       this.clearCallTimeout();
+    }
+  }
+
+  /**
+   * Leave a group call (without ending it for others).
+   */
+  async leaveCall(): Promise<void> {
+    try {
+      const { currentCall } = useCallStore.getState();
+      const socket = getSocket();
+
+      if (!currentCall || !currentCall.callId) {
+        console.log("[CallService] No active call to leave");
+        return;
+      }
+
+      if (!socket || !socket.connected) {
+        console.warn("[CallService] Socket not connected on leaveCall");
+      } else {
+        const ack = await emitWithAck(
+          "call:leave",
+          {
+            call_id: currentCall.callId,
+            conversation_id: currentCall.conversationId,
+            reason: "left_by_participant",
+            left_at: Date.now(),
+          },
+          CALL_END_ACK_TIMEOUT_MS
+        );
+
+        if (ack?.error) {
+          console.warn("[CallService] call:leave rejected", ack.error);
+        }
+      }
+
+      await this.safeCleanup();
+      console.log("[CallService] Left call");
+    } catch (error) {
+      console.error("[CallService] Error leaving call", error);
+      await this.safeCleanup();
+    }
+  }
+
+  /**
+   * Fetch TURN/STUN ICE servers from the BFF endpoint.
+   * Returns configured ICE servers or falls back to Google STUN.
+   */
+  async fetchIceServers(): Promise<Array<{ urls: string | string[]; username?: string; credential?: string }>> {
+    try {
+      const res = await apiJsonRequest<{
+        username?: string;
+        credential?: string;
+        ttl?: number;
+        ice_servers?: Array<{
+          urls: string | string[];
+          username?: string;
+          credential?: string;
+        }>;
+      }>("GET", "/api/conversations/ice-servers");
+
+      const data = res.data;
+      if (data?.ice_servers && data.ice_servers.length > 0) {
+        return data.ice_servers.map((s) => ({
+          urls: s.urls,
+          username: s.username || data.username,
+          credential: s.credential || data.credential,
+        }));
+      }
+
+      return [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        ...PUBLIC_TURN_SERVERS,
+      ];
+    } catch (error) {
+      console.warn("[CallService] Failed to fetch ICE servers, using fallback", error);
+      return [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        ...PUBLIC_TURN_SERVERS,
+      ];
     }
   }
 
@@ -585,10 +663,14 @@ class CallService {
       return;
     }
 
+    const { currentCall } = useCallStore.getState();
+    const targetUserId = currentCall?.remoteUserId;
+
     const signalPayload: Record<string, any> = {
       call_id: callId,
       conversation_id: conversationId,
       signal_type: type,
+      ...(targetUserId ? { target_user_id: targetUserId } : {}),
       sent_at: Date.now(),
     };
 
@@ -774,10 +856,12 @@ export function useCallService() {
     acceptCall: callService.acceptCall.bind(callService),
     rejectCall: callService.rejectCall.bind(callService),
     endCall: callService.endCall.bind(callService),
+    leaveCall: callService.leaveCall.bind(callService),
     sendSignalingData: callService.sendSignalingData.bind(callService),
     toggleCallAudio: callService.toggleCallAudio.bind(callService),
     toggleCallVideo: callService.toggleCallVideo.bind(callService),
     switchCamera: callService.switchCamera.bind(callService),
     handleReconnection: callService.handleReconnection.bind(callService),
+    fetchIceServers: callService.fetchIceServers.bind(callService),
   };
 }
