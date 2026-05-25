@@ -158,7 +158,8 @@ class CallService {
           signal.callId,
           signal.conversationId,
           signal.type,
-          signal.data
+          signal.data,
+          signal.targetUserId
         );
       } catch (err) {
         console.warn("[CallService] Failed to flush queued signal", err);
@@ -616,7 +617,8 @@ class CallService {
     callId: string,
     conversationId: string,
     type: "offer" | "answer" | "ice-candidate",
-    data: any
+    data: any,
+    targetUserId?: string
   ): Promise<void> {
     try {
       const socket = getSocket();
@@ -630,6 +632,7 @@ class CallService {
           conversationId,
           type,
           data,
+          targetUserId,
           createdAt: Date.now(),
         };
         useCallStore.getState().queueOutgoingSignal(queued);
@@ -638,7 +641,7 @@ class CallService {
         return;
       }
 
-      await this.emitSignalPayload(callId, conversationId, type, data);
+      await this.emitSignalPayload(callId, conversationId, type, data, targetUserId);
     } catch (error) {
       console.error("[CallService] Error sending signaling data", error);
     }
@@ -648,7 +651,8 @@ class CallService {
     callId: string,
     conversationId: string,
     type: "offer" | "answer" | "ice-candidate",
-    data: any
+    data: any,
+    targetUserId?: string
   ): Promise<void> {
     const socket = getSocket();
     if (!socket || !socket.connected) {
@@ -658,19 +662,20 @@ class CallService {
         conversationId,
         type,
         data,
+        targetUserId,
         createdAt: Date.now(),
       });
       return;
     }
 
     const { currentCall } = useCallStore.getState();
-    const targetUserId = currentCall?.remoteUserId;
+    const targetId = targetUserId ?? currentCall?.remoteUserId;
 
     const signalPayload: Record<string, any> = {
       call_id: callId,
       conversation_id: conversationId,
       signal_type: type,
-      ...(targetUserId ? { target_user_id: targetUserId } : {}),
+      ...(targetId ? { target_user_id: targetId } : {}),
       sent_at: Date.now(),
     };
 

@@ -18,7 +18,7 @@ import { useCallService } from '@/src/services/callService';
 import { getUserProfile } from '@/src/services/usersApi';
 import { useRouter } from 'expo-router';
 import { playCallingTone, stopRingtone } from '@/src/services/callRingtone';
-import { useConversationDetailStore, type ConversationMember } from '@/src/store/useConversationDetailStore';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import { isWebRTCAvailable, loadRTCView } from '@/src/utils/webrtcLoader';
 import { callMediaManager } from '@/src/services/callMediaManager';
 
@@ -47,14 +47,13 @@ interface CallingScreenProps {
 }
 
 export function CallingScreen({ callType = 'audio' }: CallingScreenProps) {
-  const { callState, currentCall, localStream, isAudioEnabled, isVideoEnabled } = useCallStore();
+  const { callState, currentCall, localStream, isAudioEnabled, isVideoEnabled, participants, userDisplayNames } = useCallStore();
   const { endCall, toggleCallAudio, toggleCallVideo } = useCallService();
   const router = useRouter();
 
   const [recipientName, setRecipientName] = useState('');
   const [recipientAvatar, setRecipientAvatar] = useState('');
   const [groupCallName, setGroupCallName] = useState('');
-  const [members, setMembers] = useState<Array<{ id: string; initial: string }>>([]);
   const [audioEnabled, setAudioEnabled] = useState(isAudioEnabled);
   const [camEnabled, setCamEnabled] = useState(isVideoEnabled);
   const [RTCView, setRTCView] = useState<React.ComponentType<any> | null>(null);
@@ -92,28 +91,6 @@ export function CallingScreen({ callType = 'audio' }: CallingScreenProps) {
     if (isGroupCall) {
       if (conversationDetail) {
         setGroupCallName(conversationDetail.name || '');
-      }
-      if (conversationId) {
-        const cachedMembers = useConversationDetailStore.getState().getMembers(conversationId);
-        if (cachedMembers.length > 0) {
-          const initials = cachedMembers.slice(0, 4).map((m: ConversationMember) => ({
-            id: m.userId || m.id,
-            initial: ((m.fullName || m.nickname || m.userId || '?')[0] || '?').toUpperCase(),
-          }));
-          setMembers(initials);
-        } else {
-          useConversationDetailStore.getState()
-            .fetchConversationDetail(conversationId)
-            .then(() => {
-              const fetched = useConversationDetailStore.getState().getMembers(conversationId);
-              const initials = fetched.slice(0, 4).map((m: ConversationMember) => ({
-                id: m.userId || m.id,
-                initial: ((m.fullName || m.nickname || m.userId || '?')[0] || '?').toUpperCase(),
-              }));
-              setMembers(initials);
-            })
-            .catch(() => {});
-        }
       }
       return;
     }
@@ -243,30 +220,39 @@ export function CallingScreen({ callType = 'audio' }: CallingScreenProps) {
             <Text style={styles.groupName}>{displayName}</Text>
             <View style={styles.groupMemberCount}>
               <Users size={14} color="rgba(255,255,255,0.7)" />
-              <Text style={styles.groupMemberCountText}>{members.length + 1} thành viên</Text>
+              <Text style={styles.groupMemberCountText}>{Object.keys(participants).length + 1} thành viên</Text>
             </View>
           </View>
 
           <View style={styles.groupParticipants}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {members.map((m) => (
-                <View key={m.id} style={styles.groupParticipantItem}>
-                  <View style={styles.groupParticipantAvatar}>
-                    <Text style={styles.groupParticipantInitial}>{m.initial}</Text>
+              {Object.entries(participants).map(([uid, p]) => {
+                const name = userDisplayNames[uid] || uid.slice(0, 8);
+                const initial = (userDisplayNames[uid] || uid).charAt(0).toUpperCase();
+                const isRinging = p.status === 'invited';
+                const isAccepted = p.status === 'accepted';
+                const leftOrRejected = p.status === 'left' || p.status === 'rejected';
+                return (
+                  <View key={uid} style={styles.groupParticipantItem}>
+                    <View style={styles.groupParticipantAvatar}>
+                      <Text style={styles.groupParticipantInitial}>{initial}</Text>
+                    </View>
+                    <View style={styles.groupParticipantInfo}>
+                      <Text style={styles.groupParticipantName} numberOfLines={1}>{name}</Text>
+                      <Text style={styles.groupParticipantStatus}>
+                        {isAccepted ? 'Đã tham gia' : leftOrRejected ? 'Đã rời' : 'Đang đổ chuông'}
+                      </Text>
+                    </View>
+                    <View style={styles.groupCallTypeIcon}>
+                      {isVideoCall ? (
+                        <Video size={14} color="rgba(255,255,255,0.8)" />
+                      ) : (
+                        <Phone size={14} color="rgba(255,255,255,0.8)" />
+                      )}
+                    </View>
                   </View>
-                  <View style={styles.groupParticipantInfo}>
-                    <Text style={styles.groupParticipantName}>{m.id}</Text>
-                    <Text style={styles.groupParticipantStatus}>Đang đổ chuông</Text>
-                  </View>
-                  <View style={styles.groupCallTypeIcon}>
-                    {isVideoCall ? (
-                      <Video size={14} color="rgba(255,255,255,0.8)" />
-                    ) : (
-                      <Phone size={14} color="rgba(255,255,255,0.8)" />
-                    )}
-                  </View>
-                </View>
-              ))}
+                );
+              })}
             </ScrollView>
           </View>
 
