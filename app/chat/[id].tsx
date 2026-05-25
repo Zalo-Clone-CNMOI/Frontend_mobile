@@ -473,12 +473,6 @@ export default function ChatDetailScreen() {
         return;
       }
 
-      await initiateCall({
-        conversationId: chatId,
-        callType: 'audio',
-        recipientIds,
-      });
-
       router.push({
         pathname: '/call/calling',
         params: {
@@ -487,6 +481,12 @@ export default function ChatDetailScreen() {
           callType: 'audio',
         },
       } as any);
+
+      await initiateCall({
+        conversationId: chatId,
+        callType: 'audio',
+        recipientIds,
+      });
     } catch (error) {
       console.error('[ChatDetail] Failed to initiate call:', error);
       Alert.alert('Lỗi', 'Không thể bắt đầu cuộc gọi. Vui lòng thử lại.');
@@ -516,12 +516,6 @@ export default function ChatDetailScreen() {
         return;
       }
 
-      await initiateCall({
-        conversationId: chatId,
-        callType: 'video',
-        recipientIds,
-      });
-
       router.push({
         pathname: '/call/calling',
         params: {
@@ -530,6 +524,12 @@ export default function ChatDetailScreen() {
           callType: 'video',
         },
       } as any);
+
+      await initiateCall({
+        conversationId: chatId,
+        callType: 'video',
+        recipientIds,
+      });
     } catch (error) {
       console.error('[ChatDetail] Failed to initiate video call:', error);
       Alert.alert('Lỗi', 'Không thể bắt đầu cuộc gọi video.');

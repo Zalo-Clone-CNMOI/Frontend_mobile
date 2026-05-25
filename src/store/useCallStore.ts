@@ -50,6 +50,7 @@ export interface OutgoingSignal {
   type: "offer" | "answer" | "ice-candidate";
   data: any;
   createdAt: number;
+  targetUserId?: string;
 }
 
 export interface CallSession {

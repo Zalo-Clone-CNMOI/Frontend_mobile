@@ -186,7 +186,7 @@ class CallPeerManager {
       );
       await callService.sendSignalingData(callId, conversationId, "offer", {
         sdp: offer.sdp,
-      });
+      }, userId);
       console.log("[CallPeerManager] Offer sent to new participant", userId);
     }
   }
@@ -369,7 +369,7 @@ class CallPeerManager {
           candidate: event.candidate.candidate,
           sdpMid: event.candidate.sdpMid,
           sdpMLineIndex: event.candidate.sdpMLineIndex,
-        });
+        }, userId);
       }
     });
 
