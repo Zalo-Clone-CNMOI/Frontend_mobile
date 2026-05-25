@@ -228,6 +228,9 @@ class CallMediaManager {
         stream.removeTrack(videoTrack);
         videoTrack.stop();
         stream.addTrack(newVideoTrack);
+
+        const { callPeerManager: cpm } = require('./callPeerManager') as any;
+        cpm.replaceAllVideoTracks(newVideoTrack);
       }
 
       newStream.getTracks().forEach((t: any) => {

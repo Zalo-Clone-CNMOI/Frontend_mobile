@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,6 +9,8 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Mic, MicOff, Video, VideoOff, X } from 'lucide-react-native';
+import { useCallStore } from '@/src/store/useCallStore';
+import { getUserProfile } from '@/src/services/usersApi';
 import type { CallParticipant } from '@/src/store/useCallStore';
 
 interface ParticipantListProps {
@@ -24,29 +26,57 @@ export function ParticipantList({
   participants,
   localUserId,
 }: ParticipantListProps) {
-  const entries = Object.entries(participants).filter(
-    ([_, p]) => p.userId && !p.isLocalUser
-  );
-  const localEntry = Object.entries(participants).find(
-    ([_, p]) => p.isLocalUser
-  );
+  const userDisplayNames = useCallStore((s) => s.userDisplayNames);
+  const setUserDisplayName = useCallStore((s) => s.setUserDisplayName);
+
+  // Fetch display names for any participants we don't have names for
+  useEffect(() => {
+    if (!visible) return;
+    Object.entries(participants).forEach(([uid]) => {
+      if (!userDisplayNames[uid] && uid !== localUserId) {
+        getUserProfile(uid).then((p) => {
+          if (p) {
+            setUserDisplayName(uid, p.fullName || p.nickname || uid);
+          }
+        }).catch(() => {});
+      }
+    });
+  }, [visible, participants, userDisplayNames, localUserId, setUserDisplayName]);
+
+  // Sort: local user first, then by name, then by userId
+  const sortedEntries = Object.entries(participants)
+    .filter(([uid]) => uid === localUserId || true)
+    .sort(([aUid, a], [bUid, b]) => {
+      if (aUid === localUserId) return -1;
+      if (bUid === localUserId) return 1;
+      const aName = userDisplayNames[aUid] || aUid;
+      const bName = userDisplayNames[bUid] || bUid;
+      return aName.localeCompare(bName);
+    });
 
   const renderItem = ({
     item,
+    index,
   }: {
     item: { userId: string; participant: CallParticipant };
+    index: number;
   }) => {
     const { userId, participant } = item;
+    const isLocal = userId === localUserId;
+    const displayName = isLocal
+      ? 'Bạn'
+      : (userDisplayNames[userId] || userId.slice(0, 12));
+
     return (
-      <View style={styles.row}>
-        <View style={styles.avatar}>
+      <View style={[styles.row, isLocal && styles.localRow]}>
+        <View style={[styles.avatar, isLocal && styles.localAvatar]}>
           <Text style={styles.avatarText}>
-            {userId.charAt(0).toUpperCase()}
+            {displayName.charAt(0).toUpperCase()}
           </Text>
         </View>
         <View style={styles.info}>
           <Text style={styles.name} numberOfLines={1}>
-            {userId.slice(0, 12)}
+            {displayName}
           </Text>
           <Text style={styles.status}>
             {participant.status === 'accepted'
@@ -79,17 +109,12 @@ export function ParticipantList({
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
         <SafeAreaView style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>
-              Thành viên ({entries.length + (localEntry ? 1 : 0)})
+              Thành viên ({Object.keys(participants).length})
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <X size={22} color="rgba(255,255,255,0.7)" />
@@ -97,31 +122,13 @@ export function ParticipantList({
           </View>
 
           <FlatList
-            data={entries.map(([userId, participant]) => ({
+            data={sortedEntries.map(([userId, participant]) => ({
               userId,
               participant,
             }))}
             keyExtractor={(item) => item.userId}
             renderItem={renderItem}
             contentContainerStyle={styles.list}
-            ListHeaderComponent={
-              localEntry ? (
-                <View style={[styles.row, styles.localRow]}>
-                  <View style={[styles.avatar, styles.localAvatar]}>
-                    <Text style={styles.avatarText}>
-                      {(localUserId || 'B').charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.info}>
-                    <Text style={styles.name}>Bạn</Text>
-                    <Text style={styles.status}>Đã tham gia</Text>
-                  </View>
-                  <View style={styles.icons}>
-                    <Mic size={16} color="#34C759" />
-                  </View>
-                </View>
-              ) : null
-            }
             ListEmptyComponent={
               <Text style={styles.empty}>Không có thành viên nào</Text>
             }
@@ -142,7 +149,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a2e',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '60%',
+    maxHeight: '65%',
   },
   header: {
     flexDirection: 'row',
@@ -176,7 +183,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   localRow: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: 'rgba(52,199,89,0.05)',
   },
   avatar: {
     width: 40,

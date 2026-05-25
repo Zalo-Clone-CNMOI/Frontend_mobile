@@ -35,6 +35,15 @@ class CallPeerManager {
     console.warn("[CallPeerManager] WebRTC not available on this platform");
   }
 
+  async addParticipant(
+    _callId: string,
+    _userId: string,
+    _conversationId: string,
+    _isInitiator: boolean
+  ): Promise<void> {
+    console.warn("[CallPeerManager] WebRTC not available on this platform");
+  }
+
   cleanup(): void {
     this.active = false;
   }

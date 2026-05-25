@@ -31,6 +31,7 @@ class CallPeerManager {
   private peerConnections: Map<string, PeerEntry> = new Map();
   private active = false;
   private pendingOffer: { callId: string; fromUserId: string; data: any } | null = null;
+  private pendingAnswer: { callId: string; data: any } | null = null;
   private iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
@@ -46,6 +47,18 @@ class CallPeerManager {
 
   getPeerConnection(userId: string): any | null {
     return this.peerConnections.get(userId)?.pc ?? null;
+  }
+
+  replaceAllVideoTracks(newTrack: any): void {
+    for (const [, entry] of this.peerConnections) {
+      const senders = entry.pc.getSenders();
+      const videoSender = senders.find((s: any) => s.track?.kind === 'video');
+      if (videoSender) {
+        videoSender.replaceTrack(newTrack).catch((err: any) => {
+          console.warn('[CallPeerManager] replaceTrack failed for', entry.userId, err);
+        });
+      }
+    }
   }
 
   async startCall(
@@ -67,6 +80,7 @@ class CallPeerManager {
       }
 
       const webrtc = await ensureWebRTC();
+
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true,
@@ -75,6 +89,14 @@ class CallPeerManager {
       await pc.setLocalDescription(
         new webrtc.RTCSessionDescription({ type: "offer", sdp: offer.sdp })
       );
+
+      // Process pending answer after local offer is set (PC must be in "have-local-offer" state)
+      if (this.pendingAnswer) {
+        console.log("[CallPeerManager] Processing pending answer after startCall");
+        const ans = this.pendingAnswer;
+        this.pendingAnswer = null;
+        await this.processAnswer(callId, ans.data, webrtc);
+      }
 
       await callService.sendSignalingData(callId, conversationId, "offer", {
         sdp: offer.sdp,
@@ -182,25 +204,39 @@ class CallPeerManager {
     }
 
     let entry = this.peerConnections.get(fromUserId);
+
+    // Queue answer if no PC ready yet — prevents creating a premature PC
+    if (type === "answer" && !entry) {
+      console.log("[CallPeerManager] Queuing answer — no PC ready yet");
+      this.pendingAnswer = { callId, data };
+      return;
+    }
+
     if (!entry) {
-      console.warn("[CallPeerManager] No peer connection for", fromUserId, "creating one");
-      const { currentCall } = useCallStore.getState();
-      const pc = await this.createPeerConnectionForUser(
-        callId,
-        currentCall?.conversationId || "",
-        fromUserId
-      );
+      // Only create PC for offer/ice-candidate when none exists
+      if (type === "offer" || type === "ice-candidate") {
+        console.warn("[CallPeerManager] No peer connection for", fromUserId, "creating one");
+        const { currentCall } = useCallStore.getState();
+        const pc = await this.createPeerConnectionForUser(
+          callId,
+          currentCall?.conversationId || "",
+          fromUserId
+        );
 
-      const { localStream } = useCallStore.getState();
-      if (localStream) {
-        const tracks = (localStream as any).getTracks?.() ?? [];
-        tracks.forEach((track: any) => {
-          try { pc.addTrack(track, localStream as any); } catch {}
-        });
+        const { localStream } = useCallStore.getState();
+        if (localStream) {
+          const tracks = (localStream as any).getTracks?.() ?? [];
+          tracks.forEach((track: any) => {
+            try { pc.addTrack(track, localStream as any); } catch {}
+          });
+        }
+
+        entry = this.peerConnections.get(fromUserId);
+        if (!entry) return;
+      } else {
+        console.warn("[CallPeerManager] Unknown signal type with no PC:", type);
+        return;
       }
-
-      entry = this.peerConnections.get(fromUserId);
-      if (!entry) return;
     }
 
     try {
@@ -373,6 +409,7 @@ class CallPeerManager {
   cleanup(): void {
     this.active = false;
     this.pendingOffer = null;
+    this.pendingAnswer = null;
 
     for (const [userId, entry] of this.peerConnections) {
       try { entry.pc.close(); } catch {}

@@ -142,6 +142,26 @@ export class CallHandler extends BaseHandler {
             store.updateParticipant(uid, { status: s as any });
           }
         });
+
+        // Create WebRTC peers for new group participants
+        const { currentCall } = useCallStore.getState();
+        if (currentCall?.conversationType === "group" && currentCall?.callId) {
+          getAuthData().then((authUser) => {
+            const currentUserId = authUser?.id;
+            Object.keys(participants).forEach((uid) => {
+              if (uid !== currentUserId && !currentParticipants[uid]) {
+                callPeerManager.addParticipant(
+                  currentCall!.callId!,
+                  uid,
+                  currentCall!.conversationId || callId,
+                  true
+                ).catch((err: any) => {
+                  console.error("[CallHandler] Failed to create peer for new participant", uid, err);
+                });
+              }
+            });
+          });
+        }
       }
 
       if (status === "ongoing") {
@@ -151,6 +171,16 @@ export class CallHandler extends BaseHandler {
       }
 
       toast.success("Call accepted");
+
+      const currentState = useCallStore.getState().callState;
+      if (currentState === "active" || currentState === "connecting") {
+        try {
+          const ct = useCallStore.getState().currentCall?.callType || 'audio';
+          router.replace(`/call/active?callType=${ct}` as any);
+        } catch (e) {
+          this.error("navigation failed", e);
+        }
+      }
     } catch (error) {
       this.error("Failed to handle call acceptance", error);
     }
@@ -189,11 +219,11 @@ export class CallHandler extends BaseHandler {
     const { callState, currentCall } = useCallStore.getState();
     if (callState !== "connecting" && callState !== "active" && callState !== "calling") {
       if (signalType === "offer") {
-        this.log("Ignoring offer — not in call, will be polled on accept", { callId });
+        this.log("Buffering offer — will process after accept", { callId });
       } else {
         this.log("Ignoring signal — not in call", { signalType, callId });
+        return;
       }
-      return;
     }
 
     this.log(`📡 Signal received: ${signalType}`, {
@@ -386,6 +416,11 @@ export class CallHandler extends BaseHandler {
             await joinConversationRoom(state.conversation_id);
           }
         }
+        return;
+      }
+
+      // Don't downgrade from calling to connecting if server still reports ringing
+      if (state.status === "ringing" && (currentState === "calling" || currentState === "active" || currentState === "connecting")) {
         return;
       }
 

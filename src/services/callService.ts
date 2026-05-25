@@ -238,6 +238,9 @@ class CallService {
       // If media acquisition fails we must roll the store back.
       try {
         await callMediaManager.createLocalMediaStream(isVideo);
+        if (isVideo) {
+          useCallStore.getState().toggleVideo(true);
+        }
       } catch (mediaError) {
         console.error("[CallService] Failed to acquire media", mediaError);
         throw mediaError;
@@ -256,7 +259,7 @@ class CallService {
       console.log("[CallService] Call initiated, call:start sent");
 
       // WebRTC setup runs async — doesn't block navigation to calling screen
-      this.setupCallAsync(callId, remoteUserId, params.conversationId);
+      this.setupCallAsync(callId, recipientIds || [], params.conversationId);
 
       this.setCallTimeout();
     } catch (error) {
@@ -283,15 +286,21 @@ class CallService {
 
   private async setupCallAsync(
     callId: string,
-    remoteUserId: string | undefined,
+    recipientIds: string[],
     conversationId: string
   ): Promise<void> {
     try {
       const servers = await this.fetchIceServers();
       callPeerManager.setIceServers(servers);
 
-      if (remoteUserId) {
-        await callPeerManager.startCall(callId, true, remoteUserId, conversationId);
+      for (let i = 0; i < recipientIds.length; i++) {
+        const uid = recipientIds[i];
+        if (!uid) continue;
+        if (i === 0) {
+          await callPeerManager.startCall(callId, true, uid, conversationId);
+        } else {
+          await callPeerManager.addParticipant(callId, uid, conversationId, true);
+        }
       }
     } catch (err) {
       console.error("[CallService] Async WebRTC setup failed", err);
@@ -386,6 +395,9 @@ class CallService {
       callPeerManager.setIceServers(servers);
 
       await callMediaManager.createLocalMediaStream(isVideo);
+      if (isVideo) {
+        useCallStore.getState().toggleVideo(true);
+      }
 
       const { currentCall } = useCallStore.getState();
       if (currentCall && currentCall.remoteUserId) {

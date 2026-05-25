@@ -34,7 +34,7 @@ import { useCallStore } from '@/src/store/useCallStore';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Bell, ChevronDown, ChevronUp, Circle, Forward, List, Phone, Search, Sparkles, Video, X } from 'lucide-react-native';
+import { Bell, ChevronDown, ChevronRight, ChevronUp, Circle, Forward, List, Phone, Search, Sparkles, Video, X } from 'lucide-react-native';
 import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
 import { PresenceText } from '@/src/components/common/PresenceIndicator';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -55,6 +55,7 @@ export default function ChatDetailScreen() {
   const { user: authUser } = useAuth();
   const { initiateCall } = useCallService();
   const callState = useCallStore((state) => state.callState);
+  const currentCall = useCallStore((state) => state.currentCall);
   const { notification, showInfo, showSuccess, showError, hideNotification } = useInAppNotification();
   const fetchConversationDetail = useConversationDetailStore((state) => state.fetchConversationDetail);
   const getMySettings = useConversationDetailStore((state) => state.getMySettings);
@@ -846,6 +847,46 @@ export default function ChatDetailScreen() {
         onClose={hideNotification}
         onPress={notification.onPress}
       />
+
+      {/* Return to Call banner */}
+      {callState !== 'idle' && callState !== 'ended' && currentCall && (
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => {
+            const ct = currentCall.callType || 'audio';
+            if (callState === 'incoming') router.push('/call/incoming');
+            else if (callState === 'calling') router.push(`/call/calling?callType=${ct}`);
+            else router.push(`/call/active?callType=${ct}`);
+          }}
+          style={styles.returnCallBanner}
+        >
+          <View style={styles.returnCallLeft}>
+            <View style={styles.returnCallIconWrap}>
+              {currentCall.callType === 'video' ? (
+                <Video size={16} color="white" />
+              ) : (
+                <Phone size={16} color="white" />
+              )}
+            </View>
+            <View style={styles.returnCallInfo}>
+              <Text style={styles.returnCallTitle}>
+                {callState === 'incoming'
+                  ? 'Cuộc gọi đến'
+                  : callState === 'calling'
+                    ? 'Đang gọi...'
+                    : 'Đang trong cuộc gọi'}
+              </Text>
+              <Text style={styles.returnCallSubtitle}>
+                {callState === 'active' || callState === 'connecting'
+                  ? 'Nhấn để quay lại cuộc gọi'
+                  : 'Đang đổ chuông...'}
+              </Text>
+            </View>
+          </View>
+          <ChevronRight size={18} color="rgba(255,255,255,0.7)" />
+        </TouchableOpacity>
+      )}
+
       <Stack.Screen
         options={{
           headerShown: true,
@@ -1390,5 +1431,42 @@ const styles = StyleSheet.create({
   readOnlyComposerText: {
     fontSize: 14,
     textAlign: 'center',
+  },
+  // Return to Call banner
+  returnCallBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#34C759',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginHorizontal: 0,
+  },
+  returnCallLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  returnCallIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  returnCallInfo: {
+    flex: 1,
+  },
+  returnCallTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+  },
+  returnCallSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 1,
   },
 });
