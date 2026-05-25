@@ -45,9 +45,9 @@ export function ProcessingIndicator({
       case 'processing':
         return <Loader2 size={16} color={theme.colors.primary} />;
       case 'completed':
-        return <CheckCircle size={16} color="#10b981" />;
+        return <CheckCircle size={16} color={theme.colors.success} />;
       case 'failed':
-        return <XCircle size={16} color="#ef4444" />;
+        return <XCircle size={16} color={theme.colors.error} />;
     }
   };
 
@@ -69,11 +69,11 @@ export function ProcessingIndicator({
       case 'uploading':
         return theme.colors.primary;
       case 'processing':
-        return '#f59e0b';
+        return theme.colors.warning;
       case 'completed':
-        return '#10b981';
+        return theme.colors.success;
       case 'failed':
-        return '#ef4444';
+        return theme.colors.error;
     }
   };
 

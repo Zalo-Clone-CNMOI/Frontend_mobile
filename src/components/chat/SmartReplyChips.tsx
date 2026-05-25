@@ -40,8 +40,6 @@ export const SmartReplyChips: React.FC<SmartReplyChipsProps> = ({
     return null;
   }
 
-  const hasMultiple = displaySuggestions.length > 1;
-
   return (
     <View style={[styles.container, { borderBottomColor: theme.colors.border }]}>
       <View style={styles.row}>
@@ -76,11 +74,6 @@ export const SmartReplyChips: React.FC<SmartReplyChipsProps> = ({
             </Text>
           </TouchableOpacity>
         ))}
-        {hasMultiple && (
-          <TouchableOpacity style={styles.moreBtn} onPress={onDismiss}>
-            <Text style={[styles.moreBtnText, { color: theme.colors.icon }]}>Xem thêm</Text>
-          </TouchableOpacity>
-        )}
       </ScrollView>
     </View>
   );
@@ -141,13 +134,5 @@ const styles = StyleSheet.create({
     width: 100,
     height: 36,
     borderRadius: 18,
-  },
-  moreBtn: {
-    paddingHorizontal: 8,
-    justifyContent: 'center',
-  },
-  moreBtnText: {
-    fontSize: 12,
-    fontWeight: '500',
   },
 });

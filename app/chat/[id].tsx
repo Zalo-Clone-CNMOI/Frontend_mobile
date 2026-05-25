@@ -23,7 +23,6 @@ import { summaryService } from '@/src/services/ai/SummaryService';
 import { SummaryModal } from '@/src/components/chat/SummaryModal';
 import { EntityInfoModal } from '@/src/components/chat/EntityInfoModal';
 import { useEntityDetectionStore } from '@/src/store/useEntityDetectionStore';
-import { useAITranslationStore } from '@/src/store/useAITranslationStore';
 import { useAISmartReplyStore } from '@/src/store/useAISmartReplyStore';
 import { useChatStore } from '@/src/store/chatStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
@@ -221,30 +220,6 @@ export default function ChatDetailScreen() {
   const [showEntityInfoModal, setShowEntityInfoModal] = useState(false);
   const [selectedEntityItem, setSelectedEntityItem] = useState<any>(null);
   const entitiesByMessage = useEntityDetectionStore((s) => s.entitiesByMessage);
-
-  // DEV: inject mock translations for UI testing
-  useEffect(() => {
-    if (!messages?.length) return;
-    const store = useAITranslationStore.getState();
-    let count = 0;
-    for (const msg of messages) {
-      if (count >= 5) break;
-      const text = msg.text || msg.content || '';
-      if (!text.trim() || msg.isRevoked || msg.removed) continue;
-      const key = `${msg.id}_vi`;
-      if (store.cache.has(key)) continue;
-      store.setTranslation(
-        msg.id,
-        'vi',
-        text,
-        `[Mock EN] Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore. ${text.slice(0, 40)}...`,
-      );
-      count++;
-    }
-    console.log(`[Mock] Injected ${count} translations`);
-  }, [messages]);
-
-  
 
   // Load pinned messages when chat loads
   useEffect(() => {

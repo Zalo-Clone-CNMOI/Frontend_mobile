@@ -17,13 +17,13 @@ export function DocumentCard({ document, isSelected, onPress, onDelete }: Docume
   const getStatusIcon = () => {
     switch (document.status) {
       case 'completed':
-        return <CheckCircle size={14} color="#10b981" />;
+        return <CheckCircle size={14} color={theme.colors.success} />;
       case 'processing':
-        return <Clock size={14} color="#f59e0b" />;
+        return <Clock size={14} color={theme.colors.warning} />;
       case 'failed':
-        return <AlertCircle size={14} color="#ef4444" />;
+        return <AlertCircle size={14} color={theme.colors.error} />;
       default:
-        return <Clock size={14} color="#9ca3af" />;
+        return <Clock size={14} color={theme.colors.muted} />;
     }
   };
 
@@ -83,9 +83,9 @@ export function DocumentCard({ document, isSelected, onPress, onDelete }: Docume
       <Pressable
         onPress={onDelete}
         hitSlop={8}
-        style={[styles.deleteBtn, { backgroundColor: '#ef444415' }]}
+        style={[styles.deleteBtn, { backgroundColor: theme.colors.error + '15' }]}
       >
-        <Trash2 size={14} color="#ef4444" />
+        <Trash2 size={14} color={theme.colors.error} />
       </Pressable>
     </Pressable>
   );

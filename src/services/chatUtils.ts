@@ -147,6 +147,7 @@ export function toLegacyChatMessage(apiMessage: any): ChatMessage {
     editedAt: editedAtRaw ? toTimestampMs(editedAtRaw) : undefined,
     isRevoked: Boolean(apiMessage?.isDeleted),
     attachments: Array.isArray(apiMessage?.attachments) ? apiMessage.attachments : undefined,
+    mentions: apiMessage?.mentions,
     messageType: apiMessage?.messageType ?? apiMessage?.message_type,
     systemEventType: apiMessage?.systemEventType || apiMessage?.system_event_type,
     metadata: apiMessage?.metadata,

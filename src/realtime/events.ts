@@ -56,6 +56,23 @@ export const WsEvents = {
   GroupPollOptionRemoved: 'group:poll:option:removed',
   GroupPollClosed: 'group:poll:closed',
 
+  // Call
+  CallStart: 'call:start',
+  CallStarted: 'call:started',
+  CallSignal: 'call:signal',
+  CallSignalReceived: 'call:signal:received',
+  CallAccept: 'call:accept',
+  CallAccepted: 'call:accepted',
+  CallReject: 'call:reject',
+  CallRejected: 'call:rejected',
+  CallEnd: 'call:end',
+  CallEnded: 'call:ended',
+  CallStateRequest: 'call:state:request',
+  CallStateUpdated: 'call:state:updated',
+  CallLeave: 'call:leave',
+  CallLeft: 'call:left',
+  CallMediaToggled: 'call:media:toggled',
+
   // AI / Chat
   AiSmartReplyRequest: 'ai:smart-reply:request',
   AiSmartReplyResult: 'ai:smart-reply:result',
@@ -65,6 +82,7 @@ export const WsEvents = {
   AiTranslateResult: 'ai:translate:result',
   AiModerationEnforcement: 'ai:moderation:enforcement',
   MessageEntities: 'message:entities',
+  AiDocumentUpload: 'ai:document:upload',
   AiDocumentQueryRequest: 'ai:document:query:request',
   AiDocumentQueryResult: 'ai:document:query:result',
   AiDocumentProcessed: 'ai:document:processed',
@@ -422,4 +440,50 @@ export interface AiStreamCompletePayload {
   user_id: string;
   total_chunks: number;
   trace_id?: string;
+}
+
+// ==================== Call Types ====================
+
+export interface CallMediaToggledPayload {
+  call_id: string;
+  conversation_id: string;
+  user_id?: string;
+  audio_enabled?: boolean;
+  video_enabled?: boolean;
+}
+
+export interface CallLeftPayload {
+  call_id: string;
+  conversation_id: string;
+  user_id: string;
+  reason?: string;
+  left_at: number;
+}
+
+// ==================== Mention Types ====================
+
+export interface WsMention {
+  user_id: string;
+  mention_type: 'user' | 'all';
+  offset: number;
+  length: number;
+}
+
+export interface WsChatSendPayload {
+  conversation_id: string;
+  message_id: string;
+  body: string;
+  sent_at: number;
+  reply_to_message_id?: string;
+  forwarded_from?: any;
+  mentions?: WsMention[];
+  attachments?: Array<{
+    key: string;
+    type: string;
+    name: string;
+    size: number;
+    content_type: string;
+    thumbnail_key?: string;
+    visibility?: string;
+  }>;
 }

@@ -16,6 +16,7 @@ import { useCallStore } from '@/src/store/useCallStore';
 import { useCallService } from '@/src/services/callService';
 import { getUserProfile } from '@/src/services/usersApi';
 import { useRouter } from 'expo-router';
+import { playRingtone, stopRingtone } from '@/src/services/callRingtone';
 
 const AVATAR_SIZE = 120;
 
@@ -31,9 +32,16 @@ export function IncomingCallScreen() {
   const isVideoCall = incomingCall?.callType === 'video';
 
   useEffect(() => {
+    playRingtone();
+    return () => { stopRingtone(); };
+  }, []);
+
+  useEffect(() => {
     if (callState === 'ended' || callState === 'idle') {
+      stopRingtone();
       router.back();
     } else if (callState === 'connecting' || callState === 'active') {
+      stopRingtone();
       router.replace({
         pathname: '/call/active',
         params: { callType: incomingCall?.callType || 'audio' },

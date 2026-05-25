@@ -9,6 +9,8 @@ import { ImagePreview } from './components/ImagePreview';
 import { MoreOptions } from './components/MoreOptions';
 import { SmartReplyChips } from '../SmartReplyChips';
 import { useFilePicker } from './hooks/useFilePicker';
+import { MentionSuggestions } from '../MentionSuggestions';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import { styles } from './styles';
 
 export type ChatComposerProps = {
@@ -52,14 +54,48 @@ export const ChatComposer = React.memo(function ChatComposer({
   const [selectedImages, setSelectedImages] = useState<DocumentPicker.DocumentPickerAsset[]>([]);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionAtPos, setMentionAtPos] = useState(-1);
   const typingTimeoutRef = useRef<any>(null);
+  const inputRef = useRef<TextInput>(null);
+
+  const rawMembers = conversationId
+    ? useConversationDetailStore((s) => s.cache[conversationId]?.members)
+    : undefined;
+  const members = rawMembers ?? [];
 
   const { handlePickDocument, handlePickVideo, handlePickImage } = useFilePicker();
 
   const canSend = useMemo(() => value.trim().length > 0 || selectedImages.length > 0, [value, selectedImages]);
 
+  useEffect(() => {
+    if (conversationId) {
+      useConversationDetailStore.getState().fetchConversationMembers(conversationId).catch(() => {});
+    }
+  }, [conversationId]);
+
   const handleTextChange = (text: string) => {
     onChangeText(text);
+
+    const lastAtPos = text.lastIndexOf('@');
+    if (lastAtPos >= 0) {
+      const beforeAt = text[lastAtPos - 1];
+      if (lastAtPos === 0 || beforeAt === ' ' || beforeAt === '\n') {
+        const afterAt = text.slice(lastAtPos + 1);
+        const spacePos = afterAt.search(/[\s\n]/);
+        const queryText = spacePos >= 0 ? afterAt.slice(0, spacePos) : afterAt;
+        if (queryText.length <= 20) {
+          setMentionQuery(queryText);
+          setMentionAtPos(lastAtPos);
+        } else {
+          setMentionAtPos(-1);
+        }
+      } else {
+        setMentionAtPos(-1);
+      }
+    } else {
+      setMentionAtPos(-1);
+    }
 
     if (onTypingStart) onTypingStart();
 
@@ -159,6 +195,19 @@ export const ChatComposer = React.memo(function ChatComposer({
     }
   };
 
+  const handleSelectMention = (member: { userId: string; fullName: string }) => {
+    if (mentionAtPos < 0) return;
+
+    const mentionText = `@${member.fullName} `;
+    const before = value.slice(0, mentionAtPos);
+    const after = value.slice(mentionAtPos + 1 + mentionQuery.length);
+    const newText = before + mentionText + after;
+
+    onChangeText(newText);
+    setMentionAtPos(-1);
+    setMentionQuery('');
+  };
+
   useEffect(() => {
     return () => {
       if (recording) {
@@ -190,6 +239,15 @@ export const ChatComposer = React.memo(function ChatComposer({
       {selectedImages.length > 0 && <ImagePreview images={selectedImages} onRemove={handleRemoveImage} onAddMore={handlePickImageForPreview} theme={theme} />}
       {!!replyingTo && !editingTo && <ReplyBar type="reply" senderName={replyingTo.senderName} text={replyingTo.text} onCancel={onCancelReply || (() => {})} theme={theme} />}
     </View>
+    {mentionAtPos >= 0 && members.length > 0 && (
+      <MentionSuggestions
+        query={mentionQuery}
+        members={members}
+        onSelect={handleSelectMention}
+        onClose={() => setMentionAtPos(-1)}
+      />
+    )}
+
     {isRecording && (
       <View style={styles.recordingBanner}>
         <View style={styles.recordingLeft}>

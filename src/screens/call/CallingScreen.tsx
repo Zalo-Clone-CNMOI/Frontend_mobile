@@ -16,6 +16,7 @@ import { useCallService } from '@/src/services/callService';
 import { getUserProfile } from '@/src/services/usersApi';
 import { useRouter } from 'expo-router';
 import { EndCallButton } from '@/src/components/call/EndCallButton';
+import { playCallingTone, stopRingtone } from '@/src/services/callRingtone';
 
 const { width } = Dimensions.get('window');
 const AVATAR_SIZE = 110;
@@ -39,8 +40,16 @@ export function CallingScreen({ callType = 'audio' }: CallingScreenProps) {
   const initial = recipientName ? recipientName.charAt(0).toUpperCase() : '?';
 
   useEffect(() => {
+    playCallingTone();
+    return () => { stopRingtone(); };
+  }, []);
+
+  useEffect(() => {
     if (callState === 'ended' || callState === 'idle') {
+      stopRingtone();
       router.back();
+    } else if (callState === 'active') {
+      stopRingtone();
     }
   }, [callState, router]);
 

@@ -58,8 +58,8 @@ const SettingToggle: React.FC<SettingToggleProps> = ({
         <Switch
           value={value}
           onValueChange={disabled ? undefined : onValueChange}
-          trackColor={{ false: '#767577', true: theme.colors.primary + '50' }}
-          thumbColor={value ? theme.colors.primary : '#f4f3f4'}
+          trackColor={{ false: theme.colors.disabled, true: theme.colors.primary + '50' }}
+          thumbColor={value ? theme.colors.primary : theme.colors.card}
           disabled={disabled}
         />
       )}

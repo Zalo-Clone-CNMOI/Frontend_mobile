@@ -21,6 +21,7 @@ import {
   Users,
   ChevronDown,
   Wifi,
+  LogOut,
 } from 'lucide-react-native';
 import { isWebRTCAvailable, loadRTCView } from '@/src/utils/webrtcLoader';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,6 +30,7 @@ import { useCallService } from '@/src/services/callService';
 import { getUserProfile } from '@/src/services/usersApi';
 import { useRouter } from 'expo-router';
 import { AudioWave } from '@/src/components/call/AudioWave';
+import { callMediaManager } from '@/src/services/callMediaManager';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const PIP_WIDTH = 90;
@@ -71,7 +73,7 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
     localStream,
     participants,
   } = useCallStore();
-  const { endCall, toggleCallAudio, toggleCallVideo, switchCamera } = useCallService();
+  const { endCall, leaveCall, toggleCallAudio, toggleCallVideo, switchCamera } = useCallService();
   const router = useRouter();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,6 +92,7 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
   const callType = propCallType || currentCall?.callType || 'audio';
   const isVideoCall = callType === 'video';
   const remoteUserId = currentCall?.remoteUserId || '';
+  const isGroupCall = Object.keys(participants).length > 1;
   const remoteParticipant = remoteUserId ? participants[remoteUserId] : undefined;
   const remoteStream = remoteParticipant?.remoteStream;
   const networkQuality = 'good';
@@ -200,7 +203,15 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
   }, [audioEnabled, toggleCallAudio]);
 
   const handleToggleSpeaker = useCallback(() => {
-    setSpeakerEnabled((p) => !p);
+    setSpeakerEnabled((p) => {
+      const next = !p;
+      if (next) {
+        callMediaManager.enableSpeaker().catch(() => {});
+      } else {
+        callMediaManager.disableSpeaker().catch(() => {});
+      }
+      return next;
+    });
   }, []);
 
   const handleToggleVideo = useCallback(() => {
@@ -217,6 +228,13 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
       router.back();
     } catch {}
   }, [endCall, router]);
+
+  const handleLeaveCall = useCallback(async () => {
+    try {
+      await leaveCall();
+      router.back();
+    } catch {}
+  }, [leaveCall, router]);
 
   const handleMinimize = useCallback(() => {
     router.back();
@@ -340,6 +358,14 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
                   label="Thêm"
                   onPress={() => {}}
                 />
+                {isGroupCall && (
+                  <ControlItem
+                    icon={<LogOut size={22} color="#FF9F0A" />}
+                    label="Rời"
+                    active={false}
+                    onPress={handleLeaveCall}
+                  />
+                )}
               </View>
 
               {/* End call */}
@@ -413,6 +439,14 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
               label="Thêm"
               onPress={() => {}}
             />
+            {isGroupCall && (
+              <ControlItem
+                icon={<LogOut size={24} color="#FF9F0A" />}
+                label="Rời"
+                active={false}
+                onPress={handleLeaveCall}
+              />
+            )}
             <ControlItem
               icon={<ChevronDown size={24} color="white" />}
               label="Thu nhỏ"

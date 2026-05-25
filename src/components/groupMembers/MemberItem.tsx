@@ -70,7 +70,7 @@ export const MemberItem: React.FC<MemberItemProps> = ({
           <View style={styles.memberRoleContainer}>
             <RoleBadge role={member.role} theme={theme} />
             {member.nickname && (
-              <Text style={[styles.memberNickname, { color: '#8e8e93' }]}>
+              <Text style={[styles.memberNickname, { color: theme.colors.muted }]}>
                 @{member.nickname}
               </Text>
             )}
@@ -88,9 +88,9 @@ export const MemberItem: React.FC<MemberItemProps> = ({
               disabled={isRemoving}
             >
               {isRemoving ? (
-                <ActivityIndicator size={20} color="#FF3B30" />
+                <ActivityIndicator size={20} color={theme.colors.error} />
               ) : (
-                <Trash2 size={20} color="#FF3B30" />
+                <Trash2 size={20} color={theme.colors.error} />
               )}
             </TouchableOpacity>
           )}

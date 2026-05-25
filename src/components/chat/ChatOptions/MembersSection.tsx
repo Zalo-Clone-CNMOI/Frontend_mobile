@@ -40,18 +40,18 @@ const RoleBadge: React.FC<{ role: 'owner' | 'admin' | 'member'; theme: any; t: a
 }) => {
   if (role === 'owner') {
     return (
-      <View style={[styles.roleBadge, { backgroundColor: '#FFD700' + '30' }]}>
-        <Crown size={12} color="#FFD700" />
-        <Text style={[styles.roleText, { color: '#B8860B' }]}>{t('member_role.owner')}</Text>
+      <View style={[styles.roleBadge, { backgroundColor: theme.colors.warning + '30' }]}>
+        <Crown size={12} color={theme.colors.warning} />
+        <Text style={[styles.roleText, { color: theme.colors.warning }]}>{t('member_role.owner')}</Text>
       </View>
     );
   }
 
   if (role === 'admin') {
     return (
-      <View style={[styles.roleBadge, { backgroundColor: '#FF9500' + '20' }]}>
-        <Shield size={12} color="#FF9500" />
-        <Text style={[styles.roleText, { color: '#FF9500' }]}>{t('member_role.admin')}</Text>
+      <View style={[styles.roleBadge, { backgroundColor: theme.colors.warning + '20' }]}>
+        <Shield size={12} color={theme.colors.warning} />
+        <Text style={[styles.roleText, { color: theme.colors.warning }]}>{t('member_role.admin')}</Text>
       </View>
     );
   }
@@ -116,10 +116,10 @@ export const MembersSection: React.FC<MembersSectionProps> = ({
         {showRemove && (
           <View style={styles.memberActions}>
             <TouchableOpacity
-              style={[styles.removeButton, { backgroundColor: '#FF3B30' + '15' }]}
+              style={[styles.removeButton, { backgroundColor: theme.colors.error + '15' }]}
               onPress={() => onRemoveMember(item)}
             >
-              <Trash2 size={20} color="#FF3B30" />
+              <Trash2 size={20} color={theme.colors.error} />
             </TouchableOpacity>
           </View>
         )}

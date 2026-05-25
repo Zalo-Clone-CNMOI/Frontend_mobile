@@ -20,14 +20,17 @@ async function ensureWebRTC(): Promise<WebRTCLib> {
 import { useCallStore } from "../store/useCallStore";
 import { callService } from "./callService";
 
-const ICE_SERVERS = [
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-];
-
 class CallPeerManager {
   private peerConnection: any = null;
   private active = false;
+  private iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ];
+
+  async setIceServers(servers: Array<{ urls: string | string[]; username?: string; credential?: string }>): Promise<void> {
+    this.iceServers = servers.length > 0 ? servers : this.iceServers;
+  }
 
   isActive(): boolean {
     return this.active;
@@ -156,11 +159,22 @@ class CallPeerManager {
         console.log("[CallPeerManager] Remote answer set");
       } else if (type === "ice-candidate") {
         if (data.candidate) {
+          let candidateStr = data.candidate;
+          let sdpMid = data.sdpMid;
+          let sdpMLineIndex = data.sdpMLineIndex;
+          if (typeof candidateStr === "string" && candidateStr.trim().startsWith("{")) {
+            try {
+              const parsed = JSON.parse(candidateStr);
+              candidateStr = parsed.candidate || candidateStr;
+              if (sdpMid == null && parsed.sdpMid != null) sdpMid = parsed.sdpMid;
+              if (sdpMLineIndex == null && parsed.sdpMLineIndex != null) sdpMLineIndex = parsed.sdpMLineIndex;
+            } catch {}
+          }
           await this.peerConnection.addIceCandidate(
             new webrtc.RTCIceCandidate({
-              candidate: data.candidate,
-              sdpMid: data.sdpMid,
-              sdpMLineIndex: data.sdpMLineIndex,
+              candidate: candidateStr,
+              sdpMid: sdpMid,
+              sdpMLineIndex: sdpMLineIndex,
             })
           );
 
@@ -177,7 +191,7 @@ class CallPeerManager {
     conversationId: string
   ): Promise<any> {
     const webrtc = await ensureWebRTC()
-    const pc = new webrtc.RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new webrtc.RTCPeerConnection({ iceServers: this.iceServers });
 
     (pc as any).addEventListener("icecandidate", (event: any) => {
       if (event.candidate) {
@@ -227,6 +241,10 @@ class CallPeerManager {
     });
 
     return pc;
+  }
+
+  leaveCall(): void {
+    this.cleanup();
   }
 
   cleanup(): void {

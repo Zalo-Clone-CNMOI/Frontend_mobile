@@ -18,9 +18,9 @@ export function SourceCitation({ source, index, isExpanded, onToggle }: SourceCi
   const percentage = Math.round(similarity * 100);
 
   const getSimilarityColor = () => {
-    if (similarity >= 0.8) return '#10b981';
-    if (similarity >= 0.6) return '#f59e0b';
-    return '#ef4444';
+    if (similarity >= 0.8) return theme.colors.success;
+    if (similarity >= 0.6) return theme.colors.warning;
+    return theme.colors.error;
   };
 
   const similarityColor = getSimilarityColor();

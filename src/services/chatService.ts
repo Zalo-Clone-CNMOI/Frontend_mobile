@@ -142,6 +142,7 @@ export function toLegacyChatMessage(apiMessage: any): ChatMessage {
     editedAt: editedAtRaw ? toTimestampMs(editedAtRaw) : undefined,
     isRevoked: Boolean(apiMessage?.isDeleted),
     attachments: Array.isArray(apiMessage?.attachments) ? apiMessage.attachments : undefined,
+    mentions: apiMessage?.mentions,
     // System message fields
     messageType: apiMessage?.messageType,
     systemEventType: apiMessage?.systemEventType || apiMessage?.system_event_type,
@@ -454,6 +455,7 @@ export async function sendMessage(
   options?: {
     replyToMessage?: ChatMessage | null;
     forwardedFrom?: any;
+    mentions?: Array<{ user_id: string; mention_type: 'user' | 'all'; offset: number; length: number }>;
   },
 ) {
   const socket = await ensureSocket();
@@ -518,6 +520,7 @@ export async function sendMessage(
     sender: { me: true },
     senderId: "user-me",
     type: outgoingMessageType,
+    mentions: options?.mentions,
     replyTo: options?.replyToMessage
       ? {
           id: replyToMessageId || options.replyToMessage.id,
@@ -530,13 +533,14 @@ export async function sendMessage(
 
   const uiOptimisticMessage = toLegacyChatMessage(optimisticMessage);
 
-  const payload = {
+  const payload: Record<string, any> = {
     conversation_id: conversationId,
     message_id: localId,
     body: content || (files && files.length > 0 ? files[0].name : ""),
     sent_at: Date.now(),
     ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
     ...(options?.forwardedFrom ? { forwarded_from: options.forwardedFrom } : {}),
+    ...(options?.mentions ? { mentions: options.mentions } : {}),
     attachments: attachments.map((a) => ({
       key: a.key,
       type: a.type || "document",

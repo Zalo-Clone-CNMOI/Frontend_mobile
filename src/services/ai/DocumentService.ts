@@ -20,6 +20,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export interface UploadDocumentOptions {
   onProgress?: (progress: number) => void;
+  conversationId?: string;
 }
 
 interface PickedFile {
@@ -56,13 +57,14 @@ export class DocumentService {
   async uploadDocument(file: PickedFile, options?: UploadDocumentOptions): Promise<string | null>;
   async uploadDocument(fileOrOptions?: PickedFile | UploadDocumentOptions, maybeOptions?: UploadDocumentOptions): Promise<string | null> {
     let file: PickedFile | null = null;
+    let opts: UploadDocumentOptions = {};
 
     if (fileOrOptions && typeof fileOrOptions === 'object' && 'uri' in fileOrOptions) {
-      // Called with a pre-picked file
       file = fileOrOptions as PickedFile;
+      opts = maybeOptions ?? {};
     } else {
-      // Called without file - need to pick one
       file = await this.pickDocument();
+      opts = (fileOrOptions as UploadDocumentOptions) ?? {};
     }
 
     if (!file) return null;
@@ -78,7 +80,10 @@ export class DocumentService {
       return null;
     }
 
-    const documentId = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const documentId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+    });
 
     this.createDocumentMetadata(documentId, file.name, file.size, file.type);
     useAIDocumentStore.getState().updateDocumentStatus(documentId, 'uploading');
@@ -96,13 +101,15 @@ export class DocumentService {
 
       const socket = getSocket();
       if (socket?.connected) {
-        socket.emit('ai:document:upload', {
+        socket.emit(WsEvents.AiDocumentUpload, {
           document_id: documentId,
+          conversation_id: opts.conversationId || '',
           file_name: file.name,
           file_key: result.key,
           content_type: file.type,
           file_size: file.size,
           user_id: user.id,
+          uploaded_at: Date.now(),
         });
       }
 

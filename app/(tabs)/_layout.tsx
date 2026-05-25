@@ -17,7 +17,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: '#8e8e93',
+        tabBarInactiveTintColor: theme.colors.muted,
         tabBarStyle: {
           backgroundColor: theme.colors.background,
           borderTopWidth: 0.5,
@@ -33,7 +33,7 @@ export default function TabsLayout() {
         options={{
           title: t('navigation.tabs.messages'),
           tabBarBadge: pendingInvitesCount > 0 ? (pendingInvitesCount > 99 ? '99+' : pendingInvitesCount) : undefined,
-          tabBarIcon: ({ color }) => <MessageSquare size={24} color={color} fill={color === '#0091ff' ? color : 'none'} />,
+          tabBarIcon: ({ color }) => <MessageSquare size={24} color={color} fill={color === theme.colors.primary ? color : 'none'} />,
         }}
       />
       <Tabs.Screen
