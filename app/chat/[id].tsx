@@ -155,16 +155,16 @@ export default function ChatDetailScreen() {
   const rawSettings = conversationCacheEntry?.settings;
   const groupSettings = normalizeGroupSettings(rawSettings);
   
-  // Get role from members array first (more reliable), fallback to mySettings
-  const currentMember = members.find((m) => m.userId === authUser?.id);
-  const myGroupRole = currentMember?.role || getMySettings(chatId)?.role || 'member';
+  // Get role using unified getMyRole (members[] first, fallback mySettings)
+  const getMyRole = useConversationDetailStore((s) => s.getMyRole);
+  const myGroupRole = getMyRole(chatId, authUser?.id || '');
   
   // Check if settings is loaded from server (not using defaults)
   const settingsLoaded = rawSettings != null;
   
   // DEBUG: Log cache read details
   console.log('[Permissions] conversationCacheEntry?.settings:', rawSettings, 'type:', typeof rawSettings);
-  console.log('[Permissions] currentMember?.role:', currentMember?.role, 'getMySettings role:', getMySettings(chatId)?.role, 'myGroupRole:', myGroupRole);
+  console.log('[Permissions] myGroupRole:', myGroupRole, 'getMySettings role:', getMySettings(chatId)?.role);
   
   // For direct chats: always allow. For groups: owner/admin always allow (even if settings not loaded yet).
   const canPinMessages = currentChat && !currentChat.isGroup
@@ -177,6 +177,11 @@ export default function ChatDetailScreen() {
     : (myGroupRole === 'owner' || myGroupRole === 'admin')
       ? true
       : (settingsLoaded ? canMemberDo('send_message', myGroupRole, groupSettings) : false);
+  const canChangeGroupInfo = !currentChat?.isGroup
+    ? true
+    : (myGroupRole === 'owner' || myGroupRole === 'admin')
+      ? true
+      : (settingsLoaded ? canMemberDo('change_info', myGroupRole, groupSettings) : false);
   
   // DEBUG: Log decision path
   const isDirect = currentChat && !currentChat.isGroup;
@@ -1247,7 +1252,8 @@ export default function ChatDetailScreen() {
           conversationId={chatId}
           currentName={title}
           currentAvatar={currentChat?.avatar || null}
-          myRole={getMySettings(chatId)?.role || 'member'}
+          myRole={myGroupRole}
+          canEditGroupInfo={canChangeGroupInfo}
         />
 
         <MemberRoleModal

@@ -71,10 +71,9 @@ export function MemberRoleModal({
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [selectedRole, setSelectedRole] = useState<MemberRole>('member');
 
-  // Get my role from store (simple, no complex workaround)
-  const myRole = useConversationDetailStore((state) =>
-    conversationId ? state.cache[conversationId]?.mySettings?.role : undefined
-  );
+  // Get my role using unified getMyRole (members[] first, fallback mySettings)
+  const getMyRole = useConversationDetailStore((s) => s.getMyRole);
+  const myRole = getMyRole(conversationId, currentUserId);
 
   const isGroupOwner = myRole === 'owner';
   const isGroupAdmin = myRole === 'admin';
