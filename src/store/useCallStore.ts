@@ -57,6 +57,7 @@ export interface CallSession {
   conversationId: string | null;
   remoteUserId: string | null;
   callType: "audio" | "video";
+  conversationType: "direct" | "group";
   startedAt: number | null;
   duration: number;
 }
@@ -78,7 +79,8 @@ export interface UseCallStoreState {
     callType: "audio" | "video",
     callId?: string,
     startedAt?: number,
-    remoteUserId?: string
+    remoteUserId?: string,
+    conversationType?: "direct" | "group"
   ) => boolean;
   acceptIncomingCall: () => void;
   rejectIncomingCall: () => void;
@@ -124,6 +126,7 @@ const initialCallSession: CallSession = {
   conversationId: null,
   remoteUserId: null,
   callType: "audio",
+  conversationType: "direct",
   startedAt: null,
   duration: 0,
 };
@@ -165,7 +168,8 @@ export const useCallStore = create<UseCallStoreState>((set, get) => ({
     callType: "audio" | "video",
     callId?: string,
     startedAt?: number,
-    remoteUserId?: string
+    remoteUserId?: string,
+    conversationType?: "direct" | "group"
   ) => {
     const state = get();
 
@@ -189,6 +193,7 @@ export const useCallStore = create<UseCallStoreState>((set, get) => ({
         conversationId,
         remoteUserId: remoteUserId || null,
         callType,
+        conversationType: conversationType || "direct",
         startedAt: startedAt || Date.now(),
         duration: 0,
       },
@@ -215,6 +220,7 @@ export const useCallStore = create<UseCallStoreState>((set, get) => ({
         conversationId: incomingCall.conversationId,
         remoteUserId: incomingCall.initiatorId,
         callType: incomingCall.callType,
+        conversationType: incomingCall.conversationType,
         startedAt: Date.now(),
         duration: 0,
       },

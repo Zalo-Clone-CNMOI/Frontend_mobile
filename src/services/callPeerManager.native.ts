@@ -20,8 +20,15 @@ async function ensureWebRTC(): Promise<WebRTCLib> {
 import { useCallStore } from "../store/useCallStore";
 import { callService } from "./callService";
 
+interface PeerEntry {
+  pc: any;
+  callId: string;
+  conversationId: string;
+  userId: string;
+}
+
 class CallPeerManager {
-  private peerConnection: any = null;
+  private peerConnections: Map<string, PeerEntry> = new Map();
   private active = false;
   private pendingOffer: { callId: string; fromUserId: string; data: any } | null = null;
   private iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = [
@@ -37,6 +44,10 @@ class CallPeerManager {
     return this.active;
   }
 
+  getPeerConnection(userId: string): any | null {
+    return this.peerConnections.get(userId)?.pc ?? null;
+  }
+
   async startCall(
     callId: string,
     _isInitiator: boolean,
@@ -45,25 +56,23 @@ class CallPeerManager {
   ): Promise<void> {
     try {
       this.active = true;
-      this.peerConnection = await this.createPeerConnection(callId, conversationId);
+      const pc = await this.createPeerConnectionForUser(callId, conversationId, remoteUserId);
 
       const { localStream } = useCallStore.getState();
       if (localStream) {
         const tracks = (localStream as any).getTracks?.() ?? [];
         tracks.forEach((track: any) => {
-          if (this.peerConnection) {
-            this.peerConnection.addTrack(track, localStream as any);
-          }
+          try { pc.addTrack(track, localStream as any); } catch {}
         });
       }
 
-      const webrtc = await ensureWebRTC()
-      const offer = await this.peerConnection.createOffer({
+      const webrtc = await ensureWebRTC();
+      const offer = await pc.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true,
       });
 
-      await this.peerConnection.setLocalDescription(
+      await pc.setLocalDescription(
         new webrtc.RTCSessionDescription({ type: "offer", sdp: offer.sdp })
       );
 
@@ -71,7 +80,7 @@ class CallPeerManager {
         sdp: offer.sdp,
       });
 
-      console.log("[CallPeerManager] Call started, offer sent");
+      console.log("[CallPeerManager] Call started, offer sent to", remoteUserId);
     } catch (error) {
       console.error("[CallPeerManager] Error starting call", error);
       this.active = false;
@@ -87,22 +96,23 @@ class CallPeerManager {
     try {
       this.active = true;
 
-      if (!this.peerConnection) {
-        this.peerConnection = await this.createPeerConnection(callId, conversationId);
+      let pc = this.peerConnections.get(remoteUserId)?.pc ?? null;
+      if (!pc) {
+        pc = await this.createPeerConnectionForUser(callId, conversationId, remoteUserId);
       } else {
-        console.log("[CallPeerManager] Reusing existing peer connection for accept");
+        console.log("[CallPeerManager] Reusing existing peer connection for", remoteUserId);
       }
 
       const { localStream } = useCallStore.getState();
-      if (localStream && this.peerConnection) {
-        const senders = this.peerConnection.getSenders?.() ?? [];
+      if (localStream && pc) {
+        const senders = pc.getSenders?.() ?? [];
         const existingTrackIds = new Set(
           senders.map((s: any) => s.track?.id).filter(Boolean)
         );
         const tracks = (localStream as any).getTracks?.() ?? [];
         tracks.forEach((track: any) => {
           if (!existingTrackIds.has(track.id)) {
-            this.peerConnection.addTrack(track, localStream as any);
+            try { pc.addTrack(track, localStream as any); } catch {}
           }
         });
       }
@@ -122,6 +132,43 @@ class CallPeerManager {
     }
   }
 
+  async addParticipant(
+    callId: string,
+    userId: string,
+    conversationId: string,
+    isInitiator: boolean
+  ): Promise<void> {
+    if (this.peerConnections.has(userId)) {
+      console.log("[CallPeerManager] Participant already has a peer connection", userId);
+      return;
+    }
+
+    const pc = await this.createPeerConnectionForUser(callId, conversationId, userId);
+
+    const { localStream } = useCallStore.getState();
+    if (localStream) {
+      const tracks = (localStream as any).getTracks?.() ?? [];
+      tracks.forEach((track: any) => {
+        try { pc.addTrack(track, localStream as any); } catch {}
+      });
+    }
+
+    if (isInitiator) {
+      const webrtc = await ensureWebRTC();
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+      });
+      await pc.setLocalDescription(
+        new webrtc.RTCSessionDescription({ type: "offer", sdp: offer.sdp })
+      );
+      await callService.sendSignalingData(callId, conversationId, "offer", {
+        sdp: offer.sdp,
+      });
+      console.log("[CallPeerManager] Offer sent to new participant", userId);
+    }
+  }
+
   async handleSignal(
     callId: string,
     fromUserId: string,
@@ -134,27 +181,30 @@ class CallPeerManager {
       return;
     }
 
-    if (!this.peerConnection) {
-      console.warn("[CallPeerManager] No peer connection, creating one");
+    let entry = this.peerConnections.get(fromUserId);
+    if (!entry) {
+      console.warn("[CallPeerManager] No peer connection for", fromUserId, "creating one");
       const { currentCall } = useCallStore.getState();
-      this.peerConnection = await this.createPeerConnection(
+      const pc = await this.createPeerConnectionForUser(
         callId,
-        currentCall?.conversationId || ""
+        currentCall?.conversationId || "",
+        fromUserId
       );
 
       const { localStream } = useCallStore.getState();
       if (localStream) {
         const tracks = (localStream as any).getTracks?.() ?? [];
         tracks.forEach((track: any) => {
-          if (this.peerConnection) {
-            this.peerConnection.addTrack(track, localStream as any);
-          }
+          try { pc.addTrack(track, localStream as any); } catch {}
         });
       }
+
+      entry = this.peerConnections.get(fromUserId);
+      if (!entry) return;
     }
 
     try {
-      const webrtc = await ensureWebRTC()
+      const webrtc = await ensureWebRTC();
 
       if (type === "offer") {
         await this.processOffer(callId, fromUserId, data);
@@ -173,19 +223,31 @@ class CallPeerManager {
               if (sdpMLineIndex == null && parsed.sdpMLineIndex != null) sdpMLineIndex = parsed.sdpMLineIndex;
             } catch {}
           }
-          await this.peerConnection.addIceCandidate(
+          await entry.pc.addIceCandidate(
             new webrtc.RTCIceCandidate({
               candidate: candidateStr,
               sdpMid: sdpMid,
               sdpMLineIndex: sdpMLineIndex,
             })
           );
-
-          console.log("[CallPeerManager] ICE candidate added");
+          console.log("[CallPeerManager] ICE candidate added for", fromUserId);
         }
       }
     } catch (error) {
       console.error("[CallPeerManager] Error handling signal", error);
+    }
+  }
+
+  removeParticipant(userId: string): void {
+    const entry = this.peerConnections.get(userId);
+    if (entry) {
+      try { entry.pc.close(); } catch {}
+      this.peerConnections.delete(userId);
+      console.log("[CallPeerManager] Removed participant", userId);
+    }
+
+    if (this.peerConnections.size === 0) {
+      this.active = false;
     }
   }
 
@@ -194,16 +256,23 @@ class CallPeerManager {
     fromUserId: string,
     data: any
   ): Promise<void> {
+    const entry = this.peerConnections.get(fromUserId);
+    if (!entry) {
+      console.warn("[CallPeerManager] processOffer: no PC for", fromUserId);
+      return;
+    }
+
     const webrtc = await ensureWebRTC();
     const { currentCall } = useCallStore.getState();
     const conversationId = currentCall?.conversationId || "";
-    await this.peerConnection.setRemoteDescription(
+
+    await entry.pc.setRemoteDescription(
       new webrtc.RTCSessionDescription({ type: "offer", sdp: data.sdp })
     );
 
-    const answer = await this.peerConnection.createAnswer();
+    const answer = await entry.pc.createAnswer();
 
-    await this.peerConnection.setLocalDescription(
+    await entry.pc.setLocalDescription(
       new webrtc.RTCSessionDescription({ type: "answer", sdp: answer.sdp })
     );
 
@@ -211,7 +280,7 @@ class CallPeerManager {
       sdp: answer.sdp,
     });
 
-    console.log("[CallPeerManager] Answer created and sent");
+    console.log("[CallPeerManager] Answer created and sent for", fromUserId);
   }
 
   private async processAnswer(
@@ -219,18 +288,44 @@ class CallPeerManager {
     data: any,
     webrtc: WebRTCLib
   ): Promise<void> {
-    await this.peerConnection.setRemoteDescription(
+    let targetUserId: string | null = null;
+    for (const [uid, entry] of this.peerConnections) {
+      if (entry.callId === callId && !entry.pc.remoteDescription) {
+        targetUserId = uid;
+        break;
+      }
+    }
+
+    if (!targetUserId) {
+      const firstEntry = this.peerConnections.values().next().value;
+      if (firstEntry) {
+        targetUserId = firstEntry.userId;
+      }
+    }
+
+    if (!targetUserId) {
+      console.warn("[CallPeerManager] processAnswer: no matching PC found");
+      return;
+    }
+
+    const entry = this.peerConnections.get(targetUserId);
+    if (!entry) return;
+
+    await entry.pc.setRemoteDescription(
       new webrtc.RTCSessionDescription({ type: "answer", sdp: data.sdp })
     );
-    console.log("[CallPeerManager] Remote answer set");
+    console.log("[CallPeerManager] Remote answer set for", targetUserId);
   }
 
-  private async createPeerConnection(
+  private async createPeerConnectionForUser(
     callId: string,
-    conversationId: string
+    conversationId: string,
+    userId: string
   ): Promise<any> {
-    const webrtc = await ensureWebRTC()
+    const webrtc = await ensureWebRTC();
     const pc = new webrtc.RTCPeerConnection({ iceServers: this.iceServers });
+
+    this.peerConnections.set(userId, { pc, callId, conversationId, userId });
 
     (pc as any).addEventListener("icecandidate", (event: any) => {
       if (event.candidate) {
@@ -243,31 +338,20 @@ class CallPeerManager {
     });
 
     (pc as any).addEventListener("track", (event: any) => {
-      console.log("[CallPeerManager] Remote track received:", event.track?.kind);
-
-      const { remoteUserId } = useCallStore.getState().currentCall || {};
-      if (remoteUserId && event.streams?.[0]) {
-        useCallStore
-          .getState()
-          .updateParticipantStream(remoteUserId, event.streams[0] as any);
+      console.log("[CallPeerManager] Remote track received from", userId, ":", event.track?.kind);
+      if (event.streams?.[0]) {
+        useCallStore.getState().updateParticipantStream(userId, event.streams[0] as any);
       }
     });
 
     (pc as any).addEventListener("connectionstatechange", () => {
       const state = pc.connectionState;
-      console.log("[CallPeerManager] Connection state:", state);
+      console.log("[CallPeerManager] Connection state for", userId, ":", state);
 
-      const { remoteUserId } = useCallStore.getState().currentCall || {};
-      if (remoteUserId) {
-        useCallStore.getState().updateConnectionState(remoteUserId, state);
-      }
+      useCallStore.getState().updateConnectionState(userId, state);
 
-      if (
-        state === "disconnected" ||
-        state === "failed" ||
-        state === "closed"
-      ) {
-        this.active = false;
+      if (state === "disconnected" || state === "failed" || state === "closed") {
+        this.removeParticipant(userId);
       }
 
       if (state === "connected") {
@@ -276,7 +360,7 @@ class CallPeerManager {
     });
 
     (pc as any).addEventListener("iceconnectionstatechange", () => {
-      console.log("[CallPeerManager] ICE connection state:", pc.iceConnectionState);
+      console.log("[CallPeerManager] ICE connection state for", userId, ":", pc.iceConnectionState);
     });
 
     return pc;
@@ -290,12 +374,12 @@ class CallPeerManager {
     this.active = false;
     this.pendingOffer = null;
 
-    if (this.peerConnection) {
-      this.peerConnection.close();
-      this.peerConnection = null;
+    for (const [userId, entry] of this.peerConnections) {
+      try { entry.pc.close(); } catch {}
     }
+    this.peerConnections.clear();
 
-    console.log("[CallPeerManager] Cleaned up");
+    console.log("[CallPeerManager] Cleaned up all peer connections");
   }
 }
 

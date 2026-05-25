@@ -214,6 +214,9 @@ class CallService {
       }
       const remoteUserId = recipientIds?.[0];
 
+      const conversationType =
+        recipientIds && recipientIds.length > 1 ? "group" : "direct";
+
       // Reserve store slot. Returns false if another call already in flight.
       const reserved = useCallStore
         .getState()
@@ -222,7 +225,8 @@ class CallService {
           params.callType,
           callId,
           startedAt,
-          remoteUserId
+          remoteUserId,
+          conversationType
         );
       if (!reserved) {
         throw new Error("Already in a call");
@@ -238,9 +242,6 @@ class CallService {
         console.error("[CallService] Failed to acquire media", mediaError);
         throw mediaError;
       }
-
-      const conversationType =
-        recipientIds && recipientIds.length > 1 ? "group" : "direct";
 
       // Send call:start — server uses fire-and-forget via Kafka, no ack sent back
       socket.emit("call:start", {

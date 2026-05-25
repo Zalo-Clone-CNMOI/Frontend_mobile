@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,6 +9,7 @@ import {
   StatusBar,
   Dimensions,
   PanResponder,
+  ScrollView,
 } from 'react-native';
 import {
   PhoneOff,
@@ -31,6 +32,8 @@ import { getUserProfile } from '@/src/services/usersApi';
 import { useRouter } from 'expo-router';
 import { AudioWave } from '@/src/components/call/AudioWave';
 import { callMediaManager } from '@/src/services/callMediaManager';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
+import { ParticipantList } from '@/src/components/call/ParticipantList';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const PIP_WIDTH = 90;
@@ -84,6 +87,8 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
   const [controlsVisible, setControlsVisible] = useState(true);
   const [participantName, setParticipantName] = useState('');
   const [participantAvatar, setParticipantAvatar] = useState('');
+  const [groupName, setGroupName] = useState('');
+  const [showParticipants, setShowParticipants] = useState(false);
   const [pipPosition, setPipPosition] = useState({ x: SCREEN_WIDTH - PIP_WIDTH - 16, y: 60 });
 
   const controlsOpacity = useRef(new Animated.Value(1)).current;
@@ -92,11 +97,20 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
   const callType = propCallType || currentCall?.callType || 'audio';
   const isVideoCall = callType === 'video';
   const remoteUserId = currentCall?.remoteUserId || '';
-  const isGroupCall = Object.keys(participants).length > 1;
+  const isGroupCall = Object.keys(participants).length > 1 || currentCall?.conversationType === 'group';
   const remoteParticipant = remoteUserId ? participants[remoteUserId] : undefined;
   const remoteStream = remoteParticipant?.remoteStream;
   const networkQuality = 'good';
   const [RTCView, setRTCView] = useState<React.ComponentType<any> | null>(null);
+  const conversationId = currentCall?.conversationId;
+  const conversationDetail = useConversationDetailStore((s) =>
+    conversationId ? s.cache[conversationId]?.conversation ?? null : null
+  );
+
+  const participantEntries = useMemo(
+    () => Object.entries(participants).filter(([, p]) => !p.isLocalUser),
+    [participants]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -118,8 +132,22 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
     }
   }, [callState, router]);
 
-  // --- Fetch recipient ---
+  // --- Fetch recipient / group name ---
   useEffect(() => {
+    if (isGroupCall && conversationId) {
+      if (conversationDetail) {
+        setGroupName(conversationDetail.name || '');
+      } else {
+        useConversationDetailStore.getState()
+          .fetchConversationDetail(conversationId)
+          .then(() => {
+            const conv = useConversationDetailStore.getState().getConversationDetail(conversationId);
+            if (conv) setGroupName(conv.name || '');
+          })
+          .catch(() => {});
+      }
+      return;
+    }
     const fetch = async () => {
       const userId = currentCall?.remoteUserId;
       if (!userId) return;
@@ -132,7 +160,7 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
       } catch {}
     };
     fetch();
-  }, [currentCall]);
+  }, [currentCall, isGroupCall, conversationId, conversationDetail]);
 
   // --- Timer ---
   useEffect(() => {
@@ -240,6 +268,14 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
     router.back();
   }, [router]);
 
+  const handleShowParticipants = useCallback(() => {
+    setShowParticipants(true);
+  }, []);
+
+  const handleHideParticipants = useCallback(() => {
+    setShowParticipants(false);
+  }, []);
+
   // --- Format time ---
   const fmt = (s: number) => {
     const m = Math.floor(s / 60);
@@ -251,8 +287,15 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
     return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
   };
 
+  const displayName = isGroupCall ? (groupName || 'Cuộc gọi nhóm') : participantName;
+
   // ==================== VIDEO CALL UI ====================
   if (isVideoCall) {
+    const remoteEntries = participantEntries.filter(([, p]) => p.remoteStream);
+    const hasMultipleRemote = remoteEntries.length > 1;
+    const gridParticipants = hasMultipleRemote ? remoteEntries : [];
+    const showGrid = hasMultipleRemote && gridParticipants.length > 0;
+
     return (
       <View style={styles.container}>
         <StatusBar barStyle="light-content" hidden={!controlsVisible} />
@@ -262,44 +305,54 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
           onPress={handleScreenTap}
           style={StyleSheet.absoluteFill}
         >
-          {/* Remote video */}
-          {remoteStream && RTCView ? (
-            <RTCView
-              streamURL={(remoteStream as any).toURL()}
-              style={styles.remoteVideo}
-              objectFit="cover"
-              mirror={false}
-              zOrder={0}
+          {showGrid && RTCView ? (
+            <VideoGrid
+              participants={participantEntries}
+              localStream={localStream}
+              RTCView={RTCView}
             />
           ) : (
-            <View style={styles.remotePlaceholder}>
-              {participantAvatar ? (
-                <Image source={{ uri: participantAvatar }} style={styles.videoAvatar} />
+            <>
+              {/* Single remote video */}
+              {remoteStream && RTCView ? (
+                <RTCView
+                  streamURL={(remoteStream as any).toURL()}
+                  style={styles.remoteVideo}
+                  objectFit="cover"
+                  mirror={false}
+                  zOrder={0}
+                />
               ) : (
-                <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarInitial}>
-                    {participantName ? participantName.charAt(0).toUpperCase() : '?'}
-                  </Text>
+                <View style={styles.remotePlaceholder}>
+                  {participantAvatar ? (
+                    <Image source={{ uri: participantAvatar }} style={styles.videoAvatar} />
+                  ) : (
+                    <View style={styles.avatarCircle}>
+                      <Text style={styles.avatarInitial}>
+                        {participantName ? participantName.charAt(0).toUpperCase() : '?'}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               )}
-            </View>
-          )}
 
-          {/* Local PiP */}
-          {localStream && RTCView ? (
-            <View
-              style={[styles.pipContainer, { left: pipPosition.x, top: pipPosition.y }]}
-              {...pipPan.panHandlers}
-            >
-              <RTCView
-                streamURL={(localStream as any).toURL()}
-                style={styles.pipVideo}
-                objectFit="cover"
-                mirror={true}
-                zOrder={1}
-              />
-            </View>
-          ) : null}
+              {/* Local PiP */}
+              {localStream && RTCView ? (
+                <View
+                  style={[styles.pipContainer, { left: pipPosition.x, top: pipPosition.y }]}
+                  {...pipPan.panHandlers}
+                >
+                  <RTCView
+                    streamURL={(localStream as any).toURL()}
+                    style={styles.pipVideo}
+                    objectFit="cover"
+                    mirror={true}
+                    zOrder={1}
+                  />
+                </View>
+              ) : null}
+            </>
+          )}
         </TouchableOpacity>
 
         {/* Controls overlay */}
@@ -324,7 +377,7 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
 
             {/* Center */}
             <View style={styles.videoCenter}>
-              <Text style={styles.videoName}>{participantName}</Text>
+              <Text style={styles.videoName}>{displayName}</Text>
             </View>
 
             {/* Bottom controls */}
@@ -355,8 +408,8 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
                 />
                 <ControlItem
                   icon={<Users size={22} color="white" />}
-                  label="Thêm"
-                  onPress={() => {}}
+                  label="Thành viên"
+                  onPress={handleShowParticipants}
                 />
                 {isGroupCall && (
                   <ControlItem
@@ -379,6 +432,13 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
             </View>
           </SafeAreaView>
         </Animated.View>
+
+        <ParticipantList
+          visible={showParticipants}
+          onClose={handleHideParticipants}
+          participants={participants}
+          localUserId={currentCall?.remoteUserId || ''}
+        />
       </View>
     );
   }
@@ -399,19 +459,61 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
             <Text style={styles.voiceTimer}>{fmt(duration)}</Text>
           </View>
 
-          {/* Center: avatar + name + wave */}
+          {/* Center */}
           <View style={styles.voiceCenter}>
-            {participantAvatar ? (
-              <Image source={{ uri: participantAvatar }} style={styles.voiceAvatar} />
-            ) : (
-              <View style={styles.voiceAvatarPlaceholder}>
-                <Text style={styles.voiceAvatarInitial}>
-                  {participantName ? participantName.charAt(0).toUpperCase() : '?'}
+            {isGroupCall ? (
+              <>
+                <View style={styles.voiceGroupAvatarWrap}>
+                  <Users size={44} color="white" />
+                </View>
+                <Text style={styles.voiceName}>{displayName}</Text>
+                <Text style={styles.voiceGroupStatus}>
+                  {participantEntries.length} thành viên
                 </Text>
-              </View>
+                <ScrollView
+                  style={styles.participantChipsScroll}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                >
+                  {participantEntries.map(([uid, p]) => (
+                    <View key={uid} style={styles.participantChip}>
+                      <View style={styles.chipAvatar}>
+                        <Text style={styles.chipAvatarText}>
+                          {uid.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.chipInfo}>
+                        <Text style={styles.chipName} numberOfLines={1}>
+                          {uid.slice(0, 8)}
+                        </Text>
+                        {p.audioEnabled !== undefined && (
+                          <Mic
+                            size={10}
+                            color={p.audioEnabled ? '#34C759' : '#FF3B30'}
+                          />
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              </>
+            ) : (
+              <>
+                {participantAvatar ? (
+                  <Image source={{ uri: participantAvatar }} style={styles.voiceAvatar} />
+                ) : (
+                  <View style={styles.voiceAvatarPlaceholder}>
+                    <Text style={styles.voiceAvatarInitial}>
+                      {participantName ? participantName.charAt(0).toUpperCase() : '?'}
+                    </Text>
+                  </View>
+                )}
+                <Text style={styles.voiceName}>{participantName}</Text>
+              </>
             )}
-            <Text style={styles.voiceName}>{participantName}</Text>
-            <Text style={styles.voiceStatus}>Đang nói chuyện</Text>
+            <Text style={styles.voiceStatus}>
+              {isGroupCall ? 'Đang nói chuyện nhóm' : 'Đang nói chuyện'}
+            </Text>
             <AudioWave active />
           </View>
         </TouchableOpacity>
@@ -436,8 +538,8 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
             />
             <ControlItem
               icon={<Users size={24} color="white" />}
-              label="Thêm"
-              onPress={() => {}}
+              label="Thành viên"
+              onPress={handleShowParticipants}
             />
             {isGroupCall && (
               <ControlItem
@@ -463,9 +565,134 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
           </View>
         </Animated.View>
       </SafeAreaView>
+
+      <ParticipantList
+        visible={showParticipants}
+        onClose={handleHideParticipants}
+        participants={participants}
+        localUserId={currentCall?.remoteUserId || ''}
+      />
     </View>
   );
 }
+
+// ==================== VIDEO GRID COMPONENT ====================
+function VideoGrid({
+  participants,
+  localStream,
+  RTCView,
+}: {
+  participants: Array<[string, any]>;
+  localStream: any;
+  RTCView: React.ComponentType<any>;
+}) {
+  const allCells = useMemo(() => {
+    const cells: Array<{ userId: string; stream: any; isLocal: boolean }> = [];
+    participants.forEach(([uid, p]) => {
+      if (p.remoteStream) {
+        cells.push({ userId: uid, stream: p.remoteStream, isLocal: false });
+      }
+    });
+    if (localStream) {
+      cells.push({ userId: 'local', stream: localStream, isLocal: true });
+    }
+    return cells;
+  }, [participants, localStream]);
+
+  const cols = useMemo(() => {
+    const count = allCells.length;
+    if (count <= 1) return 1;
+    if (count <= 4) return 2;
+    return Math.ceil(Math.sqrt(count));
+  }, [allCells.length]);
+
+  const cellSize = SCREEN_WIDTH / cols;
+
+  return (
+    <View style={gridStyles.container}>
+      {allCells.map((cell, index) => {
+        const row = Math.floor(index / cols);
+        const col = index % cols;
+        return (
+          <View
+            key={cell.userId}
+            style={[
+              gridStyles.cell,
+              {
+                width: cellSize,
+                height: cellSize,
+                left: col * cellSize,
+                top: row * cellSize,
+              },
+            ]}
+          >
+            {cell.stream ? (
+              <RTCView
+                streamURL={(cell.stream as any).toURL?.() ?? cell.stream}
+                style={gridStyles.video}
+                objectFit="cover"
+                mirror={cell.isLocal}
+                zOrder={0}
+              />
+            ) : (
+              <View style={gridStyles.placeholder}>
+                <Text style={gridStyles.placeholderText}>
+                  {cell.userId.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <View style={gridStyles.label}>
+              <Text style={gridStyles.labelText} numberOfLines={1}>
+                {cell.isLocal ? 'Bạn' : cell.userId.slice(0, 8)}
+              </Text>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const gridStyles = StyleSheet.create({
+  container: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#1a1a2e',
+  },
+  cell: {
+    position: 'absolute',
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  video: {
+    flex: 1,
+  },
+  placeholder: {
+    flex: 1,
+    backgroundColor: '#2d2d5e',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    fontSize: 36,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.4)',
+  },
+  label: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  labelText: {
+    fontSize: 11,
+    color: 'white',
+    fontWeight: '500',
+  },
+});
 
 // --- Small reusable control ---
 function ControlItem({
@@ -649,6 +876,60 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
+  },
+  voiceGroupAvatarWrap: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  voiceGroupStatus: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '400',
+    marginBottom: 12,
+  },
+  participantChipsScroll: {
+    maxHeight: 50,
+    marginBottom: 8,
+  },
+  participantChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginHorizontal: 4,
+  },
+  chipAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  chipAvatarText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'white',
+  },
+  chipInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  chipName: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    maxWidth: 60,
   },
   voiceAvatar: {
     width: 100,

@@ -8,15 +8,15 @@ import {
   Easing,
   TouchableOpacity,
   StatusBar,
-  Dimensions,
 } from 'react-native';
-import { Phone, PhoneOff, Video } from 'lucide-react-native';
+import { Phone, PhoneOff, Video, Users } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCallStore } from '@/src/store/useCallStore';
 import { useCallService } from '@/src/services/callService';
 import { getUserProfile } from '@/src/services/usersApi';
 import { useRouter } from 'expo-router';
 import { playRingtone, stopRingtone } from '@/src/services/callRingtone';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 
 const AVATAR_SIZE = 120;
 
@@ -27,9 +27,15 @@ export function IncomingCallScreen() {
 
   const [callerName, setCallerName] = useState('');
   const [callerAvatar, setCallerAvatar] = useState('');
+  const [groupName, setGroupName] = useState('');
+  const [memberCount, setMemberCount] = useState(0);
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   const isVideoCall = incomingCall?.callType === 'video';
+  const isGroupCall = incomingCall?.conversationType === 'group';
+  const conversationDetail = useConversationDetailStore((s) =>
+    incomingCall?.conversationId ? s.cache[incomingCall.conversationId]?.conversation ?? null : null
+  );
 
   useEffect(() => {
     playRingtone();
@@ -65,6 +71,25 @@ export function IncomingCallScreen() {
       }
     })();
   }, [incomingCall]);
+
+  useEffect(() => {
+    if (!incomingCall || !isGroupCall || !incomingCall.conversationId) return;
+    if (conversationDetail) {
+      setGroupName(conversationDetail.name || '');
+      setMemberCount(conversationDetail.memberCount || 0);
+    } else {
+      useConversationDetailStore.getState()
+        .fetchConversationDetail(incomingCall.conversationId)
+        .then(() => {
+          const conv = useConversationDetailStore.getState().getConversationDetail(incomingCall.conversationId!);
+          if (conv) {
+            setGroupName(conv.name || '');
+            setMemberCount(conv.memberCount || 0);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [incomingCall, isGroupCall, conversationDetail]);
 
   useEffect(() => {
     Animated.loop(
@@ -126,21 +151,42 @@ export function IncomingCallScreen() {
               { transform: [{ scale: pulseScale }], opacity: pulseOpacity },
             ]}
           />
-          {callerAvatar ? (
-            <Image source={{ uri: callerAvatar }} style={styles.avatar} />
+
+          {isGroupCall ? (
+            <>
+              <View style={styles.groupAvatarWrap}>
+                <Users size={48} color="white" />
+              </View>
+              <Text style={styles.groupName}>{groupName || 'Cuộc gọi nhóm'}</Text>
+              <Text style={styles.callerInfo}>
+                {callerName || 'Đang tải...'} gọi
+              </Text>
+              {memberCount > 0 && (
+                <Text style={styles.memberInfo}>{memberCount} thành viên</Text>
+              )}
+            </>
           ) : (
-            <Animated.View
-              style={[
-                styles.avatarPlaceholder,
-                { transform: [{ scale: pulseScale }] },
-              ]}
-            >
-              <Text style={styles.avatarInitial}>{initial}</Text>
-            </Animated.View>
+            <>
+              {callerAvatar ? (
+                <Image source={{ uri: callerAvatar }} style={styles.avatar} />
+              ) : (
+                <Animated.View
+                  style={[
+                    styles.avatarPlaceholder,
+                    { transform: [{ scale: pulseScale }] },
+                  ]}
+                >
+                  <Text style={styles.avatarInitial}>{initial}</Text>
+                </Animated.View>
+              )}
+              <Text style={styles.callerName}>{callerName}</Text>
+            </>
           )}
-          <Text style={styles.callerName}>{callerName}</Text>
+
           <Text style={styles.callType}>
-            {isVideoCall ? 'Cuộc gọi video đến' : 'Cuộc gọi thoại đến'}
+            {isGroupCall
+              ? (isVideoCall ? 'Cuộc gọi video nhóm' : 'Cuộc gọi thoại nhóm')
+              : (isVideoCall ? 'Cuộc gọi video đến' : 'Cuộc gọi thoại đến')}
           </Text>
         </View>
 
@@ -175,6 +221,8 @@ export function IncomingCallScreen() {
     </View>
   );
 }
+
+const GROUP_AVATAR_SIZE = 100;
 
 const styles = StyleSheet.create({
   container: {
@@ -221,6 +269,37 @@ const styles = StyleSheet.create({
     fontSize: 48,
     fontWeight: '600',
     color: 'white',
+  },
+  groupAvatarWrap: {
+    width: GROUP_AVATAR_SIZE,
+    height: GROUP_AVATAR_SIZE,
+    borderRadius: GROUP_AVATAR_SIZE / 2,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.25)',
+    marginBottom: 16,
+  },
+  groupName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 6,
+    paddingHorizontal: 24,
+  },
+  callerInfo: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  memberInfo: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.45)',
+    textAlign: 'center',
+    marginBottom: 8,
   },
   callerName: {
     fontSize: 26,

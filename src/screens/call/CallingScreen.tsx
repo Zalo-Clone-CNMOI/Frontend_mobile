@@ -7,9 +7,8 @@ import {
   Animated,
   Easing,
   StatusBar,
-  Dimensions,
 } from 'react-native';
-import { Phone, Video } from 'lucide-react-native';
+import { Phone, Video, Users } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCallStore } from '@/src/store/useCallStore';
 import { useCallService } from '@/src/services/callService';
@@ -17,9 +16,10 @@ import { getUserProfile } from '@/src/services/usersApi';
 import { useRouter } from 'expo-router';
 import { EndCallButton } from '@/src/components/call/EndCallButton';
 import { playCallingTone, stopRingtone } from '@/src/services/callRingtone';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 
-const { width } = Dimensions.get('window');
 const AVATAR_SIZE = 110;
+const GROUP_AVATAR_SIZE = 100;
 const RING_SIZE = 200;
 
 interface CallingScreenProps {
@@ -33,11 +33,17 @@ export function CallingScreen({ callType = 'audio' }: CallingScreenProps) {
 
   const [recipientName, setRecipientName] = useState('');
   const [recipientAvatar, setRecipientAvatar] = useState('');
+  const [groupCallName, setGroupCallName] = useState('');
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   const isVideoCall = callType === 'video';
+  const isGroupCall = currentCall?.conversationType === 'group';
   const initial = recipientName ? recipientName.charAt(0).toUpperCase() : '?';
+  const conversationId = currentCall?.conversationId;
+  const conversationDetail = useConversationDetailStore((s) =>
+    conversationId ? s.cache[conversationId]?.conversation ?? null : null
+  );
 
   useEffect(() => {
     playCallingTone();
@@ -54,6 +60,20 @@ export function CallingScreen({ callType = 'audio' }: CallingScreenProps) {
   }, [callState, router]);
 
   useEffect(() => {
+    if (isGroupCall) {
+      if (conversationDetail) {
+        setGroupCallName(conversationDetail.name || '');
+      } else if (conversationId) {
+        useConversationDetailStore.getState()
+          .fetchConversationDetail(conversationId)
+          .then(() => {
+            const conv = useConversationDetailStore.getState().getConversationDetail(conversationId);
+            if (conv) setGroupCallName(conv.name || '');
+          })
+          .catch(() => {});
+      }
+      return;
+    }
     const fetchRecipient = async () => {
       const userId = currentCall?.remoteUserId;
       if (!userId) return;
@@ -68,7 +88,7 @@ export function CallingScreen({ callType = 'audio' }: CallingScreenProps) {
       }
     };
     fetchRecipient();
-  }, [currentCall]);
+  }, [currentCall, isGroupCall, conversationDetail, conversationId]);
 
   useEffect(() => {
     Animated.loop(
@@ -129,6 +149,8 @@ export function CallingScreen({ callType = 'audio' }: CallingScreenProps) {
     outputRange: ['0deg', '360deg'],
   });
 
+  const displayName = isGroupCall ? (groupCallName || 'Cuộc gọi nhóm') : (recipientName || 'Đang gọi...');
+
   const statusText =
     callState === 'calling'
       ? isVideoCall
@@ -141,33 +163,56 @@ export function CallingScreen({ callType = 'audio' }: CallingScreenProps) {
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centerSection}>
-          <View style={styles.avatarWrapper}>
-            <Animated.View
-              style={[
-                styles.ringOuter,
-                {
-                  transform: [{ scale: pulseScale }, { rotate: spinRotation }],
-                  opacity: pulseOpacity,
-                },
-              ]}
-            />
-            <Animated.View
-              style={[
-                styles.ringInner,
-                { transform: [{ scale: pulseScale }], opacity: pulseOpacity },
-              ]}
-            />
-            {recipientAvatar ? (
-              <Image source={{ uri: recipientAvatar }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitial}>{initial}</Text>
+          {isGroupCall ? (
+            <View style={styles.avatarWrapper}>
+              <Animated.View
+                style={[
+                  styles.ringOuter,
+                  {
+                    transform: [{ scale: pulseScale }, { rotate: spinRotation }],
+                    opacity: pulseOpacity,
+                  },
+                ]}
+              />
+              <Animated.View
+                style={[
+                  styles.ringInner,
+                  { transform: [{ scale: pulseScale }], opacity: pulseOpacity },
+                ]}
+              />
+              <View style={styles.groupAvatarWrap}>
+                <Users size={44} color="white" />
               </View>
-            )}
-          </View>
+            </View>
+          ) : (
+            <View style={styles.avatarWrapper}>
+              <Animated.View
+                style={[
+                  styles.ringOuter,
+                  {
+                    transform: [{ scale: pulseScale }, { rotate: spinRotation }],
+                    opacity: pulseOpacity,
+                  },
+                ]}
+              />
+              <Animated.View
+                style={[
+                  styles.ringInner,
+                  { transform: [{ scale: pulseScale }], opacity: pulseOpacity },
+                ]}
+              />
+              {recipientAvatar ? (
+                <Image source={{ uri: recipientAvatar }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarInitial}>{initial}</Text>
+                </View>
+              )}
+            </View>
+          )}
 
           <Text style={styles.name} numberOfLines={1}>
-            {recipientName || 'Đang gọi...'}
+            {displayName}
           </Text>
 
           <View style={styles.statusRow}>
@@ -176,7 +221,11 @@ export function CallingScreen({ callType = 'audio' }: CallingScreenProps) {
             ) : (
               <Phone size={14} color="rgba(255,255,255,0.5)" />
             )}
-            <Text style={styles.status}>{statusText}</Text>
+            <Text style={styles.status}>
+              {isGroupCall
+                ? (isVideoCall ? 'Cuộc gọi video nhóm' : 'Cuộc gọi thoại nhóm')
+                : statusText}
+            </Text>
           </View>
         </View>
 
@@ -248,6 +297,16 @@ const styles = StyleSheet.create({
     fontSize: 44,
     fontWeight: '600',
     color: 'white',
+  },
+  groupAvatarWrap: {
+    width: GROUP_AVATAR_SIZE,
+    height: GROUP_AVATAR_SIZE,
+    borderRadius: GROUP_AVATAR_SIZE / 2,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   name: {
     fontSize: 26,
