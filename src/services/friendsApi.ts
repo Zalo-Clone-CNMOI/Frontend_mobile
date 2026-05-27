@@ -1,40 +1,13 @@
 import { NETWORK_CONFIG } from '../config/network';
 import { apiCallWithRefresh } from './authService';
-import type { ContactListItem } from '../types/contacts';
 
-export type FriendsListParams = {
+const API_BASE_URL = NETWORK_CONFIG.API_BASE_URL;
+
+type FriendsListParams = {
   page?: number;
   limit?: number;
 };
 
-// FriendDTO extends ContactListItem with API-specific fields
-export type FriendDTO = Omit<ContactListItem, 'isOnline'> & {
-  _id?: string;
-  name?: string;
-  firstName?: string;
-  lastName?: string;
-  avatarUrl?: string;
-  isOnline?: boolean;
-  lastSeen?: string | number;
-};
-
-export type FriendsListResponse = {
-  success?: boolean;
-  data?: FriendDTO[];
-  meta?: {
-    total?: number;
-    page?: number;
-    limit?: number;
-    totalPages?: number;
-    hasNext?: boolean;
-    hasPrev?: boolean;
-  };
-  timestamp?: string;
-};
-
-const API_BASE_URL = NETWORK_CONFIG.API_BASE_URL;
-
-// Convert params object to query string
 const toQueryString = (params?: Record<string, string | number | boolean | undefined>) => {
   const query = new URLSearchParams();
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -45,8 +18,6 @@ const toQueryString = (params?: Record<string, string | number | boolean | undef
   return str ? `?${str}` : '';
 };
 
-// Make HTTP request with auth refresh
-// Handles GET, POST, PATCH, DELETE methods, parses JSON response
 const request = async (
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
   path: string,
@@ -73,53 +44,14 @@ const request = async (
   return { data, status: response.status };
 };
 
-// Get friends list with pagination
 export const getFriends = async (params?: FriendsListParams) => {
   return request('GET', `/friends${toQueryString(params)}`);
 };
 
-// Get friends list with typed response
-export const getFriendsList = async (params?: FriendsListParams) => {
-  const response = await request('GET', `/friends${toQueryString(params)}`);
-  return response as { data: FriendsListResponse; status: number };
-};
-
-// Get pending friend requests
-export const getPendingRequests = (params?: any) =>
-  request('GET', `/friends/requests/pending${toQueryString(params)}`);
-
-// Get sent friend requests
-export const getSentRequests = (params?: any) =>
-  request('GET', `/friends/requests/sent${toQueryString(params)}`);
-
-// Send friend request to user
-export const sendFriendRequest = (payload: any) =>
-  request('POST', '/friends/requests', payload);
-
-// Update friend request (accept/decline)
-export const updateFriendRequest = (requestId: string, payload: any) =>
-  request('PATCH', `/friends/requests/${encodeURIComponent(requestId)}`, payload);
-
-// Delete/cancel friend request
-export const deleteFriendRequest = (requestId: string) =>
-  request('DELETE', `/friends/requests/${encodeURIComponent(requestId)}`);
-
-// Remove friend (unfriend)
 export const removeFriend = (friendId: string) =>
   request('DELETE', `/friends/${encodeURIComponent(friendId)}`);
 
-// Block a user
-export const blockUser = (payload: any) =>
-  request('POST', '/friends/block', payload);
-
 export default {
   getFriends,
-  getFriendsList,
-  getPendingRequests,
-  getSentRequests,
-  sendFriendRequest,
-  updateFriendRequest,
-  deleteFriendRequest,
   removeFriend,
-  blockUser,
 };

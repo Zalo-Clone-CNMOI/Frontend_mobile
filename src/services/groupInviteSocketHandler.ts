@@ -184,10 +184,4 @@ export const unsubscribeFromGroupInviteEvents = () => {
   socket.off(WS_EVENTS.GroupInviteExpired);
 };
 
-/**
- * Check if socket is connected
- */
-export const isSocketConnected = (): boolean => {
-  const socket = getSocket();
-  return socket?.connected || false;
-};
+

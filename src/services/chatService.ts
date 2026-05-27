@@ -1,17 +1,17 @@
 import { Socket } from "socket.io-client";
 import type { UserV2 } from "../types/contacts";
-import type { ChatMessage, ConversationV2, ReplyInfo } from "../types/chat";
+import type { ChatMessage } from "../types/chat";
 import type { SocketChatJoinPayload } from "../types/dto/SocketDTO";
 import type { MessageReactionsResponseDto } from "../types/dto/ApiDTO";
 import { mapConversationsListFromApi } from "../types/mappers/DTOMappers";
 import type { MediaFileInput } from "../types/media";
-import { NETWORK_CONFIG } from "../config/network";
+
 import { getCurrentUser } from "./authService";
 import * as conversationsApi from "./conversationsApi";
 import * as friendsApi from "./friendsApi";
 import { buildAttachmentDto, uploadMedia } from "./mediaService";
 import * as messagesApi from "./messagesApi";
-import { connectSocket, getSocket, createSocket } from "./socket";
+import { connectSocket, getSocket } from "./socket";
 import { getDeduplicationService } from "./deduplicationService";
 
 // Normalize ID to string, handles null/undefined values
@@ -180,76 +180,7 @@ export async function enrichReplyToDetails(message: ChatMessage): Promise<ChatMe
   }
 }
 
-// Get reply preview text similar to Frontend_web's getReplyPreview
-export const getReplyPreview = (replyTo?: ReplyInfo, attachments?: any[]) => {
-  if (!replyTo) {
-    return {
-      text: "",
-      imageAttachment: null,
-      videoAttachment: null,
-    };
-  }
 
-  const imageAttachment =
-    attachments?.find((att: any) => att.type === "image") ?? null;
-
-  const videoAttachment =
-    attachments?.find((att: any) => att.type === "video") ?? null;
-
-  const text = (replyTo.text ?? "").replace(/\u200B/g, "").trim();
-
-  if (text) {
-    return {
-      text,
-      imageAttachment,
-      videoAttachment,
-    };
-  }
-
-  if (imageAttachment) {
-    return {
-      text: "Ảnh",
-      imageAttachment,
-      videoAttachment: null,
-    };
-  }
-
-  if (videoAttachment) {
-    return {
-      text: "Video",
-      imageAttachment: null,
-      videoAttachment,
-    };
-  }
-
-  return {
-    text: attachments?.length ? "Tệp đính kèm" : "Tin nhắn",
-    imageAttachment: null,
-    videoAttachment: null,
-  };
-};
-
-// Hydrate reply messages from current message list (similar to Frontend_web)
-export const hydrateReplyMessages = (messages: ChatMessage[]): ChatMessage[] => {
-  const messageMap = new Map(messages.map((msg) => [msg.id, msg]));
-
-  return messages.map((msg) => {
-    if (msg.replyTo?.text || !msg.replyTo?.id) return msg;
-
-    const repliedMessage = messageMap.get(msg.replyTo.id);
-    if (!repliedMessage) return msg;
-
-    return {
-      ...msg,
-      replyTo: {
-        id: repliedMessage.id,
-        senderId: repliedMessage.senderId,
-        senderName: repliedMessage.senderName || 'User',
-        text: repliedMessage.text || '',
-      },
-    };
-  });
-};
 
 // Track open conversations for socket room management
 const openConversations = new Set<string>();
@@ -396,8 +327,7 @@ export async function loadInitialMessages(conversationId: string) {
           : [];
   // Don't filter deleted messages - they will be displayed as revoked
   const uiMessages = sortMessagesAscending(messages.map(toLegacyChatMessage));
-  // Hydrate reply messages from current message list (similar to Frontend_web)
-  const hydratedMessages = hydrateReplyMessages(uiMessages);
+  const hydratedMessages = uiMessages;
 
   openConversations.add(normalizedConversationId);
   
@@ -437,10 +367,8 @@ export async function fetchMoreMessages(
 
   // Don't filter deleted messages - they will be displayed as revoked
   const uiMessages = sortMessagesAscending(messages.map(toLegacyChatMessage));
-  // Hydrate reply messages from current message list (similar to Frontend_web)
-  const hydratedMessages = hydrateReplyMessages(uiMessages);
   return {
-    messages: hydratedMessages,
+    messages: uiMessages,
     nextCursor: payload?.nextCursor ?? null,
     hasMore: Boolean(payload?.hasMore),
   };
@@ -848,12 +776,6 @@ export async function leaveConversation(conversationId: string) {
   return conversationsApi.leaveConversation(conversationId);
 }
 
-// Update my nickname in a conversation
-// Calls backend API to update nickname for current user
-export async function updateMyNickname(conversationId: string, nickname?: string) {
-  return conversationsApi.updateMySettings(conversationId, { nickname });
-}
-
 // Edit a message via socket
 // Emits chat:edit event with message ID, conversation ID, new body, and created timestamp
 export async function editMessage(
@@ -975,6 +897,46 @@ export async function forwardMessage(
 
 // Reset chat runtime state
 // Clears all caches, resets socket, clears pending ACKs, and reinitializes actor IDs
+export async function fetchConversations() {
+  const response = await conversationsApi.getConversations();
+  return mapConversationsListFromApi(response.data);
+}
+
+export async function fetchAllMessages(): Promise<Record<string, ChatMessage[]>> {
+  const convResp = await conversationsApi.getConversations();
+  const conversations = mapConversationsListFromApi(convResp.data);
+  const result: Record<string, ChatMessage[]> = {};
+  await Promise.all(conversations.map(async (conv) => {
+    try {
+      const msgResp = await messagesApi.getMessages(conv.conversationId, 50);
+      const payload = msgResp?.data ?? {};
+      const items = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload?.messages) ? payload.messages : [];
+      result[conv.conversationId] = items.map(toLegacyChatMessage);
+    } catch {
+      result[conv.conversationId] = [];
+    }
+  }));
+  return result;
+}
+
+export async function fetchContacts() {
+  const response = await friendsApi.getFriends();
+  return { users: response.data as UserV2[] };
+}
+
+export async function getMessageReactions(messageId: string) {
+  const response = await messagesApi.getMessageReactions(messageId);
+  return response.data as MessageReactionsResponseDto;
+}
+
+export async function initChat(socket?: Socket) {
+  await ensureSocket();
+}
+
+export async function markConversationAsRead(conversationId: string) {
+  await conversationsApi.markAsRead(conversationId);
+}
+
 export function resetChatRuntime() {
   openConversations.clear();
   recentMessageIds.splice(0, recentMessageIds.length);
@@ -997,6 +959,12 @@ export function resetChatRuntime() {
 export default {
   loadInitialMessages,
   fetchMoreMessages,
+  fetchConversations,
+  fetchAllMessages,
+  fetchContacts,
+  getMessageReactions,
+  initChat,
+  markConversationAsRead,
   sendMessage,
   registerHandlers,
   resetChatRuntime,
@@ -1008,170 +976,7 @@ export default {
   leaveConversation,
 };
 
-/**
- * GET /api/conversations
- * Trả về danh sách cuộc hội thoại của current user.
- */
-export async function fetchConversations(): Promise<ConversationV2[]> {
-  try {
-    const resp = await conversationsApi.getConversations({
-      page: 1,
-      limit: 50,
-    });
 
-    const payload = resp?.data;
-
-    if (!payload) return [];
-
-    if (Array.isArray(payload.data) || Array.isArray(payload.conversations)) {
-      const conversations = mapConversationsListFromApi(payload);
-      return conversations;
-    }
-    return [];
-  } catch (e) {
-    return [];
-  }
-}
-
-/**
- * POST /api/conversations/:conversationId/read
- * Mark conversation as read and reset unread count.
- */
-export async function markConversationAsRead(
-  conversationId: string,
-): Promise<void> {
-  try {
-    await conversationsApi.markAsRead(conversationId);
-  } catch (e) {
-  }
-}
-
-/**
- * GET /api/conversations/:conversationId/messages
- * Trả về danh sách tin nhắn trong một cuộc hội thoại.
- */
-export async function fetchMessages(
-  conversationId: string,
-): Promise<ChatMessage[]> {
-  try {
-    const resp = await messagesApi.getMessages(conversationId, 50);
-    const payload = resp?.data;
-
-    if (!payload) return [];
-
-    let messages: any[] = [];
-    if (Array.isArray(payload.data)) {
-      messages = payload.data;
-    } else if (Array.isArray(payload.messages)) {
-      messages = payload.messages;
-    }
-
-    // Don't filter deleted messages - they will be displayed as revoked
-    return messages.map(toLegacyChatMessage);
-  } catch (e) {
-    return [];
-  }
-}
-
-/**
- * GET /api/conversations/:conversationId/messages (tất cả conversations)
- * Trả về toàn bộ messages group theo conversationId.
- */
-export async function fetchAllMessages(): Promise<
-  Record<string, ChatMessage[]>
-> {
-  try {
-    const convResp = await conversationsApi.getConversations({
-      page: 1,
-      limit: 100,
-    });
-
-    const convs =
-      mapConversationsListFromApi(
-        convResp?.data?.data || convResp?.data?.conversations || [],
-      );
-
-    const result: Record<string, ChatMessage[]> = {};
-
-    await Promise.all(
-      convs.map(async (c: ConversationV2) => {
-        if (!c.conversationId) return;
-        try {
-          const msgResp = await messagesApi.getMessages(
-            c.conversationId,
-            50
-          );
-
-          const payload = msgResp?.data;
-
-          const list = Array.isArray(payload?.items)
-            ? payload.items
-            : Array.isArray(payload?.data)
-              ? payload.data
-              : Array.isArray(payload?.messages)
-                ? payload.messages
-                : [];
-          // Don't filter deleted messages - they will be displayed as revoked
-          result[c.conversationId] = list.map(toLegacyChatMessage);
-        } catch {
-          result[c.conversationId] = [];
-        }
-      })
-    );
-
-    return result;
-  } catch (e) {
-    return {};
-  }
-}
-
-/**
- * GET /api/contacts
- * Trả về danh sách bạn bè / users.
- */
-export async function fetchContacts(): Promise<{ users: UserV2[] }> {
-  try {
-    const resp = await friendsApi.getFriendsList({ page: 1, limit: 100 });
-    const payload = resp?.data;
-
-    const list = Array.isArray(payload?.data) ? payload.data : [];
-
-    if (!Array.isArray(list)) {
-      return { users: [] };
-    }
-
-    const users: UserV2[] = list.map((u: any) => {
-      const id = u.id || u._id;
-
-      const normalizeAvatarUrl = (avatar?: string): string | null => {
-        if (!avatar) return null;
-        if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-          return avatar.replace(/https?:\/\/[^.]+\.s3\.[^.]+\.amazonaws\.com/, NETWORK_CONFIG.S3_BASE_URL);
-        }
-        return NETWORK_CONFIG.S3_BASE_URL + '/' + avatar.replace(/^\//, '');
-      };
-
-      return {
-        id,
-        fullName:
-          u.fullName ||
-          u.name ||
-          `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
-          "Unknown",
-
-        avatar: normalizeAvatarUrl(u.avatarUrl || u.avatar),
-
-        status: u.status ?? "offline",
-
-        lastSeen: u.lastSeen ?? null,
-      };
-    });
-
-    return { users };
-  } catch (e) {
-    return { users: [] };
-  }
-}
 
 // Update conversation list with last message preview
 async function updateConversationLastMessage(enrichedMessage: any, payload: any) {
@@ -1205,59 +1010,6 @@ async function updateConversationLastMessage(enrichedMessage: any, payload: any)
   );
 }
 
-// Initialize chat socket listeners - similar to Frontend_web pattern
-// This function registers all socket event listeners for chat functionality
-// It should be called when user authenticates
-export async function initChat() {
-  console.log('[initChat] Initializing chat socket');
 
-  // Ensure socket is connected
-  const socket = await createSocket();
-  if (!socket) {
-    console.log('[initChat] Failed to create socket');
-    return;
-  }
-
-  console.log('[initChat] Socket connected, registering listeners');
-
-  // Remove all existing listeners to prevent duplicates
-  socket.off('connect');
-  socket.off('disconnect');
-  socket.off('connect_error');
-  socket.off('chat:join:ack');
-  socket.off('chat:read');
-  socket.off('chat:message');
-  socket.off('chat:message:updated');
-  socket.off('chat:message:deleted');
-  socket.off('chat:reaction:added');
-  socket.off('chat:reaction:removed');
-  socket.off('chat:system-message');
-  socket.off('chat:message:pinned');
-  socket.off('chat:message:unpinned');
-  socket.off('presence:update');
-  socket.off('chat:ack');
-  socket.off('ws:error');
-
-  // Register socket listeners
-  registerSocketListeners();
-
-  // ✅ FIX 3: Subscribe to group invite events để cập nhật badge real-time
-  const { subscribeToGroupInviteEvents } = await import('./groupInviteSocketHandler');
-  subscribeToGroupInviteEvents();
-  console.log('[initChat] Group invite listeners registered');
-
-  console.log('[initChat] Chat socket listeners registered');
-}
-
-export async function getMessageReactions(
-  messageId: string,
-): Promise<MessageReactionsResponseDto | null> {
-  try {
-    const response = await messagesApi.getMessageReactions(messageId);
-    return response?.data as MessageReactionsResponseDto;
-  } catch (error) {
-    return null;
-  }
-}
 
 

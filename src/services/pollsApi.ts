@@ -167,63 +167,7 @@ export const validateEditPoll = (payload: EditPollRequestDTO): string | null => 
   return null;
 };
 
-/**
- * Validate vote request
- */
-export const validateVote = (
-  optionIds: string[],
-  allowMultiple: boolean,
-  existingOptions: { option_id: string }[],
-): string | null => {
-  if (!optionIds || !Array.isArray(optionIds)) {
-    return 'option_ids must be an array';
-  }
-  if (optionIds.length === 0) {
-    return 'At least one option must be selected';
-  }
 
-  const validOptionIds = new Set(existingOptions.map(o => o.option_id));
-  for (const id of optionIds) {
-    if (!validOptionIds.has(id)) {
-      return `Invalid option_id: ${id}`;
-    }
-  }
-
-  if (!allowMultiple && optionIds.length > 1) {
-    return 'This poll only allows single choice';
-  }
-
-  if (optionIds.length > POLL_CONSTANTS.MAX_OPTIONS) {
-    return `Cannot select more than ${POLL_CONSTANTS.MAX_OPTIONS} options`;
-  }
-
-  return null;
-};
-
-/**
- * Validate add option request
- */
-export const validateAddOption = (label: string, existingOptions: { label: string }[]): string | null => {
-  if (!label || label.trim().length === 0) {
-    return 'Option label is required';
-  }
-  if (label.length > POLL_CONSTANTS.MAX_OPTION_LABEL_LENGTH) {
-    return `Option label must not exceed ${POLL_CONSTANTS.MAX_OPTION_LABEL_LENGTH} characters`;
-  }
-  if (existingOptions.length >= POLL_CONSTANTS.MAX_OPTIONS) {
-    return `Cannot exceed ${POLL_CONSTANTS.MAX_OPTIONS} options`;
-  }
-
-  const normalizedLabel = label.trim().toLowerCase();
-  const hasDuplicate = existingOptions.some(
-    o => o.label.trim().toLowerCase() === normalizedLabel
-  );
-  if (hasDuplicate) {
-    return `Option label "${label}" already exists`;
-  }
-
-  return null;
-};
 
 // ==================== API Endpoints ====================
 
@@ -449,20 +393,6 @@ export const canAddOption = (poll: { allow_add_option: boolean; status: string }
 };
 
 /**
- * Check if user can remove option (creator only, option must have no votes)
- */
-export const canRemoveOption = (
-  poll: { creator_id: string },
-  option: { added_by_user_id?: string | null; vote_count: number },
-  currentUserId: string,
-  isCreator: boolean,
-): boolean => {
-  if (!isCreator) return false;
-  if (option.vote_count > 0) return false;
-  return true;
-};
-
-/**
  * Check if poll is expired
  */
 export const isPollExpired = (poll: { expires_at: number | null; status: string }): boolean => {
@@ -507,12 +437,9 @@ export default {
   closePoll,
   validateCreatePoll,
   validateEditPoll,
-  validateVote,
-  validateAddOption,
   canEditPoll,
   canClosePoll,
   canAddOption,
-  canRemoveOption,
   isPollExpired,
   formatExpiryCountdown,
 };

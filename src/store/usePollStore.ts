@@ -11,11 +11,9 @@ import {
   closePoll,
   validateCreatePoll,
   validateEditPoll,
-  validateVote,
   canEditPoll,
   canClosePoll,
   canAddOption,
-  canRemoveOption,
   isPollExpired,
   formatExpiryCountdown,
 } from '../services/pollsApi';
