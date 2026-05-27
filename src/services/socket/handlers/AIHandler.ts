@@ -10,10 +10,6 @@ import { WsEvents } from "../../../realtime/events";
  * - ai:translate:result - Translation result received
  * - ai:moderation:enforcement - Message removed by moderation
  * - message:entities - Entity detection results
- * - ai:document:query:result - Document query result
- * - ai:document:processed - Document processing completed
- * - ai:stream:chunk - Streaming response chunk
- * - ai:stream:complete - Streaming completed
  */
 
 export class AIHandler extends BaseHandler {
@@ -24,10 +20,6 @@ export class AIHandler extends BaseHandler {
     WsEvents.AiTranslateResult,
     WsEvents.AiModerationEnforcement,
     WsEvents.MessageEntities,
-    WsEvents.AiDocumentQueryResult,
-    WsEvents.AiDocumentProcessed,
-    WsEvents.AiStreamChunk,
-    WsEvents.AiStreamComplete,
   ];
 
   protected createHandler(event: string): (...args: any[]) => void {
@@ -42,14 +34,6 @@ export class AIHandler extends BaseHandler {
         return this.handleModerationEnforcement.bind(this);
       case WsEvents.MessageEntities:
         return this.handleMessageEntities.bind(this);
-      case WsEvents.AiDocumentQueryResult:
-        return this.handleDocumentQueryResult.bind(this);
-      case WsEvents.AiDocumentProcessed:
-        return this.handleDocumentProcessed.bind(this);
-      case WsEvents.AiStreamChunk:
-        return this.handleStreamChunk.bind(this);
-      case WsEvents.AiStreamComplete:
-        return this.handleStreamComplete.bind(this);
       default:
         return () => {};
     }
@@ -121,60 +105,4 @@ export class AIHandler extends BaseHandler {
     });
   }
 
-  private handleDocumentQueryResult(payload: any): void {
-    this.log("Document query result:", payload);
-
-    const { document_id, query, answer, sources } = payload || {};
-    if (!document_id) return;
-
-    const mappedSources = (sources || []).map((s: any) => ({
-      text: s.content_preview || s.text || "",
-      similarity: s.similarity_score ?? s.similarity ?? 0,
-    }));
-
-    import("../../../store/useAIDocumentStore").then(({ useAIDocumentStore }) => {
-      useAIDocumentStore.getState().setQueryResult(document_id, query, {
-        answer: answer || "",
-        sources: mappedSources,
-      });
-    });
-  }
-
-  private handleDocumentProcessed(payload: any): void {
-    this.log("Document processed:", payload);
-
-    const { document_id, file_name, status, error_message, chunks_count } = payload || {};
-    if (!document_id) return;
-
-    import("../../../store/useAIDocumentStore").then(({ useAIDocumentStore }) => {
-      if (status === "completed") {
-        useAIDocumentStore.getState().updateDocumentStatus(document_id, "completed");
-      } else {
-        useAIDocumentStore.getState().updateDocumentStatus(document_id, "failed", error_message);
-      }
-    });
-  }
-
-  private handleStreamChunk(payload: any): void {
-    const { conversation_id, content, is_final } = payload || {};
-
-    import("../../../store/useAIDocumentStore").then(({ useAIDocumentStore }) => {
-      useAIDocumentStore.getState().appendStreamChunk(conversation_id, content);
-
-      if (is_final) {
-        useAIDocumentStore.getState().setStreamComplete(conversation_id);
-      }
-    });
-  }
-
-  private handleStreamComplete(payload: any): void {
-    this.log("Stream complete:", payload);
-
-    const { conversation_id, total_chunks } = payload || {};
-    if (!conversation_id) return;
-
-    import("../../../store/useAIDocumentStore").then(({ useAIDocumentStore }) => {
-      useAIDocumentStore.getState().setStreamComplete(conversation_id);
-    });
-  }
 }

@@ -82,12 +82,6 @@ export const WsEvents = {
   AiTranslateResult: 'ai:translate:result',
   AiModerationEnforcement: 'ai:moderation:enforcement',
   MessageEntities: 'message:entities',
-  AiDocumentUpload: 'ai:document:upload',
-  AiDocumentQueryRequest: 'ai:document:query:request',
-  AiDocumentQueryResult: 'ai:document:query:result',
-  AiDocumentProcessed: 'ai:document:processed',
-  AiStreamChunk: 'ai:stream:chunk',
-  AiStreamComplete: 'ai:stream:complete',
 } as const;
 
 export type WsEventName = (typeof WsEvents)[keyof typeof WsEvents];
@@ -395,50 +389,6 @@ export interface MessageEntitiesPayload {
     end_index: number;
     confidence: number;
   }>;
-  trace_id?: string;
-}
-
-// ==================== AI / Document Types ====================
-
-export interface AiDocumentQueryResultPayload {
-  conversation_id: string;
-  user_id: string;
-  document_id: string;
-  query: string;
-  answer: string;
-  sources: Array<{
-    text: string;
-    similarity: number;
-    page_number?: number;
-  }>;
-  trace_id?: string;
-}
-
-export interface AiDocumentProcessedPayload {
-  conversation_id: string;
-  user_id: string;
-  document_id: string;
-  file_name: string;
-  status: 'completed' | 'failed';
-  error_message?: string;
-  chunks_count?: number;
-  trace_id?: string;
-}
-
-// ==================== AI / Stream Types ====================
-
-export interface AiStreamChunkPayload {
-  conversation_id: string;
-  user_id: string;
-  chunk: string;
-  is_final: boolean;
-  trace_id?: string;
-}
-
-export interface AiStreamCompletePayload {
-  conversation_id: string;
-  user_id: string;
-  total_chunks: number;
   trace_id?: string;
 }
 
