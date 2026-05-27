@@ -27,7 +27,6 @@ import {
 } from 'react-native';
 import { useUserProfiles } from '@/src/hooks/useUserProfiles';
 import type { DetectedEntity } from '@/src/store/useEntityDetectionStore';
-import { useAITranslationStore } from '@/src/store/useAITranslationStore';
 import { MentionHighlight } from '@/src/components/chat/MentionHighlight';
 import { EntityInfoModal } from '../EntityInfoModal';
 
@@ -140,7 +139,6 @@ isMultiSelectMode = false,
     const fetchedUrlsRef = useRef(false);
     const [showEntityModal, setShowEntityModal] = useState(false);
     const [selectedEntity, setSelectedEntity] = useState<DetectedEntity | null>(null);
-    const [showTranslation, setShowTranslation] = useState(false);
     const displayEntities = entities && entities.length > 0 ? entities : undefined;
 
     // Audio playback state for voice messages
@@ -149,17 +147,6 @@ isMultiSelectMode = false,
     const [playbackDuration, setPlaybackDuration] = useState<number>(0);
     const [playbackPosition, setPlaybackPosition] = useState<number>(0);
     const [voiceUrl, setVoiceUrl] = useState<string>('');
-
-    const cachedTranslation = useAITranslationStore((s) => s.cache.get(`${item.id}_vi`));
-    const hasTranslation = !!cachedTranslation && !item.isRevoked && !item.removed;
-
-    const prevCachedRef = useRef(cachedTranslation);
-    useEffect(() => {
-      if (cachedTranslation && !prevCachedRef.current) {
-        setShowTranslation(true);
-      }
-      prevCachedRef.current = cachedTranslation;
-    }, [cachedTranslation]);
 
     const handleEntityPress = (entity: DetectedEntity) => {
       if (onEntityPress) {
@@ -1111,54 +1098,7 @@ interface HighlightTextProps {
                 />
               )}
 
-              {hasTranslation && !showTranslation && (
-                <TouchableOpacity
-                  onPress={() => setShowTranslation(true)}
-                  activeOpacity={0.7}
-                  style={[
-                    styles.translateButton,
-                    isMe
-                      ? { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.25)' }
-                      : { backgroundColor: theme.colors.primary + '10', borderColor: theme.colors.primary + '30' },
-                  ]}
-                >
-                  <View style={[styles.translateBadge, { backgroundColor: isMe ? '#fff' : theme.colors.primary }]}>
-                    <Text style={[styles.translateBadgeText, { color: isMe ? theme.colors.primary : '#fff' }]}>
-                      Dịch
-                    </Text>
-                  </View>
-                  <Text style={[styles.translateActionText, { color: isMe ? '#fff' : theme.colors.primary }]}>
-                    Xem thêm
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {hasTranslation && showTranslation && (
-                <View style={styles.translatedBlock}>
-                  <View style={[styles.translatedDivider, { backgroundColor: isMe ? 'rgba(255,255,255,0.2)' : 'rgba(128,128,128,0.25)' }]} />
-                  <Text style={[styles.translatedText, { color: isMe ? myTextColor : theirTextColor }]}>
-                    {cachedTranslation.translated}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setShowTranslation(false)}
-                    activeOpacity={0.7}
-                    style={[
-                      styles.translateButton,
-                      isMe
-                        ? { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.25)' }
-                        : { backgroundColor: theme.colors.primary + '10', borderColor: theme.colors.primary + '30' },
-                    ]}
-                  >
-                    <View style={[styles.translateBadge, { backgroundColor: '#10b981' }]}>
-                      <Text style={styles.translateBadgeText}>Đã dịch</Text>
-                    </View>
-                    <Text style={[styles.translateActionText, { color: isMe ? '#fff' : theme.colors.primary }]}>
-                      Ẩn bớt
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
+              </View>
           )}
         </TouchableOpacity>
 
@@ -1640,44 +1580,6 @@ const styles = StyleSheet.create({
   },
 
   // Translation styles
-  translateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignSelf: 'flex-start',
-    gap: 6,
-  },
-  translateBadge: {
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  translateBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  translateActionText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  translatedBlock: {
-    marginTop: 2,
-  },
-  translatedDivider: {
-    height: 1,
-    marginVertical: 6,
-  },
-  translatedText: {
-    fontSize: 15,
-    lineHeight: 20,
-    fontStyle: 'italic',
-  },
-
   // Voice message styles
   voiceContainer: {
     width: 220,

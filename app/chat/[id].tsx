@@ -13,14 +13,16 @@ import { PresenceIndicator } from '@/src/components/common/PresenceIndicator';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useChatDetailScreenLogic } from '@/src/hooks/screens/useChatDetailScreen';
 import { useMessagePin } from '@/src/hooks/useMessagePin';
-import { getMessageReactions } from '@/src/services/chatService';
+import { getMessageReactions, forwardMessage, sendMessage as sendSocketMessage } from '@/src/services/chatService';
 import * as mediaService from '@/src/services/mediaService';
-import { translationService } from '@/src/services/ai/TranslationService';
+
+import { getOrCreateZaiConversation } from '@/src/services/ai/aiConversationApi';
 import { lookupMessage, getPinnedMessages } from '@/src/services/messagesApi';
 import { mapPinnedMessagesListFromApi } from '@/src/types/mappers/DTOMappers';
 import { searchUsers } from '@/src/services/usersApi';
 import { summaryService } from '@/src/services/ai/SummaryService';
 import { SummaryModal } from '@/src/components/chat/SummaryModal';
+import { TranslationModal } from '@/src/components/chat/TranslationModal';
 import { EntityInfoModal } from '@/src/components/chat/EntityInfoModal';
 import { useEntityDetectionStore } from '@/src/store/useEntityDetectionStore';
 import { useAISmartReplyStore } from '@/src/store/useAISmartReplyStore';
@@ -38,7 +40,7 @@ import { Bell, ChevronDown, ChevronRight, ChevronUp, Circle, Forward, List, Phon
 import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
 import { PresenceText } from '@/src/components/common/PresenceIndicator';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Alert, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { leaveConversation, addMember, markAsRead, getConversationDetail, disbandConversation } from '@/src/services/conversationsApi';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -226,6 +228,13 @@ export default function ChatDetailScreen() {
   const [showEntityInfoModal, setShowEntityInfoModal] = useState(false);
   const [selectedEntityItem, setSelectedEntityItem] = useState<any>(null);
   const entitiesByMessage = useEntityDetectionStore((s) => s.entitiesByMessage);
+
+  // Analyze file state
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Translation modal state
+  const [showTranslationModal, setShowTranslationModal] = useState(false);
+  const [selectedTranslateMessage, setSelectedTranslateMessage] = useState<any>(null);
 
   // Load pinned messages when chat loads
   useEffect(() => {
@@ -574,18 +583,37 @@ export default function ChatDetailScreen() {
   }, []);
 
   const handleTranslate = useCallback((message: any) => {
-    if (authUser?.id && chatId && message.text) {
-      const cached = translationService.getCachedTranslation(message.id, 'vi');
-      if (!cached) {
-        translationService.requestTranslation({
-          conversationId: chatId,
-          userId: authUser.id,
-          messageId: message.id,
-          body: message.text,
-        });
-      }
+    setSelectedTranslateMessage(message);
+    setShowTranslationModal(true);
+  }, []);
+
+  const handleAnalyze = useCallback(async (message: any) => {
+    if (!authUser?.id || !chatId) return;
+    setIsAnalyzing(true);
+    try {
+      const zaiConversationId = await getOrCreateZaiConversation();
+      await forwardMessage(message, zaiConversationId);
+      const fileName = message.fileInfo?.name || 'file';
+      const { optimisticMessage, sendPromise } = await sendSocketMessage(
+        zaiConversationId,
+        'Hãy phân tích file ' + fileName + ' cho tôi',
+        undefined,
+        undefined,
+      );
+      const { addMessage, updateMessage } = useMessagesStore.getState();
+      addMessage(zaiConversationId, optimisticMessage);
+      await sendPromise;
+      updateMessage(zaiConversationId, optimisticMessage.id, { status: 'sent' });
+      setIsAnalyzing(false);
+      router.push({ pathname: '/chat/[id]', params: { id: zaiConversationId, name: 'Zai AI' } });
+    } catch (error: any) {
+      setIsAnalyzing(false);
+      Alert.alert(
+        t('common.error', { defaultValue: 'Lỗi' }),
+        error?.message || t('ai.analyze_failed', { defaultValue: 'Không thể phân tích file' }),
+      );
     }
-  }, [authUser?.id, chatId]);
+  }, [authUser?.id, chatId, router, t]);
 
   // Handle search input change with debounce
   const handleSearchChange = (text: string) => {
@@ -1228,6 +1256,7 @@ export default function ChatDetailScreen() {
           userRole={myGroupRole}
           canPinMessages={canPinMessages}
           onTranslate={handleTranslate}
+          onAnalyze={handleAnalyze}
         />
 
         <ForwardModal
@@ -1244,6 +1273,19 @@ export default function ChatDetailScreen() {
           onForward={handleForward}
           onBatchForward={handleBatchForwardMessages}
         />
+
+        {isAnalyzing && (
+          <Modal transparent animationType="fade">
+            <View style={styles.analyzeOverlay}>
+              <View style={[styles.analyzeContainer, { backgroundColor: theme.colors.card }]}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={[styles.analyzeText, { color: theme.colors.text }]}>
+                  {t('ai.analyzing', { defaultValue: 'Đang chuyển tiếp tới Zai...' })}
+                </Text>
+              </View>
+            </View>
+          </Modal>
+        )}
 
         {/* Group Management Modals */}
         <GroupInfoModal
@@ -1280,6 +1322,15 @@ export default function ChatDetailScreen() {
             onClose={() => setShowEntityInfoModal(false)}
           />
         )}
+
+        <TranslationModal
+          visible={showTranslationModal}
+          message={selectedTranslateMessage}
+          onClose={() => {
+            setShowTranslationModal(false);
+            setSelectedTranslateMessage(null);
+          }}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -1474,5 +1525,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.8)',
     marginTop: 1,
+  },
+  analyzeOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  analyzeContainer: {
+    paddingHorizontal: 32,
+    paddingVertical: 24,
+    borderRadius: 16,
+    alignItems: 'center',
+    gap: 16,
+  },
+  analyzeText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
 });

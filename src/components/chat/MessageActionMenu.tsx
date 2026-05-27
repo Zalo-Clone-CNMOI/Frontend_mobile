@@ -1,7 +1,7 @@
 import { useTheme } from '@/src/theme/themeContext';
 import type { ChatMessage } from '@/src/types/chat';
 import * as Clipboard from 'expo-clipboard';
-import { Copy, Edit, Forward, Languages, Pin, Reply, RotateCcw, Trash2 } from 'lucide-react-native';
+import { Copy, Edit, FileSearch, Forward, Languages, Pin, Reply, RotateCcw, Trash2 } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -26,6 +26,7 @@ interface MessageActionMenuProps {
   onPin?: (message: ChatMessage) => void;
   onUnpin?: (message: ChatMessage) => void;
   onTranslate?: (message: ChatMessage) => void;
+  onAnalyze?: (message: ChatMessage) => void;
   isPinned?: boolean;
   conversationType?: 'direct' | 'group';
   userRole?: 'owner' | 'admin' | 'member';
@@ -54,6 +55,7 @@ export function MessageActionMenu({
   onPin,
   onUnpin,
   onTranslate,
+  onAnalyze,
   isPinned,
   conversationType = 'direct',
   userRole = 'member',
@@ -87,6 +89,7 @@ export function MessageActionMenu({
 
   const isMe = Boolean(message.fromMe);
   const hasImageAttachment = message.attachments?.some((a: any) => a.type === 'image') || message.type === 'image';
+  const isFile = message.type === 'file' || (message.fileInfo && !hasImageAttachment && message.type !== 'video' && message.type !== 'voice');
   const canEdit = isMe && !message.isRevoked && !hasImageAttachment;
   const canPin = conversationType === 'direct' || userRole === 'owner' || userRole === 'admin' || canPinMessages === true;
 
@@ -156,7 +159,7 @@ export function MessageActionMenu({
               <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('chat.reply_to', { defaultValue: 'Trả lời' })}</Text>
             </TouchableOpacity>
 
-            {onTranslate && message.text && (
+            {onTranslate && message.text && message.type === 'text' && (
               <TouchableOpacity style={styles.gridItem} onPress={() => { onTranslate?.(message); onClose(); }}>
                 <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
                   <Languages size={24} color="#6366f1" />
@@ -165,6 +168,14 @@ export function MessageActionMenu({
               </TouchableOpacity>
             )}
 
+            {onAnalyze && isFile && (
+              <TouchableOpacity style={styles.gridItem} onPress={() => { onAnalyze?.(message); onClose(); }}>
+                <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
+                  <FileSearch size={24} color="#a855f7" />
+                </View>
+                <Text style={[styles.itemText, { color: theme.colors.text }]}>{t('ai.analyze', { defaultValue: 'Phân tích AI' })}</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity style={styles.gridItem} onPress={handleCopy}>
               <View style={[styles.iconBox, { borderColor: theme.colors.border }]}>
