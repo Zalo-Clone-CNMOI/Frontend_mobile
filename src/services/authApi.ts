@@ -212,24 +212,13 @@ export const qrReject = async (sessionId: string, payload?: any) => {
   return await api.post('/auth/qr/reject', body);
 };
 
-// Refresh access token using refresh token
-export const refreshToken = async (refreshToken: string) => {
-  const response = await api.post('/auth/refresh', {
-    refreshToken,
-  });
-  return response;
-};
-
 export default {
   checkPhoneExists,
   login,
   logout,
   deleteAllDeviceTokens,
   qrConfirm,
-  qrGenerate,
   qrReject,
-  qrStatus,
   register,
   resetPassword,
-  refreshToken,
 };

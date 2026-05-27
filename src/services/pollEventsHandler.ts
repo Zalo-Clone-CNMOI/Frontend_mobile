@@ -8,36 +8,29 @@ import {
   GroupPollOptionRemovedPayload,
   GroupPollClosedPayload,
 } from '../realtime/events';
-import { PollDetail, PollStatus, PollMessageMetadata, PollErrorCode } from '../types/dto/PollDTO';
+import { PollMessageMetadata } from '../types/dto/PollDTO';
 import { getDeduplicationService } from './deduplicationService';
 
-// Deduplication service for event-level deduplication
 const dedupService = getDeduplicationService();
 
-// Cached user ID for use outside React context
 let cachedUserId: string | null = null;
 
-// Set current user ID (call this from React context)
 export const setPollCurrentUserId = (userId: string) => {
   cachedUserId = userId;
 };
 
-// Get current user ID from cache
 const getCurrentUserId = (): string | null => {
   return cachedUserId;
 };
 
-// Check if event was already processed (using deduplication service)
 const isEventProcessed = (eventId: string): boolean => {
   return dedupService.isEventProcessed(eventId);
 };
 
-// Mark event as processed (using deduplication service)
 const markEventProcessed = (eventId: string) => {
   dedupService.markEventProcessed(eventId);
 };
 
-// Event callbacks registry
 interface PollEventCallbacks {
   onPollCreated?: (payload: GroupPollCreatedPayload) => void;
   onPollEdited?: (payload: GroupPollEditedPayload) => void;
@@ -49,14 +42,8 @@ interface PollEventCallbacks {
 
 let eventCallbacks: PollEventCallbacks = {};
 
-// Set event callbacks (call this from your component/hook)
 export const setPollEventCallbacks = (callbacks: PollEventCallbacks) => {
   eventCallbacks = { ...eventCallbacks, ...callbacks };
-};
-
-// Clear all callbacks
-export const clearPollEventCallbacks = () => {
-  eventCallbacks = {};
 };
 
 /**
@@ -194,196 +181,8 @@ export const subscribeToPollEvents = () => {
  * Unsubscribe from poll WebSocket events
  * Call this when leaving a conversation or chat screen
  */
-export const unsubscribeFromPollEvents = () => {
-  const socket = getSocket();
-  if (!socket) return;
-
-  socket.off('error');
-  socket.off(WsEvents.GroupPollCreated);
-  socket.off(WsEvents.GroupPollEdited);
-  socket.off(WsEvents.GroupPollVoteUpdated);
-  socket.off(WsEvents.GroupPollOptionAdded);
-  socket.off(WsEvents.GroupPollOptionRemoved);
-  socket.off(WsEvents.GroupPollClosed);
-
-  console.log('[PollEvents] Unsubscribed from poll events');
-};
-
-/**
- * Update poll state from WebSocket payload
- * Helper function to merge poll updates
- */
-export const mergePollUpdate = (
-  currentPoll: PollDetail | PollMessageMetadata,
-  update: Partial<PollDetail> | Partial<PollMessageMetadata>,
-): PollDetail | PollMessageMetadata => {
-  return {
-    ...currentPoll,
-    ...update,
-    // Preserve nested options if not provided in update
-    options: update.options || currentPoll.options,
-  };
-};
-
-/**
- * Apply poll edit changes to current poll state
- */
-export const applyPollEditChanges = (
-  currentPoll: PollDetail | PollMessageMetadata,
-  changes: GroupPollEditedPayload['changes'],
-): PollDetail | PollMessageMetadata => {
-  const updatedPoll = { ...currentPoll };
-
-  if (changes.question !== undefined) {
-    updatedPoll.question = changes.question;
-  }
-
-  if (changes.allow_multiple !== undefined) {
-    updatedPoll.allow_multiple = changes.allow_multiple;
-  }
-
-  if (changes.allow_add_option !== undefined) {
-    updatedPoll.allow_add_option = changes.allow_add_option;
-  }
-
-  if (changes.expires_at !== undefined) {
-    updatedPoll.expires_at = changes.expires_at;
-  }
-
-  // Apply edited option labels
-  if (changes.edited_option_labels && changes.edited_option_labels.length > 0) {
-    updatedPoll.options = updatedPoll.options.map(option => {
-      const editedLabel = changes.edited_option_labels?.find(
-        e => e.option_id === option.option_id
-      );
-      if (editedLabel) {
-        return { ...option, label: editedLabel.label };
-      }
-      return option;
-    });
-  }
-
-  return updatedPoll;
-};
-
-/**
- * Apply vote update to poll state
- * Note: In v1, the tally may be empty - this just updates what we have
- */
-export const applyVoteUpdate = (
-  currentPoll: PollDetail | PollMessageMetadata,
-  payload: GroupPollVoteUpdatedPayload,
-): PollDetail | PollMessageMetadata => {
-  const updatedPoll = { ...currentPoll };
-
-  // Update totals
-  updatedPoll.total_votes = payload.total_votes;
-
-  // If we have tally data, update vote counts
-  if (payload.tally && payload.tally.length > 0) {
-    updatedPoll.options = updatedPoll.options.map(option => {
-      const tallyItem = payload.tally.find(t => t.option_id === option.option_id);
-      if (tallyItem) {
-        return { ...option, vote_count: tallyItem.vote_count };
-      }
-      return option;
-    });
-  }
-
-  return updatedPoll;
-};
-
-/**
- * Add option to poll state
- */
-export const applyOptionAdded = (
-  currentPoll: PollDetail | PollMessageMetadata,
-  payload: GroupPollOptionAddedPayload,
-): PollDetail | PollMessageMetadata => {
-  const newOption = {
-    option_id: payload.option_id,
-    label: payload.label,
-    order_index: payload.order_index,
-    vote_count: 0,
-    added_by_user_id: payload.added_by_user_id,
-  };
-
-  return {
-    ...currentPoll,
-    options: [...currentPoll.options, newOption],
-  };
-};
-
-/**
- * Remove option from poll state
- */
-export const applyOptionRemoved = (
-  currentPoll: PollDetail | PollMessageMetadata,
-  payload: GroupPollOptionRemovedPayload,
-): PollDetail | PollMessageMetadata => {
-  return {
-    ...currentPoll,
-    options: currentPoll.options.filter(o => o.option_id !== payload.option_id),
-  };
-};
-
-/**
- * Close poll in state
- */
-export const applyPollClosed = (
-  currentPoll: PollDetail | PollMessageMetadata,
-  payload: GroupPollClosedPayload,
-): PollDetail | PollMessageMetadata => {
-  return {
-    ...currentPoll,
-    status: 'closed' as PollStatus,
-    closed_at: payload.closed_at,
-    closed_reason: payload.reason,
-    options: currentPoll.options.map(option => {
-      const finalTallyItem = payload.final_tally.find(t => t.option_id === option.option_id);
-      if (finalTallyItem) {
-        return { ...option, vote_count: finalTallyItem.vote_count };
-      }
-      return option;
-    }),
-  };
-};
-
-/**
- * Check if current user has voted on a poll
- */
-export const hasUserVoted = (poll: PollDetail, userId: string): boolean => {
-  return poll.my_vote?.length > 0 || false;
-};
-
-/**
- * Get selected option IDs for current user
- */
-export const getUserVotes = (poll: PollDetail, userId: string): string[] => {
-  return poll.my_vote || [];
-};
-
-/**
- * Calculate vote percentage for an option
- */
-export const calculateVotePercentage = (voteCount: number, totalVotes: number): number => {
-  if (totalVotes === 0) return 0;
-  return Math.round((voteCount / totalVotes) * 100);
-};
-
 export default {
   subscribeToPollEvents,
-  unsubscribeFromPollEvents,
   setPollEventCallbacks,
-  clearPollEventCallbacks,
   setPollCurrentUserId,
-  mergePollUpdate,
-  applyPollEditChanges,
-  applyVoteUpdate,
-  applyOptionAdded,
-  applyOptionRemoved,
-  applyPollClosed,
-  hasUserVoted,
-  getUserVotes,
-  calculateVotePercentage,
 };

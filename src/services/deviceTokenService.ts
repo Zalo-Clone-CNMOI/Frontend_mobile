@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import { getDeviceTokens, registerDeviceToken } from './deviceTokensApi';
+import { registerDeviceToken } from './deviceTokensApi';
 
 const STORAGE_KEYS = {
   LAST_TOKEN: 'push:lastToken',
@@ -16,42 +16,6 @@ export interface DeviceTokenInfo {
   createdAt: string;
   updatedAt: string;
 }
-
-/**
- * Get current device token with fallback strategy
- * Priority: API → AsyncStorage
- */
-export const getDeviceToken = async (): Promise<string | null> => {
-  try {
-    // Try to get from API first
-    const apiTokens = await getDeviceTokens();
-    const platform = Platform.OS === 'ios' ? 'ios' : 'android';
-    
-    // Find active token for current platform
-    const activeToken = apiTokens.find(
-      (t: DeviceTokenInfo) => t.platform === platform && t.isActive
-    );
-    
-    if (activeToken?.token) {
-      // Sync to AsyncStorage for fallback
-      await AsyncStorage.setItem(STORAGE_KEYS.LAST_TOKEN, activeToken.token);
-      return activeToken.token;
-    }
-    
-  } catch (apiError) {
-  }
-  
-  // Fallback to AsyncStorage
-  try {
-    const lastToken = await AsyncStorage.getItem(STORAGE_KEYS.LAST_TOKEN);
-    if (lastToken) {
-      return lastToken;
-    }
-  } catch (storageError) {
-  }
-  
-  return null;
-};
 
 /**
  * Register device token to API and sync to AsyncStorage

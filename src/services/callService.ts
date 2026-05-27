@@ -609,6 +609,47 @@ class CallService {
   }
 
   /**
+   * Fetch call history for a conversation
+   * GET /api/conversations/:conversationId/calls
+   */
+  async fetchCallHistory(conversationId: string): Promise<{
+    calls: Array<{
+      callId: string;
+      callType: 'audio' | 'video';
+      startedAt: number;
+      endedAt?: number;
+      duration?: number;
+      initiatorId: string;
+      participantCount: number;
+      status: string;
+    }>;
+    total: number;
+  }> {
+    try {
+      const res = await apiJsonRequest<{
+        calls: Array<Record<string, any>>;
+        total: number;
+      }>('GET', `/api/conversations/${encodeURIComponent(conversationId)}/calls`);
+      return {
+        calls: (res.data?.calls || []).map((c: any) => ({
+          callId: c.callId || c.call_id,
+          callType: c.callType || c.call_type || 'audio',
+          startedAt: c.startedAt || c.started_at,
+          endedAt: c.endedAt || c.ended_at,
+          duration: c.duration,
+          initiatorId: c.initiatorId || c.initiator_id,
+          participantCount: c.participantCount || c.participant_count || 0,
+          status: c.status || 'ended',
+        })),
+        total: res.data?.total || 0,
+      };
+    } catch (error) {
+      console.warn('[CallService] Failed to fetch call history', error);
+      return { calls: [], total: 0 };
+    }
+  }
+
+  /**
    * Send a signaling message (offer / answer / ice-candidate).
    * If the socket is currently disconnected, queue the message and
    * flush on reconnect. Never throws.
@@ -868,5 +909,6 @@ export function useCallService() {
     switchCamera: callService.switchCamera.bind(callService),
     handleReconnection: callService.handleReconnection.bind(callService),
     fetchIceServers: callService.fetchIceServers.bind(callService),
+    fetchCallHistory: callService.fetchCallHistory.bind(callService),
   };
 }
