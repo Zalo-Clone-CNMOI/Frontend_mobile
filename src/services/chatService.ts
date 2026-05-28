@@ -15,6 +15,7 @@ import { connectSocket, getSocket } from "./socket";
 import { getDeduplicationService } from "./deduplicationService";
 import { WsEvents } from "../realtime/events";
 import { toast } from "./toastService";
+import { updateConversationLastMessage } from "./chatUtils";
 
 // Normalize ID to string, handles null/undefined values
 const normalizeId = (value: unknown): string => String(value ?? "").trim();
@@ -1006,40 +1007,6 @@ export default {
   unreactMessage,
   leaveConversation,
 };
-
-
-
-// Update conversation list with last message preview
-async function updateConversationLastMessage(enrichedMessage: any, payload: any) {
-  const { detectPreviewTypeFromMessage, formatPreviewContent } = await import('../utils/messagePreviewFormatter');
-  const { useChatsStore } = await import('../store/useChatsStore');
-  
-  const conversationId = payload?.conversation_id || payload?.conversationId || enrichedMessage?.conversationId;
-  const createdAt = typeof payload?.created_at === 'number' ? payload?.created_at :
-                    typeof payload?.createdAt === 'number' ? payload?.createdAt :
-                    typeof payload?.ts === 'number' ? payload?.ts :
-                    typeof enrichedMessage?.timestamp === 'number' ? enrichedMessage?.timestamp : Date.now();
-  
-  if (!conversationId) return;
-  
-  // Format preview content based on message type
-  const previewContent = formatPreviewContent(enrichedMessage);
-  const previewType = detectPreviewTypeFromMessage(enrichedMessage);
-  
-  // Check if message is from me
-  const isFromMe = enrichedMessage?.fromMe === true || enrichedMessage?.sender?.me === true;
-  
-  // Update conversation list
-  useChatsStore.getState().updateLastMessage(
-    conversationId,
-    previewContent,
-    previewType,
-    createdAt,
-    payload?.sender_id || payload?.senderId || enrichedMessage?.senderId,
-    payload?.sender_name || payload?.senderName || enrichedMessage?.senderName,
-    !isFromMe // Increment unread if not from me
-  );
-}
 
 
 
