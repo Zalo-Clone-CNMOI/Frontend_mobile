@@ -107,6 +107,22 @@ function validateFileSize(fileSize: number, mimeType: string): void {
 }
 
 
+/**
+ * In-memory map: S3 fileKey → documentId (UUID from DocumentMetadata).
+ * Populated after confirmUpload for document uploads, consumed by
+ * getOrCreateDocumentConversation when the user taps "Analyze" on a file.
+ */
+const documentIdByKey = new Map<string, string>();
+
+/**
+ * Retrieve the document metadata UUID associated with a file key, if any.
+ * Returns undefined for non-document uploads (images, video) or when the
+ * document metadata has not yet been persisted.
+ */
+export function getDocumentId(fileKey: string): string | undefined {
+  return documentIdByKey.get(fileKey);
+}
+
 /** Fetch with timeout to prevent hanging */
 
 async function fetchWithTimeout(
@@ -485,13 +501,18 @@ async function confirmUpload(
 
     const data = json?.data ?? json;
 
-
+    const documentId = data.documentId as string | undefined;
+    if (documentId) {
+      documentIdByKey.set(key, documentId);
+    }
 
     return {
 
       ok: Boolean(data.ok ?? true),
 
       thumbnailKey: data.thumbnailKey,
+
+      documentId,
 
     };
 
@@ -582,6 +603,8 @@ export async function uploadMedia(
       visibility: presign.visibility,
 
       thumbnailKey: confirm.thumbnailKey,
+
+      documentId: confirm.documentId,
 
       contentType: file.mimeType,
 
@@ -792,6 +815,8 @@ export default {
   resolveMediaUrl,
 
   buildAttachmentDto,
+
+  getDocumentId,
 
 };
 

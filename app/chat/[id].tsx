@@ -637,21 +637,28 @@ export default function ChatDetailScreen() {
     if (!authUser?.id || !chatId) return;
     setIsAnalyzing(true);
     try {
-      const zaiConversationId = await getOrCreateZaiConversation();
-      await forwardMessage(message, zaiConversationId);
+      const fileKey = message.attachments?.[0]?.key || message.fileInfo?.uri || '';
+      const documentId = fileKey ? mediaService.getDocumentId(fileKey) : undefined;
+      let aiConversationId: string;
+      if (documentId) {
+        aiConversationId = await getOrCreateDocumentConversation(documentId);
+      } else {
+        aiConversationId = await getOrCreateZaiConversation();
+      }
+      await forwardMessage(message, aiConversationId);
       const fileName = message.fileInfo?.name || 'file';
       const { optimisticMessage, sendPromise } = await sendSocketMessage(
-        zaiConversationId,
+        aiConversationId,
         'Hãy phân tích file ' + fileName + ' cho tôi',
         undefined,
         undefined,
       );
       const { addMessage, updateMessage } = useMessagesStore.getState();
-      addMessage(zaiConversationId, optimisticMessage);
+      addMessage(aiConversationId, optimisticMessage);
       await sendPromise;
-      updateMessage(zaiConversationId, optimisticMessage.id, { status: 'sent' });
+      updateMessage(aiConversationId, optimisticMessage.id, { status: 'sent' });
       setIsAnalyzing(false);
-      router.push({ pathname: '/chat/[id]', params: { id: zaiConversationId, name: 'Zai AI' } });
+      router.push({ pathname: '/chat/[id]', params: { id: aiConversationId, name: 'Zai AI' } });
     } catch (error: any) {
       setIsAnalyzing(false);
       Alert.alert(
