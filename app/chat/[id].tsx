@@ -16,7 +16,7 @@ import { useMessagePin } from '@/src/hooks/useMessagePin';
 import { getMessageReactions, sendMessage as sendSocketMessage } from '@/src/services/chatService';
 import * as mediaService from '@/src/services/mediaService';
 
-import { getOrCreateZaiConversation, getOrCreateDocumentConversation } from '@/src/services/ai/aiConversationApi';
+import { getOrCreateDocumentConversation } from '@/src/services/ai/aiConversationApi';
 import { lookupMessage, getPinnedMessages } from '@/src/services/messagesApi';
 import { mapPinnedMessagesListFromApi } from '@/src/types/mappers/DTOMappers';
 import { searchUsers } from '@/src/services/usersApi';
@@ -639,12 +639,15 @@ export default function ChatDetailScreen() {
     try {
       const fileKey = message.attachments?.[0]?.key || message.fileInfo?.uri || '';
       const documentId = fileKey ? mediaService.getDocumentId(fileKey) : undefined;
-      let aiConversationId: string;
-      if (documentId) {
-        aiConversationId = await getOrCreateDocumentConversation(documentId);
-      } else {
-        aiConversationId = await getOrCreateZaiConversation();
+      if (!documentId) {
+        setIsAnalyzing(false);
+        Alert.alert(
+          'Không thể phân tích file',
+          'File này chưa được đồng bộ với AI. Vui lòng tải file lên lại và thử sau.',
+        );
+        return;
       }
+      const aiConversationId = await getOrCreateDocumentConversation(documentId);
       const fileName = message.fileInfo?.name || 'file';
       const { optimisticMessage, sendPromise } = await sendSocketMessage(
         aiConversationId,
