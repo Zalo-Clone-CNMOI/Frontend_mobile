@@ -13,7 +13,7 @@ import { PresenceIndicator } from '@/src/components/common/PresenceIndicator';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useChatDetailScreenLogic } from '@/src/hooks/screens/useChatDetailScreen';
 import { useMessagePin } from '@/src/hooks/useMessagePin';
-import { getMessageReactions, forwardMessage, sendMessage as sendSocketMessage } from '@/src/services/chatService';
+import { getMessageReactions, sendMessage as sendSocketMessage } from '@/src/services/chatService';
 import * as mediaService from '@/src/services/mediaService';
 
 import { getOrCreateZaiConversation, getOrCreateDocumentConversation } from '@/src/services/ai/aiConversationApi';
