@@ -507,6 +507,15 @@ export function useChatDetailScreenLogic() {
         { replyToMessage: replyingMessage },
       );
       addMessage(chatId, optimisticMessage);
+      updateLastMessage(
+        chatId,
+        fallbackLabel,
+        optimisticMessage.type || 'file',
+        Date.now(),
+        user?.id,
+        (user as any)?.fullName || (user as any)?.name,
+        false,
+      );
       await sendPromise;
       updateMessage(chatId, optimisticMessage.id, { status: 'sent' });
     } catch (error) {
@@ -521,7 +530,7 @@ export function useChatDetailScreenLogic() {
     setTimeout(() => {
       flashListRef.current?.scrollToEnd({ animated: true });
     }, 100);
-  }, [addMessage, chatId, replyingMessage, updateMessage]);
+  }, [addMessage, chatId, replyingMessage, updateMessage, updateLastMessage, user]);
 
   useEffect(() => {
     if (!capturedPhotoUri || !chatId) return;
