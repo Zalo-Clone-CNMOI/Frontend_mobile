@@ -62,6 +62,7 @@ export function useChatDetailScreenLogic() {
   const flashListRef = useRef<any>(null);
   const loadedCursorRef = useRef<string | null>(null);
   const lastCapturedPhotoRef = useRef<string | null>(null);
+  const zaiMentionCooldownRef = useRef<Record<string, number>>({});
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageUrls, setSelectedImageUrls] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -750,6 +751,18 @@ export function useChatDetailScreenLogic() {
     const trimmed = input.trim();
     if (!trimmed) return;
 
+    const zaiIdx = trimmed.indexOf('@Zai');
+    let mentions: Array<{ user_id: string; mention_type: 'user'; offset: number; length: number }> | undefined;
+    if (zaiIdx >= 0) {
+      const last = zaiMentionCooldownRef.current[chatId] || 0;
+      if (Date.now() - last < 5000) {
+        Alert.alert('Zai đang bận', 'Vui lòng thử lại sau vài giây');
+        return;
+      }
+      zaiMentionCooldownRef.current[chatId] = Date.now();
+      mentions = [{ user_id: NETWORK_CONFIG.ZAI_BOT_ID, mention_type: 'user', offset: zaiIdx, length: 4 }];
+    }
+
     if (editingMessage) {
       try {
         const createdAt = typeof editingMessage.timestamp === 'number' ? editingMessage.timestamp :
@@ -782,7 +795,7 @@ export function useChatDetailScreenLogic() {
         chatId,
         trimmed,
         undefined,
-        { replyToMessage: replyingMessage },
+        { replyToMessage: replyingMessage, mentions },
       );
       addMessage(chatId, optimisticMessage);
       // Update conversation lastMessage when sending new message (no unread increment for own messages)
