@@ -645,7 +645,6 @@ export default function ChatDetailScreen() {
       } else {
         aiConversationId = await getOrCreateZaiConversation();
       }
-      await forwardMessage(message, aiConversationId);
       const fileName = message.fileInfo?.name || 'file';
       const { optimisticMessage, sendPromise } = await sendSocketMessage(
         aiConversationId,
