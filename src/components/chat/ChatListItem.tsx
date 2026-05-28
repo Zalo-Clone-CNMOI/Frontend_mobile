@@ -43,9 +43,12 @@ export function ChatListItem({
   const { user: authUser } = useAuth();
   const messageTime = item.lastMessage?.timestamp || item.lastMessageAt;
 
+  const ZAI_BOT_ID = NETWORK_CONFIG.ZAI_BOT_ID;
+  const isZaiChat = item.type === 'ai_assistant' || item.otherUserId === ZAI_BOT_ID;
+
   // Get presence status for the other user (not for groups)
   const getPresenceStatus = () => {
-    if (item.isGroup) return null;
+    if (item.isGroup || isZaiChat) return null;
 
     // Get the other user's ID (for direct conversations)
     const userId = item.otherUserId || item.userId;
@@ -66,20 +69,22 @@ export function ChatListItem({
 
   // Use nickname for direct conversations if available
   const displayName = useMemo(() => {
+    if (isZaiChat) return 'Zai';
     if (!item.isGroup && item.myNickname) {
       return item.myNickname;
     }
     return item.name;
-  }, [item.isGroup, item.myNickname, item.name]);
+  }, [isZaiChat, item.isGroup, item.myNickname, item.name]);
 
   // Memoize computed values to avoid unnecessary re-renders
   const avatarSource = useMemo(() => {
+    if (isZaiChat) return null;
     const normalizedAvatar = normalizeAvatarUrl(item.avatar || undefined);
     if (normalizedAvatar) {
       return { uri: normalizedAvatar };
     }
     return null;
-  }, [item.avatar]);
+  }, [isZaiChat, item.avatar]);
 
   const formattedLastMessage = useMemo(() => {
     const type = item.lastMessage?.type || 'text';
@@ -113,13 +118,15 @@ export function ChatListItem({
     let prefix = '';
     if (fromMe) {
       prefix = 'Bạn: ';
+    } else if (isZaiChat) {
+      prefix = 'Zai: ';
     } else {
       const senderName = (item.lastMessage as any)?.senderName || '';
       prefix = senderName ? `${senderName}: ` : '';
     }
 
     return prefix + messageContent;
-  }, [item.lastMessage, authUser?.id]);
+  }, [item.lastMessage, authUser?.id, isZaiChat]);
 
 
 
@@ -145,7 +152,9 @@ export function ChatListItem({
 
       <View>
 
-        {avatarSource ? (
+        {isZaiChat ? (
+          <AvatarWithInitials name="Zai" size={55} style={styles.avatar} />
+        ) : avatarSource ? (
 
           <Image source={avatarSource} style={styles.avatar} />
 

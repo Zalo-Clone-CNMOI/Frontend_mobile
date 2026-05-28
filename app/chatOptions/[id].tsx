@@ -1,5 +1,5 @@
 import { useTheme } from '@/src/theme/themeContext';
-import { Bell, BellOff, ChevronLeft, Crown, FileText, List, Pin, Search, UserPlus } from 'lucide-react-native';
+import { Bell, BellOff, ChevronLeft, Crown, FileText, List, Pin, Search, Sparkles, UserPlus } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -29,6 +29,7 @@ import { toast } from '@/src/services/toastService';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import { pinConversation, unpinConversation } from '@/src/services/conversationsApi';
+import { catchUp, getOrCreateZaiConversation } from '@/src/services/ai/aiConversationApi';
 
 export default function ChatOptionsScreen() {
   const theme = useTheme();
@@ -112,6 +113,31 @@ export default function ChatOptionsScreen() {
       }
     } catch (error: any) {
       toast.error(error.message || 'Không thể thực hiện thao tác');
+    }
+  };
+
+  const handleSummaryChat = async () => {
+    try {
+      const summaryResult = await catchUp(chatId);
+
+      if (!summaryResult.hadUnread) {
+        toast.info('Bạn đã đọc hết rồi');
+        return;
+      }
+
+      const autoPrompt = `Hãy tóm tắt cuộc trò chuyện "${chatName}" cho tôi. Có ${summaryResult.messageCount} tin nhắn.\n\nTÓM TẮT:\n${summaryResult.summary}`;
+      let finalPrompt = autoPrompt;
+      if (summaryResult.truncated) {
+        finalPrompt += '\n\n(Lưu ý: Một số tin nhắn đã bị cắt ngắn)';
+      }
+
+      const zaiConvId = await getOrCreateZaiConversation();
+      router.push({
+        pathname: '/chat/[id]',
+        params: { id: zaiConvId, autoPrompt: finalPrompt },
+      } as any);
+    } catch (error: any) {
+      toast.error(String(error?.message || 'Không thể tóm tắt cuộc trò chuyện'));
     }
   };
 
@@ -347,6 +373,35 @@ export default function ChatOptionsScreen() {
               </View>
             </TouchableOpacity>
           )}
+
+          {/* Tóm tắt cuộc trò chuyện */}
+          <TouchableOpacity
+            style={[chatOptionsStyles.optionItem, { borderBottomColor: theme.colors.border }]}
+            onPress={handleSummaryChat}
+          >
+            <View style={chatOptionsStyles.optionLeft}>
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  backgroundColor: theme.colors.primary + '15',
+                }}
+              >
+                <Sparkles size={18} color={theme.colors.primary} />
+              </View>
+              <View style={chatOptionsStyles.optionTextContainer}>
+                <Text style={[chatOptionsStyles.optionTitle, { color: theme.colors.text }]}>
+                  Tóm tắt
+                </Text>
+                <Text style={[chatOptionsStyles.optionSubtitle, { color: theme.colors.icon }]}>
+                  Tóm tắt cuộc trò chuyện này
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
 
           {/* Group Invites Center (Group only, admin/owner) - Invite and view invites */}
           {isGroup && myRole !== 'member' && (

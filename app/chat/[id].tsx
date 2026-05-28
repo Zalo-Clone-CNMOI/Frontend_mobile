@@ -16,16 +16,20 @@ import { useMessagePin } from '@/src/hooks/useMessagePin';
 import { getMessageReactions, forwardMessage, sendMessage as sendSocketMessage } from '@/src/services/chatService';
 import * as mediaService from '@/src/services/mediaService';
 
-import { getOrCreateZaiConversation } from '@/src/services/ai/aiConversationApi';
+import { getOrCreateZaiConversation, getOrCreateDocumentConversation } from '@/src/services/ai/aiConversationApi';
 import { lookupMessage, getPinnedMessages } from '@/src/services/messagesApi';
 import { mapPinnedMessagesListFromApi } from '@/src/types/mappers/DTOMappers';
 import { searchUsers } from '@/src/services/usersApi';
 import { summaryService } from '@/src/services/ai/SummaryService';
+import { smartReplyService } from '@/src/services/ai/SmartReplyService';
+import { NETWORK_CONFIG } from '@/src/config/network';
 import { SummaryModal } from '@/src/components/chat/SummaryModal';
 import { TranslationModal } from '@/src/components/chat/TranslationModal';
 import { EntityInfoModal } from '@/src/components/chat/EntityInfoModal';
+import { SmartReplyChips } from '@/src/components/chat/SmartReplyChips';
 import { useEntityDetectionStore } from '@/src/store/useEntityDetectionStore';
 import { useAISmartReplyStore } from '@/src/store/useAISmartReplyStore';
+import { useZaiChatStore } from '@/src/store/useZaiChatStore';
 import { useChatStore } from '@/src/store/chatStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
 import { useChatsStore } from '@/src/store/useChatsStore';
@@ -36,9 +40,11 @@ import { useCallStore } from '@/src/store/useCallStore';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Bell, ChevronDown, ChevronRight, ChevronUp, Circle, Forward, List, Phone, Search, Sparkles, Video, X } from 'lucide-react-native';
+import { Bell, ChevronDown, ChevronRight, ChevronUp, Circle, Forward, List, Phone, Search, Sparkles, Square, Video, X } from 'lucide-react-native';
 import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
 import { PresenceText } from '@/src/components/common/PresenceIndicator';
+import { getSocket } from '@/src/services/socket';
+import { WsEvents } from '@/src/realtime/events';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { leaveConversation, addMember, markAsRead, getConversationDetail, disbandConversation } from '@/src/services/conversationsApi';
@@ -65,6 +71,8 @@ export default function ChatDetailScreen() {
   const setMessageReactions = useMessagesStore((state) => state.setMessageReactions);
   const messageCount = useMessagesStore((state) => (state.messagesByChatId[chatId || '']?.length) ?? 0);
   const deleteChat = useChatsStore((state) => state.deleteChat);
+  const isZaiTyping = useZaiChatStore((state) => state.isZaiTyping(chatId));
+  const isStreamActive = useZaiChatStore((state) => state.isStreamActive(chatId));
   const { pinMessage, unpinMessage, isMessagePinned } = useMessagePin();
 
   // Handle successful leave group - remove conversation from list
@@ -149,6 +157,15 @@ export default function ChatDetailScreen() {
     setHighlightedMessageId,
     jumpToMessage,
   } = useChatDetailScreenLogic();
+
+  const ZAI_BOT_ID = NETWORK_CONFIG.ZAI_BOT_ID;
+  const isAiAssistant = currentChat?.type === 'ai_assistant';
+  const isZaiDirectChat = !currentChat?.isGroup && currentChat?.otherUserId === ZAI_BOT_ID;
+
+  const handleSend = useCallback(() => {
+    onSend();
+    setInput('');
+  }, [onSend, setInput]);
 
   const conversationCacheEntry = useConversationDetailStore((state) => state.cache[chatId]);
 
@@ -464,6 +481,35 @@ export default function ChatDetailScreen() {
     }
   };
 
+  const handleSmartReplySelect = useCallback(
+    (suggestion: string) => {
+      setInput(suggestion);
+      setTimeout(() => onSend(), 100);
+    },
+    [setInput, onSend]
+  );
+
+  const handleSmartReplyDismiss = useCallback(() => {
+    try {
+      smartReplyService.clearSuggestions(chatId);
+    } catch (e) {
+      console.warn('[SmartReply] clearSuggestions failed:', e);
+    }
+  }, [chatId]);
+
+  const handleAbortStream = useCallback(() => {
+    try {
+      const socket = getSocket();
+      if (socket) {
+        socket.emit(WsEvents.AiStreamCancel, { conversation_id: chatId });
+      }
+      useZaiChatStore.getState().clearStreaming(chatId);
+      useZaiChatStore.getState().setZaiTyping(chatId, false);
+    } catch (e) {
+      console.warn('[Zai] Failed to abort stream:', e);
+    }
+  }, [chatId]);
+
   const handleStartVoiceCall = async () => {
     if (!currentChat) {
       Alert.alert('Lỗi', 'Không tìm thấy thông tin cuộc trò chuyện');
@@ -736,6 +782,30 @@ export default function ChatDetailScreen() {
   };
 
   const handleLeaveGroup = async () => {
+    if (isAiAssistant || isZaiDirectChat) {
+      Alert.alert(
+        'Xoá chat Zai',
+        'Bạn có chắc muốn xoá cuộc trò chuyện với Zai?',
+        [
+          { text: 'Hủy', style: 'cancel' },
+          {
+            text: 'Xoá',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await leaveConversation(chatId);
+                deleteChat(chatId);
+                router.back();
+              } catch (error: any) {
+                Alert.alert('Lỗi', error.message || 'Không thể xoá chat Zai');
+              }
+            },
+          },
+        ],
+      );
+      return;
+    }
+
     // Fetch fresh role from API to determine if user is owner
     try {
       const response = await getConversationDetail(chatId);
@@ -961,7 +1031,7 @@ export default function ChatDetailScreen() {
                   <Text style={[styles.headerTitle, { color: theme.colors.textHeader }]}>
                     {title}
                   </Text>
-                  {!isGroup && otherUserPresence && (
+                  {!isGroup && otherUserPresence && !isAiAssistant && !isZaiDirectChat && (
                     <View style={styles.headerPresenceContainer}>
                       <PresenceIndicator
                         status={otherUserPresence?.status || 'offline'}
@@ -974,7 +1044,7 @@ export default function ChatDetailScreen() {
                       />
                     </View>
                   )}
-                  {isGroup && (
+                  {isGroup && !isAiAssistant && !isZaiDirectChat && (
                     <Text style={[styles.headerSubtitle, { color: theme.colors.icon || '#8E8E93', opacity: 0.7 }]}>
                       {(currentChat as any)?.memberCount || 0} thành viên
                     </Text>
@@ -990,6 +1060,10 @@ export default function ChatDetailScreen() {
                   <Text style={[styles.cancelButtonText, { color: theme.colors.primary }]}>
                     {t('common.cancel', { defaultValue: 'Hủy' })}
                   </Text>
+                </TouchableOpacity>
+              ) : isAiAssistant || isZaiDirectChat ? (
+                <TouchableOpacity style={styles.callButton} onPress={handleOpenSearch}>
+                  <Search size={20} color={theme.colors.iconHeader} />
                 </TouchableOpacity>
               ) : !isSearchMode && (
                 <>
@@ -1032,7 +1106,7 @@ export default function ChatDetailScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? keyboardOffset : 0}
       >
         {/* Search UI - Zalo Style */}
-        {showPinnedSection && !isSearchMode && canPinMessages && (
+        {!isAiAssistant && !isZaiDirectChat && showPinnedSection && !isSearchMode && canPinMessages && (
           <PinnedMessagesSection
             pinnedMessages={pinnedMessages}
             onPressMessage={handlePinMessagePress}
@@ -1109,6 +1183,7 @@ export default function ChatDetailScreen() {
           keyboardShouldPersistTaps="handled"
           onStartReached={!isSearchMode ? handleLoadMore : undefined}
           onStartReachedThreshold={0.2}
+          ListHeaderComponent={undefined}
           renderItem={({ item }: { item: any }) => (
             <View style={[
               highlightedMessageId === item.id && styles.highlightedMessage
@@ -1150,12 +1225,31 @@ export default function ChatDetailScreen() {
         )}
 
         <View>
-          {isTypingVisible && !isMultiSelectMode ? <TypingIndicator text={typingText} /> : null}
+          {isStreamActive && !isMultiSelectMode ? (
+            <View style={styles.streamingBar}>
+              <View style={styles.streamingInfo}>
+                <TypingIndicator text="Zai đang trả lời..." />
+              </View>
+              <TouchableOpacity style={styles.stopButton} onPress={handleAbortStream}>
+                <Square size={14} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          ) : isZaiTyping && !isMultiSelectMode ? (
+            <TypingIndicator text="Zai đang trả lời..." />
+          ) : isTypingVisible && !isMultiSelectMode ? (
+            <TypingIndicator text={typingText} />
+          ) : null}
+          {!isMultiSelectMode && !isAiAssistant && !isZaiDirectChat && <SmartReplyChips
+            conversationId={chatId}
+            userId={authUser?.id || ''}
+            onSelect={handleSmartReplySelect}
+            onDismiss={handleSmartReplyDismiss}
+          />}
           {!isMultiSelectMode && canSendMessages && (
             <ChatComposer
               value={input}
               onChangeText={setInput}
-              onSend={onSend}
+              onSend={handleSend}
               onSendFiles={handleSendFiles}
               onTypingStart={handleTypingStart}
               onTypingStop={handleTypingStop}
@@ -1178,11 +1272,6 @@ export default function ChatDetailScreen() {
             onCancelReply={() => setReplyingMessage(null)}
               conversationId={chatId}
               userId={authUser?.id}
-              onSmartReplyDismiss={() => {
-                import('@/src/services/ai/SmartReplyService').then(({ smartReplyService }) => {
-                  smartReplyService.clearSuggestions(chatId);
-                });
-              }}
             />
           )}
           {!isMultiSelectMode && !canSendMessages && (
@@ -1542,5 +1631,22 @@ const styles = StyleSheet.create({
   analyzeText: {
     fontSize: 15,
     fontWeight: '500',
+  },
+  streamingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 12,
+  },
+  streamingInfo: {
+    flex: 1,
+  },
+  stopButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#ff3b30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
   },
 });

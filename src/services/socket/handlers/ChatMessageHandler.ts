@@ -1,6 +1,7 @@
 import { BaseHandler } from "./BaseHandler";
 import * as messagesApi from "../../messagesApi";
 import { toLegacyChatMessage, enrichReplyToDetails, updateConversationLastMessage } from "../../chatUtils";
+import { getCurrentUser } from "../../authService";
 
 /**
  * ChatMessageHandler - Handles chat:message socket events
@@ -37,6 +38,7 @@ export class ChatMessageHandler extends BaseHandler {
     
     const conversationId = payload?.conversation_id || payload?.conversationId;
     const messageId = payload?.id || payload?.message_id;
+    const senderId = payload?.sender_id || payload?.senderId;
     const createdAt =
       payload?.created_at ?? payload?.createdAt ?? payload?.ts ?? payload?.timestamp;
 
@@ -78,6 +80,8 @@ export class ChatMessageHandler extends BaseHandler {
       const { useMessagesStore } = await import("../../../store/useMessagesStore");
       useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
       await updateConversationLastMessage(enrichedMessage, payload);
+
+      this.triggerAiAfterMessage(conversationId, senderId);
       return;
     }
 
@@ -95,6 +99,8 @@ export class ChatMessageHandler extends BaseHandler {
       const { useMessagesStore } = await import("../../../store/useMessagesStore");
       useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
       await updateConversationLastMessage(enrichedMessage, payload);
+
+      this.triggerAiAfterMessage(conversationId, senderId);
     } catch (e) {
       this.error("Error fetching message details", e);
       const uiMessage = toLegacyChatMessage(payload);
@@ -104,6 +110,8 @@ export class ChatMessageHandler extends BaseHandler {
       const { useMessagesStore } = await import("../../../store/useMessagesStore");
       useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
       await updateConversationLastMessage(enrichedMessage, payload);
+
+      this.triggerAiAfterMessage(conversationId, senderId);
     }
   }
 
@@ -133,6 +141,28 @@ export class ChatMessageHandler extends BaseHandler {
     const messageId = payload?.message_id;
     if (conversationId && messageId) {
       useMessagesStore.getState().deleteMessage(conversationId, messageId);
+    }
+  }
+
+  private async triggerAiAfterMessage(conversationId: string, senderId: string): Promise<void> {
+    if (!conversationId) return;
+    try {
+      const currentUser = await getCurrentUser();
+      const currentUserId = currentUser?.id || (currentUser as any)?._id || '';
+      if (!currentUserId || senderId === currentUserId) return;
+
+      this.log("Triggering AI features for conversation", conversationId);
+
+      const { useAISummaryStore } = await import("../../../store/useAISummaryStore");
+      useAISummaryStore.getState().invalidate(conversationId);
+
+      const { smartReplyService } = await import("../../ai/SmartReplyService");
+      smartReplyService.requestSmartReply({
+        conversationId,
+        userId: currentUserId,
+      });
+    } catch (e) {
+      this.error("Error triggering AI features", e);
     }
   }
 }

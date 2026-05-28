@@ -234,6 +234,8 @@ export type ApiMessageDTO = {
 
   body?: string;
 
+  body_format?: string;
+
   text?: string;
 
   content?: string;

@@ -1,7 +1,7 @@
 import { Socket } from "socket.io-client";
 import type { UserV2 } from "../types/contacts";
 import type { ChatMessage } from "../types/chat";
-import type { SocketChatJoinPayload } from "../types/dto/SocketDTO";
+import type { SocketChatJoinPayload, SocketChatMessageRejectedEvent } from "../types/dto/SocketDTO";
 import type { MessageReactionsResponseDto } from "../types/dto/ApiDTO";
 import { mapConversationsListFromApi } from "../types/mappers/DTOMappers";
 import type { MediaFileInput } from "../types/media";
@@ -13,6 +13,8 @@ import { buildAttachmentDto, uploadMedia } from "./mediaService";
 import * as messagesApi from "./messagesApi";
 import { connectSocket, getSocket } from "./socket";
 import { getDeduplicationService } from "./deduplicationService";
+import { WsEvents } from "../realtime/events";
+import { toast } from "./toastService";
 
 // Normalize ID to string, handles null/undefined values
 const normalizeId = (value: unknown): string => String(value ?? "").trim();
@@ -55,12 +57,12 @@ const isCurrentActor = (senderId: unknown): boolean => {
 // Build stable message ID from backend message
 // Uses messageId if available, otherwise creates composite ID from conversationId, senderId, createdAt, body, attachment
 const buildStableMessageId = (apiMessage: any): string => {
-  const directId = normalizeId(apiMessage?.messageId);
+  const directId = normalizeId(apiMessage?.messageId || apiMessage?.message_id || apiMessage?.id);
   if (directId) return directId;
 
-  const conversationId = normalizeId(apiMessage?.conversationId);
-  const senderId = normalizeId(apiMessage?.senderId);
-  const createdAt = normalizeId(apiMessage?.createdAt);
+  const conversationId = normalizeId(apiMessage?.conversationId || apiMessage?.conversation_id);
+  const senderId = normalizeId(apiMessage?.senderId || apiMessage?.sender_id);
+  const createdAt = normalizeId(apiMessage?.createdAt || apiMessage?.created_at);
   const body = normalizeId(apiMessage?.body);
   const attachmentKey = normalizeId(
     Array.isArray(apiMessage?.attachments) ? apiMessage?.attachments?.[0]?.key : "",
@@ -742,6 +744,33 @@ function registerSocketListeners() {
     await updateConversationLastMessage(enrichedMessage, payload);
   };
 
+  const handleMessageRejected = (payload: SocketChatMessageRejectedEvent) => {
+    const { message_id, conversation_id, reason, labels } = payload;
+    if (!conversation_id || !message_id) return;
+
+    // 1. Remove optimistic bubble from store
+    const { useMessagesStore } = require('../store/useMessagesStore');
+    useMessagesStore.getState().removeMessage(conversation_id, message_id);
+
+    // 2. Clean up pending acks if still there
+    if (message_id) {
+      const p = pendingAcks.get(message_id);
+      if (p) {
+        p.reject(payload);
+        pendingAcks.delete(message_id);
+      }
+    }
+
+    // 3. Toast with reason
+    const reasonText =
+      reason === 'moderation' ? 'vi phạm tiêu chuẩn cộng đồng'
+      : reason === 'rate_limit' ? 'quá nhiều yêu cầu'
+      : reason === 'unauthorized' ? 'không có quyền'
+      : reason || 'không xác định';
+    const labelText = labels?.length ? ` (${labels.join(', ')})` : '';
+    toast.error(`Tin nhắn bị chặn: ${reasonText}${labelText}`);
+  };
+
   // Register all listeners
   // NOTE: chat:message is now handled here directly (useChatSocket is deprecated)
   s.on("connect", handleConnect);
@@ -752,6 +781,7 @@ function registerSocketListeners() {
   s.on("chat:reaction:added", handleReactionAdded);
   s.on("chat:reaction:removed", handleReactionRemoved);
   s.on("chat:system-message", handleSystemMessage);
+  s.on(WsEvents.ChatMessageRejected, handleMessageRejected);
 
   listenersRegistered = true;
 
@@ -765,6 +795,7 @@ function registerSocketListeners() {
     s.off("chat:reaction:added", handleReactionAdded);
     s.off("chat:reaction:removed", handleReactionRemoved);
     s.off("chat:system-message", handleSystemMessage);
+    s.off(WsEvents.ChatMessageRejected, handleMessageRejected);
     listenersRegistered = false;
   };
 }

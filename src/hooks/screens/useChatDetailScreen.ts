@@ -1,3 +1,4 @@
+import { NETWORK_CONFIG } from '@/src/config/network';
 import { useAuth } from '@/src/contexts/AuthContext';
 import {
   usePresenceHeartbeat,
@@ -18,6 +19,7 @@ import {
 } from '@/src/services/chatService';
 import { searchMessages as searchMessagesApi } from '@/src/services/messagesApi';
 import { connectSocket } from '@/src/services/socket';
+import { smartReplyService } from '@/src/services/ai/SmartReplyService';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
@@ -213,13 +215,18 @@ export function useChatDetailScreenLogic() {
   const currentChat = useChatsStore((state) => state.chats.find((chat) => chat.conversationId === chatId));
 
   // Compute title reactively from store (priority: store > route params > default)
+  const ZAI_BOT_ID = NETWORK_CONFIG.ZAI_BOT_ID;
+  const isAiAssistant = currentChat?.type === 'ai_assistant';
+  const isZaiDirectChat = !currentChat?.isGroup && currentChat?.otherUserId === ZAI_BOT_ID;
+
   const title = useMemo(() => {
+    if (isAiAssistant || isZaiDirectChat) return 'Zai';
     const storeName = currentChat?.name?.trim();
     if (storeName) return storeName;
     const routeName = getSingleRouteParam(params?.name).trim();
     if (routeName.length > 0) return routeName;
     return t('chat.default_title');
-  }, [params?.name, t, currentChat?.name]);
+  }, [params?.name, t, currentChat?.name, isAiAssistant, isZaiDirectChat]);
 
   const fetchConversationDetail = useConversationDetailStore((state) => state.fetchConversationDetail);
 
@@ -296,13 +303,14 @@ export function useChatDetailScreenLogic() {
 
         // Request AI smart reply suggestions
         if (messagesWithAvatar.length > 0 && user?.id) {
-          const userId = user.id;
-          import('@/src/services/ai/SmartReplyService').then(({ smartReplyService }) => {
+          try {
             smartReplyService.requestSmartReply({
               conversationId: chatId,
-              userId,
+              userId: user.id,
             });
-          });
+          } catch (e) {
+            console.warn('[SmartReply] requestSmartReply failed:', e);
+          }
         }
 
         // Handle jumpToMessageId - scroll to specific message

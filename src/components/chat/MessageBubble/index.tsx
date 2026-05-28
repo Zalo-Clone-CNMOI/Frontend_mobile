@@ -29,6 +29,8 @@ import { useUserProfiles } from '@/src/hooks/useUserProfiles';
 import type { DetectedEntity } from '@/src/store/useEntityDetectionStore';
 import { MentionHighlight } from '@/src/components/chat/MentionHighlight';
 import { EntityInfoModal } from '../EntityInfoModal';
+import { ENTITY_COLORS } from '@/src/constants/entityColors';
+import Markdown from 'react-native-markdown-display';
 
 // ─── Helper: HighlightText Component ─────────────────────────────────────────
 // Highlights search terms in message text like Zalo
@@ -543,7 +545,15 @@ function EntityHighlightText({
   entityColors = {},
   onEntityPress,
 }: EntityHighlightTextProps) {
-  const highConfidenceEntities = entities.filter((e) => e.confidence > 0.75);
+  const highConfidenceEntities = entities.filter(
+    (e) =>
+      e.confidence > 0.75 &&
+      typeof e.start_index === 'number' &&
+      typeof e.end_index === 'number' &&
+      e.start_index >= 0 &&
+      e.end_index >= e.start_index &&
+      e.start_index < text.length
+  );
 
   if (!highConfidenceEntities || highConfidenceEntities.length === 0) {
     return (
@@ -553,16 +563,21 @@ function EntityHighlightText({
     );
   }
 
-  const sortedEntities = [...highConfidenceEntities].sort((a, b) => a.start_index - b.start_index);
+  const sortedEntities = [...highConfidenceEntities].sort(
+    (a, b) => (a.start_index ?? 0) - (b.start_index ?? 0)
+  );
 
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
 
-  sortedEntities.forEach((entity) => {
-    if (entity.start_index > lastIndex && entity.start_index < text.length) {
+  sortedEntities.forEach((entity, idx) => {
+    const startIdx = entity.start_index ?? lastIndex;
+    const endIdx = entity.end_index ?? startIdx;
+
+    if (startIdx > lastIndex && startIdx < text.length) {
       parts.push(
         <Text key={`text-${lastIndex}`} style={[styles.text, { color: textColor }]}>
-          {text.slice(lastIndex, entity.start_index)}
+          {text.slice(lastIndex, startIdx)}
         </Text>
       );
     }
@@ -570,7 +585,7 @@ function EntityHighlightText({
     const color = entityColors[entity.type] || '#6366f1';
     parts.push(
       <Text
-        key={`entity-${entity.start_index}`}
+        key={`entity-${idx}-${entity.text}`}
         style={[
           styles.text,
           {
@@ -583,11 +598,11 @@ function EntityHighlightText({
         ]}
         onPress={() => onEntityPress?.(entity)}
       >
-        {text.slice(entity.start_index, Math.min(entity.end_index, text.length))}
+        {text.slice(startIdx, Math.min(endIdx, text.length))}
       </Text>
     );
 
-    lastIndex = Math.min(entity.end_index, text.length);
+    lastIndex = Math.min(endIdx, text.length);
   });
 
   if (lastIndex < text.length) {
@@ -1073,9 +1088,13 @@ interface HighlightTextProps {
               )}
             </TouchableOpacity>
           ) : (
-            // ── Plain text with optional mention/entity/search highlight ──────────
+            // ── Plain text with optional mention/entity/search/markdown highlight ──
             <View>
-              {item.mentions && item.mentions.length > 0 ? (
+              {item.bodyFormat === 'markdown' ? (
+                <Markdown style={isMe ? markdownStylesRight : markdownStylesLeft}>
+                  {messageText}
+                </Markdown>
+              ) : item.mentions && item.mentions.length > 0 ? (
                 <MentionHighlight
                   text={messageText}
                   mentions={item.mentions}
@@ -1087,6 +1106,7 @@ interface HighlightTextProps {
                   text={messageText}
                   entities={displayEntities}
                   textColor={isMe ? myTextColor : theirTextColor}
+                  entityColors={ENTITY_COLORS}
                   onEntityPress={handleEntityPress}
                 />
               ) : (
@@ -1202,6 +1222,42 @@ const getFileIcon = (name: string | undefined, color: string) => {
   if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext))
     return <FileArchive size={26} color={color} />;
   return <FileText size={26} color={color} />;
+};
+
+const markdownStylesRight = {
+  body: { color: '#fff', fontSize: 15, lineHeight: 20 },
+  heading1: { color: '#fff', fontSize: 20, fontWeight: '700' as const, marginVertical: 4 },
+  heading2: { color: '#fff', fontSize: 18, fontWeight: '600' as const, marginVertical: 3 },
+  heading3: { color: '#fff', fontSize: 16, fontWeight: '600' as const, marginVertical: 2 },
+  strong: { fontWeight: '700' as const },
+  em: { fontStyle: 'italic' as const },
+  code_inline: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 4, borderRadius: 3 },
+  code_block: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 8, borderRadius: 6, marginVertical: 4 },
+  fence: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 8, borderRadius: 6, marginVertical: 4 },
+  hr: { backgroundColor: 'rgba(255,255,255,0.3)', height: 1, marginVertical: 8 },
+  blockquote: { borderLeftWidth: 3, borderLeftColor: 'rgba(255,255,255,0.4)', paddingLeft: 8, marginVertical: 4 },
+  link: { color: '#4da6ff', textDecorationLine: 'underline' as const },
+  list_item: { marginVertical: 2 },
+  bullet_list_icon: { color: '#fff', fontSize: 8, lineHeight: 20, marginRight: 8 },
+  ordered_list_icon: { color: '#fff', fontSize: 14, lineHeight: 20, marginRight: 8 },
+};
+
+const markdownStylesLeft = {
+  body: { color: '#1a1a1a', fontSize: 15, lineHeight: 20 },
+  heading1: { color: '#1a1a1a', fontSize: 20, fontWeight: '700' as const, marginVertical: 4 },
+  heading2: { color: '#1a1a1a', fontSize: 18, fontWeight: '600' as const, marginVertical: 3 },
+  heading3: { color: '#1a1a1a', fontSize: 16, fontWeight: '600' as const, marginVertical: 2 },
+  strong: { fontWeight: '700' as const },
+  em: { fontStyle: 'italic' as const },
+  code_inline: { backgroundColor: 'rgba(0,0,0,0.08)', paddingHorizontal: 4, borderRadius: 3 },
+  code_block: { backgroundColor: 'rgba(0,0,0,0.05)', padding: 8, borderRadius: 6, marginVertical: 4 },
+  fence: { backgroundColor: 'rgba(0,0,0,0.05)', padding: 8, borderRadius: 6, marginVertical: 4 },
+  hr: { backgroundColor: 'rgba(0,0,0,0.15)', height: 1, marginVertical: 8 },
+  blockquote: { borderLeftWidth: 3, borderLeftColor: 'rgba(0,0,0,0.2)', paddingLeft: 8, marginVertical: 4 },
+  link: { color: '#007aff', textDecorationLine: 'underline' as const },
+  list_item: { marginVertical: 2 },
+  bullet_list_icon: { color: '#1a1a1a', fontSize: 8, lineHeight: 20, marginRight: 8 },
+  ordered_list_icon: { color: '#1a1a1a', fontSize: 14, lineHeight: 20, marginRight: 8 },
 };
 
 const styles = StyleSheet.create({

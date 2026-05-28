@@ -20,6 +20,9 @@ export class AIHandler extends BaseHandler {
     WsEvents.AiTranslateResult,
     WsEvents.AiModerationEnforcement,
     WsEvents.MessageEntities,
+    WsEvents.AiZaiTyping,
+    WsEvents.AiStreamChunk,
+    WsEvents.AiStreamComplete,
   ];
 
   protected createHandler(event: string): (...args: any[]) => void {
@@ -34,6 +37,12 @@ export class AIHandler extends BaseHandler {
         return this.handleModerationEnforcement.bind(this);
       case WsEvents.MessageEntities:
         return this.handleMessageEntities.bind(this);
+      case WsEvents.AiZaiTyping:
+        return this.handleZaiTyping.bind(this);
+      case WsEvents.AiStreamChunk:
+        return this.handleStreamChunk.bind(this);
+      case WsEvents.AiStreamComplete:
+        return this.handleStreamComplete.bind(this);
       default:
         return () => {};
     }
@@ -105,4 +114,36 @@ export class AIHandler extends BaseHandler {
     });
   }
 
+  private handleZaiTyping(payload: any): void {
+    this.log("Zai typing:", payload);
+
+    const { conversation_id, is_typing } = payload || {};
+    if (!conversation_id) return;
+
+    import("../../../store/useZaiChatStore").then(({ useZaiChatStore }) => {
+      useZaiChatStore.getState().setZaiTyping(conversation_id, Boolean(is_typing));
+    });
+  }
+
+  private handleStreamChunk(payload: any): void {
+    this.log("Stream chunk:", payload);
+
+    const { conversation_id, message_id, chunk } = payload || {};
+    if (!conversation_id || !message_id) return;
+
+    import("../../../store/useZaiChatStore").then(({ useZaiChatStore }) => {
+      useZaiChatStore.getState().addStreamChunk(conversation_id, message_id, chunk || "");
+    });
+  }
+
+  private handleStreamComplete(payload: any): void {
+    this.log("Stream complete:", payload);
+
+    const { conversation_id, message_id } = payload || {};
+    if (!conversation_id || !message_id) return;
+
+    import("../../../store/useZaiChatStore").then(({ useZaiChatStore }) => {
+      useZaiChatStore.getState().completeStream(conversation_id, message_id);
+    });
+  }
 }
