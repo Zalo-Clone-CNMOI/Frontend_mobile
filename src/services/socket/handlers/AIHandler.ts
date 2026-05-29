@@ -1,8 +1,10 @@
 import { BaseHandler } from "./BaseHandler";
 import { WsEvents } from "../../../realtime/events";
-import type { AiSummaryResultPayload } from "../../../realtime/events";
-// Static import (leaf store module) so the summary count-mapping is unit-testable.
+import type { AiSummaryResultPayload, AiModerationResultPayload } from "../../../realtime/events";
+// Static imports (leaf modules) so these handlers are unit-testable (jest cannot
+// run the native dynamic import() the sibling handlers use).
 import { useAISummaryStore } from "../../../store/useAISummaryStore";
+import { toast } from "../../../services/toastService";
 
 /**
  * AIHandler - Handles all AI-related socket events
@@ -12,6 +14,7 @@ import { useAISummaryStore } from "../../../store/useAISummaryStore";
  * - ai:summary:result - Summary result received
  * - ai:translate:result - Translation result received
  * - ai:moderation:enforcement - Message removed by moderation
+ * - ai:moderation:result - Sender notified their message was flagged
  * - message:entities - Entity detection results
  */
 
@@ -22,6 +25,7 @@ export class AIHandler extends BaseHandler {
     WsEvents.AiSummaryResult,
     WsEvents.AiTranslateResult,
     WsEvents.AiModerationEnforcement,
+    WsEvents.AiModerationResult,
     WsEvents.MessageEntities,
     WsEvents.AiZaiTyping,
     WsEvents.AiStreamChunk,
@@ -38,6 +42,8 @@ export class AIHandler extends BaseHandler {
         return this.handleTranslateResult.bind(this);
       case WsEvents.AiModerationEnforcement:
         return this.handleModerationEnforcement.bind(this);
+      case WsEvents.AiModerationResult:
+        return this.handleModerationResult.bind(this);
       case WsEvents.MessageEntities:
         return this.handleMessageEntities.bind(this);
       case WsEvents.AiZaiTyping:
@@ -58,6 +64,9 @@ export class AIHandler extends BaseHandler {
     import("../../../store/useAISmartReplyStore").then(({ useAISmartReplyStore }) => {
       useAISmartReplyStore.getState().setSuggestions(conversation_id, suggestions || []);
       useAISmartReplyStore.getState().setLoading(conversation_id, false);
+      // Clear any prior error on a successful result (Issue #8 W2: parity with
+      // setTranslation, so getError doesn't report a stale failure post-success).
+      useAISmartReplyStore.getState().setError(conversation_id, null);
     });
   }
 
@@ -102,6 +111,17 @@ export class AIHandler extends BaseHandler {
     import("../../../services/toastService").then(({ toast }) => {
       toast.info("Message removed by AI moderation");
     });
+  }
+
+  private handleModerationResult(payload: AiModerationResultPayload): void {
+    this.log("Moderation result:", payload);
+
+    if (!payload?.message_id || !payload?.conversation_id) return;
+    if (!payload.is_flagged) return;
+
+    // Subtle sender-side notice when their own message is flagged.
+    // Human-readable VI string (i18n finalized in Issue #13).
+    toast.info("Tin nhắn của bạn có thể vi phạm tiêu chuẩn cộng đồng.");
   }
 
   private handleMessageEntities(payload: any): void {

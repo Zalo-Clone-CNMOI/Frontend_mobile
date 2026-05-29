@@ -82,6 +82,7 @@ export const WsEvents = {
   AiTranslateRequest: 'ai:translate:request',
   AiTranslateResult: 'ai:translate:result',
   AiModerationEnforcement: 'ai:moderation:enforcement',
+  AiModerationResult: 'ai:moderation:result',
 MessageEntities: 'message:entities',
     AiZaiTyping: 'ai:zai:typing',
     AiStreamChunk: 'ai:stream:chunk',
@@ -385,6 +386,17 @@ export interface AiModerationEnforcementPayload {
   message_id: string;
   removed_message_id: string;
   reason: string;
+  confidence: number;
+  trace_id?: string;
+}
+
+// Sender-side flag notice. Mirrors ws-gateway WsAiModerationResultPayload
+// (emitted to the sender only when is_flagged).
+export interface AiModerationResultPayload {
+  message_id: string;
+  conversation_id: string;
+  is_flagged: boolean;
+  labels: string[];
   confidence: number;
   trace_id?: string;
 }

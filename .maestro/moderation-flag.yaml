@@ -1,0 +1,18 @@
+appId: com.x22664321k.Zalo_2026
+---
+# E2E (Issue #12): when the BE flags the sender's own message (ai:moderation:result
+# with is_flagged), the sender sees a notice.
+#
+# Pre-conditions: logged in, inside a conversation. Send a message containing a
+# phrase the moderation engine flags (use an agreed test phrase for the env).
+#
+# NOTE: toastService is backed by Alert.alert (a modal). Adjust the assertion if
+# the toast mechanism changes (see DISCOVERED ISSUE #D-4).
+- launchApp
+- tapOn:
+    id: "chat-composer-input"   # TODO: add testID to the composer
+- inputText: "<a phrase the moderation engine flags>"
+- tapOn:
+    id: "chat-send-button"      # TODO: add testID to the send button
+# The sender-side flag notice appears.
+- assertVisible: "Tin nhắn của bạn có thể vi phạm tiêu chuẩn cộng đồng."
