@@ -350,10 +350,18 @@ export interface AiSmartReplyResultPayload {
 
 export interface AiSummaryResultPayload {
   conversation_id: string;
-  user_id: string;
   summary: string;
-  message_count: number;
-  language: string;
+  // Mirrors ws-gateway's emitted shape (libs/contracts WsAiSummaryResultPayload):
+  // the full message_range object, NOT a flat message_count.
+  message_range: {
+    from_message_id: string;
+    to_message_id: string;
+    count: number;
+  };
+  cached: boolean;
+  // Not part of the ws-gateway client emit; kept optional for forward-compat.
+  user_id?: string;
+  language?: string;
   trace_id?: string;
 }
 

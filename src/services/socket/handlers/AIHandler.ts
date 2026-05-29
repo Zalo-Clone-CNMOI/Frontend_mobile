@@ -1,5 +1,8 @@
 import { BaseHandler } from "./BaseHandler";
 import { WsEvents } from "../../../realtime/events";
+import type { AiSummaryResultPayload } from "../../../realtime/events";
+// Static import (leaf store module) so the summary count-mapping is unit-testable.
+import { useAISummaryStore } from "../../../store/useAISummaryStore";
 
 /**
  * AIHandler - Handles all AI-related socket events
@@ -58,18 +61,16 @@ export class AIHandler extends BaseHandler {
     });
   }
 
-  private handleSummaryResult(payload: any): void {
+  private handleSummaryResult(payload: AiSummaryResultPayload): void {
     this.log("Summary result:", payload);
 
-    const { conversation_id, summary, message_range } = payload || {};
-    if (!conversation_id) return;
+    if (!payload?.conversation_id) return;
 
-    const messageCount = message_range?.count || 0;
+    // message_range.count is the FE-facing wire field (was mistyped as message_count).
+    const messageCount = payload.message_range?.count ?? 0;
 
-    import("../../../store/useAISummaryStore").then(({ useAISummaryStore }) => {
-      useAISummaryStore.getState().setSummary(conversation_id, summary || "", messageCount);
-      useAISummaryStore.getState().setLoading(conversation_id, false);
-    });
+    useAISummaryStore.getState().setSummary(payload.conversation_id, payload.summary || "", messageCount);
+    useAISummaryStore.getState().setLoading(payload.conversation_id, false);
   }
 
   private handleTranslateResult(payload: any): void {
