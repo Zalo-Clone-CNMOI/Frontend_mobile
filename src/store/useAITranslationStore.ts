@@ -8,19 +8,30 @@ interface TranslationCache {
   cachedAt: number;
 }
 
+const cacheKey = (messageId: string, targetLang: string) => `${messageId}_${targetLang}`;
+
 interface AITranslationState {
   cache: Map<string, TranslationCache>;
+  loadingByMessage: Map<string, boolean>;
+  errorByMessage: Map<string, string | null>;
 
   getTranslation(messageId: string, targetLang: string): { original: string; translated: string } | null;
   setTranslation(messageId: string, targetLang: string, original: string, translated: string): void;
   clearExpired(): void;
+
+  setLoading(messageId: string, targetLang: string, loading: boolean): void;
+  setError(messageId: string, targetLang: string, error: string | null): void;
+  isLoading(messageId: string, targetLang: string): boolean;
+  getError(messageId: string, targetLang: string): string | null;
 }
 
 export const useAITranslationStore = create<AITranslationState>((set, get) => ({
   cache: new Map(),
+  loadingByMessage: new Map(),
+  errorByMessage: new Map(),
 
   getTranslation: (messageId, targetLang) => {
-    const key = `${messageId}_${targetLang}`;
+    const key = cacheKey(messageId, targetLang);
     const cached = get().cache.get(key);
 
     if (!cached) return null;
@@ -37,7 +48,7 @@ export const useAITranslationStore = create<AITranslationState>((set, get) => ({
   },
 
   setTranslation: (messageId, targetLang, original, translated) => {
-    const key = `${messageId}_${targetLang}`;
+    const key = cacheKey(messageId, targetLang);
     set((state) => {
       const newCache = new Map(state.cache);
       newCache.set(key, {
@@ -45,8 +56,47 @@ export const useAITranslationStore = create<AITranslationState>((set, get) => ({
         translated,
         cachedAt: Date.now(),
       });
-      return { cache: newCache };
+      // A successful result resolves any in-flight loading/error for this key.
+      const newLoading = new Map(state.loadingByMessage);
+      newLoading.delete(key);
+      const newError = new Map(state.errorByMessage);
+      newError.delete(key);
+      return { cache: newCache, loadingByMessage: newLoading, errorByMessage: newError };
     });
+  },
+
+  setLoading: (messageId, targetLang, loading) => {
+    const key = cacheKey(messageId, targetLang);
+    set((state) => {
+      const newLoading = new Map(state.loadingByMessage);
+      if (loading) {
+        newLoading.set(key, true);
+      } else {
+        newLoading.delete(key);
+      }
+      return { loadingByMessage: newLoading };
+    });
+  },
+
+  setError: (messageId, targetLang, error) => {
+    const key = cacheKey(messageId, targetLang);
+    set((state) => {
+      const newError = new Map(state.errorByMessage);
+      if (error) {
+        newError.set(key, error);
+      } else {
+        newError.delete(key);
+      }
+      return { errorByMessage: newError };
+    });
+  },
+
+  isLoading: (messageId, targetLang) => {
+    return get().loadingByMessage.get(cacheKey(messageId, targetLang)) || false;
+  },
+
+  getError: (messageId, targetLang) => {
+    return get().errorByMessage.get(cacheKey(messageId, targetLang)) ?? null;
   },
 
   clearExpired: () => {
