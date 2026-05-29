@@ -9,6 +9,8 @@ interface SmartReplyChipsProps {
   userId: string;
   onSelect: (suggestion: string) => void;
   onDismiss: () => void;
+  // Optional: when provided, a failed suggestion row shows a retry button.
+  onRetry?: () => void;
 }
 
 export const SmartReplyChips: React.FC<SmartReplyChipsProps> = ({
@@ -16,10 +18,12 @@ export const SmartReplyChips: React.FC<SmartReplyChipsProps> = ({
   userId,
   onSelect,
   onDismiss,
+  onRetry,
 }) => {
   const theme = useTheme();
   const suggestions = useAISmartReplyStore((state) => state.suggestions.get(conversationId)) ?? [];
   const isLoading = useAISmartReplyStore((state) => state.loadingByConversation.get(conversationId)) ?? false;
+  const error = useAISmartReplyStore((state) => state.getError(conversationId));
   const displaySuggestions = suggestions.slice(0, 3).map((s) =>
     s.length > 80 ? s.slice(0, 77) + '...' : s
   );
@@ -37,6 +41,26 @@ export const SmartReplyChips: React.FC<SmartReplyChipsProps> = ({
   }
 
   if (displaySuggestions.length === 0) {
+    // Surface a failure instead of silently rendering nothing (Issue #8).
+    if (error) {
+      return (
+        <View style={[styles.container, { borderBottomColor: theme.colors.border }]}>
+          <View style={styles.row}>
+            <Text style={[styles.errorText, { color: theme.colors.icon }]}>
+              Không tạo được gợi ý
+            </Text>
+            {onRetry && (
+              <TouchableOpacity onPress={onRetry} style={styles.actionBtn}>
+                <Text style={[styles.actionText, { color: theme.colors.primary }]}>Thử lại</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={onDismiss} style={styles.dismissBtn}>
+              <Text style={[styles.dismissText, { color: theme.colors.icon }]}>Bỏ qua</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
     return null;
   }
 
@@ -112,6 +136,18 @@ const styles = StyleSheet.create({
   },
   dismissText: {
     fontSize: 12,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 12,
+  },
+  actionBtn: {
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  actionText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   chipsContainer: {
     flexDirection: 'row',

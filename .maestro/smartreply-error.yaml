@@ -1,0 +1,17 @@
+appId: com.x22664321k.Zalo_2026
+---
+# E2E (Issue #8): when smart-reply generation fails, the user sees a brief
+# "Không tạo được gợi ý" notice instead of an empty/silent area.
+#
+# Pre-conditions: logged in; open a conversation. Run this variant with the
+# socket/network unreachable (e.g. airplane mode) so the suggestion request
+# fails and the store records an error.
+#
+# NOTE: smart-reply chips render above the composer. Add testID="smart-reply-bar"
+# around SmartReplyChips before running for a tighter selector.
+- launchApp
+# (Trigger a smart-reply request — e.g. open a chat that auto-requests on load.)
+- assertVisible: "Không tạo được gợi ý"
+# If the build wires onRetry, a "Thử lại" affordance is shown next to it.
+# - assertVisible: "Thử lại"
+# - tapOn: "Thử lại"
