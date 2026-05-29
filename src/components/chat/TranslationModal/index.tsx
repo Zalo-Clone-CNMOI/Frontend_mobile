@@ -27,11 +27,14 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
   const { t } = useTranslation();
   const [targetLanguage, setTargetLanguage] = useState('vi');
   const [showPicker, setShowPicker] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
   const prevMessageIdRef = useRef<string | null>(null);
 
   const cacheKey = message ? `${message.id}_${targetLanguage}` : '';
   const cachedEntry = useAITranslationStore((s) => s.cache.get(cacheKey));
+  // Loading + error are owned by the store (set by TranslationService), so they
+  // survive a result arriving via the socket handler and never get stuck.
+  const isTranslating = useAITranslationStore((s) => s.isLoading(message?.id ?? '', targetLanguage));
+  const translateError = useAITranslationStore((s) => s.getError(message?.id ?? '', targetLanguage));
 
   const hasResult = !!cachedEntry && message?.text === cachedEntry.original;
 
@@ -42,7 +45,6 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
       if (prevMessageIdRef.current !== message.id) {
         setTargetLanguage('vi');
         setShowPicker(false);
-        setIsTranslating(false);
         prevMessageIdRef.current = message.id;
       }
     }
@@ -50,16 +52,13 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
 
   useEffect(() => {
     if (!visible || !message) return;
-    if (hasResult) {
-      setIsTranslating(false);
-      return;
-    }
+    if (hasResult) return;
     const cached = translationService.getCachedTranslation(message.id, targetLanguage);
-    if (cached) {
-      setIsTranslating(false);
-      return;
-    }
-    setIsTranslating(true);
+    if (cached) return;
+    const store = useAITranslationStore.getState();
+    // Don't auto-(re)request while one is in flight or after a failure; the user
+    // retries explicitly via the retry button so we never loop on errors.
+    if (store.isLoading(message.id, targetLanguage) || store.getError(message.id, targetLanguage)) return;
     translationService.requestTranslation({
       conversationId: message.conversationId || '',
       userId: '',
@@ -73,6 +72,18 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
     setTargetLanguage(lang.code);
     setShowPicker(false);
   }, []);
+
+  const handleRetry = useCallback(() => {
+    if (!message) return;
+    // requestTranslation resets loading=true + error=null on entry.
+    translationService.requestTranslation({
+      conversationId: message.conversationId || '',
+      userId: '',
+      messageId: message.id || '',
+      body: message.text || '',
+      targetLanguage,
+    });
+  }, [message, targetLanguage]);
 
   if (!message) return null;
 
@@ -147,6 +158,24 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
                 <Text style={[styles.loadingText, { color: theme.colors.muted }]}>
                   {t('ai.translating', { defaultValue: 'Đang dịch...' })}
                 </Text>
+              </View>
+            )}
+
+            {!isTranslating && !!translateError && (
+              <View style={styles.errorContainer}>
+                <Text style={[styles.errorText, { color: theme.colors.error }]}>
+                  {translateError}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.retryButton, { borderColor: theme.colors.primary }]}
+                  onPress={handleRetry}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('ai.translate.retry', { defaultValue: 'Thử lại' })}
+                >
+                  <Text style={[styles.retryButtonText, { color: theme.colors.primary }]}>
+                    {t('ai.translate.retry', { defaultValue: 'Thử lại' })}
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -270,6 +299,26 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
+  },
+  errorContainer: {
+    alignItems: 'center',
+    paddingVertical: 28,
+    gap: 14,
+  },
+  errorText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  retryButton: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  retryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   resultBox: {
     borderRadius: 12,

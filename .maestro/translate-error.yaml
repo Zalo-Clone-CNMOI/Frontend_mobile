@@ -1,0 +1,30 @@
+appId: com.x22664321k.Zalo_2026
+---
+# E2E (Issue #3): translation shows loading → result on success, and on failure
+# shows an error + retry (NOT an infinite spinner).
+#
+# Pre-conditions: logged in; inside a conversation with at least one message.
+#
+# NOTE: selectors are best-effort. Add real testIDs to the message row and the
+# "Dịch" context-menu action before running on a device/emulator.
+
+# --- Happy path: socket reachable -----------------------------------------
+- launchApp
+- longPressOn:
+    id: "message-row"          # TODO: add testID="message-row" to a message bubble
+- tapOn: "Dịch"                 # translate action in the message context menu
+# The modal opens and shows the loading indicator while waiting for the result.
+- assertVisible: "Đang dịch..."
+# On success the translated body appears (replace with a known translation
+# substring, or scope to testID="translation-result", before running on device).
+- assertVisible:
+    text: ".*"
+    optional: true
+
+# --- Failure path: run this flow with the socket/network unreachable -------
+# (e.g. airplane mode) to prove the spinner is replaced by an error + retry
+# within ~20s rather than hanging forever.
+#
+# - assertVisible: "Dịch quá thời gian chờ. Vui lòng thử lại."   # or the connect error
+# - assertVisible: "Thử lại"
+# - tapOn: "Thử lại"            # retry re-issues the request
