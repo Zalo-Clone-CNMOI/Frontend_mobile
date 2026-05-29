@@ -11,6 +11,7 @@ interface AISmartReplyState {
   setError(conversationId: string, error: string | null): void;
   getSuggestions(conversationId: string): string[];
   isLoading(conversationId: string): boolean;
+  getError(conversationId: string): string | null;
 }
 
 export const useAISmartReplyStore = create<AISmartReplyState>((set, get) => ({
@@ -64,5 +65,9 @@ export const useAISmartReplyStore = create<AISmartReplyState>((set, get) => ({
 
   isLoading: (conversationId) => {
     return get().loadingByConversation.get(conversationId) || false;
+  },
+
+  getError: (conversationId) => {
+    return get().errorByConversation.get(conversationId) ?? null;
   },
 }));

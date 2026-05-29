@@ -19,6 +19,7 @@ interface AISummaryState {
   setLoading(conversationId: string, loading: boolean): void;
   setError(conversationId: string, error: string | null): void;
   isLoading(conversationId: string): boolean;
+  getError(conversationId: string): string | null;
   clearExpired(): void;
 }
 
@@ -88,6 +89,10 @@ export const useAISummaryStore = create<AISummaryState>((set, get) => ({
 
   isLoading: (conversationId) => {
     return get().loadingByConversation.get(conversationId) || false;
+  },
+
+  getError: (conversationId) => {
+    return get().errorByConversation.get(conversationId) ?? null;
   },
 
   clearExpired: () => {
