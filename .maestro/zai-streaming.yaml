@@ -1,0 +1,25 @@
+appId: com.x22664321k.Zalo_2026
+---
+# E2E (Issue #4): live Zai streaming text is visible, then the final message remains.
+#
+# Pre-conditions: logged in; inside a conversation where Zai responds
+# (an ai_assistant conversation, or a group where you @Zai).
+#
+# NOTE: selectors are best-effort; add real testIDs to the composer/send button
+# and the streaming bar before running on a device/emulator.
+- launchApp
+- tapOn:
+    id: "chat-composer-input"
+- inputText: "@Zai kể cho tôi một câu chuyện dài"
+- tapOn:
+    id: "chat-send-button"
+# While streaming, the bar above the composer shows accumulating text + a Stop button.
+- assertVisible: "Dừng Zai"            # accessibilityLabel of the Stop button (bar is up)
+# After completion the streaming bar disappears...
+- assertNotVisible: "Dừng Zai"
+# ...and the final persisted Zai answer remains in the message list.
+# TODO before running on device: replace with a known substring of the Zai reply,
+# or add testID="message-list" and scope this assertion to it (review W2) — a bare
+# ".+" match is too weak to prove the final message actually persisted.
+- assertVisible:
+    text: "Zai"

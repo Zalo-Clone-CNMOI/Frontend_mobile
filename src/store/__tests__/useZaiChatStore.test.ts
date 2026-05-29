@@ -24,10 +24,27 @@ describe('useZaiChatStore — immutable stream updates (Issue #9)', () => {
     expect(useZaiChatStore.getState().getStreamingText('c1')).toBe('Hello world');
   });
 
-  it('starts a fresh stream when the messageId differs', () => {
+  it('starts a fresh stream when the messageId differs (discards old chunks)', () => {
     useZaiChatStore.getState().addStreamChunk('c1', 'm1', 'A');
     useZaiChatStore.getState().addStreamChunk('c1', 'm2', 'B');
+    const msg = useZaiChatStore.getState().streamingMessagesByConversation.get('c1');
+    expect(msg!.messageId).toBe('m2');
+    expect(msg!.chunks).toEqual(['B']);
     expect(useZaiChatStore.getState().getStreamingText('c1')).toBe('B');
+  });
+
+  it('completeStream is a no-op when the messageId does not match', () => {
+    useZaiChatStore.getState().addStreamChunk('c1', 'm1', 'hi');
+    const before = useZaiChatStore
+      .getState()
+      .streamingMessagesByConversation.get('c1');
+    useZaiChatStore.getState().completeStream('c1', 'other-msg');
+    const after = useZaiChatStore
+      .getState()
+      .streamingMessagesByConversation.get('c1');
+    expect(after).toBe(before); // unchanged reference
+    expect(after!.complete).toBe(false);
+    expect(useZaiChatStore.getState().isStreamActive('c1')).toBe(true);
   });
 
   it('completeStream sets complete via a new reference and stops isStreamActive', () => {
