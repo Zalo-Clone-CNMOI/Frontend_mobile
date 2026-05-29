@@ -144,6 +144,10 @@ export class ChatMessageHandler extends BaseHandler {
     }
   }
 
+  // NOTE: ChatMessageHandler is NOT registered (see initChat.ts — chat:message is
+  // handled directly in chatService.ts). The live inbound AI trigger lives there
+  // (triggerInboundAiFeatures); this method is retained only for parity and must
+  // not be wired up in parallel, or smart reply would be requested twice.
   private async triggerAiAfterMessage(conversationId: string, senderId: string): Promise<void> {
     if (!conversationId) return;
     try {

@@ -1,0 +1,17 @@
+appId: com.x22664321k.Zalo_2026
+---
+# E2E (Issue #11): receiving an inbound (non-self) message refreshes smart-reply
+# suggestions (they were previously only generated once on initial load).
+#
+# Pre-conditions: TWO accounts (or a second device/simulator). Account A opens a
+# conversation with account B; account B sends a new message.
+#
+# NOTE: requires a second sender. Add testID="smart-reply-bar" around
+# SmartReplyChips before running for a tighter selector.
+- launchApp
+# Open the conversation on account A.
+- tapOn:
+    id: "conversation-row"      # TODO: testID the target conversation row
+# (Out of band) account B sends "Bạn rảnh không?" to this conversation.
+# After the inbound message lands, fresh suggestion chips appear.
+- assertVisible: "Gợi ý"        # the smart-reply bar label re-renders with new chips
