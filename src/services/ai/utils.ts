@@ -55,6 +55,10 @@ export async function ensureFreshSocketAuth(): Promise<boolean> {
     socket = await createSocket();
   }
 
+  if (!socket) {
+    return false;
+  }
+
   const bearer = withBearer(currentToken);
   socket.auth = { token: bearer };
   if (socket.io.opts.extraHeaders) {

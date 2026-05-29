@@ -86,6 +86,9 @@ export interface CatchUpResult {
 }
 
 export async function catchUp(conversationId: string): Promise<CatchUpResult> {
+  if (!conversationId) {
+    throw new Error('Không tìm thấy cuộc trò chuyện');
+  }
   try {
     const response = await apiCallWithRefresh(
       AI_API + `/conversations/${conversationId}/catch-up`,

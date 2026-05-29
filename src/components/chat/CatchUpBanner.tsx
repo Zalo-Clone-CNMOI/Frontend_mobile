@@ -21,6 +21,10 @@ export function CatchUpBanner({ conversationId }: CatchUpBannerProps) {
   const [error, setError] = useState<string | null>(null);
 
   const handlePress = async () => {
+    if (!conversationId) {
+      setError('Không tìm thấy cuộc trò chuyện');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {

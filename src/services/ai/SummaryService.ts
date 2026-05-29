@@ -16,6 +16,11 @@ export interface SummaryOptions {
 export class SummaryService {
   async requestSummary(options: SummaryOptions): Promise<void> {
     const { conversationId, messageCount = 200 } = options;
+    if (!conversationId) {
+      console.warn("[SummaryService] Missing conversationId");
+      return;
+    }
+
     const loadingTimeout = setTimeout(() => {
       useAISummaryStore.getState().setLoading(conversationId, false);
     }, 20000);

@@ -614,13 +614,17 @@ export default function ChatDetailScreen() {
   };
 
   const handleSummarizeChat = () => {
-    if (chatId) {
-      setShowSummaryModal(true);
-      summaryService.requestSummary({
-        conversationId: chatId,
-        messageCount: 200,
-      });
+    if (!chatId) {
+      Alert.alert('Lỗi', 'Không tìm thấy cuộc trò chuyện');
+      return;
     }
+    setShowSummaryModal(true);
+    summaryService.requestSummary({
+      conversationId: chatId,
+      messageCount: 200,
+    }).catch((error: any) => {
+      console.error('[ChatDetail] Summary request failed:', error);
+    });
   };
 
   const handleEntityPress = useCallback((entity: any) => {
