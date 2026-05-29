@@ -16,6 +16,7 @@ import { getDeduplicationService } from "./deduplicationService";
 import { WsEvents } from "../realtime/events";
 import { toast } from "./toastService";
 import { updateConversationLastMessage } from "./chatUtils";
+import { triggerInboundAiFeatures } from "./ai/inboundAiTrigger";
 
 // Normalize ID to string, handles null/undefined values
 const normalizeId = (value: unknown): string => String(value ?? "").trim();
@@ -586,11 +587,26 @@ function registerSocketListeners() {
     }
   };
 
+  // Refresh AI features (summary + smart reply) after an inbound message lands.
+  // Resolves the current user id only for non-self messages; the actual guard +
+  // work live in triggerInboundAiFeatures (single live trigger for the app).
+  const triggerInboundAi = async (conversationId: string, senderId: string) => {
+    const isSelf = isCurrentActor(senderId);
+    let currentUserId = '';
+    if (!isSelf) {
+      const user = await getCurrentUser();
+      currentUserId =
+        user?.id || (user as any)?._id || (user as any)?.userId || user?.phone || '';
+    }
+    await triggerInboundAiFeatures({ conversationId, senderId, isSelf, currentUserId });
+  };
+
   const handleMessage = async (payload: any) => {
     console.log('[handleMessage] Raw payload:', JSON.stringify(payload, null, 2));
     console.log('[handleMessage] type:', payload?.type, 'message_type:', payload?.message_type, 'sender_id:', payload?.sender_id);
     const conversationId = payload?.conversation_id || payload?.conversationId;
     const messageId = payload?.id || payload?.message_id;
+    const senderId = payload?.sender_id || payload?.senderId;
     const createdAt =
       payload?.created_at ?? payload?.createdAt ?? payload?.ts ?? payload?.timestamp;
 
@@ -631,6 +647,7 @@ function registerSocketListeners() {
       useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
       // Update conversation list with last message
       await updateConversationLastMessage(enrichedMessage, payload);
+      void triggerInboundAi(conversationId, senderId);
       return;
     }
 
@@ -660,6 +677,7 @@ function registerSocketListeners() {
       // Update conversation list with last message
       await updateConversationLastMessage(enrichedMessage, payload);
     }
+    void triggerInboundAi(conversationId, senderId);
   };
 
   const handleMessageUpdated = async (payload: any) => {
