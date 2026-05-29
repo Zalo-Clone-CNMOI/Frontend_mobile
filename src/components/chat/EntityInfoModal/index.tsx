@@ -149,8 +149,8 @@ export function EntityInfoModal({ visible, entity, onClose }: EntityInfoModalPro
                       {t('ai.entity.related', { defaultValue: 'Liên quan' })}
                     </Text>
                     <View style={styles.chips}>
-                      {info.related_entities.map((rel) => (
-                        <View key={rel} style={[styles.chip, { backgroundColor: color + '20' }]}>
+                      {info.related_entities.map((rel, idx) => (
+                        <View key={`${rel}-${idx}`} style={[styles.chip, { backgroundColor: color + '20' }]}>
                           <Text style={[styles.chipText, { color }]}>{rel}</Text>
                         </View>
                       ))}
