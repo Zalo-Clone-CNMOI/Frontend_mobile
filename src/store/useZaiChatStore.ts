@@ -44,7 +44,12 @@ export const useZaiChatStore = create<ZaiChatState>((set, get) => ({
       const newMap = new Map(state.streamingMessagesByConversation);
       const existing = newMap.get(conversationId);
       if (existing && existing.messageId === messageId && !existing.complete) {
-        existing.chunks.push(chunk);
+        // Immutable update: new StreamingMessage + new chunks array so selector
+        // subscribers reading the nested object re-render reliably (Issue #9).
+        newMap.set(conversationId, {
+          ...existing,
+          chunks: [...existing.chunks, chunk],
+        });
       } else {
         newMap.set(conversationId, {
           messageId,
@@ -61,7 +66,8 @@ export const useZaiChatStore = create<ZaiChatState>((set, get) => ({
       const newMap = new Map(state.streamingMessagesByConversation);
       const existing = newMap.get(conversationId);
       if (existing && existing.messageId === messageId) {
-        existing.complete = true;
+        // Immutable update: new object reference (Issue #9).
+        newMap.set(conversationId, { ...existing, complete: true });
       }
       return { streamingMessagesByConversation: newMap };
     });
