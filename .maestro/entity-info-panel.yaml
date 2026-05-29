@@ -1,0 +1,26 @@
+appId: com.x22664321k.Zalo_2026
+---
+# E2E (Issue #2): tapping a detected entity opens the modal and shows the LLM
+# info panel (title + summary), not just the local detection metadata.
+#
+# Pre-conditions: logged in; inside a conversation containing a message with a
+# known detected entity (e.g. "React"), highlighted by entity detection.
+#
+# NOTE: selectors are best-effort. Add testID="entity-React" to the highlighted
+# entity span and testID="entity-info-panel" around the panel before running.
+- launchApp
+- tapOn:
+    id: "entity-React"            # the highlighted entity in the message
+# The modal opens; while it fetches, a loading line is shown briefly.
+- assertVisible:
+    text: "Đang tải thông tin..."
+    optional: true
+# Then the LLM panel content appears (title + summary). Replace with a known
+# substring of the real response, or scope to testID="entity-info-panel".
+- assertVisible:
+    text: ".+"
+# Failure variant (run with the network unreachable): the panel shows an error
+# line + a retry button instead of a stuck spinner.
+# - assertVisible: "Không thể tải thông tin. Vui lòng thử lại."
+# - assertVisible: "Thử lại"
+# - tapOn: "Thử lại"

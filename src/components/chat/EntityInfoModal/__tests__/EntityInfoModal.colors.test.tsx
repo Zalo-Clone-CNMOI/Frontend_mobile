@@ -6,8 +6,14 @@ import type { DetectedEntity } from '@/src/store/useEntityDetectionStore';
 
 jest.mock('@/src/theme/themeContext', () => ({
   useTheme: () => ({
-    colors: { card: '#fff', background: '#eee', text: '#000', icon: '#888' },
+    colors: { card: '#fff', background: '#eee', text: '#000', icon: '#888', muted: '#888', error: '#ef4444' },
   }),
+}));
+
+// EntityInfoModal fetches on open (Issue #2); stub the service so this color
+// test never hits the real network/auth chain. Never-resolving = stays loading.
+jest.mock('@/src/services/ai/entityInfoApi', () => ({
+  getEntityInfo: jest.fn(() => new Promise(() => {})),
 }));
 
 // Each icon renders its received `color` prop so the test can assert which
