@@ -27,6 +27,7 @@ import { SummaryModal } from '@/src/components/chat/SummaryModal';
 import { TranslationModal } from '@/src/components/chat/TranslationModal';
 import { EntityInfoModal } from '@/src/components/chat/EntityInfoModal';
 import { SmartReplyChips } from '@/src/components/chat/SmartReplyChips';
+import { ZaiStreamingBar } from '@/src/components/chat/ZaiStreamingBar';
 import { useEntityDetectionStore } from '@/src/store/useEntityDetectionStore';
 import { useAISmartReplyStore } from '@/src/store/useAISmartReplyStore';
 import { useZaiChatStore } from '@/src/store/useZaiChatStore';
@@ -40,7 +41,7 @@ import { useCallStore } from '@/src/store/useCallStore';
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Bell, ChevronDown, ChevronRight, ChevronUp, Circle, Forward, List, Phone, Search, Sparkles, Square, Video, X } from 'lucide-react-native';
+import { Bell, ChevronDown, ChevronRight, ChevronUp, Circle, Forward, List, Phone, Search, Sparkles, Video, X } from 'lucide-react-native';
 import { AvatarWithPresence } from '@/src/components/common/AvatarWithPresence';
 import { PresenceText } from '@/src/components/common/PresenceIndicator';
 import { getSocket } from '@/src/services/socket';
@@ -159,6 +160,7 @@ export default function ChatDetailScreen() {
   const messageCount = useMessagesStore((state) => (state.messagesByChatId[chatId || '']?.length) ?? 0);
   const isZaiTyping = useZaiChatStore((state) => state.isZaiTyping(chatId));
   const isStreamActive = useZaiChatStore((state) => state.isStreamActive(chatId));
+  const zaiStreamingText = useZaiChatStore((state) => state.getStreamingText(chatId));
 
   const ZAI_BOT_ID = NETWORK_CONFIG.ZAI_BOT_ID;
   const isAiAssistant = currentChat?.type === 'ai_assistant';
@@ -1260,14 +1262,11 @@ export default function ChatDetailScreen() {
 
         <View>
           {isStreamActive && !isMultiSelectMode ? (
-            <View style={styles.streamingBar}>
-              <View style={styles.streamingInfo}>
-                <TypingIndicator text="Zai đang trả lời..." />
-              </View>
-              <TouchableOpacity style={styles.stopButton} onPress={handleAbortStream}>
-                <Square size={14} color="#fff" />
-              </TouchableOpacity>
-            </View>
+            <ZaiStreamingBar
+              text={zaiStreamingText}
+              textColor={theme.colors.text}
+              onStop={handleAbortStream}
+            />
           ) : isZaiTyping && !isMultiSelectMode ? (
             <TypingIndicator text="Zai đang trả lời..." />
           ) : isTypingVisible && !isMultiSelectMode ? (
@@ -1666,22 +1665,5 @@ const styles = StyleSheet.create({
   analyzeText: {
     fontSize: 15,
     fontWeight: '500',
-  },
-  streamingBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: 12,
-  },
-  streamingInfo: {
-    flex: 1,
-  },
-  stopButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: '#ff3b30',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
   },
 });
