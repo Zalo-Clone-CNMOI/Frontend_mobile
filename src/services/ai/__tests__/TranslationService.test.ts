@@ -114,8 +114,6 @@ describe('TranslationService.requestTranslation (Issue #3)', () => {
   });
 
   it('times out to a retryable error after 20s when no result arrives', async () => {
-    jest.useFakeTimers();
-
     await translationService.requestTranslation(OPTS);
     expect(useAITranslationStore.getState().isLoading('m1', 'vi')).toBe(true);
 
@@ -128,8 +126,6 @@ describe('TranslationService.requestTranslation (Issue #3)', () => {
   });
 
   it('the timeout is a no-op once a result has already arrived', async () => {
-    jest.useFakeTimers();
-
     await translationService.requestTranslation(OPTS);
     // Simulate AIHandler receiving ai:translate:result (clears loading + error).
     useAITranslationStore.getState().setTranslation('m1', 'vi', 'Hello', 'Xin chào');

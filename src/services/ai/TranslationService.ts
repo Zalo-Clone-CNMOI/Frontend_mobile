@@ -27,6 +27,12 @@ const CONNECT_ERROR = 'Không thể kết nối để dịch. Vui lòng thử l�
 const TIMEOUT_ERROR = 'Dịch quá thời gian chờ. Vui lòng thử lại.';
 const GENERIC_ERROR = 'Dịch thất bại. Vui lòng thử lại.';
 
+// The socket ack shape is owned by the backend; `error` may be a string or an
+// object, so it is typed `unknown` and narrowed before use (no `any`).
+interface TranslateAck {
+  error?: unknown;
+}
+
 export class TranslationService {
   async requestTranslation(options: TranslateOptions): Promise<boolean> {
     const {
@@ -81,7 +87,7 @@ export class TranslationService {
     socket.emit(
       WsEvents.AiTranslateRequest,
       payload,
-      (ack: any) => {
+      (ack?: TranslateAck) => {
         if (ack?.error) {
           clearTimeout(loadingTimeout);
           console.error("[TranslationService] Error:", ack.error);

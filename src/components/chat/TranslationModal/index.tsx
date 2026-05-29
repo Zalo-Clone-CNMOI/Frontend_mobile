@@ -29,14 +29,20 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
   const [showPicker, setShowPicker] = useState(false);
   const prevMessageIdRef = useRef<string | null>(null);
 
-  const cacheKey = message ? `${message.id}_${targetLanguage}` : '';
+  // Primitive fields so effects depend on stable values, not the message object
+  // identity (which can change on unrelated parent re-renders).
+  const messageId = message?.id ?? '';
+  const conversationId = message?.conversationId ?? '';
+  const messageText = message?.text ?? '';
+
+  const cacheKey = message ? `${messageId}_${targetLanguage}` : '';
   const cachedEntry = useAITranslationStore((s) => s.cache.get(cacheKey));
   // Loading + error are owned by the store (set by TranslationService), so they
   // survive a result arriving via the socket handler and never get stuck.
-  const isTranslating = useAITranslationStore((s) => s.isLoading(message?.id ?? '', targetLanguage));
-  const translateError = useAITranslationStore((s) => s.getError(message?.id ?? '', targetLanguage));
+  const isTranslating = useAITranslationStore((s) => s.isLoading(messageId, targetLanguage));
+  const translateError = useAITranslationStore((s) => s.getError(messageId, targetLanguage));
 
-  const hasResult = !!cachedEntry && message?.text === cachedEntry.original;
+  const hasResult = !!cachedEntry && messageText === cachedEntry.original;
 
   const selectedLang = LANGUAGES.find((l) => l.code === targetLanguage) || LANGUAGES[0];
 
@@ -51,22 +57,22 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
   }, [visible, message]);
 
   useEffect(() => {
-    if (!visible || !message) return;
+    if (!visible || !messageId) return;
     if (hasResult) return;
-    const cached = translationService.getCachedTranslation(message.id, targetLanguage);
+    const cached = translationService.getCachedTranslation(messageId, targetLanguage);
     if (cached) return;
     const store = useAITranslationStore.getState();
     // Don't auto-(re)request while one is in flight or after a failure; the user
     // retries explicitly via the retry button so we never loop on errors.
-    if (store.isLoading(message.id, targetLanguage) || store.getError(message.id, targetLanguage)) return;
+    if (store.isLoading(messageId, targetLanguage) || store.getError(messageId, targetLanguage)) return;
     translationService.requestTranslation({
-      conversationId: message.conversationId || '',
+      conversationId,
       userId: '',
-      messageId: message.id || '',
-      body: message.text || '',
+      messageId,
+      body: messageText,
       targetLanguage,
     });
-  }, [targetLanguage, message?.id, visible, hasResult, message]);
+  }, [targetLanguage, messageId, conversationId, messageText, visible, hasResult]);
 
   const handleSelectLanguage = useCallback((lang: Language) => {
     setTargetLanguage(lang.code);
@@ -74,16 +80,16 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
   }, []);
 
   const handleRetry = useCallback(() => {
-    if (!message) return;
+    if (!messageId) return;
     // requestTranslation resets loading=true + error=null on entry.
     translationService.requestTranslation({
-      conversationId: message.conversationId || '',
+      conversationId,
       userId: '',
-      messageId: message.id || '',
-      body: message.text || '',
+      messageId,
+      body: messageText,
       targetLanguage,
     });
-  }, [message, targetLanguage]);
+  }, [messageId, conversationId, messageText, targetLanguage]);
 
   if (!message) return null;
 
