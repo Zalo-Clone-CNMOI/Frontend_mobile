@@ -37,7 +37,7 @@ const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 // EXPO_PUBLIC_API_HOST via eas.json, so no production IP is baked into source.
 const API_HOST = readEnv('EXPO_PUBLIC_API_HOST', 'localhost');
 
-if (__DEV__ && !((process.env.EXPO_PUBLIC_API_HOST as string | undefined) || '').trim()) {
+if (__DEV__ && !(process.env.EXPO_PUBLIC_API_HOST ?? '').trim()) {
   console.warn(
     '[NETWORK_CONFIG] EXPO_PUBLIC_API_HOST is not set; defaulting to "localhost". ' +
       'Set it in .env (local) or eas.json (device/prod builds) to reach a real backend.',

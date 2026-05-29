@@ -35,7 +35,10 @@ describe('NETWORK_CONFIG (Issue #10)', () => {
     const { NETWORK_CONFIG } = require('../network');
     expect(NETWORK_CONFIG.API_HOST).toBe('localhost');
     expect(NETWORK_CONFIG.API_BASE_URL).toBe('http://localhost:5000/api');
-    expect(console.warn).toHaveBeenCalled(); // dev warning emitted
+    // dev-only warning that the host env is missing
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining('EXPO_PUBLIC_API_HOST is not set'),
+    );
   });
 
   it('overrides ZAI_BOT_ID from EXPO_PUBLIC_ZAI_BOT_ID', () => {
