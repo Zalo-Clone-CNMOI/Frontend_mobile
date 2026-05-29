@@ -6,7 +6,8 @@ import { useAuth } from '@/src/contexts/AuthContext';
 
 import { NETWORK_CONFIG } from '@/src/config/network';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
+import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Pin } from 'lucide-react-native';
@@ -46,6 +47,20 @@ export function ChatListItem({
   const ZAI_BOT_ID = NETWORK_CONFIG.ZAI_BOT_ID;
   const isZaiChat = item.type === 'ai_assistant' || item.otherUserId === ZAI_BOT_ID;
 
+  const fetchConversationDetail = useConversationDetailStore(s => s.fetchConversationDetail);
+  const zaiMemberAvatar = useConversationDetailStore(s => {
+    if (!isZaiChat) return null;
+    const members = s.cache[item.conversationId]?.members;
+    const zaiEntry = members?.find(m => m.userId === ZAI_BOT_ID);
+    return normalizeAvatarUrl(zaiEntry?.avatarUrl || undefined);
+  });
+
+  useEffect(() => {
+    if (isZaiChat && !item.avatar && !zaiMemberAvatar) {
+      fetchConversationDetail(item.conversationId).catch(() => {});
+    }
+  }, [isZaiChat, item.avatar, item.conversationId, zaiMemberAvatar, fetchConversationDetail]);
+
   // Get presence status for the other user (not for groups)
   const getPresenceStatus = () => {
     if (item.isGroup || isZaiChat) return null;
@@ -78,13 +93,11 @@ export function ChatListItem({
 
   // Memoize computed values to avoid unnecessary re-renders
   const avatarSource = useMemo(() => {
-    if (isZaiChat) return null;
     const normalizedAvatar = normalizeAvatarUrl(item.avatar || undefined);
-    if (normalizedAvatar) {
-      return { uri: normalizedAvatar };
-    }
+    if (normalizedAvatar) return { uri: normalizedAvatar };
+    if (isZaiChat && zaiMemberAvatar) return { uri: zaiMemberAvatar };
     return null;
-  }, [isZaiChat, item.avatar]);
+  }, [item.avatar, isZaiChat, zaiMemberAvatar]);
 
   const formattedLastMessage = useMemo(() => {
     const type = item.lastMessage?.type || 'text';
@@ -152,15 +165,13 @@ export function ChatListItem({
 
       <View>
 
-        {isZaiChat ? (
-          <AvatarWithInitials name="Zai" size={55} style={styles.avatar} />
-        ) : avatarSource ? (
+        {avatarSource ? (
 
           <Image source={avatarSource} style={styles.avatar} />
 
         ) : (
 
-          <AvatarWithInitials name={item.name || 'User'} size={55} style={styles.avatar} />
+          <AvatarWithInitials name={isZaiChat ? 'Zai' : (item.name || 'User')} size={55} style={styles.avatar} />
 
         )}
 

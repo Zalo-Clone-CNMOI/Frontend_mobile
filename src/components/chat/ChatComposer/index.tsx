@@ -17,6 +17,7 @@ export type ChatComposerProps = {
   onChangeText: (v: string) => void;
   onSend: () => void;
   onSendFiles: (files: DocumentPicker.DocumentPickerAsset[]) => void;
+  onSendWithFiles?: (text: string, files: DocumentPicker.DocumentPickerAsset[]) => void;
   editingTo?: {
     text: string;
   } | null;
@@ -37,6 +38,7 @@ export const ChatComposer = React.memo(function ChatComposer({
   onChangeText,
   onSend,
   onSendFiles,
+  onSendWithFiles,
   editingTo,
   onCancelEdit,
   replyingTo,
@@ -126,7 +128,11 @@ export const ChatComposer = React.memo(function ChatComposer({
   const handleSend = () => {
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     if (onTypingStop) onTypingStop();
-    if (selectedImages.length > 0) {
+
+    if (selectedImages.length > 0 && value.trim().length > 0) {
+      onSendWithFiles?.(value.trim(), selectedImages);
+      setSelectedImages([]);
+    } else if (selectedImages.length > 0) {
       handleSendImages();
     } else {
       onSend();

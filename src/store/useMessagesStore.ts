@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { fetchAllMessages } from '../services/chatService';
+import { NETWORK_CONFIG } from '../config/network';
 import { ChatMessage } from '../types/chat';
 
 interface MessagesState {
@@ -121,13 +122,16 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
         const targetIndex = existing.findIndex(m => m.id === tempId);
 
         if (targetIndex >= 0) {
-          // Merge with existing temp message - replace tempId with serverId
+          // Merge with existing temp message - replace tempId with serverId.
+          // Preserve the optimistic timestamp so Zai's bumped timestamp (maxSendingTs + 1)
+          // never ends up BEFORE this message after the server broadcast overwrites it.
           const updated = [...existing];
-          updated[targetIndex] = { 
-            ...updated[targetIndex], 
-            ...message, 
+          updated[targetIndex] = {
+            ...updated[targetIndex],
+            ...message,
             id: serverId,
-            status: 'sent', // ✅ Auto update status khi reconcile
+            timestamp: updated[targetIndex].timestamp, // keep client send-time, not server broadcast time
+            status: 'sent',
           };
 
           const newMapping = new Map(state.tempIdToServerId);
@@ -156,12 +160,14 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       if (optimisticMatchIndex >= 0) {
         const updated = [...existing];
         const existingMsg = updated[optimisticMatchIndex];
-        
-        // Merge và update status
+
+        // Merge and update status. Keep the optimistic timestamp so any Zai response
+        // that was already bumped to (clientTs + 1) stays after this message in the sort.
         updated[optimisticMatchIndex] = {
           ...existingMsg,
           ...message,
           id: incomingServerId || existingMsg.id,
+          timestamp: existingMsg.timestamp,
           status: message.status === 'sent' || !existingMsg.serverMessageId ? 'sent' : existingMsg.status,
         };
 
@@ -225,11 +231,27 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
         };
       }
 
-      // Message doesn't exist - append new message
+      // Message doesn't exist - append new message.
+      // If this is a Zai bot message, ensure it appears after any pending optimistic user
+      // messages — server clock can be behind the client, causing Zai's server-assigned
+      // timestamp to be earlier than the client-stamped @Zai trigger message.
+      let msgToAppend = message;
+      if (message.senderId === NETWORK_CONFIG.ZAI_BOT_ID) {
+        // Compare against ALL existing messages, not just 'sending' ones.
+        // By the time Zai responds, the user's trigger message is already 'sent'
+        // (reconciled via tempIdMatch), so checking only 'sending' always gives 0.
+        const maxExistingTs = existing.reduce(
+          (max, m) => Math.max(max, Number(m.timestamp || 0)),
+          0,
+        );
+        if (maxExistingTs > 0 && Number(message.timestamp || 0) <= maxExistingTs) {
+          msgToAppend = { ...message, timestamp: maxExistingTs + 1 };
+        }
+      }
       return {
         messagesByChatId: {
           ...state.messagesByChatId,
-          [chatId]: sortMessagesAscending([...existing, message]),
+          [chatId]: sortMessagesAscending([...existing, msgToAppend]),
         },
       };
     });

@@ -238,11 +238,25 @@ const inferAttachmentType = (mimeType?: string) => {
   return "document";
 };
 
+const EXT_TO_MIME: Record<string, string> = {
+  pdf:  'application/pdf',
+  txt:  'text/plain',
+  md:   'text/markdown',
+  csv:  'text/csv',
+  doc:  'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};
+
 // Normalize outgoing file for upload
 // Extracts URI, name, MIME type, and size from various possible formats
 const normalizeOutgoingFile = (file: OutgoingFile) => {
   const uri = String(file?.uri || "").trim();
-  const mimeType = String(file?.mimeType || file?.type || "").trim();
+  let mimeType = String(file?.mimeType || file?.type || "").trim();
+  if (!mimeType || mimeType === "application/octet-stream") {
+    const ext = (String(file?.name || "").split(".").pop() ?? "").toLowerCase();
+    if (ext && EXT_TO_MIME[ext]) mimeType = EXT_TO_MIME[ext];
+  }
   const type = mimeType || "application/octet-stream";
   const size = Number(file?.size ?? file?.fileSize ?? 0);
   const nameFromUri = uri ? uri.split("/").pop() : "";

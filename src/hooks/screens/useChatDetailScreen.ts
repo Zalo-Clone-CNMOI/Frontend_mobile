@@ -532,6 +532,51 @@ export function useChatDetailScreenLogic() {
     }, 100);
   }, [addMessage, chatId, replyingMessage, updateMessage, updateLastMessage, user]);
 
+  const handleSendWithFiles = useCallback(async (text: string, files: any[]) => {
+    const zaiIdx = text.indexOf('@Zai');
+    let mentions: Array<{ user_id: string; mention_type: 'user'; offset: number; length: number }> | undefined;
+    if (zaiIdx >= 0) {
+      const last = zaiMentionCooldownRef.current[chatId] || 0;
+      if (Date.now() - last < 5000) {
+        Alert.alert('Zai đang bận', 'Vui lòng thử lại sau vài giây');
+        return;
+      }
+      zaiMentionCooldownRef.current[chatId] = Date.now();
+      mentions = [{ user_id: NETWORK_CONFIG.ZAI_BOT_ID, mention_type: 'user', offset: zaiIdx, length: 4 }];
+    }
+
+    try {
+      const { optimisticMessage, sendPromise } = await sendSocketMessage(
+        chatId,
+        text,
+        files,
+        { replyToMessage: replyingMessage, mentions },
+      );
+      addMessage(chatId, optimisticMessage);
+      updateLastMessage(
+        chatId,
+        text,
+        optimisticMessage.type || 'file',
+        Date.now(),
+        user?.id,
+        (user as any)?.fullName || (user as any)?.name,
+        false,
+      );
+      await sendPromise;
+      updateMessage(chatId, optimisticMessage.id, { status: 'sent' });
+      setInput('');
+      setReplyingMessage(null);
+      setTimeout(() => {
+        flashListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error) {
+      if ((error as any)?.message_id) {
+        updateMessage(chatId, (error as any).message_id, { status: 'failed' });
+      }
+      Alert.alert('Gửi thất bại', 'Không thể gửi tin nhắn. Vui lòng thử lại.');
+    }
+  }, [addMessage, chatId, replyingMessage, updateMessage, updateLastMessage, user]);
+
   useEffect(() => {
     if (!capturedPhotoUri || !chatId) return;
     if (lastCapturedPhotoRef.current === capturedPhotoUri) return;
@@ -982,6 +1027,7 @@ export function useChatDetailScreenLogic() {
     flashListRef,
     handleLoadMore,
     handleSendFiles,
+    handleSendWithFiles,
     handleTypingStart,
     handleTypingStop,
     input,

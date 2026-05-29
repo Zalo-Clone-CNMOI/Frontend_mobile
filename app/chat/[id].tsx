@@ -69,10 +69,7 @@ export default function ChatDetailScreen() {
   const getMySettings = useConversationDetailStore((state) => state.getMySettings);
   const getMembers = useConversationDetailStore((state) => state.getMembers);
   const setMessageReactions = useMessagesStore((state) => state.setMessageReactions);
-  const messageCount = useMessagesStore((state) => (state.messagesByChatId[chatId || '']?.length) ?? 0);
   const deleteChat = useChatsStore((state) => state.deleteChat);
-  const isZaiTyping = useZaiChatStore((state) => state.isZaiTyping(chatId));
-  const isStreamActive = useZaiChatStore((state) => state.isStreamActive(chatId));
   const { pinMessage, unpinMessage, isMessagePinned } = useMessagePin();
 
   // Handle successful leave group - remove conversation from list
@@ -86,6 +83,7 @@ export default function ChatDetailScreen() {
     flashListRef,
     handleLoadMore,
     handleSendFiles,
+    handleSendWithFiles,
     handleTypingStart,
     handleTypingStop,
     input,
@@ -158,9 +156,27 @@ export default function ChatDetailScreen() {
     jumpToMessage,
   } = useChatDetailScreenLogic();
 
+  const messageCount = useMessagesStore((state) => (state.messagesByChatId[chatId || '']?.length) ?? 0);
+  const isZaiTyping = useZaiChatStore((state) => state.isZaiTyping(chatId));
+  const isStreamActive = useZaiChatStore((state) => state.isStreamActive(chatId));
+
   const ZAI_BOT_ID = NETWORK_CONFIG.ZAI_BOT_ID;
   const isAiAssistant = currentChat?.type === 'ai_assistant';
   const isZaiDirectChat = !currentChat?.isGroup && currentChat?.otherUserId === ZAI_BOT_ID;
+
+  // Zai's avatar — mirror ChatListItem's resolution exactly. The Zai bot is NOT in the
+  // conversation members array (it's an ai_assistant), so the members lookup returns
+  // undefined; the conversation-level avatar (currentChat.avatar — same field the list
+  // uses via item.avatar) is the source that actually resolves. Read members reactively
+  // first so it stays correct for group @Zai mentions where the bot IS a member.
+  const zaiMemberAvatar = useConversationDetailStore(s => {
+    if (!isAiAssistant && !isZaiDirectChat) return undefined;
+    const m = s.cache[chatId]?.members?.find(member => member.userId === ZAI_BOT_ID);
+    return m?.avatarUrl || undefined;
+  });
+  const zaiAvatarUrl = (isAiAssistant || isZaiDirectChat)
+    ? (currentChat?.avatar || zaiMemberAvatar || undefined)
+    : undefined;
 
   const handleSend = useCallback(() => {
     onSend();
@@ -885,6 +901,8 @@ export default function ChatDetailScreen() {
         item={item}
         conversationId={chatId}
         isGroup={currentChat?.isGroup}
+        isZaiConversation={isAiAssistant || isZaiDirectChat}
+        zaiAvatarUrl={zaiAvatarUrl}
         currentUserRole={currentChat?.myRole}
         conversationMembers={members}
         highlightText={isSearchMode ? searchQuery : undefined}
@@ -950,6 +968,9 @@ export default function ChatDetailScreen() {
     messages,
     entitiesByMessage,
     handleEntityPress,
+    isAiAssistant,
+    isZaiDirectChat,
+    zaiAvatarUrl,
   ]);
 
   return (
@@ -1264,6 +1285,7 @@ export default function ChatDetailScreen() {
               onChangeText={setInput}
               onSend={handleSend}
               onSendFiles={handleSendFiles}
+              onSendWithFiles={handleSendWithFiles}
               onTypingStart={handleTypingStart}
               onTypingStop={handleTypingStop}
             editingTo={

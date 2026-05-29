@@ -94,6 +94,10 @@ type MessageBubbleProps = {
   isPinned?: boolean; // Whether message is pinned
   conversationMembers?: ConversationMember[]; // Conversation members for nickname lookup
   currentUserRole?: 'owner' | 'admin' | 'member';
+  // Whether this message is in the 1-on-1 Zai AI conversation
+  isZaiConversation?: boolean;
+  // Zai bot's avatar URL, computed reactively in the parent from the conversation detail store
+  zaiAvatarUrl?: string;
   // Multi-select props
   isMultiSelectMode?: boolean;
   isSelected?: boolean;
@@ -124,6 +128,8 @@ export const MessageBubble = React.memo(
     isPinned = false,
     conversationMembers,
     currentUserRole,
+    isZaiConversation = false,
+    zaiAvatarUrl,
 isMultiSelectMode = false,
     isSelected = false,
     onToggleSelection,
@@ -245,27 +251,46 @@ isMultiSelectMode = false,
     return `${NETWORK_CONFIG.S3_BASE_URL}/${avatarUrl.replace(/^\//, '')}`;
   };
 
+  // True for any message that is from the Zai bot — detected via conversation type (most
+  // reliable) or senderId (for group chats where @Zai was mentioned).
+  const isZaiMessage = !item.fromMe && item.type !== 'system' && (
+    isZaiConversation ||
+    item.senderId === NETWORK_CONFIG.ZAI_BOT_ID
+  );
+
   const avatar = useMemo(() => {
     if (item.fromMe) return undefined;
-    
+
+    if (isZaiMessage) {
+      // Prefer the pre-computed zaiAvatarUrl from the parent (reactive Zustand selector).
+      // Fall back to searching conversationMembers by the known bot ID.
+      // Never use conversationMember (keyed by item.senderId — may be wrong) or
+      // item.senderAvatar (backend may send another user's URL).
+      const url = zaiAvatarUrl
+        || conversationMembers?.find(m => m.userId === NETWORK_CONFIG.ZAI_BOT_ID)?.avatarUrl;
+      return url ? normalizeAvatarUrl(url) : undefined;
+    }
+
     // Try conversation member avatar first
     if (conversationMember?.avatarUrl) {
       return normalizeAvatarUrl(conversationMember.avatarUrl);
     }
-    
-    // Try userProfile avatar
+
+    // Try userProfile avatar (group chats only)
     if (userProfile?.avatarUrl) {
       return getAvatarUrl(item.senderId || '');
     }
-    
+
     // Fallback to item fields
     const avatarUrl = item.senderAvatar || item.sender?.avatarUrl || item.sender?.avatar;
     return avatarUrl ? normalizeAvatarUrl(avatarUrl) : undefined;
-  }, [item.fromMe, item.senderId, item.senderAvatar, isGroup, userProfile, conversationMember, getAvatarUrl]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.fromMe, item.senderId, item.senderAvatar, item.sender?.avatarUrl, item.sender?.avatar, isGroup, userProfile, conversationMember, conversationMembers, getAvatarUrl, isZaiMessage, zaiAvatarUrl]);
 
   const senderName = useMemo(() => {
     if (item.fromMe) return t('chat.you');
-    
+    if (isZaiMessage) return 'Zai';
+
     if (item.senderId) {
       // First, try to get nickname from conversation members (conversation-specific)
       if (conversationMember?.nickname) {
@@ -295,7 +320,7 @@ isMultiSelectMode = false,
       return t('common.loading');
     }
     return 'User';
-  }, [item.fromMe, item.senderName, item.senderId, isGroup, userProfile, loading, conversationMember]);
+  }, [item.fromMe, item.senderName, item.senderId, item.sender?.name, item.sender?.fullName, isGroup, userProfile, loading, conversationMember, isZaiMessage, t]);
 
   const formatTime = (dateProp: any) => {
     const d = dateProp ? new Date(dateProp) : new Date();
@@ -318,7 +343,7 @@ isMultiSelectMode = false,
   const isFile = (item.type === 'file' || (item.fileInfo && !isImage && !isVideo && !isVoice));
 
   useEffect(() => {
-    if (isGroup && !item.fromMe && item.senderId && item.senderId !== 'SYSTEM') {
+    if (isGroup && !item.fromMe && item.senderId && item.senderId !== 'SYSTEM' && item.senderId !== NETWORK_CONFIG.ZAI_BOT_ID) {
       fetchUserProfile(item.senderId);
     }
   }, [isGroup, item.fromMe, item.senderId, fetchUserProfile]);
@@ -1201,6 +1226,8 @@ interface HighlightTextProps {
   if (prevProps.highlightText !== nextProps.highlightText) return false;
   if (prevProps.isPinned !== nextProps.isPinned) return false;
   if (prevProps.currentUserRole !== nextProps.currentUserRole) return false;
+  if (prevProps.zaiAvatarUrl !== nextProps.zaiAvatarUrl) return false;
+  if (prevProps.isZaiConversation !== nextProps.isZaiConversation) return false;
 
   // Props are equal, skip re-render
   return true;
