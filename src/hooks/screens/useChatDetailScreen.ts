@@ -27,6 +27,7 @@ import { usePresenceStore } from '@/src/store/usePresenceStore';
 import type { ChatMessage } from '@/src/types/chat';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useLocalSearchParams } from 'expo-router';
+import { pickAutoPromptToSend } from './autoPrompt';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert } from 'react-native';
@@ -44,11 +45,13 @@ export function useChatDetailScreenLogic() {
     jumpToMessageId?: string | string[];
     highlightPollId?: string | string[];
     capturedPhotoUri?: string | string[];
+    autoPrompt?: string | string[];
   }>();
   const chatId = getSingleRouteParam(params?.id).trim();
   const jumpToMessageId = getSingleRouteParam(params?.jumpToMessageId).trim() || undefined;
   const highlightPollId = getSingleRouteParam(params?.highlightPollId).trim() || undefined;
   const capturedPhotoUri = getSingleRouteParam(params?.capturedPhotoUri).trim() || undefined;
+  const autoPrompt = getSingleRouteParam(params?.autoPrompt).trim() || undefined;
   const { t } = useTranslation();
   const { user } = useAuth();
   const headerHeight = useHeaderHeight();
@@ -63,6 +66,7 @@ export function useChatDetailScreenLogic() {
   const loadedCursorRef = useRef<string | null>(null);
   const lastCapturedPhotoRef = useRef<string | null>(null);
   const zaiMentionCooldownRef = useRef<Record<string, number>>({});
+  const autoPromptSentRef = useRef<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageUrls, setSelectedImageUrls] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -314,6 +318,50 @@ export function useChatDetailScreenLogic() {
           }
         }
 
+        // Issue #5: auto-send a catch-up summary passed via the `autoPrompt`
+        // route param (from home/chatOptions "Tóm tắt") into this Zai
+        // conversation, exactly once. Done AFTER setMessagesForChat so the
+        // optimistic bubble is not overwritten by the initial load.
+        const promptToSend = pickAutoPromptToSend(autoPrompt, autoPromptSentRef.current);
+        if (promptToSend && user?.id) {
+          autoPromptSentRef.current = promptToSend;
+          void (async () => {
+            if (!active) return;
+            let optimisticId: string | undefined;
+            try {
+              const { optimisticMessage, sendPromise } = await sendSocketMessage(
+                chatId,
+                promptToSend,
+                undefined,
+                {},
+              );
+              optimisticId = optimisticMessage.id;
+              addMessage(chatId, optimisticMessage);
+              updateLastMessage(
+                chatId,
+                promptToSend,
+                optimisticMessage.type || 'text',
+                Date.now(),
+                user?.id,
+                (user as any)?.fullName || (user as any)?.name,
+                false,
+              );
+              await sendPromise;
+              updateMessage(chatId, optimisticMessage.id, { status: 'sent' });
+              setTimeout(() => {
+                flashListRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            } catch (error) {
+              // Mark the optimistic bubble failed even when the error has no
+              // message_id (auto-send: a stuck "sending" bubble is confusing).
+              const failedId = (error as any)?.message_id || optimisticId;
+              if (failedId) {
+                updateMessage(chatId, failedId, { status: 'failed' });
+              }
+            }
+          })();
+        }
+
         // Handle jumpToMessageId - scroll to specific message
         if (jumpToMessageId && messagesWithAvatar.length > 0) {
           const messageIndex = messagesWithAvatar.findIndex(m =>
@@ -379,7 +427,7 @@ export function useChatDetailScreenLogic() {
     return () => {
       active = false;
     };
-  }, [chatId, currentChat?.conversationId, jumpToMessageId, highlightPollId]); // Remove setMessagesForChat from dependencies
+  }, [chatId, currentChat?.conversationId, jumpToMessageId, highlightPollId, autoPrompt]); // Remove setMessagesForChat from dependencies
 
   const handleLoadMore = useCallback(async () => {
     if (!chatId || !hasMore || !nextCursor || isLoadingMore) return;
