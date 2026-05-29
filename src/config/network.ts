@@ -32,11 +32,17 @@ const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
 
 
-// Single source of truth for backend host
+// Single source of truth for backend host.
+// Dev-safe default (localhost); production/preview/dev EAS builds inject
+// EXPO_PUBLIC_API_HOST via eas.json, so no production IP is baked into source.
+const API_HOST = readEnv('EXPO_PUBLIC_API_HOST', 'localhost');
 
-// Default to localhost for local development, override with env for production
-
-const API_HOST = readEnv('EXPO_PUBLIC_API_HOST', '18.138.217.102');
+if (__DEV__ && !((process.env.EXPO_PUBLIC_API_HOST as string | undefined) || '').trim()) {
+  console.warn(
+    '[NETWORK_CONFIG] EXPO_PUBLIC_API_HOST is not set; defaulting to "localhost". ' +
+      'Set it in .env (local) or eas.json (device/prod builds) to reach a real backend.',
+  );
+}
 
 
 
@@ -61,6 +67,8 @@ const API_ROOT_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}`);
 // Legacy alias — same host/port as API (do not use port 3000 unless BFF is deployed)
 const BFF_BASE_URL = API_ROOT_URL;
 
+// BFF AI routes (/ai-assist, /entity-info) are served under API_BASE_URL in every
+// env — i.e. http://{EXPO_PUBLIC_API_HOST}:{EXPO_PUBLIC_API_PORT}/api.
 const API_BASE_URL = trimTrailingSlash(`${API_ROOT_URL}/api`);
 
 const AUTH_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}/api/auth`);
@@ -78,6 +86,9 @@ const SSO_BASE_URL = trimTrailingSlash(`http://${API_HOST}:${SSO_PORT}`);
 const AUTH_REFRESH_URL = trimTrailingSlash(`${AUTH_BASE_URL}/refresh`);
 
 
+
+// Zai bot id — overridable via env so it isn't hard-pinned in source.
+const ZAI_BOT_ID = readEnv('EXPO_PUBLIC_ZAI_BOT_ID', '00000000-0000-4000-8000-0000000000a1');
 
 // S3 Configuration
 
@@ -170,7 +181,7 @@ export const NETWORK_CONFIG = {
 
   MAX_FILE_SIZE_DOCUMENT,
 
-  ZAI_BOT_ID: '00000000-0000-4000-8000-0000000000a1',
+  ZAI_BOT_ID,
 
 } as const;
 
