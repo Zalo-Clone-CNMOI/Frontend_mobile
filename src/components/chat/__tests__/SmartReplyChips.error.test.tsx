@@ -23,12 +23,17 @@ const baseProps = {
 };
 
 describe('SmartReplyChips error UI (Issue #8)', () => {
-  beforeEach(reset);
+  beforeEach(() => {
+    reset();
+    jest.clearAllMocks();
+  });
 
   it('surfaces a human-readable notice (not silence) on error with no suggestions', () => {
     useAISmartReplyStore.getState().setError('c1', 'engine down');
     render(<SmartReplyChips {...baseProps} />);
     expect(screen.getByText('Không tạo được gợi ý')).toBeTruthy();
+    // The notice is not a dismissal — onDismiss only fires when the user taps it.
+    expect(baseProps.onDismiss).not.toHaveBeenCalled();
   });
 
   it('shows a retry button only when onRetry is provided, and invokes it', () => {
