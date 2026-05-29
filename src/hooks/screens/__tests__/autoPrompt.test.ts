@@ -13,6 +13,7 @@ describe('pickAutoPromptToSend', () => {
     expect(pickAutoPromptToSend(undefined, null)).toBeNull();
     expect(pickAutoPromptToSend('', null)).toBeNull();
     expect(pickAutoPromptToSend('   ', null)).toBeNull();
+    expect(pickAutoPromptToSend('\n\n\n', null)).toBeNull();
   });
 
   it('returns null when the same prompt was already sent (single-send guard)', () => {

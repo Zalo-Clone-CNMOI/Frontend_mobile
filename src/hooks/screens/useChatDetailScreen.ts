@@ -326,6 +326,8 @@ export function useChatDetailScreenLogic() {
         if (promptToSend && user?.id) {
           autoPromptSentRef.current = promptToSend;
           void (async () => {
+            if (!active) return;
+            let optimisticId: string | undefined;
             try {
               const { optimisticMessage, sendPromise } = await sendSocketMessage(
                 chatId,
@@ -333,6 +335,7 @@ export function useChatDetailScreenLogic() {
                 undefined,
                 {},
               );
+              optimisticId = optimisticMessage.id;
               addMessage(chatId, optimisticMessage);
               updateLastMessage(
                 chatId,
@@ -349,8 +352,11 @@ export function useChatDetailScreenLogic() {
                 flashListRef.current?.scrollToEnd({ animated: true });
               }, 100);
             } catch (error) {
-              if ((error as any)?.message_id) {
-                updateMessage(chatId, (error as any).message_id, { status: 'failed' });
+              // Mark the optimistic bubble failed even when the error has no
+              // message_id (auto-send: a stuck "sending" bubble is confusing).
+              const failedId = (error as any)?.message_id || optimisticId;
+              if (failedId) {
+                updateMessage(chatId, failedId, { status: 'failed' });
               }
             }
           })();
