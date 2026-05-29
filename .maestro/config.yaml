@@ -1,0 +1,5 @@
+# Maestro workspace config for Zalo_2026 AI-feature e2e flows.
+#
+# Default appId targets Android (app.json -> android.package).
+# iOS bundleId is com.nguyenannguyen.zalo — override per-flow if running on iOS.
+appId: com.x22664321k.Zalo_2026
