@@ -3,7 +3,7 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'rea
 import { useTheme } from '@/src/theme/themeContext';
 import { DetectedEntity } from '@/src/store/useEntityDetectionStore';
 import { getEntityColor } from '@/src/constants/entityColors';
-import { X, Globe, Building2, User, Lightbulb, MapPin, ShoppingBag, HelpCircle } from 'lucide-react-native';
+import { X, Building2, User, Lightbulb, MapPin, ShoppingBag, HelpCircle } from 'lucide-react-native';
 
 interface EntityInfoModalProps {
   visible: boolean;

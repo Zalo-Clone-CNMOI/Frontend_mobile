@@ -32,25 +32,30 @@ jest.mock('lucide-react-native', () => {
   };
 });
 
-const personEntity: DetectedEntity = {
-  text: 'Alice',
-  type: 'person',
+const makeEntity = (type: DetectedEntity['type']): DetectedEntity => ({
+  text: 'Sample',
+  type,
   start_index: 0,
-  end_index: 5,
+  end_index: 6,
   confidence: 0.9,
-};
+});
+
+// type -> the lucide icon the modal renders for it (mocked to print its color).
+const CASES: [DetectedEntity['type'], string][] = [
+  ['tool', 'Lightbulb'],
+  ['company', 'Building2'],
+  ['person', 'User'],
+  ['concept', 'Lightbulb'],
+  ['location', 'MapPin'],
+  ['product', 'ShoppingBag'],
+  ['other', 'HelpCircle'],
+];
 
 describe('EntityInfoModal — shared entity colors (Issue #14)', () => {
-  it('colors the person icon from the shared ENTITY_COLORS, not a local map', () => {
-    render(<EntityInfoModal visible entity={personEntity} onClose={jest.fn()} />);
-    // person icon is `User`; its color must equal the shared constant (#007AFF),
-    // NOT the old inline value (#f59e0b).
-    expect(screen.getByText(`User:${ENTITY_COLORS.person}`)).toBeTruthy();
-  });
-
-  it('falls back to the shared "other" color for an unknown-ish type', () => {
-    const other: DetectedEntity = { ...personEntity, type: 'other' };
-    render(<EntityInfoModal visible entity={other} onClose={jest.fn()} />);
-    expect(screen.getByText(`HelpCircle:${ENTITY_COLORS.other}`)).toBeTruthy();
+  // Every type must take its color from the shared ENTITY_COLORS — e.g. person
+  // is now #007AFF, NOT the removed inline #f59e0b.
+  it.each(CASES)('colors the %s icon from the shared ENTITY_COLORS', (type, iconName) => {
+    render(<EntityInfoModal visible entity={makeEntity(type)} onClose={jest.fn()} />);
+    expect(screen.getByText(`${iconName}:${ENTITY_COLORS[type]}`)).toBeTruthy();
   });
 });
