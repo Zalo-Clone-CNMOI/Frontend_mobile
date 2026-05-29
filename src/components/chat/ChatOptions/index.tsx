@@ -1,6 +1,6 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, BellOff, FileText, UserPlus, Settings, SettingsIcon } from 'lucide-react-native';
+import { Bell, BellOff, FileText, Sparkles, UserPlus, Settings, SettingsIcon } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -41,6 +41,7 @@ interface ChatOptionsProps {
   onChangeWallpaper?: () => void;
   onToggleNotifications?: (enabled: boolean) => void;
   onDeleteHistory?: () => void;
+  onSummaryChat?: () => void;
   onEditGroupInfo?: () => void;
   onAddMember?: () => void;
   onLeaveGroup?: () => void;
@@ -65,6 +66,7 @@ export const ChatOptions: React.FC<ChatOptionsProps> = ({
   onToggleNotifications,
   onLeaveSuccess,
   onNicknameChanged,
+  onSummaryChat,
 }) => {
   const theme = useTheme();
   const { t } = useTranslation();

@@ -67,6 +67,13 @@ export type SocketChatAckEvent = {
   error?: string;
 };
 
+export type SocketChatMessageRejectedEvent = {
+  message_id: string;
+  conversation_id: string;
+  reason: 'moderation' | 'rate_limit' | 'unauthorized';
+  labels?: string[];
+};
+
 export type SocketForwardedFrom = {
   source_message_id: string;
   source_conversation_id: string;
@@ -82,6 +89,7 @@ export type SocketChatMessageEvent = {
   conversation_id?: ID;
   sender_id?: ID;
   body?: string;
+  body_format?: string;
   type?: string;
   attachments?: ApiAttachmentDTO[];
   reactions?: Record<string, string[]>;

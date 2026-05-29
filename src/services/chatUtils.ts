@@ -68,12 +68,12 @@ export function toTimestampMs(value: unknown): number {
  * Build stable message ID
  */
 export function buildStableMessageId(apiMessage: any): string {
-  const directId = normalizeId(apiMessage?.messageId);
+  const directId = normalizeId(apiMessage?.messageId || apiMessage?.message_id || apiMessage?.id);
   if (directId) return directId;
 
-  const conversationId = normalizeId(apiMessage?.conversationId);
-  const senderId = normalizeId(apiMessage?.senderId);
-  const createdAt = normalizeId(apiMessage?.createdAt);
+  const conversationId = normalizeId(apiMessage?.conversationId || apiMessage?.conversation_id);
+  const senderId = normalizeId(apiMessage?.senderId || apiMessage?.sender_id);
+  const createdAt = normalizeId(apiMessage?.createdAt || apiMessage?.created_at);
   const body = normalizeId(apiMessage?.body);
   const attachmentKey = normalizeId(
     Array.isArray(apiMessage?.attachments) ? apiMessage?.attachments?.[0]?.key : ""
@@ -119,7 +119,7 @@ export function toLegacyChatMessage(apiMessage: any): ChatMessage {
     conversationId: apiMessage?.conversationId || apiMessage?.conversation_id,
     fromMe: isCurrentActor(senderId),
     senderId: senderId,
-    senderName: apiMessage?.senderName || apiMessage?.sender?.name || apiMessage?.sender?.fullName,
+    senderName: apiMessage?.senderName || apiMessage?.sender?.name || apiMessage?.sender?.fullName || (senderId === '00000000-0000-4000-8000-0000000000a1' ? 'Zai' : undefined),
     senderAvatar:
       apiMessage?.senderAvatar || apiMessage?.sender?.avatarUrl || apiMessage?.sender?.avatar,
     type: (apiMessage?.messageType === "system" || apiMessage?.message_type === "system" || apiMessage?.type === "system") ? "system" :
@@ -148,6 +148,7 @@ export function toLegacyChatMessage(apiMessage: any): ChatMessage {
     isRevoked: Boolean(apiMessage?.isDeleted),
     attachments: Array.isArray(apiMessage?.attachments) ? apiMessage.attachments : undefined,
     mentions: apiMessage?.mentions,
+    bodyFormat: (apiMessage?.body_format === 'markdown' ? 'markdown' : undefined) as 'markdown' | undefined,
     messageType: apiMessage?.messageType ?? apiMessage?.message_type,
     systemEventType: apiMessage?.systemEventType || apiMessage?.system_event_type,
     metadata: apiMessage?.metadata,

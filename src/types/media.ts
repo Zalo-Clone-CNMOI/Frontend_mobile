@@ -33,6 +33,7 @@ export interface UploadConfirmRequest {
 export interface UploadConfirmResponse {
   ok: boolean;
   thumbnailKey?: string;
+  documentId?: string;
 }
 
 
@@ -50,6 +51,7 @@ export interface UploadResult {
   key: string;
   visibility: FileVisibility;
   thumbnailKey?: string;
+  documentId?: string;
   contentType: string;
   fileName: string;
   fileSize: number;

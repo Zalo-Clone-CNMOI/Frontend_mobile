@@ -23,6 +23,7 @@ export const WsEvents = {
   ChatSystemMessage: 'chat:system-message',
   ChatEdit: 'chat:edit',
   ChatMessageUpdated: 'chat:message:updated',
+  ChatMessageRejected: 'chat:message:rejected',
   ChatDelete: 'chat:delete',
   ChatMessageDeleted: 'chat:message:deleted',
   ChatReact: 'chat:react',
@@ -81,8 +82,12 @@ export const WsEvents = {
   AiTranslateRequest: 'ai:translate:request',
   AiTranslateResult: 'ai:translate:result',
   AiModerationEnforcement: 'ai:moderation:enforcement',
-  MessageEntities: 'message:entities',
-} as const;
+MessageEntities: 'message:entities',
+    AiZaiTyping: 'ai:zai:typing',
+    AiStreamChunk: 'ai:stream:chunk',
+    AiStreamComplete: 'ai:stream:complete',
+    AiStreamCancel: 'ai:stream:cancel',
+  } as const;
 
 export type WsEventName = (typeof WsEvents)[keyof typeof WsEvents];
 

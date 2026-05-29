@@ -9,7 +9,7 @@ import { useAuth } from '@/src/contexts/AuthContext';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Filter, MailOpen, Pin, PinOff, FolderInput, MessageSquare, X, User, LogOut } from 'lucide-react-native';
+import { Filter, MailOpen, Pin, PinOff, FolderInput, MessageSquare, X, User, LogOut, Sparkles } from 'lucide-react-native';
 import { AvatarWithInitials } from '@/src/components/common/AvatarWithInitials';
 import * as Haptics from 'expo-haptics';
 import React, { useState, useCallback } from 'react';
@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, TouchableOpacity, View, Modal, Pressable, ActionSheetIOS, Platform, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { pinConversation, unpinConversation, leaveConversation } from '@/src/services/conversationsApi';
+import { catchUp, getOrCreateZaiConversation } from '@/src/services/ai/aiConversationApi';
 import { toast } from '@/src/services/toastService';
 import type { ConversationV2 } from '@/src/types/chat';
 
@@ -60,18 +61,23 @@ export default function HomeScreen() {
 
     if (Platform.OS === 'ios') {
       // Use native ActionSheet on iOS
+      const iosOptions = [
+        t('common.cancel'),
+        conversation.pinned ? (t('chat_options.unpin') || 'Bỏ ghim') : (t('chat_options.pin') || 'Ghim hội thoại'),
+        'Tóm tắt',
+      ];
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: [
-            t('common.cancel'),
-            conversation.pinned ? (t('chat_options.unpin') || 'Bỏ ghim') : (t('chat_options.pin') || 'Ghim hội thoại'),
-          ],
+          options: iosOptions,
           cancelButtonIndex: 0,
-          destructiveButtonIndex: undefined,
         },
         async (buttonIndex) => {
           if (buttonIndex === 1) {
             await toggleConversationPin(conversation);
+          } else if (buttonIndex === 2) {
+            setSelectedConversation(conversation);
+            setTimeout(() => handleSummaryChat(), 50);
+            return;
           }
           setSelectedConversation(null);
           setPressedConversationId(null);
@@ -170,6 +176,35 @@ export default function HomeScreen() {
       await toggleConversationPin(selectedConversation);
     }
     handleCloseMenu();
+  };
+
+  // Handle summary chat
+  const handleSummaryChat = async () => {
+    if (!selectedConversation) return;
+    const conv = selectedConversation;
+    handleCloseMenu();
+
+    try {
+      const summaryResult = await catchUp(conv.conversationId);
+
+      if (!summaryResult.hadUnread) {
+        toast.info('Bạn đã đọc hết rồi');
+        return;
+      }
+
+      const messageCount = summaryResult.messageCount || 'nhiều';
+      let autoPrompt = `Hãy tóm tắt cuộc trò chuyện "${conv.name}" cho tôi. Có ${messageCount} tin nhắn.\n\nTÓM TẮT:\n${summaryResult.summary}`;
+      if (summaryResult.truncated) {
+        autoPrompt += '\n\n(Lưu ý: Một số tin nhắn đã bị cắt ngắn)';
+      }
+      const zaiConvId = await getOrCreateZaiConversation();
+      router.push({
+        pathname: '/chat/[id]',
+        params: { id: zaiConvId, autoPrompt },
+      } as any);
+    } catch (error: any) {
+      toast.error(String(error?.message || 'Không thể tóm tắt cuộc trò chuyện'));
+    }
   };
 
   return (
@@ -273,17 +308,25 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity> */}
 
+                {/* Tóm tắt */}
+                <TouchableOpacity style={menuStyles.menuItem} onPress={handleSummaryChat}>
+                  <Sparkles size={20} color={theme.colors.text} />
+                  <Text style={[menuStyles.menuText, { color: theme.colors.text }]}>
+                    Tóm tắt
+                  </Text>
+                </TouchableOpacity>
+
                 <View style={[menuStyles.divider, { backgroundColor: theme.colors.border }]} />
 
-                {/* Leave Conversation Option - Only for group conversations */}
-                {selectedConversation?.isGroup && (
+                {/* Leave/Disband Option */}
+                {selectedConversation?.isGroup ? (
                   <TouchableOpacity style={menuStyles.menuItem} onPress={handleLeaveConversation}>
                     <LogOut size={20} color={theme.colors.text} />
                     <Text style={[menuStyles.menuText, { color: theme.colors.text }]}>
                       {t('conversation.leave') || 'Rời hội thoại'}
                     </Text>
                   </TouchableOpacity>
-                )}
+                ) : null}
 
                 {selectedConversation?.isGroup && <View style={[menuStyles.divider, { backgroundColor: theme.colors.border }]} />}
 

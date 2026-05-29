@@ -34,16 +34,14 @@ export function useNotificationListener() {
 
   // Helper: Get sender name from friends store or fallback
   const getSenderName = useCallback((senderId: string, payloadSenderName?: string): string => {
-    // 1. Try from payload first (if backend sends it)
+    if (senderId === '00000000-0000-4000-8000-0000000000a1') return 'Zai';
     if (payloadSenderName && payloadSenderName !== 'Người dùng') {
       return payloadSenderName;
     }
-    // 2. Try from friends store
     const friend = friends.find((f) => f.id === senderId);
     if (friend?.fullName) {
       return friend.fullName;
     }
-    // 3. Fallback
     return 'Người dùng';
   }, [friends]);
 

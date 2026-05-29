@@ -260,6 +260,7 @@ export const mapApiMessageToChatMessage = (
 
       : undefined,
 
+    bodyFormat: (dto.body_format === 'markdown' ? 'markdown' : undefined) as 'markdown' | undefined,
     reactions: dto.reactions,
 
     status:
@@ -309,6 +310,8 @@ export const mapSocketMessageEventToChatMessage = (
       senderId: event.sender_id,
 
       body: event.body,
+
+      body_format: event.body_format,
 
       type: event.type,
 

@@ -22,6 +22,7 @@ interface MessagesState {
   setMessagesForChat: (chatId: string, messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
   updateMessage: (chatId: string, messageId: string, updates: Partial<ChatMessage>) => void;
   deleteMessage: (chatId: string, messageId: string) => void;
+  removeMessage: (chatId: string, messageId: string) => void;
   revokeMessage: (chatId: string, messageId: string) => void;
   addReaction: (chatId: string, messageId: string, userId: string, reactionType: string) => void;
   removeReaction: (chatId: string, messageId: string, userId: string) => void;
@@ -288,6 +289,21 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
         messagesByChatId: {
           ...state.messagesByChatId,
           [chatId]: existing.filter((m) => m.id !== messageId),
+        },
+      };
+    });
+  },
+
+  removeMessage: (chatId, messageId) => {
+    set((state) => {
+      const messages = state.messagesByChatId[chatId];
+      if (!messages) return state;
+      return {
+        messagesByChatId: {
+          ...state.messagesByChatId,
+          [chatId]: messages.filter(
+            (m) => m.id !== messageId && m.serverMessageId !== messageId,
+          ),
         },
       };
     });

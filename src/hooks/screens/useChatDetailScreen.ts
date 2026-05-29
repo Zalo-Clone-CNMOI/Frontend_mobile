@@ -1,3 +1,4 @@
+import { NETWORK_CONFIG } from '@/src/config/network';
 import { useAuth } from '@/src/contexts/AuthContext';
 import {
   usePresenceHeartbeat,
@@ -18,6 +19,7 @@ import {
 } from '@/src/services/chatService';
 import { searchMessages as searchMessagesApi } from '@/src/services/messagesApi';
 import { connectSocket } from '@/src/services/socket';
+import { smartReplyService } from '@/src/services/ai/SmartReplyService';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
@@ -60,6 +62,7 @@ export function useChatDetailScreenLogic() {
   const flashListRef = useRef<any>(null);
   const loadedCursorRef = useRef<string | null>(null);
   const lastCapturedPhotoRef = useRef<string | null>(null);
+  const zaiMentionCooldownRef = useRef<Record<string, number>>({});
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageUrls, setSelectedImageUrls] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -213,13 +216,18 @@ export function useChatDetailScreenLogic() {
   const currentChat = useChatsStore((state) => state.chats.find((chat) => chat.conversationId === chatId));
 
   // Compute title reactively from store (priority: store > route params > default)
+  const ZAI_BOT_ID = NETWORK_CONFIG.ZAI_BOT_ID;
+  const isAiAssistant = currentChat?.type === 'ai_assistant';
+  const isZaiDirectChat = !currentChat?.isGroup && currentChat?.otherUserId === ZAI_BOT_ID;
+
   const title = useMemo(() => {
+    if (isAiAssistant || isZaiDirectChat) return 'Zai';
     const storeName = currentChat?.name?.trim();
     if (storeName) return storeName;
     const routeName = getSingleRouteParam(params?.name).trim();
     if (routeName.length > 0) return routeName;
     return t('chat.default_title');
-  }, [params?.name, t, currentChat?.name]);
+  }, [params?.name, t, currentChat?.name, isAiAssistant, isZaiDirectChat]);
 
   const fetchConversationDetail = useConversationDetailStore((state) => state.fetchConversationDetail);
 
@@ -296,13 +304,14 @@ export function useChatDetailScreenLogic() {
 
         // Request AI smart reply suggestions
         if (messagesWithAvatar.length > 0 && user?.id) {
-          const userId = user.id;
-          import('@/src/services/ai/SmartReplyService').then(({ smartReplyService }) => {
+          try {
             smartReplyService.requestSmartReply({
               conversationId: chatId,
-              userId,
+              userId: user.id,
             });
-          });
+          } catch (e) {
+            console.warn('[SmartReply] requestSmartReply failed:', e);
+          }
         }
 
         // Handle jumpToMessageId - scroll to specific message
@@ -498,6 +507,15 @@ export function useChatDetailScreenLogic() {
         { replyToMessage: replyingMessage },
       );
       addMessage(chatId, optimisticMessage);
+      updateLastMessage(
+        chatId,
+        fallbackLabel,
+        optimisticMessage.type || 'file',
+        Date.now(),
+        user?.id,
+        (user as any)?.fullName || (user as any)?.name,
+        false,
+      );
       await sendPromise;
       updateMessage(chatId, optimisticMessage.id, { status: 'sent' });
     } catch (error) {
@@ -512,7 +530,7 @@ export function useChatDetailScreenLogic() {
     setTimeout(() => {
       flashListRef.current?.scrollToEnd({ animated: true });
     }, 100);
-  }, [addMessage, chatId, replyingMessage, updateMessage]);
+  }, [addMessage, chatId, replyingMessage, updateMessage, updateLastMessage, user]);
 
   useEffect(() => {
     if (!capturedPhotoUri || !chatId) return;
@@ -742,6 +760,18 @@ export function useChatDetailScreenLogic() {
     const trimmed = input.trim();
     if (!trimmed) return;
 
+    const zaiIdx = trimmed.indexOf('@Zai');
+    let mentions: Array<{ user_id: string; mention_type: 'user'; offset: number; length: number }> | undefined;
+    if (zaiIdx >= 0) {
+      const last = zaiMentionCooldownRef.current[chatId] || 0;
+      if (Date.now() - last < 5000) {
+        Alert.alert('Zai đang bận', 'Vui lòng thử lại sau vài giây');
+        return;
+      }
+      zaiMentionCooldownRef.current[chatId] = Date.now();
+      mentions = [{ user_id: NETWORK_CONFIG.ZAI_BOT_ID, mention_type: 'user', offset: zaiIdx, length: 4 }];
+    }
+
     if (editingMessage) {
       try {
         const createdAt = typeof editingMessage.timestamp === 'number' ? editingMessage.timestamp :
@@ -774,7 +804,7 @@ export function useChatDetailScreenLogic() {
         chatId,
         trimmed,
         undefined,
-        { replyToMessage: replyingMessage },
+        { replyToMessage: replyingMessage, mentions },
       );
       addMessage(chatId, optimisticMessage);
       // Update conversation lastMessage when sending new message (no unread increment for own messages)

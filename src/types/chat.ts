@@ -17,6 +17,7 @@ export type ConversationV2 = {
   };
   lastMessageAt?: number;
   unreadCount?: number;
+  initialUnreadCount?: number;
   pinned?: boolean; // Client-side computed
   isPinned?: boolean; // From API response
   pinnedAt?: number;
@@ -144,6 +145,7 @@ export type ChatMessage = {
   type: MessageType;
   text?: string;
   content?: string; // Alternative to text
+  bodyFormat?: 'text' | 'markdown';
   fileInfo?: FileInfo;
   caption?: string;
 

@@ -21,9 +21,10 @@ export function SummaryModal({ visible, conversationId, onClose }: SummaryModalP
   const loadingByConversation = useAISummaryStore((state) => state.loadingByConversation);
   const errorByConversation = useAISummaryStore((state) => state.errorByConversation);
 
-  const summary = summaries.get(conversationId);
-  const isLoading = loadingByConversation.get(conversationId) || false;
-  const error = errorByConversation.get(conversationId) || null;
+  const safeConversationId = conversationId || '';
+  const summary = summaries.get(safeConversationId);
+  const isLoading = loadingByConversation.get(safeConversationId) || false;
+  const error = errorByConversation.get(safeConversationId) || null;
 
   const handleCopy = async () => {
     if (summary?.summary) {
