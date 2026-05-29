@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
 import { useTheme } from '@/src/theme/themeContext';
 import { DetectedEntity } from '@/src/store/useEntityDetectionStore';
+import { getEntityColor } from '@/src/constants/entityColors';
 import { X, Globe, Building2, User, Lightbulb, MapPin, ShoppingBag, HelpCircle } from 'lucide-react-native';
 
 interface EntityInfoModalProps {
@@ -20,23 +21,14 @@ const entityIcons = {
   other: HelpCircle,
 };
 
-const entityColors = {
-  tool: '#6366f1',
-  company: '#10b981',
-  person: '#f59e0b',
-  concept: '#8b5cf6',
-  location: '#ef4444',
-  product: '#06b6d4',
-  other: '#6b7280',
-};
-
 export function EntityInfoModal({ visible, entity, onClose }: EntityInfoModalProps) {
   const theme = useTheme();
 
   if (!entity) return null;
 
   const IconComponent = entityIcons[entity.type] || HelpCircle;
-  const color = entityColors[entity.type] || '#6b7280';
+  // Single source of truth so the modal icon matches the message-highlight dots.
+  const color = getEntityColor(entity.type);
 
   return (
     <Modal
