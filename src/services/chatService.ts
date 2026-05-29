@@ -24,6 +24,9 @@ const normalizeId = (value: unknown): string => String(value ?? "").trim();
 // Cache of current user's IDs (id, phone, userId, _id, etc.) for message ownership check
 const currentActorIds = new Set<string>(["user-me"]);
 let actorIdsHydrated = false;
+// Canonical current-user id, cached during hydration so inbound handlers don't
+// call getCurrentUser() per message.
+let cachedCurrentUserId = "";
 
 // Hydrate current actor IDs from user data
 // Called once to populate cache with user's various ID formats
@@ -32,6 +35,9 @@ const hydrateCurrentActorIds = async () => {
 
   try {
     const user = await getCurrentUser();
+    cachedCurrentUserId = normalizeId(
+      user?.id || (user as any)?._id || (user as any)?.userId || user?.phone || "",
+    );
     const ids = [
       user?.id,
       user?.phone,
@@ -588,17 +594,20 @@ function registerSocketListeners() {
   };
 
   // Refresh AI features (summary + smart reply) after an inbound message lands.
-  // Resolves the current user id only for non-self messages; the actual guard +
-  // work live in triggerInboundAiFeatures (single live trigger for the app).
+  // Uses the cached current-user id (hydrated on conversation load) rather than
+  // calling getCurrentUser per message; the guard + work live in
+  // triggerInboundAiFeatures (single live trigger for the app).
   const triggerInboundAi = async (conversationId: string, senderId: string) => {
     const isSelf = isCurrentActor(senderId);
-    let currentUserId = '';
-    if (!isSelf) {
-      const user = await getCurrentUser();
-      currentUserId =
-        user?.id || (user as any)?._id || (user as any)?.userId || user?.phone || '';
+    if (!isSelf && !cachedCurrentUserId) {
+      await hydrateCurrentActorIds(); // ensure the id cache is populated
     }
-    await triggerInboundAiFeatures({ conversationId, senderId, isSelf, currentUserId });
+    await triggerInboundAiFeatures({
+      conversationId,
+      senderId,
+      isSelf,
+      currentUserId: cachedCurrentUserId,
+    });
   };
 
   const handleMessage = async (payload: any) => {
