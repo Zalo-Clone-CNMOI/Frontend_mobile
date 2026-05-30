@@ -777,5 +777,46 @@
     "expiredAlertMessage": "Bình chọn này đã kết thúc và không thể bình chọn thêm.",
     "viewResults": "Xem kết quả",
     "voteButton": "BÌNH CHỌN"
+  },
+
+  "ai": {
+    "translate": "Dịch",
+    "analyze": "Phân tích AI",
+    "analyze_failed": "Không thể phân tích file",
+    "analyzing": "Đang chuyển tiếp tới Zai...",
+    "original_text": "Nội dung gốc",
+    "target_language": "Ngôn ngữ đích",
+    "translating": "Đang dịch...",
+    "translated_result": "Kết quả",
+    "translated_by_ai": "Đã dịch qua AI",
+    "translation": {
+      "title": "Dịch tin nhắn",
+      "retry": "Thử lại"
+    },
+    "summary": {
+      "title": "Tóm tắt AI",
+      "generating": "Đang tạo tóm tắt...",
+      "copy": "Sao chép",
+      "copied": "Đã sao chép!",
+      "updatedAt": "Cập nhật"
+    },
+    "smartReply": {
+      "title": "Gợi ý",
+      "dismiss": "Bỏ qua",
+      "retry": "Thử lại",
+      "error": "Không tạo được gợi ý"
+    },
+    "entity": {
+      "loading": "Đang tải thông tin...",
+      "retry": "Thử lại",
+      "related": "Liên quan",
+      "confidence": "Độ tin cậy",
+      "position": "Vị trí",
+      "loadError": "Không thể tải thông tin. Vui lòng thử lại."
+    },
+    "moderation": {
+      "removed": "Tin nhắn đã bị gỡ bởi kiểm duyệt AI",
+      "flaggedNotice": "Tin nhắn của bạn có thể vi phạm tiêu chuẩn cộng đồng."
+    }
   }
 }

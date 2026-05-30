@@ -1,6 +1,7 @@
 import { useTheme } from '@/src/theme/themeContext';
 import { Sparkles } from 'lucide-react-native';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { useAISmartReplyStore } from '../../store/useAISmartReplyStore';
 
@@ -21,6 +22,7 @@ export const SmartReplyChips: React.FC<SmartReplyChipsProps> = ({
   onRetry,
 }) => {
   const theme = useTheme();
+  const { t } = useTranslation();
   const suggestions = useAISmartReplyStore((state) => state.suggestions.get(conversationId)) ?? [];
   const isLoading = useAISmartReplyStore((state) => state.loadingByConversation.get(conversationId)) ?? false;
   const error = useAISmartReplyStore((state) => state.getError(conversationId));
@@ -47,15 +49,19 @@ export const SmartReplyChips: React.FC<SmartReplyChipsProps> = ({
         <View style={[styles.container, { borderBottomColor: theme.colors.border }]}>
           <View style={styles.row}>
             <Text style={[styles.errorText, { color: theme.colors.icon }]}>
-              Không tạo được gợi ý
+              {t('ai.smartReply.error', { defaultValue: 'Không tạo được gợi ý' })}
             </Text>
             {onRetry && (
               <TouchableOpacity onPress={onRetry} style={styles.actionBtn}>
-                <Text style={[styles.actionText, { color: theme.colors.primary }]}>Thử lại</Text>
+                <Text style={[styles.actionText, { color: theme.colors.primary }]}>
+                  {t('ai.smartReply.retry', { defaultValue: 'Thử lại' })}
+                </Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity onPress={onDismiss} style={styles.dismissBtn}>
-              <Text style={[styles.dismissText, { color: theme.colors.icon }]}>Bỏ qua</Text>
+              <Text style={[styles.dismissText, { color: theme.colors.icon }]}>
+                {t('ai.smartReply.dismiss', { defaultValue: 'Bỏ qua' })}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -70,9 +76,13 @@ export const SmartReplyChips: React.FC<SmartReplyChipsProps> = ({
         <View style={[styles.iconCircle, { backgroundColor: theme.colors.primary + '15' }]}>
           <Sparkles size={13} color={theme.colors.primary} />
         </View>
-        <Text style={[styles.label, { color: theme.colors.icon }]}>Gợi ý</Text>
+        <Text style={[styles.label, { color: theme.colors.icon }]}>
+          {t('ai.smartReply.title', { defaultValue: 'Gợi ý' })}
+        </Text>
         <TouchableOpacity onPress={onDismiss} style={styles.dismissBtn}>
-          <Text style={[styles.dismissText, { color: theme.colors.icon }]}>Bỏ qua</Text>
+          <Text style={[styles.dismissText, { color: theme.colors.icon }]}>
+            {t('ai.smartReply.dismiss', { defaultValue: 'Bỏ qua' })}
+          </Text>
         </TouchableOpacity>
       </View>
       <ScrollView

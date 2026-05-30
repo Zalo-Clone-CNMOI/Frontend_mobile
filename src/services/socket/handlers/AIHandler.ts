@@ -5,6 +5,8 @@ import type { AiSummaryResultPayload, AiModerationResultPayload } from "../../..
 // run the native dynamic import() the sibling handlers use).
 import { useAISummaryStore } from "../../../store/useAISummaryStore";
 import { toast } from "../../../services/toastService";
+// Non-component module → use the i18n singleton directly (no useTranslation hook).
+import i18n from "../../../i18n/config";
 
 /**
  * AIHandler - Handles all AI-related socket events
@@ -109,7 +111,11 @@ export class AIHandler extends BaseHandler {
     });
 
     import("../../../services/toastService").then(({ toast }) => {
-      toast.info("Message removed by AI moderation");
+      toast.info(
+        i18n.t("ai.moderation.removed", {
+          defaultValue: "Tin nhắn đã bị gỡ bởi kiểm duyệt AI",
+        })
+      );
     });
   }
 
@@ -120,8 +126,11 @@ export class AIHandler extends BaseHandler {
     if (!payload.is_flagged) return;
 
     // Subtle sender-side notice when their own message is flagged.
-    // Human-readable VI string (i18n finalized in Issue #13).
-    toast.info("Tin nhắn của bạn có thể vi phạm tiêu chuẩn cộng đồng.");
+    toast.info(
+      i18n.t("ai.moderation.flaggedNotice", {
+        defaultValue: "Tin nhắn của bạn có thể vi phạm tiêu chuẩn cộng đồng.",
+      })
+    );
   }
 
   private handleMessageEntities(payload: any): void {
