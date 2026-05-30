@@ -1115,8 +1115,15 @@ interface HighlightTextProps {
           ) : (
             // ── Plain text with optional mention/entity/search/markdown highlight ──
             <View>
-              {item.bodyFormat === 'markdown' ? (
-                <Markdown style={isMe ? markdownStylesRight : markdownStylesLeft}>
+              {(item.bodyFormat === 'markdown' || isZaiMessage) ? (
+                // Render Markdown for any Zai reply — not only when the `bodyFormat`
+                // flag is present. The backend emits body_format on the live socket
+                // fanout but does NOT persist it to ScyllaDB / return it from the
+                // history read, so after exit+re-enter the flag is gone and the
+                // reply would otherwise show raw '**'. Gating on isZaiMessage makes
+                // markdown rendering reload-proof. theirTextColor / isDark keep the
+                // text visible in dark mode (was hardcoded #1a1a1a → invisible).
+                <Markdown style={isMe ? markdownStylesRight : makeMarkdownStylesLeft(theirTextColor, isDark)}>
                   {messageText}
                 </Markdown>
               ) : item.mentions && item.mentions.length > 0 ? (
@@ -1269,23 +1276,26 @@ const markdownStylesRight = {
   ordered_list_icon: { color: '#fff', fontSize: 14, lineHeight: 20, marginRight: 8 },
 };
 
-const markdownStylesLeft = {
-  body: { color: '#1a1a1a', fontSize: 15, lineHeight: 20 },
-  heading1: { color: '#1a1a1a', fontSize: 20, fontWeight: '700' as const, marginVertical: 4 },
-  heading2: { color: '#1a1a1a', fontSize: 18, fontWeight: '600' as const, marginVertical: 3 },
-  heading3: { color: '#1a1a1a', fontSize: 16, fontWeight: '600' as const, marginVertical: 2 },
+// Their/left-side Markdown (Zai replies). Theme-aware: the text/heading/list-icon
+// colors were hardcoded to #1a1a1a, which is invisible on the dark-mode bubble
+// (#1C1C1E). `textColor` is theme.colors.text; surfaces and borders flip on isDark.
+const makeMarkdownStylesLeft = (textColor: string, isDark: boolean) => ({
+  body: { color: textColor, fontSize: 15, lineHeight: 20 },
+  heading1: { color: textColor, fontSize: 20, fontWeight: '700' as const, marginVertical: 4 },
+  heading2: { color: textColor, fontSize: 18, fontWeight: '600' as const, marginVertical: 3 },
+  heading3: { color: textColor, fontSize: 16, fontWeight: '600' as const, marginVertical: 2 },
   strong: { fontWeight: '700' as const },
   em: { fontStyle: 'italic' as const },
-  code_inline: { backgroundColor: 'rgba(0,0,0,0.08)', paddingHorizontal: 4, borderRadius: 3 },
-  code_block: { backgroundColor: 'rgba(0,0,0,0.05)', padding: 8, borderRadius: 6, marginVertical: 4 },
-  fence: { backgroundColor: 'rgba(0,0,0,0.05)', padding: 8, borderRadius: 6, marginVertical: 4 },
-  hr: { backgroundColor: 'rgba(0,0,0,0.15)', height: 1, marginVertical: 8 },
-  blockquote: { borderLeftWidth: 3, borderLeftColor: 'rgba(0,0,0,0.2)', paddingLeft: 8, marginVertical: 4 },
-  link: { color: '#007aff', textDecorationLine: 'underline' as const },
+  code_inline: { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)', color: textColor, paddingHorizontal: 4, borderRadius: 3 },
+  code_block: { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', color: textColor, padding: 8, borderRadius: 6, marginVertical: 4 },
+  fence: { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', color: textColor, padding: 8, borderRadius: 6, marginVertical: 4 },
+  hr: { backgroundColor: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.15)', height: 1, marginVertical: 8 },
+  blockquote: { borderLeftWidth: 3, borderLeftColor: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.2)', paddingLeft: 8, marginVertical: 4 },
+  link: { color: isDark ? '#4da6ff' : '#007aff', textDecorationLine: 'underline' as const },
   list_item: { marginVertical: 2 },
-  bullet_list_icon: { color: '#1a1a1a', fontSize: 8, lineHeight: 20, marginRight: 8 },
-  ordered_list_icon: { color: '#1a1a1a', fontSize: 14, lineHeight: 20, marginRight: 8 },
-};
+  bullet_list_icon: { color: textColor, fontSize: 8, lineHeight: 20, marginRight: 8 },
+  ordered_list_icon: { color: textColor, fontSize: 14, lineHeight: 20, marginRight: 8 },
+});
 
 const styles = StyleSheet.create({
   container: {
