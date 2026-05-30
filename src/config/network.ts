@@ -61,6 +61,12 @@ const SSO_PORT = readEnv('EXPO_PUBLIC_SSO_PORT', '5001');
 // Shared HTTP timeout for axios + fetch wrappers
 const HTTP_TIMEOUT_MS = readEnvNumber('EXPO_PUBLIC_HTTP_TIMEOUT_MS', 15000);
 
+// AI/LLM endpoints (entity-info, catch-up) generate via an LLM on a cache miss,
+// which routinely runs longer than the default 15s — the request would abort
+// mid-generation ("Request timeout after 15000ms"). Give them a longer client
+// timeout; the server bounds its own work just under this so it answers first.
+const AI_HTTP_TIMEOUT_MS = readEnvNumber('EXPO_PUBLIC_AI_HTTP_TIMEOUT_MS', 30000);
+
 // API root without /api suffix (media presign, health probes)
 const API_ROOT_URL = trimTrailingSlash(`http://${API_HOST}:${API_PORT}`);
 
@@ -138,6 +144,7 @@ export const NETWORK_CONFIG = {
   SOCKET_PORT: Number(SOCKET_PORT),
   SSO_PORT: Number(SSO_PORT),
   HTTP_TIMEOUT_MS,
+  AI_HTTP_TIMEOUT_MS,
   API_ROOT_URL,
   API_BASE_URL,
 
