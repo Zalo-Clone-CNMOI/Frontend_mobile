@@ -569,6 +569,7 @@ interface EntityHighlightTextProps {
   textColor: string;
   entityColors?: Record<string, string>;
   onEntityPress?: (entity: DetectedEntity) => void;
+  isMe?: boolean;
 }
 
 function EntityHighlightText({
@@ -577,6 +578,7 @@ function EntityHighlightText({
   textColor,
   entityColors = {},
   onEntityPress,
+  isMe = false,
 }: EntityHighlightTextProps) {
   const highConfidenceEntities = entities.filter(
     (e) =>
@@ -616,6 +618,14 @@ function EntityHighlightText({
     }
 
     const color = entityColors[entity.type] || '#6366f1';
+    // On a "me" bubble (solid blue) the entity's type colour can blend into the
+    // background — a blue `person` chip on the blue bubble was nearly invisible.
+    // There, use a high-contrast translucent-white treatment (matching the
+    // mention/search highlight convention). On "them" bubbles keep the type
+    // colour but at a stronger opacity than before (~25% vs the old ~19%), plus
+    // a bold slice and underline so the tappable entity actually stands out.
+    const highlightBg = isMe ? 'rgba(255,255,255,0.28)' : color + '40';
+    const underlineColor = isMe ? 'rgba(255,255,255,0.95)' : color;
     parts.push(
       <Text
         key={`entity-${idx}-${entity.text}`}
@@ -623,10 +633,11 @@ function EntityHighlightText({
           styles.text,
           {
             color: textColor,
-            backgroundColor: color + '30',
+            fontWeight: '600',
+            backgroundColor: highlightBg,
             borderRadius: 3,
             borderBottomWidth: 2,
-            borderBottomColor: color,
+            borderBottomColor: underlineColor,
           },
         ]}
         onPress={() => onEntityPress?.(entity)}
@@ -1152,6 +1163,7 @@ interface HighlightTextProps {
                   textColor={isMe ? myTextColor : theirTextColor}
                   entityColors={ENTITY_COLORS}
                   onEntityPress={handleEntityPress}
+                  isMe={isMe}
                 />
               ) : (
                 <HighlightText
