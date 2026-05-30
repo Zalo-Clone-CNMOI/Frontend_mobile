@@ -45,7 +45,7 @@ export function SummaryModal({ visible, conversationId, onClose }: SummaryModalP
         <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              AI Summary
+              {t('ai.summary.title', { defaultValue: 'Tóm tắt AI' })}
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <X size={20} color={theme.colors.text} />
@@ -57,7 +57,7 @@ export function SummaryModal({ visible, conversationId, onClose }: SummaryModalP
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
                 <Text style={[styles.loadingText, { color: theme.colors.icon }]}>
-                  Generating summary...
+                  {t('ai.summary.generating', { defaultValue: 'Đang tạo tóm tắt...' })}
                 </Text>
               </View>
             )}
@@ -77,7 +77,7 @@ export function SummaryModal({ visible, conversationId, onClose }: SummaryModalP
                 </Text>
                 {summary.cachedAt && (
                   <Text style={[styles.updatedAt, { color: theme.colors.icon }]}>
-                    {t('summary.updated_at', { defaultValue: 'Updated' })}:{' '}
+                    {t('ai.summary.updatedAt', { defaultValue: 'Cập nhật' })}:{' '}
                     {new Date(summary.cachedAt).toLocaleString()}
                   </Text>
                 )}
@@ -91,7 +91,9 @@ export function SummaryModal({ visible, conversationId, onClose }: SummaryModalP
                     <Copy size={16} color={theme.colors.icon} />
                   )}
                   <Text style={[styles.copyText, { color: theme.colors.icon }]}>
-                    {copied ? 'Copied!' : 'Copy'}
+                    {copied
+                      ? t('ai.summary.copied', { defaultValue: 'Đã sao chép!' })
+                      : t('ai.summary.copy', { defaultValue: 'Sao chép' })}
                   </Text>
                 </TouchableOpacity>
               </>

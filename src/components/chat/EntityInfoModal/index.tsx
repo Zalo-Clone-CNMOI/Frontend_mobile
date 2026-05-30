@@ -49,12 +49,14 @@ export function EntityInfoModal({ visible, entity, onClose }: EntityInfoModalPro
       // set() also clears loading + error for this key.
       useEntityInfoStore.getState().set(key, result);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Không thể tải thông tin. Vui lòng thử lại.';
+      const msg = e instanceof Error
+        ? e.message
+        : t('ai.entity.loadError', { defaultValue: 'Không thể tải thông tin. Vui lòng thử lại.' });
       const s = useEntityInfoStore.getState();
       s.setError(key, msg);
       s.setLoading(key, false);
     }
-  }, [key, entityText, entityType, lang]);
+  }, [key, entityText, entityType, lang, t]);
 
   useEffect(() => {
     if (!visible || !key) return;
@@ -162,7 +164,7 @@ export function EntityInfoModal({ visible, entity, onClose }: EntityInfoModalPro
 
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: theme.colors.icon }]}>
-                Confidence
+                {t('ai.entity.confidence', { defaultValue: 'Độ tin cậy' })}
               </Text>
               <Text style={[styles.detailValue, { color: theme.colors.text }]}>
                 {Math.round(entity.confidence * 100)}%
@@ -171,7 +173,7 @@ export function EntityInfoModal({ visible, entity, onClose }: EntityInfoModalPro
 
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: theme.colors.icon }]}>
-                Position
+                {t('ai.entity.position', { defaultValue: 'Vị trí' })}
               </Text>
               <Text style={[styles.detailValue, { color: theme.colors.text }]}>
                 {entity.start_index} - {entity.end_index}

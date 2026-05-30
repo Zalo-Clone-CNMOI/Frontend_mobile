@@ -736,5 +736,46 @@
     "expiredAlertMessage": "This poll has ended and no more votes can be cast.",
     "viewResults": "View Results",
     "voteButton": "VOTE"
+  },
+
+  "ai": {
+    "translate": "Translate",
+    "analyze": "AI Analysis",
+    "analyze_failed": "Could not analyze the file",
+    "analyzing": "Forwarding to Zai...",
+    "original_text": "Original text",
+    "target_language": "Target language",
+    "translating": "Translating...",
+    "translated_result": "Result",
+    "translated_by_ai": "Translated by AI",
+    "translation": {
+      "title": "Translate message",
+      "retry": "Retry"
+    },
+    "summary": {
+      "title": "AI Summary",
+      "generating": "Generating summary...",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "updatedAt": "Updated"
+    },
+    "smartReply": {
+      "title": "Suggestions",
+      "dismiss": "Dismiss",
+      "retry": "Retry",
+      "error": "Couldn't generate suggestions"
+    },
+    "entity": {
+      "loading": "Loading info...",
+      "retry": "Retry",
+      "related": "Related",
+      "confidence": "Confidence",
+      "position": "Position",
+      "loadError": "Could not load info. Please try again."
+    },
+    "moderation": {
+      "removed": "Message removed by AI moderation",
+      "flaggedNotice": "Your message may violate community standards."
+    }
   }
 }

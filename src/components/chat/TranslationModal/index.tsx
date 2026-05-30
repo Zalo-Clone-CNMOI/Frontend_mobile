@@ -102,7 +102,7 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
               <ArrowLeft size={24} color={theme.colors.text} />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-              {t('ai.translate', { defaultValue: 'Dịch tin nhắn' })}
+              {t('ai.translation.title', { defaultValue: 'Dịch tin nhắn' })}
             </Text>
             <View style={styles.backButton} />
           </View>
@@ -176,10 +176,10 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
                   style={[styles.retryButton, { borderColor: theme.colors.primary }]}
                   onPress={handleRetry}
                   accessibilityRole="button"
-                  accessibilityLabel={t('ai.translate.retry', { defaultValue: 'Thử lại' })}
+                  accessibilityLabel={t('ai.translation.retry', { defaultValue: 'Thử lại' })}
                 >
                   <Text style={[styles.retryButtonText, { color: theme.colors.primary }]}>
-                    {t('ai.translate.retry', { defaultValue: 'Thử lại' })}
+                    {t('ai.translation.retry', { defaultValue: 'Thử lại' })}
                   </Text>
                 </TouchableOpacity>
               </View>

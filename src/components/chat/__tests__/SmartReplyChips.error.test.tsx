@@ -3,6 +3,14 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { SmartReplyChips } from '../SmartReplyChips';
 import { useAISmartReplyStore } from '@/src/store/useAISmartReplyStore';
 
+// t() returns the provided defaultValue so assertions read the human VI strings
+// (SmartReplyChips became i18n-aware in Issue #13).
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (_key: string, opts?: { defaultValue?: string }) => opts?.defaultValue ?? _key,
+  }),
+}));
+
 jest.mock('@/src/theme/themeContext', () => ({
   useTheme: () => ({ colors: { border: '#ccc', primary: '#0068FF', icon: '#888' } }),
 }));
