@@ -32,10 +32,15 @@ export async function getEntityInfo(
     `&type=${encodeURIComponent(type)}` +
     `&lang=${encodeURIComponent(lang)}`;
 
-  const response = await apiCallWithRefresh(`${ENTITY_INFO_URL}?${query}`, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-  });
+  const response = await apiCallWithRefresh(
+    `${ENTITY_INFO_URL}?${query}`,
+    {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    },
+    // LLM generation on a cache miss exceeds the default 15s timeout.
+    NETWORK_CONFIG.AI_HTTP_TIMEOUT_MS,
+  );
 
   const raw = await response.text();
   let data: unknown = null;

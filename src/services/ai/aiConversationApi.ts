@@ -92,7 +92,9 @@ export async function catchUp(conversationId: string): Promise<CatchUpResult> {
   try {
     const response = await apiCallWithRefresh(
       AI_API + `/conversations/${conversationId}/catch-up`,
-      { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+      { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+      // LLM summarisation on a cache miss exceeds the default 15s timeout.
+      NETWORK_CONFIG.AI_HTTP_TIMEOUT_MS,
     );
     const text = await response.text();
     let data: any = null;
