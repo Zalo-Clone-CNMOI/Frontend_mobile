@@ -322,6 +322,14 @@ isMultiSelectMode = false,
     return 'User';
   }, [item.fromMe, item.senderName, item.senderId, item.sender?.name, item.sender?.fullName, isGroup, userProfile, loading, conversationMember, isZaiMessage, t]);
 
+  // Memoized so the Markdown `style` prop keeps a stable reference across renders
+  // (react-native-markdown-display re-parses styles on a new object). Inputs only
+  // change on theme toggle, so this holds stable during scrolls (review W2).
+  const markdownStylesLeft = useMemo(
+    () => makeMarkdownStylesLeft(theirTextColor, isDark),
+    [theirTextColor, isDark],
+  );
+
   const formatTime = (dateProp: any) => {
     const d = dateProp ? new Date(dateProp) : new Date();
     return d.toLocaleTimeString([], {
@@ -1121,9 +1129,13 @@ interface HighlightTextProps {
                 // fanout but does NOT persist it to ScyllaDB / return it from the
                 // history read, so after exit+re-enter the flag is gone and the
                 // reply would otherwise show raw '**'. Gating on isZaiMessage makes
-                // markdown rendering reload-proof. theirTextColor / isDark keep the
-                // text visible in dark mode (was hardcoded #1a1a1a → invisible).
-                <Markdown style={isMe ? markdownStylesRight : makeMarkdownStylesLeft(theirTextColor, isDark)}>
+                // markdown rendering reload-proof. markdownStylesLeft is theme-aware
+                // so text stays visible in dark mode (was hardcoded #1a1a1a).
+                // NOTE: Markdown intentionally takes priority over the mention /
+                // entity / search branches below for Zai messages. If Zai replies
+                // ever start carrying mentions or entity offsets, this branch must
+                // be split so those highlights aren't dropped (review W1).
+                <Markdown style={isMe ? markdownStylesRight : markdownStylesLeft}>
                   {messageText}
                 </Markdown>
               ) : item.mentions && item.mentions.length > 0 ? (
