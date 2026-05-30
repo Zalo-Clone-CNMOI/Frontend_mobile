@@ -381,12 +381,20 @@ export interface AiTranslateResultPayload {
 
 // ==================== AI / Moderation Types ====================
 
+// Matches the ws-gateway ai-fanout enforcement emit. The offending message is
+// identified by `message_id`; there is NO `removed_message_id` on the wire — the
+// old phantom field silently broke handleModerationEnforcement (its guard read
+// removed_message_id, which was always undefined).
 export interface AiModerationEnforcementPayload {
   conversation_id: string;
   message_id: string;
-  removed_message_id: string;
-  reason: string;
-  confidence: number;
+  action?: string;
+  outcome?: string;
+  reason?: string;
+  is_flagged?: boolean;
+  labels?: string[];
+  confidence?: number;
+  enforced_at?: number;
   trace_id?: string;
 }
 
