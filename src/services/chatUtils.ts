@@ -148,7 +148,10 @@ export function toLegacyChatMessage(apiMessage: any): ChatMessage {
     isRevoked: Boolean(apiMessage?.isDeleted),
     attachments: Array.isArray(apiMessage?.attachments) ? apiMessage.attachments : undefined,
     mentions: apiMessage?.mentions,
-    bodyFormat: (apiMessage?.body_format === 'markdown' ? 'markdown' : undefined) as 'markdown' | undefined,
+    // Accept both the socket's snake_case `body_format` and an API response's
+    // camelCase `bodyFormat` so Zai markdown renders through either mapping path
+    // (kept consistent with chatService.toLegacyChatMessage — review W1, PR #44).
+    bodyFormat: ((apiMessage?.bodyFormat ?? apiMessage?.body_format) === 'markdown' ? 'markdown' : undefined) as 'markdown' | undefined,
     messageType: apiMessage?.messageType ?? apiMessage?.message_type,
     systemEventType: apiMessage?.systemEventType || apiMessage?.system_event_type,
     metadata: apiMessage?.metadata,
