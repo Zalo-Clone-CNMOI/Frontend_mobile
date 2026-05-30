@@ -103,11 +103,15 @@ export class AIHandler extends BaseHandler {
   private handleModerationEnforcement(payload: any): void {
     this.log("Moderation enforcement:", payload);
 
-    const { conversation_id, message_id, removed_message_id, reason, confidence } = payload || {};
-    if (!conversation_id || !removed_message_id) return;
+    // The BE (ws-gateway ai-fanout) emits `message_id` — NOT `removed_message_id`.
+    // The old guard on `removed_message_id` was always undefined, so this handler
+    // returned early and the soft-delete + toast never fired. Read the field the
+    // backend actually sends.
+    const { conversation_id, message_id, reason } = payload || {};
+    if (!conversation_id || !message_id) return;
 
     import("../../../store/useMessagesStore").then(({ useMessagesStore }) => {
-      useMessagesStore.getState().markMessageRemoved(conversation_id, removed_message_id, reason);
+      useMessagesStore.getState().markMessageRemoved(conversation_id, message_id, reason);
     });
 
     import("../../../services/toastService").then(({ toast }) => {

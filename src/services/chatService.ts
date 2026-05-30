@@ -153,6 +153,11 @@ export function toLegacyChatMessage(apiMessage: any): ChatMessage {
     isRevoked: Boolean(apiMessage?.isDeleted),
     attachments: Array.isArray(apiMessage?.attachments) ? apiMessage.attachments : undefined,
     mentions: apiMessage?.mentions,
+    // Markdown rendering flag for Zai replies. The socket payload sends
+    // snake_case `body_format`; API responses may use camelCase `bodyFormat`.
+    // Without this mapping the field is dropped and MessageBubble renders raw
+    // '**'/'---' instead of formatted Markdown.
+    bodyFormat: apiMessage?.bodyFormat ?? apiMessage?.body_format,
     // System message fields
     messageType: apiMessage?.messageType,
     systemEventType: apiMessage?.systemEventType || apiMessage?.system_event_type,
