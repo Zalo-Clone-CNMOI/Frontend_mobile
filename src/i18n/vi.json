@@ -342,6 +342,8 @@
     "forward_failed": "Chuyển tiếp thất bại",
     "rate_limited": "Quá nhiều yêu cầu",
     "rate_limited_desc": "Vui lòng thử lại sau",
+    "profanity_blocked": "Tin nhắn có thể vi phạm tiêu chuẩn cộng đồng và đã không được gửi.",
+    "send_too_fast": "Bạn đang gửi quá nhanh, vui lòng chậm lại một chút.",
     "you": "Bạn"
   },
 
