@@ -16,6 +16,7 @@ export function SummaryModal({ visible, conversationId, onClose }: SummaryModalP
   const theme = useTheme();
   const { t } = useTranslation();
   const [copied, setCopied] = React.useState(false);
+  const copyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const summaries = useAISummaryStore((state) => state.summaries);
   const loadingByConversation = useAISummaryStore((state) => state.loadingByConversation);
@@ -26,11 +27,25 @@ export function SummaryModal({ visible, conversationId, onClose }: SummaryModalP
   const isLoading = loadingByConversation.get(safeConversationId) || false;
   const error = errorByConversation.get(safeConversationId) || null;
 
+  // RN Modal keeps its subtree mounted when hidden, so `copied` would otherwise
+  // persist a stale "Copied!" across opens. Reset it whenever the modal opens
+  // or switches conversation. Also clear any pending reset timer on unmount.
+  React.useEffect(() => {
+    if (visible) setCopied(false);
+  }, [visible, conversationId]);
+
+  React.useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
   const handleCopy = async () => {
     if (summary?.summary) {
       await Clipboard.setStringAsync(summary.summary);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
     }
   };
 

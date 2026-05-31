@@ -125,7 +125,9 @@ export default function ChatOptionsScreen() {
   // re-summarize an already-finished summary. Now we just display it.)
   const handleSummaryChat = async () => {
     setSummaryModalVisible(true);
-    await runCatchUpSummary(chatId);
+    // runCatchUpSummary handles its own errors (into the store); the extra catch
+    // guards against an unhandled rejection escaping this onPress handler.
+    await runCatchUpSummary(chatId).catch(() => {});
   };
 
   // Navigation debouncing state

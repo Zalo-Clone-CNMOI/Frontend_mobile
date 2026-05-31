@@ -192,7 +192,9 @@ export default function HomeScreen() {
     handleCloseMenu();
     setSummaryConversationId(convId);
     setSummaryModalVisible(true);
-    await runCatchUpSummary(convId);
+    // runCatchUpSummary handles its own errors (into the store); the extra catch
+    // guards against an unhandled rejection escaping this onPress handler.
+    await runCatchUpSummary(convId).catch(() => {});
   };
 
   return (
