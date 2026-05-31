@@ -2,7 +2,7 @@ import { useRealtimeStore } from '@/src/store/useRealtimeStore';
 import { useGroupInviteStore } from '@/src/store/useGroupInviteStore';
 import { useTheme } from '@/src/theme/themeContext';
 import { Tabs } from 'expo-router';
-import { Clock3, Contact2, LayoutGrid, MessageSquare, User2 } from 'lucide-react-native';
+import { Contact2, LayoutGrid, MessageSquare, User2 } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -49,13 +49,6 @@ export default function TabsLayout() {
         options={{
           title: t('navigation.tabs.discover'),
           tabBarIcon: ({ color }) => <LayoutGrid size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="timeline"
-        options={{
-          title: t('navigation.tabs.timeline'),
-          tabBarIcon: ({ color }) => <Clock3 size={24} color={color} />,
         }}
       />
       <Tabs.Screen
