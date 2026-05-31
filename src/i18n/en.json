@@ -757,7 +757,8 @@
       "generating": "Generating summary...",
       "copy": "Copy",
       "copied": "Copied!",
-      "updatedAt": "Updated"
+      "updatedAt": "Updated",
+      "noUnread": "You're all caught up 🎉"
     },
     "smartReply": {
       "title": "Suggestions",

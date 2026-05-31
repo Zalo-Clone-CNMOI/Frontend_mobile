@@ -70,6 +70,18 @@ export function SummaryModal({ visible, conversationId, onClose }: SummaryModalP
               </View>
             )}
 
+            {/* No-unread / empty state: a cache entry exists (catch-up resolved)
+                but there is no summary text → nothing to catch up on. */}
+            {summary && !summary.summary && !isLoading && !error && (
+              <View style={styles.emptyContainer}>
+                <Text style={[styles.emptyText, { color: theme.colors.icon }]}>
+                  {t('ai.summary.noUnread', {
+                    defaultValue: 'Bạn đã đọc hết tin nhắn rồi 🎉',
+                  })}
+                </Text>
+              </View>
+            )}
+
             {summary?.summary && !isLoading && (
               <>
                 <Text style={[styles.summaryText, { color: theme.colors.text }]}>
@@ -146,6 +158,14 @@ const styles = StyleSheet.create({
   errorContainer: {
     padding: 16,
     alignItems: 'center',
+  },
+  emptyContainer: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    textAlign: 'center',
   },
   errorText: {
     fontSize: 14,

@@ -17,8 +17,9 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, TouchableOpacity, View, Modal, Pressable, ActionSheetIOS, Platform, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { pinConversation, unpinConversation, leaveConversation } from '@/src/services/conversationsApi';
-import { catchUp, getOrCreateZaiConversation } from '@/src/services/ai/aiConversationApi';
+import { runCatchUpSummary } from '@/src/services/ai/catchUpSummary';
 import { toast } from '@/src/services/toastService';
+import { SummaryModal } from '@/src/components/chat/SummaryModal';
 import type { ConversationV2 } from '@/src/types/chat';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -40,6 +41,10 @@ export default function HomeScreen() {
   const [pressedConversationId, setPressedConversationId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ y: number; height: number }>({ y: 0, height: 0 });
   const [menuFlip, setMenuFlip] = useState(false); // true = show menu above conversation
+
+  // Catch-up summary modal state (replaces the old "post summary into Zai" flow)
+  const [summaryModalVisible, setSummaryModalVisible] = useState(false);
+  const [summaryConversationId, setSummaryConversationId] = useState<string>('');
 
   // Handle long press on conversation
   const handleConversationLongPress = useCallback((conversation: ConversationV2, yPosition: number, itemHeight: number) => {
@@ -178,33 +183,16 @@ export default function HomeScreen() {
     handleCloseMenu();
   };
 
-  // Handle summary chat
+  // Handle summary chat — show the AI catch-up summary in a modal.
+  // (Previously this posted the summary into the Zai chat, which made Zai
+  // re-summarize an already-finished summary. Now we just display it.)
   const handleSummaryChat = async () => {
     if (!selectedConversation) return;
-    const conv = selectedConversation;
+    const convId = selectedConversation.conversationId;
     handleCloseMenu();
-
-    try {
-      const summaryResult = await catchUp(conv.conversationId);
-
-      if (!summaryResult.hadUnread) {
-        toast.info('Bạn đã đọc hết rồi');
-        return;
-      }
-
-      const messageCount = summaryResult.messageCount || 'nhiều';
-      let autoPrompt = `Hãy tóm tắt cuộc trò chuyện "${conv.name}" cho tôi. Có ${messageCount} tin nhắn.\n\nTÓM TẮT:\n${summaryResult.summary}`;
-      if (summaryResult.truncated) {
-        autoPrompt += '\n\n(Lưu ý: Một số tin nhắn đã bị cắt ngắn)';
-      }
-      const zaiConvId = await getOrCreateZaiConversation();
-      router.push({
-        pathname: '/chat/[id]',
-        params: { id: zaiConvId, autoPrompt },
-      } as any);
-    } catch (error: any) {
-      toast.error(String(error?.message || 'Không thể tóm tắt cuộc trò chuyện'));
-    }
+    setSummaryConversationId(convId);
+    setSummaryModalVisible(true);
+    await runCatchUpSummary(convId);
   };
 
   return (
@@ -341,6 +329,13 @@ export default function HomeScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* Catch-up AI summary modal */}
+        <SummaryModal
+          visible={summaryModalVisible}
+          conversationId={summaryConversationId}
+          onClose={() => setSummaryModalVisible(false)}
+        />
       </View>
     </SafeAreaView>
   );

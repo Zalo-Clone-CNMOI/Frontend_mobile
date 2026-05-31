@@ -798,7 +798,8 @@
       "generating": "Đang tạo tóm tắt...",
       "copy": "Sao chép",
       "copied": "Đã sao chép!",
-      "updatedAt": "Cập nhật"
+      "updatedAt": "Cập nhật",
+      "noUnread": "Bạn đã đọc hết tin nhắn rồi 🎉"
     },
     "smartReply": {
       "title": "Gợi ý",
