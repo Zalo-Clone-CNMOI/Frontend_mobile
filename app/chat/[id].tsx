@@ -263,6 +263,7 @@ export default function ChatDetailScreen() {
   const [showEntityInfoModal, setShowEntityInfoModal] = useState(false);
   const [selectedEntityItem, setSelectedEntityItem] = useState<any>(null);
   const entitiesByMessage = useEntityDetectionStore((s) => s.entitiesByMessage);
+  const pendingByMessage = useEntityDetectionStore((s) => s.pendingByMessage);
 
   // Analyze file state
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -898,6 +899,7 @@ export default function ChatDetailScreen() {
 
   const renderItem = React.useCallback(({ item }: { item: any }) => {
     const messageEntities = entitiesByMessage.get(item.id) || undefined;
+    const isEntityPending = pendingByMessage.has(item.id);
     return (
       <MessageBubble
         item={item}
@@ -941,6 +943,7 @@ export default function ChatDetailScreen() {
         messages={messages}
         // Entity detection
         entities={messageEntities}
+        isEntityPending={isEntityPending}
         onEntityPress={handleEntityPress}
       />
     );
@@ -969,6 +972,7 @@ export default function ChatDetailScreen() {
     toggleMessageSelection,
     messages,
     entitiesByMessage,
+    pendingByMessage,
     handleEntityPress,
     isAiAssistant,
     isZaiDirectChat,

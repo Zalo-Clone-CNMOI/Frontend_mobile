@@ -771,7 +771,8 @@
       "related": "Related",
       "confidence": "Confidence",
       "position": "Position",
-      "loadError": "Could not load info. Please try again."
+      "loadError": "Could not load info. Please try again.",
+      "analyzing": "✨ Analyzing…"
     },
     "moderation": {
       "removed": "Message removed by AI moderation",

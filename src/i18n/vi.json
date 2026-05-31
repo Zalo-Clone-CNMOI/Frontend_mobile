@@ -812,7 +812,8 @@
       "related": "Liên quan",
       "confidence": "Độ tin cậy",
       "position": "Vị trí",
-      "loadError": "Không thể tải thông tin. Vui lòng thử lại."
+      "loadError": "Không thể tải thông tin. Vui lòng thử lại.",
+      "analyzing": "✨ Đang phân tích…"
     },
     "moderation": {
       "removed": "Tin nhắn đã bị gỡ bởi kiểm duyệt AI",

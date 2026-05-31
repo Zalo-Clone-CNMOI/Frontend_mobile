@@ -107,6 +107,8 @@ type MessageBubbleProps = {
   // Entity detection
   entities?: DetectedEntity[];
   onEntityPress?: (entity: DetectedEntity) => void;
+  /** Entity detection is still in-flight for this message (shows an "analyzing…" hint). */
+  isEntityPending?: boolean;
 };
 
 export const MessageBubble = React.memo(
@@ -136,6 +138,7 @@ isMultiSelectMode = false,
     messages,
     entities,
     onEntityPress,
+    isEntityPending = false,
   }: MessageBubbleProps) {
     const theme = useTheme();
     const { t } = useTranslation();
@@ -1174,6 +1177,20 @@ interface HighlightTextProps {
                 />
               )}
 
+              {/* Entity detection in-flight: subtle hint so the user knows the
+                  bubble is being analyzed (results highlight in-place when they
+                  arrive). Hidden once entities exist or the pending state clears. */}
+              {isEntityPending && !(displayEntities && displayEntities.length > 0) && (
+                <Text
+                  style={[
+                    styles.entityAnalyzing,
+                    { color: isMe ? myMetaColor : theirMetaColor },
+                  ]}
+                >
+                  {t('ai.entity.analyzing', { defaultValue: '✨ Đang phân tích…' })}
+                </Text>
+              )}
+
               </View>
           )}
         </TouchableOpacity>
@@ -1571,6 +1588,7 @@ const styles = StyleSheet.create({
   // Timestamps
   timestamp: { fontSize: 10 },
   edited: { fontSize: 10 },
+  entityAnalyzing: { fontSize: 11, fontStyle: 'italic', marginTop: 4, opacity: 0.7 },
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',

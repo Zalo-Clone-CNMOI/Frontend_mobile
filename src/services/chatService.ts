@@ -17,9 +17,24 @@ import { WsEvents } from "../realtime/events";
 import { toast } from "./toastService";
 import { updateConversationLastMessage } from "./chatUtils";
 import { triggerInboundAiFeatures } from "./ai/inboundAiTrigger";
+import { useEntityDetectionStore } from "../store/useEntityDetectionStore";
 
 // Normalize ID to string, handles null/undefined values
 const normalizeId = (value: unknown): string => String(value ?? "").trim();
+
+/**
+ * Optimistically mark an inbound text message as "awaiting entity detection"
+ * so the bubble can show an "analyzing…" hint until results arrive (or time
+ * out). Only inbound messages: their store id equals the server id that the
+ * `message:entities` event is keyed by, so the pending state resolves cleanly.
+ * Own optimistic messages keep a temporary id and are intentionally skipped
+ * (their pending would never clear via entities, only by timeout).
+ */
+function markInboundEntityPending(message: ChatMessage): void {
+  if (message.type !== "text") return;
+  if (!message.text || !message.text.trim()) return;
+  useEntityDetectionStore.getState().markPending(message.id);
+}
 
 // Cache of current user's IDs (id, phone, userId, _id, etc.) for message ownership check
 const currentActorIds = new Set<string>(["user-me"]);
@@ -659,6 +674,7 @@ function registerSocketListeners() {
       // Directly add to store instead of relying on _handlers
       const { useMessagesStore } = await import('../store/useMessagesStore');
       useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
+      markInboundEntityPending(enrichedMessage);
       // Update conversation list with last message
       await updateConversationLastMessage(enrichedMessage, payload);
       void triggerInboundAi(conversationId, senderId);
@@ -678,6 +694,7 @@ function registerSocketListeners() {
       // Directly add to store instead of relying on _handlers
       const { useMessagesStore } = await import('../store/useMessagesStore');
       useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
+      markInboundEntityPending(enrichedMessage);
       // Update conversation list with last message
       await updateConversationLastMessage(enrichedMessage, payload);
     } catch (e) {
@@ -688,6 +705,7 @@ function registerSocketListeners() {
       // Directly add to store instead of relying on _handlers
       const { useMessagesStore } = await import('../store/useMessagesStore');
       useMessagesStore.getState().addMessage(conversationId, enrichedMessage);
+      markInboundEntityPending(enrichedMessage);
       // Update conversation list with last message
       await updateConversationLastMessage(enrichedMessage, payload);
     }
