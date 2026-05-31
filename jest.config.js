@@ -10,10 +10,10 @@ module.exports = {
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
-    // react-native-localize has no native impl in jest; the jest-expo resolver
+    // expo-localization has no native impl in jest; the jest-expo resolver
     // bypasses the root __mocks__ folder, so map it explicitly to the manual
-    // mock. src/i18n/config.ts loads it at import time (findBestLanguageTag).
-    '^react-native-localize$': '<rootDir>/__mocks__/react-native-localize.js',
+    // mock. src/i18n/config.ts loads it at import time.
+    '^expo-localization$': '<rootDir>/__mocks__/expo-localization.js',
   },
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts'],
 };
