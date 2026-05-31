@@ -2,9 +2,12 @@ import { BaseHandler } from "./BaseHandler";
 import { WsEvents } from "../../../realtime/events";
 import type { AiSummaryResultPayload, AiModerationResultPayload } from "../../../realtime/events";
 // Static imports (leaf modules) so these handlers are unit-testable (jest cannot
-// run the native dynamic import() the sibling handlers use).
+// run the native dynamic import() the sibling handlers use). useMessagesStore /
+// useChatsStore are NOT leaves (they pull in chatService → AsyncStorage), so
+// they stay dynamic; the pure preview logic lives in ./moderationPreview.
 import { useAISummaryStore } from "../../../store/useAISummaryStore";
 import { toast } from "../../../services/toastService";
+import { pickPreviewAfterRemoval } from "./moderationPreview";
 // Non-component module → use the i18n singleton directly (no useTranslation hook).
 import i18n from "../../../i18n/config";
 
@@ -110,17 +113,47 @@ export class AIHandler extends BaseHandler {
     const { conversation_id, message_id, reason } = payload || {};
     if (!conversation_id || !message_id) return;
 
-    import("../../../store/useMessagesStore").then(({ useMessagesStore }) => {
-      useMessagesStore.getState().markMessageRemoved(conversation_id, message_id, reason);
+    const placeholder = i18n.t("ai.moderation.removed", {
+      defaultValue: "Tin nhắn đã bị gỡ bởi kiểm duyệt AI",
     });
 
-    import("../../../services/toastService").then(({ toast }) => {
-      toast.info(
-        i18n.t("ai.moderation.removed", {
-          defaultValue: "Tin nhắn đã bị gỡ bởi kiểm duyệt AI",
-        })
-      );
+    // markMessageRemoved hides the bubble in the open conversation but does NOT
+    // touch useChatsStore, so a removed last-message would otherwise linger as
+    // the conversation-list preview (the reported bug). After marking removed,
+    // recompute the preview to the newest still-visible message (idempotent
+    // when the removed message wasn't the latest). Stores are imported lazily —
+    // they pull in chatService and can't be statically imported under jest.
+    void Promise.all([
+      import("../../../store/useMessagesStore"),
+      import("../../../store/useChatsStore"),
+    ]).then(([{ useMessagesStore }, { useChatsStore }]) => {
+      useMessagesStore
+        .getState()
+        .markMessageRemoved(conversation_id, message_id, reason);
+
+      // Relies on Zustand setState being synchronous: the read below already
+      // reflects the markMessageRemoved above (the removed message is excluded
+      // from the recomputed preview). If markMessageRemoved ever becomes
+      // async/batched, re-read on the next tick instead.
+      const messages =
+        useMessagesStore.getState().messagesByChatId[conversation_id] || [];
+      const update = pickPreviewAfterRemoval(messages, message_id, placeholder);
+      if (update) {
+        useChatsStore
+          .getState()
+          .updateLastMessage(
+            conversation_id,
+            update.content,
+            update.type,
+            update.timestamp,
+            update.senderId,
+            update.senderName,
+            false,
+          );
+      }
     });
+
+    toast.info(placeholder);
   }
 
   private handleModerationResult(payload: AiModerationResultPayload): void {

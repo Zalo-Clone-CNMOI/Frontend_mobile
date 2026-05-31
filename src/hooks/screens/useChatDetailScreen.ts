@@ -20,6 +20,8 @@ import {
 import { searchMessages as searchMessagesApi } from '@/src/services/messagesApi';
 import { connectSocket } from '@/src/services/socket';
 import { smartReplyService } from '@/src/services/ai/SmartReplyService';
+import { toast } from '@/src/services/toastService';
+import { containsProfanity } from '@/src/utils/profanity';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import { useMessagesStore } from '@/src/store/useMessagesStore';
@@ -32,6 +34,9 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from 'react-native';
 
 const EMPTY_MESSAGES: ChatMessage[] = [];
+
+/** Minimum gap between text sends — instant client-side anti-spam feedback. */
+const MIN_SEND_INTERVAL_MS = 800;
 
 const getSingleRouteParam = (
   value?: string | string[],
@@ -63,6 +68,8 @@ export function useChatDetailScreenLogic() {
   const loadedCursorRef = useRef<string | null>(null);
   const lastCapturedPhotoRef = useRef<string | null>(null);
   const zaiMentionCooldownRef = useRef<Record<string, number>>({});
+  const autoPromptSentRef = useRef<string | null>(null);
+  const lastSentAtRef = useRef<number>(0);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageUrls, setSelectedImageUrls] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -805,6 +812,19 @@ export function useChatDetailScreenLogic() {
     const trimmed = input.trim();
     if (!trimmed) return;
 
+    // Client-side profanity guard (UX only — see utils/profanity; the server
+    // AI moderation is the authoritative layer). Blocks obvious/accidental
+    // profanity instantly so a slip isn't broadcast while async moderation runs.
+    if (containsProfanity(trimmed)) {
+      toast.info(
+        t('chat.profanity_blocked', {
+          defaultValue:
+            'Tin nhắn có thể vi phạm tiêu chuẩn cộng đồng và đã không được gửi.',
+        }),
+      );
+      return;
+    }
+
     const zaiIdx = trimmed.indexOf('@Zai');
     let mentions: Array<{ user_id: string; mention_type: 'user'; offset: number; length: number }> | undefined;
     if (zaiIdx >= 0) {
@@ -844,6 +864,19 @@ export function useChatDetailScreenLogic() {
       return;
     }
 
+    // Lightweight send cooldown — instant feedback against rapid spam. The
+    // authoritative per-user limit is enforced server-side at the ws-gateway.
+    const sendNow = Date.now();
+    if (sendNow - lastSentAtRef.current < MIN_SEND_INTERVAL_MS) {
+      toast.info(
+        t('chat.send_too_fast', {
+          defaultValue: 'Bạn đang gửi quá nhanh, vui lòng chậm lại một chút.',
+        }),
+      );
+      return;
+    }
+    lastSentAtRef.current = sendNow;
+
     try {
       const { optimisticMessage, sendPromise } = await sendSocketMessage(
         chatId,
@@ -870,11 +903,28 @@ export function useChatDetailScreenLogic() {
         flashListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
+      // Surface server-side anti-spam rejections (ws-gateway ChatAck reasons)
+      // so the failed bubble isn't unexplained.
+      const reason = (error as any)?.reason;
+      if (reason === 'rate_limited') {
+        toast.info(
+          t('chat.send_too_fast', {
+            defaultValue: 'Bạn đang gửi quá nhanh, vui lòng chậm lại một chút.',
+          }),
+        );
+      } else if (reason === 'moderation_cooldown') {
+        toast.info(
+          t('chat.moderation_cooldown', {
+            defaultValue:
+              'Bạn đã gửi nhiều nội dung vi phạm. Vui lòng đợi một lát rồi thử lại.',
+          }),
+        );
+      }
       if ((error as any)?.message_id) {
         updateMessage(chatId, (error as any).message_id, { status: 'failed' });
       }
     }
-  }, [addMessage, chatId, editingMessage, input, replyingMessage, updateMessage, updateChat]);
+  }, [addMessage, chatId, editingMessage, input, replyingMessage, updateMessage, updateChat, t]);
 
   const handleTypingStart = useCallback(() => {
     if (!chatId) return;
