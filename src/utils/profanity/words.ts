@@ -32,8 +32,6 @@ export const PROFANITY_WORDS: string[] = [
   'đụ má',
   'đụ mẹ',
   'địt mẹ',
-  'thằng chó',
-  'con chó',
   // English
   'fuck',
   'fucker',

@@ -950,6 +950,23 @@ export function useChatDetailScreenLogic() {
         flashListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
+      // Surface server-side anti-spam rejections (ws-gateway ChatAck reasons)
+      // so the failed bubble isn't unexplained.
+      const reason = (error as any)?.reason;
+      if (reason === 'rate_limited') {
+        toast.info(
+          t('chat.send_too_fast', {
+            defaultValue: 'Bạn đang gửi quá nhanh, vui lòng chậm lại một chút.',
+          }),
+        );
+      } else if (reason === 'moderation_cooldown') {
+        toast.info(
+          t('chat.moderation_cooldown', {
+            defaultValue:
+              'Bạn đã gửi nhiều nội dung vi phạm. Vui lòng đợi một lát rồi thử lại.',
+          }),
+        );
+      }
       if ((error as any)?.message_id) {
         updateMessage(chatId, (error as any).message_id, { status: 'failed' });
       }

@@ -131,6 +131,10 @@ export class AIHandler extends BaseHandler {
         .getState()
         .markMessageRemoved(conversation_id, message_id, reason);
 
+      // Relies on Zustand setState being synchronous: the read below already
+      // reflects the markMessageRemoved above (the removed message is excluded
+      // from the recomputed preview). If markMessageRemoved ever becomes
+      // async/batched, re-read on the next tick instead.
       const messages =
         useMessagesStore.getState().messagesByChatId[conversation_id] || [];
       const update = pickPreviewAfterRemoval(messages, message_id, placeholder);

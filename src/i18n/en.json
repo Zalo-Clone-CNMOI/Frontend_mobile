@@ -127,6 +127,7 @@
     "rate_limited_desc": "Please try again later",
     "profanity_blocked": "This message may violate community standards and was not sent.",
     "send_too_fast": "You're sending too fast — please slow down a bit.",
+    "moderation_cooldown": "You've sent several violating messages. Please wait a moment before trying again.",
     "you": "You"
   },
 
