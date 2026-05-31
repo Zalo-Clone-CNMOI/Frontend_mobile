@@ -16,6 +16,7 @@ export function SummaryModal({ visible, conversationId, onClose }: SummaryModalP
   const theme = useTheme();
   const { t } = useTranslation();
   const [copied, setCopied] = React.useState(false);
+  const copyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const summaries = useAISummaryStore((state) => state.summaries);
   const loadingByConversation = useAISummaryStore((state) => state.loadingByConversation);
@@ -26,11 +27,25 @@ export function SummaryModal({ visible, conversationId, onClose }: SummaryModalP
   const isLoading = loadingByConversation.get(safeConversationId) || false;
   const error = errorByConversation.get(safeConversationId) || null;
 
+  // RN Modal keeps its subtree mounted when hidden, so `copied` would otherwise
+  // persist a stale "Copied!" across opens. Reset it whenever the modal opens
+  // or switches conversation. Also clear any pending reset timer on unmount.
+  React.useEffect(() => {
+    if (visible) setCopied(false);
+  }, [visible, conversationId]);
+
+  React.useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
   const handleCopy = async () => {
     if (summary?.summary) {
       await Clipboard.setStringAsync(summary.summary);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -66,6 +81,18 @@ export function SummaryModal({ visible, conversationId, onClose }: SummaryModalP
               <View style={styles.errorContainer}>
                 <Text style={[styles.errorText, { color: '#ef4444' }]}>
                   {error}
+                </Text>
+              </View>
+            )}
+
+            {/* No-unread / empty state: a cache entry exists (catch-up resolved)
+                but there is no summary text → nothing to catch up on. */}
+            {summary && !summary.summary && !isLoading && !error && (
+              <View style={styles.emptyContainer}>
+                <Text style={[styles.emptyText, { color: theme.colors.icon }]}>
+                  {t('ai.summary.noUnread', {
+                    defaultValue: 'Bạn đã đọc hết tin nhắn rồi 🎉',
+                  })}
                 </Text>
               </View>
             )}
@@ -146,6 +173,14 @@ const styles = StyleSheet.create({
   errorContainer: {
     padding: 16,
     alignItems: 'center',
+  },
+  emptyContainer: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    textAlign: 'center',
   },
   errorText: {
     fontSize: 14,

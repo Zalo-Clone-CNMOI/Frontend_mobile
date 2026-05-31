@@ -1,0 +1,19 @@
+appId: com.x22664321k.Zalo_2026
+---
+# E2E: tapping "Tóm tắt" shows the AI catch-up summary in a MODAL.
+# The summary is NOT posted into the Zai conversation anymore (that caused
+# Zai to re-summarize an already-finished summary — double summarization).
+#
+# Pre-conditions: logged in; on the Messages/home tab; at least one conversation
+# has unread messages.
+#
+# NOTE: selectors below are best-effort. Adjust the conversation-row / "Tóm tắt"
+# matchers to the real testIDs/labels rendered by app/(tabs)/home.tsx before
+# running on a device/emulator.
+- launchApp
+- longPressOn:
+    text: ".*"          # a conversation list row
+- tapOn: "Tóm tắt"        # catch-up action in the long-press menu
+# The summary modal opens (header "Tóm tắt AI"); the app does NOT navigate into
+# a Zai chat and does NOT post the summary as a message bubble.
+- assertVisible: "Tóm tắt AI"

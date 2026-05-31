@@ -29,7 +29,8 @@ import { toast } from '@/src/services/toastService';
 import { useChatsStore } from '@/src/store/useChatsStore';
 import { useConversationDetailStore } from '@/src/store/useConversationDetailStore';
 import { pinConversation, unpinConversation } from '@/src/services/conversationsApi';
-import { catchUp, getOrCreateZaiConversation } from '@/src/services/ai/aiConversationApi';
+import { runCatchUpSummary } from '@/src/services/ai/catchUpSummary';
+import { SummaryModal } from '@/src/components/chat/SummaryModal';
 
 export default function ChatOptionsScreen() {
   const theme = useTheme();
@@ -44,6 +45,9 @@ export default function ChatOptionsScreen() {
 
   const chatName = chatNameParam || '';
   const isGroup = isGroupParam === 'true';
+
+  // Catch-up summary modal (replaces the old "post summary into Zai" flow)
+  const [summaryModalVisible, setSummaryModalVisible] = useState(false);
 
   const {
     notificationsEnabled,
@@ -116,29 +120,14 @@ export default function ChatOptionsScreen() {
     }
   };
 
+  // Show the AI catch-up summary in a modal.
+  // (Previously this posted the summary into the Zai chat, which made Zai
+  // re-summarize an already-finished summary. Now we just display it.)
   const handleSummaryChat = async () => {
-    try {
-      const summaryResult = await catchUp(chatId);
-
-      if (!summaryResult.hadUnread) {
-        toast.info('Bạn đã đọc hết rồi');
-        return;
-      }
-
-      const autoPrompt = `Hãy tóm tắt cuộc trò chuyện "${chatName}" cho tôi. Có ${summaryResult.messageCount} tin nhắn.\n\nTÓM TẮT:\n${summaryResult.summary}`;
-      let finalPrompt = autoPrompt;
-      if (summaryResult.truncated) {
-        finalPrompt += '\n\n(Lưu ý: Một số tin nhắn đã bị cắt ngắn)';
-      }
-
-      const zaiConvId = await getOrCreateZaiConversation();
-      router.push({
-        pathname: '/chat/[id]',
-        params: { id: zaiConvId, autoPrompt: finalPrompt },
-      } as any);
-    } catch (error: any) {
-      toast.error(String(error?.message || 'Không thể tóm tắt cuộc trò chuyện'));
-    }
+    setSummaryModalVisible(true);
+    // runCatchUpSummary handles its own errors (into the store); the extra catch
+    // guards against an unhandled rejection escaping this onPress handler.
+    await runCatchUpSummary(chatId).catch(() => {});
   };
 
   // Navigation debouncing state
@@ -554,6 +543,12 @@ export default function ChatOptionsScreen() {
           setTransferOwnershipModalVisible(false);
           handleTransferOwnership(member.userId, member.fullName);
         }}
+      />
+
+      <SummaryModal
+        visible={summaryModalVisible}
+        conversationId={chatId}
+        onClose={() => setSummaryModalVisible(false)}
       />
     </SafeAreaView>
   );
