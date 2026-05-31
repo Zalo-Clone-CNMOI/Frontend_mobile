@@ -31,6 +31,10 @@ const normalizeId = (value: unknown): string => String(value ?? "").trim();
  * (their pending would never clear via entities, only by timeout).
  */
 function markInboundEntityPending(message: ChatMessage): void {
+  // Defense-in-depth: own messages are already deduped out of handleMessage
+  // before this runs, but assert the inbound-only contract here so it can't
+  // regress if dedup changes — own optimistic ids don't match the entity key.
+  if (message.fromMe) return;
   if (message.type !== "text") return;
   if (!message.text || !message.text.trim()) return;
   useEntityDetectionStore.getState().markPending(message.id);

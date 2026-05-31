@@ -16,6 +16,11 @@ export interface DetectedEntity {
  * timeout is REQUIRED because the backend only broadcasts `message:entities`
  * for NON-EMPTY results — a message with no detected entities would otherwise
  * stay pending forever. 8s server-side detection timeout + 2s slack.
+ *
+ * ⚠️ COUPLING: this MUST stay ≥ the backend AI_ENTITY_DETECTION_TIMEOUT_MS
+ * (default 8000, see Backend libs/config app-config.ts). If ops raises the
+ * server timeout above ~8s, bump this too — otherwise the hint vanishes while
+ * the server is still working and the bubble shows neither hint nor entities.
  */
 const PENDING_TIMEOUT_MS = 10_000;
 
