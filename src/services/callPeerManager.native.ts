@@ -30,6 +30,7 @@ interface PeerEntry {
 class CallPeerManager {
   private peerConnections: Map<string, PeerEntry> = new Map();
   private active = false;
+  private _isNegotiating = false;
   private pendingOffer: { callId: string; fromUserId: string; data: any } | null = null;
   private pendingAnswer: { callId: string; data: any } | null = null;
   private iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = [
@@ -61,6 +62,21 @@ class CallPeerManager {
     }
   }
 
+  addLocalVideoTrack(track: any): void {
+    const { localStream } = useCallStore.getState();
+    for (const [, entry] of this.peerConnections) {
+      try {
+        const senders = entry.pc.getSenders();
+        const hasVideoSender = senders.some((s: any) => s.track?.kind === 'video');
+        if (!hasVideoSender) {
+          entry.pc.addTrack(track, localStream as any);
+        }
+      } catch (err) {
+        console.warn('[CallPeerManager] addLocalVideoTrack failed for', entry.userId, err);
+      }
+    }
+  }
+
   async startCall(
     callId: string,
     _isInitiator: boolean,
@@ -71,6 +87,7 @@ class CallPeerManager {
       this.active = true;
       const pc = await this.createPeerConnectionForUser(callId, conversationId, remoteUserId);
 
+      this._isNegotiating = true;
       const { localStream } = useCallStore.getState();
       if (localStream) {
         const tracks = (localStream as any).getTracks?.() ?? [];
@@ -89,6 +106,7 @@ class CallPeerManager {
       await pc.setLocalDescription(
         new webrtc.RTCSessionDescription({ type: "offer", sdp: offer.sdp })
       );
+      this._isNegotiating = false;
 
       // Process pending answer after local offer is set (PC must be in "have-local-offer" state)
       if (this.pendingAnswer) {
@@ -104,6 +122,7 @@ class CallPeerManager {
 
       console.log("[CallPeerManager] Call started, offer sent to", remoteUserId);
     } catch (error) {
+      this._isNegotiating = false;
       console.error("[CallPeerManager] Error starting call", error);
       this.active = false;
       throw error;
@@ -167,6 +186,7 @@ class CallPeerManager {
 
     const pc = await this.createPeerConnectionForUser(callId, conversationId, userId);
 
+    this._isNegotiating = true;
     const { localStream } = useCallStore.getState();
     if (localStream) {
       const tracks = (localStream as any).getTracks?.() ?? [];
@@ -184,10 +204,13 @@ class CallPeerManager {
       await pc.setLocalDescription(
         new webrtc.RTCSessionDescription({ type: "offer", sdp: offer.sdp })
       );
+      this._isNegotiating = false;
       await callService.sendSignalingData(callId, conversationId, "offer", {
         sdp: offer.sdp,
       }, userId);
       console.log("[CallPeerManager] Offer sent to new participant", userId);
+    } else {
+      this._isNegotiating = false;
     }
   }
 
@@ -223,6 +246,9 @@ class CallPeerManager {
           fromUserId
         );
 
+        // Suppress negotiationneeded while we add tracks in stable state
+        // before a remote offer is set (avoids glare from premature createOffer)
+        this._isNegotiating = true;
         const { localStream } = useCallStore.getState();
         if (localStream) {
           const tracks = (localStream as any).getTracks?.() ?? [];
@@ -230,6 +256,7 @@ class CallPeerManager {
             try { pc.addTrack(track, localStream as any); } catch {}
           });
         }
+        this._isNegotiating = false;
 
         entry = this.peerConnections.get(fromUserId);
         if (!entry) return;
@@ -362,6 +389,31 @@ class CallPeerManager {
     const pc = new webrtc.RTCPeerConnection({ iceServers: this.iceServers });
 
     this.peerConnections.set(userId, { pc, callId, conversationId, userId });
+
+    (pc as any).addEventListener("negotiationneeded", async () => {
+      if (this._isNegotiating) return;
+      if (pc.signalingState !== "stable") return;
+
+      this._isNegotiating = true;
+      try {
+        console.log("[CallPeerManager] Negotiation needed for", userId);
+        const webrtc = await ensureWebRTC();
+        const offer = await pc.createOffer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true,
+        });
+        await pc.setLocalDescription(
+          new webrtc.RTCSessionDescription({ type: "offer", sdp: offer.sdp })
+        );
+        await callService.sendSignalingData(callId, conversationId, "offer", {
+          sdp: offer.sdp,
+        });
+      } catch (err) {
+        console.error("[CallPeerManager] negotiationneeded failed for", userId, err);
+      } finally {
+        this._isNegotiating = false;
+      }
+    });
 
     (pc as any).addEventListener("icecandidate", (event: any) => {
       if (event.candidate) {

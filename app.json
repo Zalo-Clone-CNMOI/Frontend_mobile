@@ -38,8 +38,7 @@
         "android.permission.FOREGROUND_SERVICE_MICROPHONE"
       ],
       "package": "com.x22664321k.Zalo_2026",
-      "googleServicesFile": "./google-services.json",
-      "usesCleartextTraffic": true
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -89,9 +88,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "2d8c920f-45a9-4796-b878-6716338ad7b3"
+        "projectId": "2a96ef63-f7ea-48df-a9a3-bfc5b7635cdc"
       }
     },
-    "owner": "22664321k"
+    "owner": "22664321a"
   }
 }

@@ -96,6 +96,9 @@ const AUTH_REFRESH_URL = trimTrailingSlash(`${AUTH_BASE_URL}/refresh`);
 // Zai bot id — overridable via env so it isn't hard-pinned in source.
 const ZAI_BOT_ID = readEnv('EXPO_PUBLIC_ZAI_BOT_ID', '00000000-0000-4000-8000-0000000000a1');
 
+// Zai bot avatar URL — set via env when the avatar asset is uploaded to S3
+const ZAI_AVATAR_URL = readEnv('EXPO_PUBLIC_ZAI_AVATAR_URL', '');
+
 // S3 Configuration
 
 const S3_BUCKET = readEnv('EXPO_PUBLIC_S3_BUCKET', 'zalo-bucket-clone');
@@ -189,6 +192,8 @@ export const NETWORK_CONFIG = {
   MAX_FILE_SIZE_DOCUMENT,
 
   ZAI_BOT_ID,
+
+  ZAI_AVATAR_URL,
 
 } as const;
 

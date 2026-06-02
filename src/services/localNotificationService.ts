@@ -6,7 +6,7 @@ export interface LocalNotificationData {
   messageId?: string;
   senderId?: string;
   senderName?: string;
-  type: 'chat:message' | 'group:invite:sent' | 'conversation:member:added' | 'system';
+  type: 'chat:message' | 'group:invite:sent' | 'conversation:member:added' | 'incoming_call' | 'missed_call' | 'system';
   [key: string]: any;
 }
 
@@ -136,6 +136,51 @@ class LocalNotificationService {
         type: 'group:invite:sent',
         conversationId,
         senderName: inviterName,
+      },
+    });
+  }
+
+  /**
+   * Hiển thị notification cuộc gọi đến (incoming call)
+   */
+  async showIncomingCallNotification(
+    callerName: string,
+    callType: 'audio' | 'video',
+    conversationId: string,
+    callId: string,
+    initiatorId: string,
+  ): Promise<string | null> {
+    const title = callType === 'video' ? 'Cuộc gọi video đến' : 'Cuộc gọi thoại đến';
+    return this.showNotification({
+      title,
+      body: `${callerName} đang gọi`,
+      data: {
+        type: 'incoming_call',
+        callId,
+        conversationId,
+        callType,
+        initiatorId,
+        senderName: callerName,
+      },
+    });
+  }
+
+  /**
+   * Hiển thị notification cuộc gọi nhỡ (missed call)
+   */
+  async showMissedCallNotification(
+    callerName: string,
+    callType: 'audio' | 'video',
+    conversationId: string,
+  ): Promise<string | null> {
+    const title = callType === 'video' ? 'Cuộc gọi video nhỡ' : 'Cuộc gọi nhỡ';
+    return this.showNotification({
+      title,
+      body: `${callerName} đã gọi cho bạn`,
+      data: {
+        type: 'missed_call',
+        conversationId,
+        senderName: callerName,
       },
     });
   }

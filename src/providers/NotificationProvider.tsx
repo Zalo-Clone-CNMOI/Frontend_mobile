@@ -78,6 +78,18 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           }
           break;
 
+        case 'incoming_call':
+          if (data.conversationId) {
+            router.push('/call/incoming' as any);
+          }
+          break;
+
+        case 'missed_call':
+          if (data.conversationId) {
+            router.push(`/chat/${data.conversationId}` as any);
+          }
+          break;
+
         default:
           // Default to main screen
           router.push('/(tabs)' as any);

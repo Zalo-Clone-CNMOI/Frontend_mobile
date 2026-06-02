@@ -266,11 +266,11 @@ isMultiSelectMode = false,
 
     if (isZaiMessage) {
       // Prefer the pre-computed zaiAvatarUrl from the parent (reactive Zustand selector).
-      // Fall back to searching conversationMembers by the known bot ID.
-      // Never use conversationMember (keyed by item.senderId — may be wrong) or
-      // item.senderAvatar (backend may send another user's URL).
+      // Fall back to searching conversationMembers by the known bot ID, then to the
+      // configured ZAI_AVATAR_URL from env.
       const url = zaiAvatarUrl
-        || conversationMembers?.find(m => m.userId === NETWORK_CONFIG.ZAI_BOT_ID)?.avatarUrl;
+        || conversationMembers?.find(m => m.userId === NETWORK_CONFIG.ZAI_BOT_ID)?.avatarUrl
+        || NETWORK_CONFIG.ZAI_AVATAR_URL;
       return url ? normalizeAvatarUrl(url) : undefined;
     }
 

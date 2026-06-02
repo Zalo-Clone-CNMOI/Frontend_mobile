@@ -263,7 +263,11 @@ export default function HomeScreen() {
                     <Text style={{ color: theme.colors.text, fontWeight: '600', fontSize: 16 }}>
                       {selectedConversation.name || t('common.unknown') || 'Unknown'}
                     </Text>
-                    <Text style={{ color: theme.colors.icon, fontSize: 14 }}>
+                    <Text
+                      style={{ color: theme.colors.icon, fontSize: 14 }}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
                       {formatLastMessage(selectedConversation, authUser?.id)}
                     </Text>
                   </View>

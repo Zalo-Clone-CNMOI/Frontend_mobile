@@ -14,6 +14,8 @@ export enum SystemEventType {
   MESSAGE_PINNED = 'message_pinned',
   MESSAGE_UNPINNED = 'message_unpinned',
   NICKNAME_CHANGED = 'nickname_changed',
+  CALL_ENDED = 'call_ended',
+  CALL_MISSED = 'call_missed',
 }
 
 export interface MessagePinnedMetadata {

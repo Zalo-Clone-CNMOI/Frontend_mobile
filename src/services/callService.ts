@@ -240,7 +240,7 @@ class CallService {
       try {
         await callMediaManager.createLocalMediaStream(isVideo);
         if (isVideo) {
-          useCallStore.getState().toggleVideo(true);
+          this.toggleCallVideo(true);
         }
       } catch (mediaError) {
         console.error("[CallService] Failed to acquire media", mediaError);
@@ -397,7 +397,7 @@ class CallService {
 
       await callMediaManager.createLocalMediaStream(isVideo);
       if (isVideo) {
-        useCallStore.getState().toggleVideo(true);
+        await this.toggleCallVideo(true);
       }
 
       const { currentCall } = useCallStore.getState();
@@ -809,14 +809,14 @@ class CallService {
     }
   }
 
-  toggleCallVideo(enabled: boolean): void {
+  async toggleCallVideo(enabled: boolean): Promise<void> {
     try {
       useCallStore.getState().toggleVideo(enabled);
 
       if (enabled) {
-        callMediaManager.enableVideo();
+        await callMediaManager.enableVideo();
       } else {
-        callMediaManager.disableVideo();
+        await callMediaManager.disableVideo();
       }
 
       const socket = getSocket();

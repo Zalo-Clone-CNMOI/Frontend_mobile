@@ -91,11 +91,11 @@ export function ChatListItem({
     return item.name;
   }, [isZaiChat, item.isGroup, item.myNickname, item.name]);
 
-  // Memoize computed values to avoid unnecessary re-renders
   const avatarSource = useMemo(() => {
     const normalizedAvatar = normalizeAvatarUrl(item.avatar || undefined);
     if (normalizedAvatar) return { uri: normalizedAvatar };
     if (isZaiChat && zaiMemberAvatar) return { uri: zaiMemberAvatar };
+    if (isZaiChat && NETWORK_CONFIG.ZAI_AVATAR_URL) return { uri: NETWORK_CONFIG.ZAI_AVATAR_URL };
     return null;
   }, [item.avatar, isZaiChat, zaiMemberAvatar]);
 

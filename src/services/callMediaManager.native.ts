@@ -323,17 +323,43 @@ class CallMediaManager {
 
   async enableVideo(): Promise<void> {
     const { localStream } = useCallStore.getState();
+    if (!localStream) return;
 
-    if (localStream) {
-      const stream = localStream as any;
-      if (stream.getVideoTracks) {
-        stream.getVideoTracks().forEach((track: any) => {
-          track.enabled = true;
-        });
-      }
+    const stream = localStream as any;
+    const videoTracks = stream.getVideoTracks?.() ?? [];
+
+    if (videoTracks.length > 0) {
+      videoTracks.forEach((track: any) => { track.enabled = true; });
+      console.log("[CallMediaManager] Video enabled (existing tracks)");
+      return;
     }
 
-    console.log("[CallMediaManager] Video enabled");
+    const hasCamera = await this.requestCameraPermissions();
+    if (!hasCamera) throw new Error("Camera permissions not granted");
+
+    const md = await getMediaDevices();
+    const newStream = await md.getUserMedia({
+      audio: false,
+      video: {
+        width: 1280,
+        height: 720,
+        frameRate: 30,
+        facingMode: this.currentFacingMode,
+      },
+    });
+
+    const newVideoTrack = newStream.getVideoTracks()?.[0];
+    if (!newVideoTrack) throw new Error("Failed to get video track");
+
+    stream.addTrack(newVideoTrack);
+    newStream.getTracks().forEach((t: any) => {
+      if (t.kind !== "video") t.stop();
+    });
+
+    const { callPeerManager: cpm } = require('./callPeerManager') as any;
+    cpm.addLocalVideoTrack(newVideoTrack);
+
+    console.log("[CallMediaManager] Video enabled (new camera track acquired)");
   }
 
   getAudioLevel(): number {

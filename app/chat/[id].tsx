@@ -177,7 +177,7 @@ export default function ChatDetailScreen() {
     return m?.avatarUrl || undefined;
   });
   const zaiAvatarUrl = (isAiAssistant || isZaiDirectChat)
-    ? (currentChat?.avatar || zaiMemberAvatar || undefined)
+    ? (currentChat?.avatar || zaiMemberAvatar || NETWORK_CONFIG.ZAI_AVATAR_URL || undefined)
     : undefined;
 
   const handleSend = useCallback(() => {

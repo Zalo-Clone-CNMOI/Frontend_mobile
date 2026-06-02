@@ -27,6 +27,8 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
   const { t } = useTranslation();
   const [targetLanguage, setTargetLanguage] = useState('vi');
   const [showPicker, setShowPicker] = useState(false);
+  const [expandedSource, setExpandedSource] = useState(false);
+  const [expandedResult, setExpandedResult] = useState(false);
   const prevMessageIdRef = useRef<string | null>(null);
 
   // Primitive fields so effects depend on stable values, not the message object
@@ -51,6 +53,8 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
       if (prevMessageIdRef.current !== message.id) {
         setTargetLanguage('vi');
         setShowPicker(false);
+        setExpandedSource(false);
+        setExpandedResult(false);
         prevMessageIdRef.current = message.id;
       }
     }
@@ -111,11 +115,21 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
             <Text style={[styles.sectionLabel, { color: theme.colors.muted }]}>
               {t('ai.original_text', { defaultValue: 'Nội dung gốc' })}
             </Text>
-            <View style={[styles.sourceBox, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-              <Text style={[styles.sourceText, { color: theme.colors.text }]} selectable>
-                {message.text}
-              </Text>
-            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => message.text && message.text.length > 150 && setExpandedSource(!expandedSource)}
+            >
+              <View style={[styles.sourceBox, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <Text
+                  style={[styles.sourceText, { color: theme.colors.text }]}
+                  selectable
+                  numberOfLines={expandedSource ? undefined : 5}
+                  ellipsizeMode="tail"
+                >
+                  {message.text}
+                </Text>
+              </View>
+            </TouchableOpacity>
 
             <Text style={[styles.sectionLabel, { color: theme.colors.muted }]}>
               {t('ai.target_language', { defaultValue: 'Ngôn ngữ đích' })}
@@ -190,14 +204,24 @@ export function TranslationModal({ visible, message, onClose }: TranslationModal
                 <Text style={[styles.sectionLabel, { color: theme.colors.muted }]}>
                   {t('ai.translated_result', { defaultValue: 'Kết quả' })}
                 </Text>
-                <View style={[styles.resultBox, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                  <Text style={[styles.resultText, { color: theme.colors.text }]} selectable>
-                    {cachedEntry?.translated}
-                  </Text>
-                  <Text style={[styles.providerLabel, { color: theme.colors.muted }]}>
-                    {t('ai.translated_by_ai', { defaultValue: 'Đã dịch qua AI' })}
-                  </Text>
-                </View>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => cachedEntry?.translated && cachedEntry.translated.length > 150 && setExpandedResult(!expandedResult)}
+                >
+                  <View style={[styles.resultBox, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                    <Text
+                      style={[styles.resultText, { color: theme.colors.text }]}
+                      selectable
+                      numberOfLines={expandedResult ? undefined : 5}
+                      ellipsizeMode="tail"
+                    >
+                      {cachedEntry?.translated}
+                    </Text>
+                    <Text style={[styles.providerLabel, { color: theme.colors.muted }]}>
+                      {t('ai.translated_by_ai', { defaultValue: 'Đã dịch qua AI' })}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               </>
             )}
           </View>

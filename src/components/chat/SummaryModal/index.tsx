@@ -16,6 +16,7 @@ export function SummaryModal({ visible, conversationId, onClose }: SummaryModalP
   const theme = useTheme();
   const { t } = useTranslation();
   const [copied, setCopied] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(false);
   const copyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const summaries = useAISummaryStore((state) => state.summaries);
@@ -99,9 +100,22 @@ export function SummaryModal({ visible, conversationId, onClose }: SummaryModalP
 
             {summary?.summary && !isLoading && (
               <>
-                <Text style={[styles.summaryText, { color: theme.colors.text }]}>
+                <Text
+                  style={[styles.summaryText, { color: theme.colors.text }]}
+                  numberOfLines={expanded ? undefined : 8}
+                  ellipsizeMode="tail"
+                >
                   {summary.summary}
                 </Text>
+                {summary.summary.length > 200 && (
+                  <TouchableOpacity onPress={() => setExpanded(!expanded)} style={styles.expandBtn}>
+                    <Text style={[styles.expandText, { color: theme.colors.primary }]}>
+                      {expanded
+                        ? t('ai.summary.collapse', { defaultValue: 'Thu gọn' })
+                        : t('ai.summary.expand', { defaultValue: 'Xem thêm' })}
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 {summary.cachedAt && (
                   <Text style={[styles.updatedAt, { color: theme.colors.icon }]}>
                     {t('ai.summary.updatedAt', { defaultValue: 'Cập nhật' })}:{' '}
@@ -189,6 +203,14 @@ const styles = StyleSheet.create({
   summaryText: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  expandBtn: {
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  expandText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   copyBtn: {
     flexDirection: 'row',

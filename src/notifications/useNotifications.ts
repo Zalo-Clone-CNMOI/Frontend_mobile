@@ -1,10 +1,18 @@
 import Constants from 'expo-constants';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
+import { router } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { registerForPushNotifications } from './registerForPushNotifications';
 import { registerAndSyncToken, getPendingToken } from '../services/deviceTokenService';
 import { getExpoNotifications } from './expoNotifications';
+
+async function playRingtone() {
+  try {
+    const { playRingtone } = require('../services/callRingtone');
+    playRingtone();
+  } catch {}
+}
 
 export function useNotifications() {
   const { isAuthenticated } = useAuth();
@@ -41,15 +49,12 @@ export function useNotifications() {
         const token = await registerForPushNotifications();
         if (!token) return;
 
-        // Check if there's a pending token that failed to register
         const pendingToken = await getPendingToken();
         const tokenToSend = pendingToken || token;
 
-        // Register and sync token (handles AsyncStorage internally)
         await registerAndSyncToken(tokenToSend);
         registeredRef.current = true;
       } catch (e) {
-        // deviceTokenService handles pending token storage internally
       }
     })();
   }, [isAuthenticated]);
@@ -59,17 +64,39 @@ export function useNotifications() {
     if (!Notifications) return;
 
     const sub1 = Notifications.addNotificationReceivedListener((notification) => {
-      const { title, body, data } = notification.request.content;
-    });
+      const data = notification.request.content.data as Record<string, any> | undefined;
+      if (!data) return;
 
-    const sub2 = Notifications.addNotificationResponseReceivedListener((response) => {
-      const { data } = response.notification.request.content;
+      if (data.type === 'incoming_call' || data.action === 'incoming_call') {
+        const { useCallStore } = require('../store/useCallStore');
+        const { callState } = useCallStore.getState();
+        if (callState !== 'idle' && callState !== 'ended') return;
+
+        useCallStore.getState().addIncomingCall({
+          callId: data.callId || data.call_id || '',
+          initiatorId: data.initiatorId || data.initiator_id || '',
+          initiatorName: data.senderName || data.callerName || 'Đang tải...',
+          conversationId: data.conversationId || data.conversation_id || '',
+          conversationType: data.conversationType || data.conversation_type || 'direct',
+          callType: data.callType || data.call_type || 'audio',
+          startedAt: Date.now(),
+        });
+        useCallStore.getState().setCallState('incoming');
+        playRingtone();
+        router.push('/call/incoming' as any);
+      } else if (data.type === 'missed_call' || data.action === 'missed_call') {
+        const conversationId = data.conversationId || data.conversation_id;
+        if (conversationId) {
+          try {
+            const { useConversationStore } = require('../store/useConversationStore');
+            useConversationStore.getState().incrementUnread(conversationId, 1);
+          } catch {}
+        }
+      }
     });
 
     return () => {
       sub1.remove();
-      sub2.remove();
     };
   }, []);
 }
-

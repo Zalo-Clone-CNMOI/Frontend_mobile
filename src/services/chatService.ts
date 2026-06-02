@@ -17,6 +17,7 @@ import { WsEvents } from "../realtime/events";
 import { toast } from "./toastService";
 import { updateConversationLastMessage } from "./chatUtils";
 import { triggerInboundAiFeatures } from "./ai/inboundAiTrigger";
+import { NETWORK_CONFIG } from "../config/network";
 import { useEntityDetectionStore } from "../store/useEntityDetectionStore";
 
 // Normalize ID to string, handles null/undefined values
@@ -146,7 +147,7 @@ export function toLegacyChatMessage(apiMessage: any): ChatMessage {
     conversationId: apiMessage?.conversationId || apiMessage?.conversation_id,
     fromMe: isCurrentActor(senderId),
     senderId: senderId,
-    senderName: apiMessage?.senderName || apiMessage?.sender?.name || apiMessage?.sender?.fullName,
+    senderName: apiMessage?.senderName || apiMessage?.sender?.name || apiMessage?.sender?.fullName || (senderId === NETWORK_CONFIG.ZAI_BOT_ID ? 'Zai' : undefined),
     senderAvatar: apiMessage?.senderAvatar || apiMessage?.sender?.avatarUrl || apiMessage?.sender?.avatar,
     type: (apiMessage?.messageType === 'system' || apiMessage?.message_type === 'system' || apiMessage?.type === 'system') ? 'system' :
            (apiMessage?.messageType === 'poll' || apiMessage?.message_type === 'poll' || apiMessage?.type === 'poll') ? 'poll' :

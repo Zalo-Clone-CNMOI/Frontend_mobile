@@ -1,6 +1,9 @@
 import { getConversationDetail } from './conversationsApi';
 import { useConversationDetailStore } from '../store/useConversationDetailStore';
+import { NETWORK_CONFIG } from '../config/network';
 import type { ConversationV2 } from '../types/chat';
+
+const ZAI_BOT_ID = NETWORK_CONFIG.ZAI_BOT_ID;
 
 /**
  * Resolve callee user IDs for call:start participant_ids.
@@ -11,12 +14,14 @@ export async function resolveCallRecipientIds(
   chat: ConversationV2 | null | undefined,
   currentUserId: string,
 ): Promise<string[]> {
+  const excludeIds = new Set([currentUserId, ZAI_BOT_ID]);
+
   if (chat?.isGroup) {
     const cachedMembers = useConversationDetailStore.getState().getMembers(conversationId);
     if (cachedMembers.length > 0) {
       return cachedMembers
         .map((m) => m.userId)
-        .filter((id) => id && id !== currentUserId);
+        .filter((id) => id && !excludeIds.has(id));
     }
 
     try {
@@ -24,7 +29,7 @@ export async function resolveCallRecipientIds(
       const members = useConversationDetailStore.getState().getMembers(conversationId);
       return members
         .map((m) => m.userId)
-        .filter((id) => id && id !== currentUserId);
+        .filter((id) => id && !excludeIds.has(id));
     } catch {
       return [];
     }
@@ -35,7 +40,7 @@ export async function resolveCallRecipientIds(
     (chat as any)?.userId ||
     (chat as any)?.peerUserId;
 
-  if (fromChat && fromChat !== currentUserId) {
+  if (fromChat && !excludeIds.has(fromChat)) {
     return [String(fromChat)];
   }
 
@@ -47,7 +52,7 @@ export async function resolveCallRecipientIds(
 
     const peer = members
       .map((m) => m.userId || m.id)
-      .find((id) => id && id !== currentUserId);
+      .find((id) => id && !excludeIds.has(id));
 
     return peer ? [String(peer)] : [];
   } catch {

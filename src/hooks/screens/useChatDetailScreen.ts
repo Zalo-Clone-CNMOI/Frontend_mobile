@@ -13,6 +13,7 @@ import {
     deleteMessage as sendSocketDeleteMessage,
     editMessage as sendSocketEditMessage,
     sendMessage as sendSocketMessage,
+    toLegacyChatMessage,
     unreactMessage,
     forwardMessage,
     markConversationAsRead,
@@ -952,34 +953,21 @@ export function useChatDetailScreenLogic() {
 
       // Convert backend messages to frontend format
       const convertedMessages: ChatMessage[] = items.map((apiMsg: any) => {
-
-        return {
-          id: apiMsg.messageId || apiMsg.id,
-          serverMessageId: apiMsg.messageId || apiMsg.id,
-          conversationId: apiMsg.conversationId,
-          senderId: apiMsg.senderId,
-          fromMe: apiMsg.senderId === user?.id || apiMsg.senderId === (user as any)?._id,
-          type: apiMsg.attachments?.[0]?.type === 'document' ? 'file' :
-                apiMsg.attachments?.[0]?.type === 'audio' ? 'voice' :
-                apiMsg.attachments?.[0]?.type || 'text',
-          text: apiMsg.body || '',
-          timestamp: typeof apiMsg.createdAt === 'number' ? apiMsg.createdAt : Date.now(),
-          fileInfo: apiMsg.attachments?.[0] ? {
-            uri: apiMsg.attachments[0].url || apiMsg.attachments[0].key || '',
-            name: apiMsg.attachments[0].name || 'File',
-            size: apiMsg.attachments[0].size || 0,
-            mimeType: apiMsg.attachments[0].contentType || apiMsg.attachments[0].type || '',
-          } : undefined,
-          replyTo: apiMsg.replyToMessageId ? { id: apiMsg.replyToMessageId } : undefined,
-          forwardedFrom: apiMsg.forwardedFrom,
-          reactions: apiMsg.reactions,
-          isEdited: Boolean(apiMsg.editedAt),
-          editedAt: apiMsg.editedAt,
-          isRevoked: Boolean(apiMsg.isDeleted || apiMsg.deletedAt),
-          attachments: apiMsg.attachments,
-          senderAvatar: currentChat?.avatar || null,
-          senderName: currentChat?.name || '',
+        // Normalize snake_case to camelCase for toLegacyChatMessage
+        const normalized = {
+          ...apiMsg,
+          messageId: apiMsg.messageId || apiMsg.id,
+          conversationId: apiMsg.conversationId || apiMsg.conversation_id,
+          senderId: apiMsg.senderId || apiMsg.sender_id,
+          createdAt: apiMsg.createdAt ?? apiMsg.created_at,
+          editedAt: apiMsg.editedAt ?? apiMsg.edited_at,
+          body: apiMsg.body || '',
+          messageType: apiMsg.messageType ?? apiMsg.message_type,
+          bodyFormat: apiMsg.bodyFormat ?? apiMsg.body_format,
+          senderName: apiMsg.senderName,
+          senderAvatar: apiMsg.senderAvatar || apiMsg.sender?.avatarUrl || apiMsg.sender?.avatar,
         };
+        return toLegacyChatMessage(normalized);
       });
 
       // Sort search results from oldest to newest (like Zalo)
@@ -993,7 +981,7 @@ export function useChatDetailScreenLogic() {
     } finally {
       setIsSearching(false);
     }
-  }, [chatId, currentChat?.avatar, currentChat?.name, user]);
+  }, [chatId, user]);
 
   // Toggle search mode
   const toggleSearchMode = useCallback(() => {

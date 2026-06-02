@@ -39,7 +39,9 @@ export type SystemEventType =
   | 'member_left'
   | 'role_changed'
   | 'owner_transferred'
-  | 'group_disbanded';
+  | 'group_disbanded'
+  | 'call_ended'
+  | 'call_missed';
 
 export interface SystemMessageMetadata {
   added_by?: string;
@@ -71,6 +73,24 @@ export interface SystemMessageMetadata {
   changed_by_name?: string;
   previous_nickname?: string;
   new_nickname?: string;
+}
+
+export interface CallEndedMetadata {
+  call_id: string;
+  call_type: 'audio' | 'video';
+  initiator_id: string;
+  duration_ms: number;
+  started_at: number;
+  ended_at: number;
+}
+
+export interface CallMissedMetadata {
+  call_id: string;
+  call_type: 'audio' | 'video';
+  initiator_id: string;
+  reason: 'timeout' | 'rejected' | 'missed';
+  started_at: number;
+  ended_at: number;
 }
 
 export interface InviteMessageMetadata {
@@ -193,5 +213,5 @@ export type ChatMessage = {
   // System message fields
   messageType?: 'user' | 'system' | 'poll' | 'invite';
   systemEventType?: SystemEventType;
-  metadata?: SystemMessageMetadata | PollMessageMetadata | InviteMessageMetadata;
+  metadata?: SystemMessageMetadata | PollMessageMetadata | InviteMessageMetadata | CallEndedMetadata | CallMissedMetadata;
 };
