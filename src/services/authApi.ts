@@ -182,7 +182,7 @@ export const logout = async (deviceId?: string) => {
 // Delete all device tokens for current user
 // Used during logout to stop push notifications on all devices
 export const deleteAllDeviceTokens = async () => {
-  return await api.delete('/auth/device-tokens');
+  return await api.delete('/device-tokens');
 };
 
 // Reset password with Firebase token
