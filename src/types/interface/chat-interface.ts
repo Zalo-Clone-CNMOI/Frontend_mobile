@@ -14,6 +14,8 @@ export enum SystemEventType {
   MESSAGE_PINNED = 'message_pinned',
   MESSAGE_UNPINNED = 'message_unpinned',
   NICKNAME_CHANGED = 'nickname_changed',
+  CALL_ENDED = 'call_ended',
+  CALL_MISSED = 'call_missed',
 }
 
 export interface MessagePinnedMetadata {
@@ -79,6 +81,24 @@ export interface NicknameChangedMetadata {
   newNickname: string;
 }
 
+export interface CallEndedMetadata {
+  callId: string;
+  callType: 'audio' | 'video';
+  initiatorId: string;
+  durationMs: number;
+  startedAt: number;
+  endedAt: number;
+}
+
+export interface CallMissedMetadata {
+  callId: string;
+  callType: 'audio' | 'video';
+  initiatorId: string;
+  reason: 'timeout' | 'rejected' | 'missed';
+  startedAt: number;
+  endedAt: number;
+}
+
 export type SystemMessageMetadata =
   | MemberAddedMetadata
   | MemberRemovedMetadata
@@ -88,7 +108,9 @@ export type SystemMessageMetadata =
   | GroupDisbandedMetadata
   | MessagePinnedMetadata
   | MessageUnpinnedMetadata
-  | NicknameChangedMetadata;
+  | NicknameChangedMetadata
+  | CallEndedMetadata
+  | CallMissedMetadata;
 
 export interface ConversationLastMessage {
   id: string;

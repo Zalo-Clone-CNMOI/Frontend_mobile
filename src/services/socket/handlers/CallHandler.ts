@@ -7,6 +7,9 @@ import { getAuthData } from "../../authService";
 import { joinConversationRoom } from "../joinConversationRoom";
 import type { CallMediaToggledPayload, CallLeftPayload } from "../../../realtime/events";
 
+const normalizeConversationType = (value: unknown): "direct" | "group" =>
+  value === "group" ? "group" : "direct";
+
 export class CallHandler extends BaseHandler {
   readonly name = "CallHandler";
   readonly events = [
@@ -52,7 +55,7 @@ export class CallHandler extends BaseHandler {
     const callId = payload.call_id;
     const initiatorId = payload.initiator_id;
     const conversationId = payload.conversation_id;
-    const conversationType = payload.conversation_type;
+    const conversationType = normalizeConversationType(payload.conversation_type);
     const callType = payload.call_type;
     const startedAt = payload.started_at;
 
@@ -405,7 +408,7 @@ export class CallHandler extends BaseHandler {
             initiatorId: state.initiator_id || "",
             initiatorName: "Đang tải...",
             conversationId: state.conversation_id || payload.conversation_id || "",
-            conversationType: state.conversation_type || "direct",
+            conversationType: normalizeConversationType(state.conversation_type),
             callType: state.call_type || "audio",
             startedAt: state.started_at || Date.now(),
           });

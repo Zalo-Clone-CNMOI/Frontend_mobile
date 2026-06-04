@@ -567,12 +567,27 @@ class CallService {
     }
   }
 
+  private iceServersCache: Array<{
+    urls: string | string[];
+    username?: string;
+    credential?: string;
+  }> | null = null;
+
+  private iceServersInFlight: Promise<
+    Array<{ urls: string | string[]; username?: string; credential?: string }>
+  > | null = null;
+
   /**
    * Fetch TURN/STUN ICE servers from the BFF endpoint.
-   * Returns configured ICE servers or falls back to Google STUN.
+   * Important: call the correct endpoint only once (cache + in-flight).
    */
   async fetchIceServers(): Promise<Array<{ urls: string | string[]; username?: string; credential?: string }>> {
-    try {
+    if (this.iceServersCache) return this.iceServersCache;
+    if (this.iceServersInFlight) return this.iceServersInFlight;
+
+    this.iceServersInFlight = (async () => {
+      // NOTE: apiJsonRequest already prefixes API_BASE_URL.
+      // Using "conversations/ice-servers" to avoid double "/api".
       const res = await apiJsonRequest<{
         username?: string;
         credential?: string;
@@ -582,29 +597,44 @@ class CallService {
           username?: string;
           credential?: string;
         }>;
-      }>("GET", "/api/conversations/ice-servers");
+      }>("GET", "/conversations/ice-servers");
 
       const data = res.data;
-      if (data?.ice_servers && data.ice_servers.length > 0) {
-        return data.ice_servers.map((s) => ({
-          urls: s.urls,
-          username: s.username || data.username,
-          credential: s.credential || data.credential,
-        }));
-      }
+      const servers =
+        data?.ice_servers && data.ice_servers.length > 0
+          ? data.ice_servers.map((s) => ({
+              urls: s.urls,
+              username: s.username || data.username,
+              credential: s.credential || data.credential,
+            }))
+          : [];
 
-      return [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        ...PUBLIC_TURN_SERVERS,
-      ];
-    } catch (error) {
-      console.warn("[CallService] Failed to fetch ICE servers, using fallback", error);
-      return [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        ...PUBLIC_TURN_SERVERS,
-      ];
+      // If backend returns empty, keep previous behavior of using known public servers.
+      // But do not hide endpoint errors anymore; only fallback for empty payload.
+      const finalServers =
+        servers.length > 0
+          ? servers
+          : [
+              { urls: "stun:stun.l.google.com:19302" },
+              { urls: "stun:stun1.l.google.com:19302" },
+              ...PUBLIC_TURN_SERVERS,
+            ];
+
+      this.iceServersCache = finalServers;
+      return finalServers;
+    })();
+
+    try {
+      return await this.iceServersInFlight;
+    } catch (error: any) {
+      // Don't fallback on wrong endpoint / non-200 errors.
+      console.warn("[CallService] Failed to fetch ICE servers", {
+        message: error?.message || String(error),
+      });
+      // Re-throw so caller can handle (they currently toast + cleanup)
+      throw error;
+    } finally {
+      this.iceServersInFlight = null;
     }
   }
 
