@@ -39,7 +39,27 @@ export type SystemEventType =
   | 'member_left'
   | 'role_changed'
   | 'owner_transferred'
-  | 'group_disbanded';
+  | 'group_disbanded'
+  | 'call_ended'
+  | 'call_missed';
+
+export interface CallEndedMetadata {
+  call_id: string;
+  call_type: 'audio' | 'video';
+  initiator_id: string;
+  duration_ms: number;
+  started_at: number;
+  ended_at: number;
+}
+
+export interface CallMissedMetadata {
+  call_id: string;
+  call_type: 'audio' | 'video';
+  initiator_id: string;
+  reason: 'timeout' | 'rejected' | 'missed';
+  started_at: number;
+  ended_at: number;
+}
 
 export interface SystemMessageMetadata {
   added_by?: string;
@@ -66,6 +86,13 @@ export interface SystemMessageMetadata {
   new_owner_name?: string;
   disbanded_by?: string;
   disbanded_by_name?: string;
+  call_id?: string;
+  call_type?: 'audio' | 'video';
+  initiator_id?: string;
+  duration_ms?: number;
+  started_at?: number;
+  ended_at?: number;
+  reason?: 'timeout' | 'rejected' | 'missed';
   // Nickname changed fields
   changed_by?: string;
   changed_by_name?: string;
