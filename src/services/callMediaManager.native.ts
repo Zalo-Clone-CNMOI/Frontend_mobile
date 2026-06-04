@@ -1,5 +1,6 @@
 import { useCallStore } from "../store/useCallStore";
 import { Audio } from "expo-av";
+import { Camera } from "expo-camera";
 import { Platform, PermissionsAndroid } from "react-native";
 import { toast } from "./toastService";
 import { isWebRTCAvailable, loadWebRTC } from "../utils/webrtcLoader";
@@ -42,6 +43,12 @@ class CallMediaManager {
           toast.error("Microphone permission denied");
           return false;
         }
+      } else {
+        const { granted } = await Audio.requestPermissionsAsync();
+        if (!granted) {
+          toast.error("Microphone permission denied");
+          return false;
+        }
       }
 
       return true;
@@ -60,6 +67,12 @@ class CallMediaManager {
         );
 
         if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          toast.error("Camera permission denied");
+          return false;
+        }
+      } else {
+        const { granted } = await Camera.requestCameraPermissionsAsync();
+        if (!granted) {
           toast.error("Camera permission denied");
           return false;
         }

@@ -45,14 +45,18 @@ export function AudioWave({ active = true }: { active?: boolean }) {
           style={[
             styles.bar,
             {
-              height: anim.interpolate({
-                inputRange: [0.3, 1],
-                outputRange: [12, 32],
-              }),
               opacity: anim.interpolate({
                 inputRange: [0.3, 1],
                 outputRange: [0.4, 0.9],
               }),
+              transform: [
+                {
+                  scaleY: anim.interpolate({
+                    inputRange: [0.3, 1],
+                    outputRange: [0.375, 1],
+                  }),
+                },
+              ],
             },
           ]}
         />
@@ -70,6 +74,7 @@ const styles = StyleSheet.create({
   },
   bar: {
     width: 3,
+    height: 32,
     borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.5)',
   },

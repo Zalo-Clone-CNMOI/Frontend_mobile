@@ -32,6 +32,7 @@ class CallPeerManager {
   private active = false;
   private pendingOffer: { callId: string; fromUserId: string; data: any } | null = null;
   private pendingAnswer: { callId: string; data: any } | null = null;
+  private pendingCandidates: Array<{ callId: string; fromUserId: string; data: any }> = [];
   private iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
@@ -75,7 +76,7 @@ class CallPeerManager {
       if (localStream) {
         const tracks = (localStream as any).getTracks?.() ?? [];
         tracks.forEach((track: any) => {
-          try { pc.addTrack(track, localStream as any); } catch {}
+          try { pc.addTrack(track, localStream as any); } catch (e) { console.warn("[CallPeerManager] addTrack failed for local stream", track.kind, e); }
         });
       }
 
@@ -134,7 +135,7 @@ class CallPeerManager {
         const tracks = (localStream as any).getTracks?.() ?? [];
         tracks.forEach((track: any) => {
           if (!existingTrackIds.has(track.id)) {
-            try { pc.addTrack(track, localStream as any); } catch {}
+            try { pc.addTrack(track, localStream as any); } catch (e) { console.warn("[CallPeerManager] addTrack failed", track.kind, e); }
           }
         });
       }
@@ -147,6 +148,9 @@ class CallPeerManager {
       } else {
         console.log("[CallPeerManager] Ready to accept call, awaiting offer");
       }
+
+      // Drain queued ICE candidates for all peers
+      this.drainAllPendingCandidates();
     } catch (error) {
       console.error("[CallPeerManager] Error accepting call", error);
       this.active = false;
@@ -197,10 +201,17 @@ class CallPeerManager {
     type: string,
     data: any
   ): Promise<void> {
-    if (type === "offer" && !this.active) {
-      console.log("[CallPeerManager] Queuing offer — not yet active");
-      this.pendingOffer = { callId, fromUserId, data };
-      return;
+    if (!this.active) {
+      if (type === "offer") {
+        console.log("[CallPeerManager] Queuing offer — not yet active");
+        this.pendingOffer = { callId, fromUserId, data };
+        return;
+      }
+      if (type === "ice-candidate") {
+        console.log("[CallPeerManager] Queuing ICE candidate — not yet active");
+        this.pendingCandidates.push({ callId, fromUserId, data });
+        return;
+      }
     }
 
     let entry = this.peerConnections.get(fromUserId);
@@ -212,9 +223,16 @@ class CallPeerManager {
       return;
     }
 
+    // Queue ICE candidates if no PC ready yet — they will be applied after PC is set up
+    if (type === "ice-candidate" && !entry) {
+      console.log("[CallPeerManager] Queuing ICE candidate — no PC ready yet");
+      this.pendingCandidates.push({ callId, fromUserId, data });
+      return;
+    }
+
     if (!entry) {
-      // Only create PC for offer/ice-candidate when none exists
-      if (type === "offer" || type === "ice-candidate") {
+      // Only create PC for offer when none exists
+      if (type === "offer") {
         console.warn("[CallPeerManager] No peer connection for", fromUserId, "creating one");
         const { currentCall } = useCallStore.getState();
         const pc = await this.createPeerConnectionForUser(
@@ -227,7 +245,7 @@ class CallPeerManager {
         if (localStream) {
           const tracks = (localStream as any).getTracks?.() ?? [];
           tracks.forEach((track: any) => {
-            try { pc.addTrack(track, localStream as any); } catch {}
+            try { pc.addTrack(track, localStream as any); } catch (e) { console.warn("[CallPeerManager] addTrack failed", track.kind, e); }
           });
         }
 
@@ -312,6 +330,9 @@ class CallPeerManager {
       new webrtc.RTCSessionDescription({ type: "answer", sdp: answer.sdp })
     );
 
+    // Drain queued ICE candidates for this user
+    this.drainPendingCandidates(fromUserId);
+
     await callService.sendSignalingData(callId, conversationId, "answer", {
       sdp: answer.sdp,
     });
@@ -351,6 +372,44 @@ class CallPeerManager {
       new webrtc.RTCSessionDescription({ type: "answer", sdp: data.sdp })
     );
     console.log("[CallPeerManager] Remote answer set for", targetUserId);
+
+    // Drain queued ICE candidates for the target user
+    this.drainPendingCandidates(targetUserId);
+  }
+
+  private async drainPendingCandidates(userId: string): Promise<void> {
+    const webrtc = await ensureWebRTC();
+    const remaining: Array<{ callId: string; fromUserId: string; data: any }> = [];
+    for (const candidate of this.pendingCandidates) {
+      if (candidate.fromUserId === userId) {
+        const entry = this.peerConnections.get(userId);
+        if (entry && entry.pc.remoteDescription) {
+          try {
+            await entry.pc.addIceCandidate(
+              new webrtc.RTCIceCandidate({
+                candidate: candidate.data.candidate,
+                sdpMid: candidate.data.sdpMid,
+                sdpMLineIndex: candidate.data.sdpMLineIndex,
+              })
+            );
+          } catch (e) {
+            console.warn("[CallPeerManager] Failed to drain ICE candidate for", userId, e);
+          }
+        } else {
+          remaining.push(candidate);
+        }
+      } else {
+        remaining.push(candidate);
+      }
+    }
+    this.pendingCandidates = remaining;
+  }
+
+  private drainAllPendingCandidates(): void {
+    const userIds = new Set(this.pendingCandidates.map((c) => c.fromUserId));
+    for (const uid of userIds) {
+      this.drainPendingCandidates(uid);
+    }
   }
 
   private async createPeerConnectionForUser(

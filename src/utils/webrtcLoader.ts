@@ -13,7 +13,7 @@ let loadPromise: Promise<WebRTCModule | null> | null = null;
  * (RTCRtpCapabilities calls senderGetCapabilities on null).
  */
 export function isWebRTCAvailable(): boolean {
-  if (Constants.appOwnership === 'expo') {
+  if (Constants.executionEnvironment === 'storeClient') {
     return false;
   }
   return Boolean(NativeModules.WebRTCModule);

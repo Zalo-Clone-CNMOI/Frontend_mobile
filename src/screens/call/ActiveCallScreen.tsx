@@ -42,6 +42,17 @@ const CONTROLS_SHOW_DURATION = 4000;
 
 let RTCViewComponent: React.ComponentType<any> | null | undefined;
 
+function streamURL(stream: any): string {
+  if (!stream) return '';
+  if (typeof stream.toURL === 'function') {
+    return stream.toURL();
+  }
+  if (stream.id) {
+    return stream.id;
+  }
+  return String(stream);
+}
+
 async function resolveRTCViewComponent() {
   if (!isWebRTCAvailable()) {
     RTCViewComponent = null;
@@ -362,7 +373,7 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
         {/* Local PiP for video calls */}
         {isVideoCall && localStream && RTCView && totalParticipants > 1 && (
           <View style={[gcStyles.groupLocalPip, { left: pipPosition.x, top: pipPosition.y }]} {...pipPan.panHandlers}>
-            <RTCView streamURL={(localStream as any).toURL?.() ?? localStream} style={gcStyles.groupLocalPipVideo} objectFit="cover" mirror={true} zOrder={1} />
+            <RTCView streamURL={streamURL(localStream)} style={gcStyles.groupLocalPipVideo} objectFit="cover" mirror={true} zOrder={1} />
             <View style={gcStyles.groupLocalPipBadge}>
               <Text style={gcStyles.groupLocalPipBadgeText}>Bạn</Text>
             </View>
@@ -390,7 +401,7 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
           ) : (
             <>
               {remoteStream && RTCView ? (
-                <RTCView streamURL={(remoteStream as any).toURL()} style={styles.remoteVideo} objectFit="cover" mirror={false} zOrder={0} />
+                <RTCView streamURL={streamURL(remoteStream)} style={styles.remoteVideo} objectFit="cover" mirror={false} zOrder={0} />
               ) : (
                 <View style={styles.remotePlaceholder}>
                   {participantAvatar ? (
@@ -406,7 +417,7 @@ export function ActiveCallScreen({ callType: propCallType }: ActiveCallScreenPro
               )}
               {localStream && RTCView ? (
                 <View style={[styles.pipContainer, { left: pipPosition.x, top: pipPosition.y }]} {...pipPan.panHandlers}>
-                  <RTCView streamURL={(localStream as any).toURL()} style={styles.pipVideo} objectFit="cover" mirror={true} zOrder={1} />
+                  <RTCView streamURL={streamURL(localStream)} style={styles.pipVideo} objectFit="cover" mirror={true} zOrder={1} />
                 </View>
               ) : null}
             </>
@@ -510,7 +521,7 @@ function SingleParticipantView({ participants, RTCView }: {
   return (
     <View style={gcStyles.tileFull}>
       {p.hasVideo && p.stream && RTCView ? (
-        <RTCView streamURL={(p.stream as any).toURL?.() ?? p.stream} style={gcStyles.tileVideo} objectFit="cover" mirror={p.isLocal} zOrder={0} />
+        <RTCView streamURL={streamURL(p.stream)} style={gcStyles.tileVideo} objectFit="cover" mirror={p.isLocal} zOrder={0} />
       ) : (
         <View style={gcStyles.tileAvatarBg}>
           <View style={gcStyles.tileAvatarCircle}>
@@ -536,7 +547,7 @@ function SplitParticipantView({ participants, RTCView }: {
       {participants.slice(0, 2).map((p) => (
         <View key={p.userId} style={gcStyles.splitPanel}>
           {p.hasVideo && p.stream && RTCView ? (
-            <RTCView streamURL={(p.stream as any).toURL?.() ?? p.stream} style={gcStyles.tileVideo} objectFit="cover" mirror={p.isLocal} zOrder={0} />
+            <RTCView streamURL={streamURL(p.stream)} style={gcStyles.tileVideo} objectFit="cover" mirror={p.isLocal} zOrder={0} />
           ) : (
             <View style={gcStyles.tileAvatarBg}>
               <View style={gcStyles.tileAvatarCircle}>
@@ -561,7 +572,7 @@ function Grid2x2View({ participants, RTCView }: {
       {participants.slice(0, 4).map((p) => (
         <View key={p.userId} style={gcStyles.gridTile}>
           {p.hasVideo && p.stream && RTCView ? (
-            <RTCView streamURL={(p.stream as any).toURL?.() ?? p.stream} style={gcStyles.tileVideo} objectFit="cover" mirror={p.isLocal} zOrder={0} />
+            <RTCView streamURL={streamURL(p.stream)} style={gcStyles.tileVideo} objectFit="cover" mirror={p.isLocal} zOrder={0} />
           ) : (
             <View style={gcStyles.tileAvatarBg}>
               <View style={gcStyles.tileAvatarCircleSmall}>
@@ -593,7 +604,7 @@ function SpeakerWithThumbnailsView({ participants, RTCView }: {
         {speaker && (
           <>
             {speaker.hasVideo && speaker.stream && RTCView ? (
-              <RTCView streamURL={(speaker.stream as any).toURL?.() ?? speaker.stream} style={gcStyles.tileVideo} objectFit="cover" mirror={speaker.isLocal} zOrder={0} />
+              <RTCView streamURL={streamURL(speaker.stream)} style={gcStyles.tileVideo} objectFit="cover" mirror={speaker.isLocal} zOrder={0} />
             ) : (
               <View style={gcStyles.tileAvatarBg}>
                 <View style={gcStyles.tileAvatarCircle}>
@@ -611,7 +622,7 @@ function SpeakerWithThumbnailsView({ participants, RTCView }: {
         {visibleThumbs.map((p) => (
           <View key={p.userId} style={gcStyles.thumbnailCard}>
             {p.hasVideo && p.stream && RTCView ? (
-              <RTCView streamURL={(p.stream as any).toURL?.() ?? p.stream} style={gcStyles.thumbVideo} objectFit="cover" mirror={p.isLocal} zOrder={0} />
+              <RTCView streamURL={streamURL(p.stream)} style={gcStyles.thumbVideo} objectFit="cover" mirror={p.isLocal} zOrder={0} />
             ) : (
               <View style={gcStyles.thumbAvatarBg}>
                 <Text style={gcStyles.thumbAvatarText}>{p.initial}</Text>
@@ -664,7 +675,7 @@ function VideoGrid({ participants, localStream, RTCView }: {
         return (
           <View key={cell.userId} style={[gridStyles.cell, { width: cellSize, height: cellSize, left: col * cellSize, top: row * cellSize }]}>
             {cell.stream ? (
-              <RTCView streamURL={(cell.stream as any).toURL?.() ?? cell.stream} style={gridStyles.video} objectFit="cover" mirror={cell.isLocal} zOrder={0} />
+              <RTCView streamURL={streamURL(cell.stream)} style={gridStyles.video} objectFit="cover" mirror={cell.isLocal} zOrder={0} />
             ) : (
               <View style={gridStyles.placeholder}>
                 <Text style={gridStyles.placeholderText}>{cell.userId.charAt(0).toUpperCase()}</Text>
